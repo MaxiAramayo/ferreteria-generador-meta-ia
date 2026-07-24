@@ -65,8 +65,8 @@ IA continuar el proyecto sin depender de conversaciones anteriores.
 
 ## P0-T02 — Resolver y bloquear versiones y decisiones de stack
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T01`
 - Riesgo: Medio
 
@@ -83,19 +83,19 @@ bootstrap antes de instalar dependencias.
 
 ### Criterios de aceptación
 
-- [ ] Las versiones se verifican contra documentación oficial vigente.
-- [ ] Node y pnpm quedan fijados mediante archivos y metadatos del repositorio.
-- [ ] ORM y migraciones tienen una decisión explícita con alternativas descartadas.
-- [ ] Autenticación y autorización tienen proveedor o estrategia local decidida.
-- [ ] Cloudinary, PostgreSQL y Redis tienen responsabilidades no superpuestas.
-- [ ] Cada decisión reversible o costosa queda registrada en ADR.
-- [ ] No se incorpora una dependencia sin justificar su uso inmediato.
+- [x] Las versiones se verifican contra documentación oficial vigente.
+- [x] Node y pnpm quedan fijados mediante archivos y metadatos del repositorio.
+- [x] ORM y migraciones tienen una decisión explícita con alternativas descartadas.
+- [x] Autenticación y autorización tienen proveedor o estrategia local decidida.
+- [x] Cloudinary, PostgreSQL y Redis tienen responsabilidades no superpuestas.
+- [x] Cada decisión reversible o costosa queda registrada en ADR.
+- [x] No se incorpora una dependencia sin justificar su uso inmediato.
 
 ### Verificación obligatoria
 
-- [ ] Instalar desde cero con el lockfile y sin advertencias de peer dependencies.
-- [ ] Ejecutar un script que imprima y valide las versiones esperadas.
-- [ ] Revisar enlaces y fecha de verificación en cada ADR técnico.
+- [x] Instalar desde cero con el lockfile y sin advertencias de peer dependencies.
+- [x] Ejecutar un script que imprima y valide las versiones esperadas.
+- [x] Revisar enlaces y fecha de verificación en cada ADR técnico.
 
 ### Fuera de alcance
 
@@ -104,11 +104,25 @@ bootstrap antes de instalar dependencias.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-24: versiones y peers verificados contra documentación oficial y
+  registro; matriz, catálogo, validador y ADR de persistencia, identidad,
+  almacenamiento y despliegue preparados.
+- 2026-07-24: instalación congelada ejecutada desde una copia temporal sin
+  `node_modules`; revisión de rangos, secretos, enlaces y sintaxis completada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P0-T02`.
+- `pnpm install --frozen-lockfile`: instalación limpia de los cinco workspaces,
+  sin advertencias de peer dependencies.
+- `pnpm verify:stack`: Node `24.18.0`, pnpm `11.17.0`, Next.js `16.2.11`,
+  React `19.2.8`, NestJS `11.1.28`, TypeScript `5.9.3` y Prisma `7.9.0`
+  validados.
+- `pnpm verify:plan`: 66 tareas únicas en ocho fases; plan válido.
+- `node --check tools/verify-stack.mjs` y `git diff --check`: sin errores.
+- Evidencia remota: enlaces oficiales y dist-tags consultados el 2026-07-24.
+- Desviaciones: TypeScript `5.9.3` se mantiene deliberadamente frente a la
+  transición mayor reciente de TypeScript 7; justificación en `STACK.md`.
 
 ## P0-T03 — Proveer infraestructura local reproducible
 

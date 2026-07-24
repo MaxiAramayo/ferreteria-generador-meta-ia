@@ -3,8 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "description": "Plataforma de contenido y publicación de Ferretería y Lubricentro Aramayo.",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "11.17.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.18.0",
+      "onFail": "download"
+    }
+  },
   "scripts": {
-    "verify:plan": "node tools/verify-plan.mjs"
+    "verify:plan": "node tools/verify-plan.mjs",
+    "verify:stack": "node tools/verify-stack.mjs"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   }
 }

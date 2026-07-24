@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-23
+Actualizado: 2026-07-24
 
 ## Fase activa
 
@@ -20,26 +20,23 @@ Actualizado: 2026-07-23
 
 ## Próxima tarea habilitada
 
-`P0-T02` — Resolver y bloquear versiones y decisiones de stack.
+`P0-T03` — Proveer infraestructura local reproducible.
 
-`P0-T01` queda completada por el commit inicial del repositorio. Antes de iniciar
-`P0-T02`, verificar que la evidencia de cierre siga apuntando a un commit válido.
+`P0-T02` fijó el stack y cerró las decisiones de persistencia, identidad,
+almacenamiento y despliegue inicial. `P0-T03` puede comenzar sin credenciales ni
+recursos remotos.
 
 ## Bloqueos externos conocidos
 
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI, Meta y Cloudinary no configuradas.
-- Hosting de staging y producción no seleccionado.
 - Responsables y roles internos no confirmados.
 
 Estos bloqueos no impiden completar la parte local de Fase 0 ni Fase 1.
 
 ## Registro de decisiones pendientes
 
-- ORM y estrategia final de migraciones.
-- Proveedor de autenticación interna.
-- Hosting de web, API, worker, PostgreSQL y Redis.
 - Estrategia de secreto cifrado para tokens de Meta.
 - Método de acceso al sistema comercial.
 - Política inicial de publicaciones que pueden autoaprobarse.

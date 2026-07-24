@@ -50,6 +50,7 @@ tarea correspondiente de Fase 0 los implemente.
 | Índice documental | [`docs/README.md`](docs/README.md) |
 | Arquitectura y límites | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) |
 | Estados, entidades e invariantes | [`docs/architecture/DOMAIN.md`](docs/architecture/DOMAIN.md) |
+| Stack y versiones fijadas | [`docs/architecture/STACK.md`](docs/architecture/STACK.md) |
 | Fuente y migración del diseño | [`docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md`](docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md) |
 | Decisiones aprobadas | [`docs/architecture/decisions/`](docs/architecture/decisions/) |
 | OpenAI y selección de modelos | [`docs/integrations/OPENAI.md`](docs/integrations/OPENAI.md) |
