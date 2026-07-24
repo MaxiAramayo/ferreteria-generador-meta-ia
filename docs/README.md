@@ -29,6 +29,8 @@
 
 ## Operación
 
+- [`../infrastructure/local/README.md`](../infrastructure/local/README.md):
+  PostgreSQL y Redis reproducibles para desarrollo.
 - [`operations/SECURITY.md`](operations/SECURITY.md)
 - [`operations/TESTING.md`](operations/TESTING.md)
 - [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md)

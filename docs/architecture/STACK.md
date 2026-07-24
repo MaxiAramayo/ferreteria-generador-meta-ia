@@ -21,6 +21,11 @@ Los peers mínimos asociados quedan fijados en el catálogo: `pg@8.22.0`,
 como una unidad compatible. Los paquetes `@nestjs/*` se mantienen en la misma
 versión exacta.
 
+Las herramientas locales verificadas en `P0-T03` agregan `redis@6.1.0`,
+`@types/node@24.13.3` y `@types/pg@8.20.0`. Sólo se instalan en la raíz para
+comprobar conectividad y tipos de la infraestructura; no forman contratos de
+aplicación.
+
 ## Forma de fijación
 
 - `.node-version` fija el runtime de desarrollo.

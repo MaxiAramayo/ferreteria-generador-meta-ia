@@ -126,8 +126,8 @@ bootstrap antes de instalar dependencias.
 
 ## P0-T03 — Proveer infraestructura local reproducible
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T02`
 - Riesgo: Medio
 
@@ -144,18 +144,18 @@ persistencia controlada y comprobaciones de salud.
 
 ### Criterios de aceptación
 
-- [ ] Un entorno nuevo inicia la infraestructura con un único comando documentado.
-- [ ] PostgreSQL conserva datos al reiniciar y usa una base exclusiva del proyecto.
-- [ ] Redis expone healthcheck y no es accesible públicamente por defecto.
-- [ ] Los puertos pueden configurarse sin editar archivos versionados.
-- [ ] La limpieza de volúmenes requiere un comando explícito y advertido.
-- [ ] Ninguna contraseña real aparece en Git o logs de CI.
+- [x] Un entorno nuevo inicia la infraestructura con un único comando documentado.
+- [x] PostgreSQL conserva datos al reiniciar y usa una base exclusiva del proyecto.
+- [x] Redis expone healthcheck y no es accesible públicamente por defecto.
+- [x] Los puertos pueden configurarse sin editar archivos versionados.
+- [x] La limpieza de volúmenes requiere un comando explícito y advertido.
+- [x] Ninguna contraseña real aparece en Git o logs de CI.
 
 ### Verificación obligatoria
 
-- [ ] Iniciar, detener y reiniciar los servicios.
-- [ ] Confirmar conectividad desde un proceso local.
-- [ ] Ejecutar el procedimiento de limpieza únicamente sobre recursos del proyecto.
+- [x] Iniciar, detener y reiniciar los servicios.
+- [x] Confirmar conectividad desde un proceso local.
+- [x] Ejecutar el procedimiento de limpieza únicamente sobre recursos del proyecto.
 
 ### Fuera de alcance
 
@@ -164,11 +164,34 @@ persistencia controlada y comprobaciones de salud.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-24: alcance definido para PostgreSQL 17.9 y Redis 8.2.7 en
+  contenedores oficiales fijados por digest. Se preparan comandos tipados,
+  healthchecks, conectividad desde Node y limpieza limitada al proyecto Compose.
+- 2026-07-24: integración verificada con creación, `down/up`, reinicio,
+  persistencia de marcadores y conexiones autenticadas desde Node.
+- 2026-07-24: puertos alternativos `55432` y `56379` verificados desde `.env`;
+  confirmación negativa y limpieza efectiva ejecutadas. No quedaron recursos
+  Docker ni credenciales de prueba.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P0-T03`.
+- `pnpm infra:config` y `pnpm infra:up`: configuración válida; PostgreSQL y
+  Redis saludables y conectables en loopback.
+- Persistencia: marcador PostgreSQL y clave Redis conservaron `persisted`
+  después de `infra:down` y un nuevo `infra:up`.
+- `pnpm infra:restart` y `pnpm infra:health`: ambos servicios saludables;
+  conexiones autenticadas confirmadas.
+- Puertos: PostgreSQL `55432` y Redis `56379` publicados únicamente en
+  `127.0.0.1` y comprobados desde el proceso Node local.
+- `pnpm infra:clean` sin confirmación: rechazado antes de invocar Docker.
+- `pnpm infra:clean --confirm aramayo-content-platform-local`: contenedores,
+  red y ambos volúmenes eliminados; filtros por label sin recursos restantes.
+- `pnpm infra:typecheck`: sin errores.
+- `pnpm infra:test`: siete pruebas aprobadas.
+- `pnpm install --frozen-lockfile`, `pnpm verify:stack` y
+  `pnpm verify:plan`: aprobados.
+- Desviaciones: ninguna.
 
 ## P0-T04 — Validar configuración y secretos en los límites
 

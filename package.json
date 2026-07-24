@@ -2,6 +2,7 @@
   "name": "aramayo-content-platform",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Plataforma de contenido y publicación de Ferretería y Lubricentro Aramayo.",
   "packageManager": "pnpm@11.17.0",
   "engines": {
@@ -16,10 +17,22 @@
     }
   },
   "scripts": {
+    "infra:clean": "node tools/local-infrastructure/cli.ts clean",
+    "infra:config": "node tools/local-infrastructure/cli.ts config",
+    "infra:down": "node tools/local-infrastructure/cli.ts down",
+    "infra:health": "node tools/local-infrastructure/cli.ts health",
+    "infra:restart": "node tools/local-infrastructure/cli.ts restart",
+    "infra:test": "node --test tools/local-infrastructure/*.test.ts",
+    "infra:typecheck": "tsc --project tools/local-infrastructure/tsconfig.json",
+    "infra:up": "node tools/local-infrastructure/cli.ts up",
     "verify:plan": "node tools/verify-plan.mjs",
     "verify:stack": "node tools/verify-stack.mjs"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "pg": "catalog:",
+    "redis": "catalog:",
     "typescript": "catalog:"
   }
 }

@@ -20,11 +20,11 @@ Actualizado: 2026-07-24
 
 ## Próxima tarea habilitada
 
-`P0-T03` — Proveer infraestructura local reproducible.
+`P0-T04` — Validar configuración y secretos en los límites.
 
-`P0-T02` fijó el stack y cerró las decisiones de persistencia, identidad,
-almacenamiento y despliegue inicial. `P0-T03` puede comenzar sin credenciales ni
-recursos remotos.
+`P0-T03` dejó PostgreSQL y Redis locales reproducibles, autenticados, limitados
+a loopback y con limpieza explícita. `P0-T04` puede construir los contratos de
+configuración sobre las variables ya documentadas.
 
 ## Bloqueos externos conocidos
 
