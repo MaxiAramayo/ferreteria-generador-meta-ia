@@ -17,6 +17,8 @@
     }
   },
   "scripts": {
+    "config:test": "node --test packages/configuration/src/*.test.ts",
+    "config:typecheck": "tsc --project packages/configuration/tsconfig.json",
     "infra:clean": "node tools/local-infrastructure/cli.ts clean",
     "infra:config": "node tools/local-infrastructure/cli.ts config",
     "infra:down": "node tools/local-infrastructure/cli.ts down",

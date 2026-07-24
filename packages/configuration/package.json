@@ -1,0 +1,12 @@
+{
+  "name": "@aramayo/configuration",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api.ts",
+    "./web": "./src/web.ts",
+    "./worker": "./src/worker.ts"
+  }
+}

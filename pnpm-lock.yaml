@@ -47,6 +47,8 @@ importers:
 
   packages/brand-knowledge: {}
 
+  packages/configuration: {}
+
   packages/contracts: {}
 
   packages/design-engine: {}

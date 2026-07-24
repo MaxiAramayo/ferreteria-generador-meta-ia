@@ -56,7 +56,9 @@ tarea correspondiente de Fase 0 los implemente.
 | OpenAI y selección de modelos | [`docs/integrations/OPENAI.md`](docs/integrations/OPENAI.md) |
 | RAG y sistema comercial | [`docs/integrations/RAG_AND_COMMERCIAL_DATA.md`](docs/integrations/RAG_AND_COMMERCIAL_DATA.md) |
 | Meta, OAuth y publicación | [`docs/integrations/META.md`](docs/integrations/META.md) |
-| Seguridad y secretos | [`docs/operations/SECURITY.md`](docs/operations/SECURITY.md) |
+| Configuración por proceso | [`docs/operations/CONFIGURATION.md`](docs/operations/CONFIGURATION.md) |
+| Seguridad | [`docs/operations/SECURITY.md`](docs/operations/SECURITY.md) |
+| Secretos y rotación | [`docs/operations/SECRETS.md`](docs/operations/SECRETS.md) |
 | Estrategia de pruebas | [`docs/operations/TESTING.md`](docs/operations/TESTING.md) |
 | Incidentes y recuperación | [`docs/operations/RUNBOOKS.md`](docs/operations/RUNBOOKS.md) |
 | Backlog completo | [`docs/phases/README.md`](docs/phases/README.md) |
@@ -251,6 +253,7 @@ Una afirmación como “funciona” o “código terminado” no es evidencia.
 - `apps/web`: presentación y composición de experiencia.
 - `apps/api`: transporte, autenticación y casos de uso síncronos.
 - `apps/worker`: IA, render, publicación y trabajos programados.
+- `packages/configuration`: contratos de entorno tipados por proceso.
 - `packages/domain`: reglas puras sin Nest, React, SDK ni base de datos.
 - `packages/contracts`: contratos públicos entre procesos.
 - `packages/design-engine`: composición visual determinista.

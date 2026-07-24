@@ -28,9 +28,13 @@ es un límite de seguridad.
 - Nunca en `NEXT_PUBLIC_*`.
 - Nunca completos en UI o logs.
 - Staging y producción usan credenciales separadas.
-- Tokens de Meta cifrados en aplicación o gestor de secretos.
+- Tokens de Meta cifrados por la aplicación antes de persistir.
 - Rotación probada antes de producción.
 - `.env.example` contiene nombres, no valores.
+
+La matriz de variables y el contrato de arranque están en
+[`CONFIGURATION.md`](CONFIGURATION.md). El formato de cifrado, keyring, rotación
+y respuesta ante exposición están en [`SECRETS.md`](SECRETS.md).
 
 ## Validación
 

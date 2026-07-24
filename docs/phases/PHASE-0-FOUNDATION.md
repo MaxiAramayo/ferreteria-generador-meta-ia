@@ -195,8 +195,8 @@ persistencia controlada y comprobaciones de salud.
 
 ## P0-T04 — Validar configuración y secretos en los límites
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T02`
 - Riesgo: Alto
 
@@ -213,18 +213,18 @@ credenciales lleguen al cliente, logs o repositorio.
 
 ### Criterios de aceptación
 
-- [ ] Cada proceso valida sus variables antes de aceptar tráfico o trabajos.
-- [ ] Variables públicas y privadas están separadas por contrato.
-- [ ] Los errores indican el nombre de la variable sin revelar su contenido.
-- [ ] `.env.example` cubre todas las claves y no contiene secretos válidos.
-- [ ] Tokens de Meta y claves de OpenAI nunca se exponen al navegador.
-- [ ] Existe una estrategia documentada para cifrado en reposo y rotación.
+- [x] Cada proceso valida sus variables antes de aceptar tráfico o trabajos.
+- [x] Variables públicas y privadas están separadas por contrato.
+- [x] Los errores indican el nombre de la variable sin revelar su contenido.
+- [x] `.env.example` cubre todas las claves y no contiene secretos válidos.
+- [x] Tokens de Meta y claves de OpenAI nunca se exponen al navegador.
+- [x] Existe una estrategia documentada para cifrado en reposo y rotación.
 
 ### Verificación obligatoria
 
-- [ ] Probar arranque correcto con configuración válida.
-- [ ] Probar fallo intencional por variable ausente, formato inválido y secreto vacío.
-- [ ] Buscar patrones de secretos en archivos rastreados.
+- [x] Probar arranque correcto con configuración válida.
+- [x] Probar fallo intencional por variable ausente, formato inválido y secreto vacío.
+- [x] Buscar patrones de secretos en archivos rastreados.
 
 ### Fuera de alcance
 
@@ -233,11 +233,32 @@ credenciales lleguen al cliente, logs o repositorio.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-24: se creó `packages/configuration` con contratos independientes para
+  web, API y worker, valores secretos redactables y grupos opcionales que
+  rechazan configuraciones parciales.
+- 2026-07-24: se definieron la matriz por proceso y ambiente, el keyring
+  versionado y la política de cifrado AES-256-GCM y rotación de tokens Meta.
+- 2026-07-24: la integración con los bootstrap reales queda explícitamente en
+  `P0-T05`; los parsers ya modelan el límite que debe ejecutarse antes de
+  `listen()` o de iniciar consumidores.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P0-T04`.
+- `pnpm install --frozen-lockfile`: seis workspaces instalados desde el lockfile.
+- `pnpm config:typecheck`: sin errores con TypeScript estricto.
+- `pnpm config:test`: ocho pruebas aprobadas para configuración válida,
+  faltante, formato inválido, secreto vacío, grupos parciales, contrato público,
+  redacción y `.env.example`.
+- `pnpm infra:typecheck` y `pnpm infra:test`: sin regresiones; siete pruebas
+  aprobadas.
+- `pnpm verify:stack` y `pnpm verify:plan`: versiones fijadas y 66 tareas
+  válidas.
+- Búsqueda con `rg` de claves OpenAI, tokens Meta, private keys y URLs
+  Cloudinary en archivos del repositorio: sin coincidencias.
+- Desviaciones: las credenciales externas permanecen ausentes y las
+  integraciones se representan como deshabilitadas; configurarlas parcialmente
+  detiene el proceso.
 
 ## P0-T05 — Inicializar web, API y worker
 

@@ -20,6 +20,7 @@ Monorepo TypeScript con:
 - `apps/web`: panel Next.js;
 - `apps/api`: monolito modular NestJS;
 - `apps/worker`: proceso NestJS standalone con colas;
+- `packages/configuration`: validación y contratos de entorno por proceso;
 - `packages/domain`: reglas puras;
 - `packages/contracts`: contratos compartidos;
 - `packages/design-engine`: render visual;

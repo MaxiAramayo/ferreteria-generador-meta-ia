@@ -20,11 +20,12 @@ Actualizado: 2026-07-24
 
 ## Próxima tarea habilitada
 
-`P0-T04` — Validar configuración y secretos en los límites.
+`P0-T05` — Inicializar web, API y worker.
 
-`P0-T03` dejó PostgreSQL y Redis locales reproducibles, autenticados, limitados
-a loopback y con limpieza explícita. `P0-T04` puede construir los contratos de
-configuración sobre las variables ya documentadas.
+`P0-T04` dejó contratos de configuración separados para web, API y worker,
+errores sin valores sensibles, grupos de proveedores completos o deshabilitados
+y una política versionada de cifrado y rotación. `P0-T05` debe conectar esos
+parsers como primera operación de cada bootstrap.
 
 ## Bloqueos externos conocidos
 
@@ -37,7 +38,6 @@ Estos bloqueos no impiden completar la parte local de Fase 0 ni Fase 1.
 
 ## Registro de decisiones pendientes
 
-- Estrategia de secreto cifrado para tokens de Meta.
 - Método de acceso al sistema comercial.
 - Política inicial de publicaciones que pueden autoaprobarse.
 
