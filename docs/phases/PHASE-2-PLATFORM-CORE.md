@@ -1,0 +1,390 @@
+# Fase 2 — Dominio, persistencia y panel base
+
+## Resultado de la fase
+
+Usuarios autorizados pueden crear un borrador, adjuntar medios, previsualizar una
+pieza determinista, enviarla a revisión y aprobarla. El estado queda persistido,
+auditado y protegido contra escrituras duplicadas.
+
+## Invariantes
+
+- Organización y ubicación limitan todas las consultas y mutaciones.
+- Publicar nunca es un efecto secundario de guardar un borrador.
+- Una aprobación referencia un snapshot inmutable.
+- Toda transición se valida en el dominio y se audita.
+- Acciones externas usan idempotencia.
+
+## P2-T01 — Diseñar esquema y migraciones del núcleo
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P0-T02`, `P0-T03`, `P1-T02`
+- Riesgo: Alto
+
+### Objetivo
+
+Persistir organizaciones, usuarios, marcas, ubicaciones, publicaciones, revisiones
+y medios con integridad referencial y migraciones reversibles.
+
+### Entregables
+
+- Modelo entidad-relación.
+- Migración inicial y datos mínimos de desarrollo.
+- Repositorios tipados con filtros de pertenencia.
+
+### Criterios de aceptación
+
+- [ ] Todas las tablas de negocio tienen identificador, timestamps y ownership.
+- [ ] Estados se restringen a valores de dominio válidos.
+- [ ] Snapshots aprobados no dependen de filas mutables para reconstruirse.
+- [ ] Índices cubren listados por organización, estado y programación.
+- [ ] Borrados y cascadas tienen comportamiento explícito.
+- [ ] No se filtran entidades de otra organización por error.
+
+### Verificación obligatoria
+
+- [ ] Aplicar migraciones desde base vacía.
+- [ ] Revertir y reaplicar la última migración.
+- [ ] Ejecutar tests de aislamiento entre dos organizaciones.
+- [ ] Revisar plan de consultas de listados críticos.
+
+### Fuera de alcance
+
+- Catálogo comercial completo.
+- Vectores RAG.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T02 — Implementar autenticación y autorización
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P0-T07`, `P2-T01`
+- Riesgo: Alto
+
+### Objetivo
+
+Identificar personas y aplicar roles en el servidor para lectura, edición,
+aprobación, configuración y futura publicación.
+
+### Entregables
+
+- Integración de identidad.
+- Guards y políticas de autorización.
+- Flujo de sesión para web y API.
+
+### Criterios de aceptación
+
+- [ ] Ningún endpoint privado confía en un rol enviado por el cliente.
+- [ ] `editor` no puede aprobar ni gestionar conexiones.
+- [ ] `approver` puede aprobar pero no administrar secretos.
+- [ ] `admin` opera solo dentro de su organización.
+- [ ] Sesiones expiradas y usuarios revocados pierden acceso.
+- [ ] Respuestas no revelan si existe un recurso fuera del scope.
+
+### Verificación obligatoria
+
+- [ ] Matriz automatizada de rol × acción × ownership.
+- [ ] Pruebas de sesión ausente, expirada y usuario deshabilitado.
+- [ ] Revisión de todos los controladores mediante guard global o excepción explícita.
+
+### Fuera de alcance
+
+- OAuth de cuentas Meta.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T03 — Gestionar organización, marca y ubicaciones
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P2-T01`, `P2-T02`
+- Riesgo: Medio
+
+### Objetivo
+
+Representar Ferretería Aramayo, sus parámetros de marca y sucursales como
+contexto obligatorio para generar contenido.
+
+### Entregables
+
+- Casos de uso y pantallas de configuración.
+- Horarios, contactos, dirección, WhatsApp y defaults de marca.
+- Validación y auditoría de cambios.
+
+### Criterios de aceptación
+
+- [ ] Una publicación pertenece a una organización y puede apuntar a una ubicación.
+- [ ] Teléfonos, horarios y direcciones se validan y normalizan.
+- [ ] Cambios de marca no alteran snapshots ya aprobados.
+- [ ] Solo administradores pueden editar configuración sensible.
+- [ ] Cada modificación registra autor, antes y después.
+- [ ] La UI maneja carga, vacío, error, éxito y permisos insuficientes.
+
+### Verificación obligatoria
+
+- [ ] Tests de casos de uso y validadores.
+- [ ] Flujo E2E de edición autorizada y rechazada.
+- [ ] Comprobar inmutabilidad de una publicación aprobada anterior.
+
+### Fuera de alcance
+
+- Ingestar documentos RAG.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T04 — Implementar máquina de estados de publicación
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P2-T01`
+- Riesgo: Alto
+
+### Objetivo
+
+Centralizar transiciones, invariantes y motivos de fallo desde borrador hasta
+cancelación, dejando estados de publicación externa para fases posteriores.
+
+### Entregables
+
+- Servicio de dominio de transiciones.
+- Historial de estado.
+- Matriz de transiciones permitidas.
+
+### Criterios de aceptación
+
+- [ ] Transiciones inválidas fallan sin mutar datos.
+- [ ] La versión esperada evita sobrescrituras concurrentes.
+- [ ] `approved` requiere snapshot, revisor y timestamp.
+- [ ] Editar contenido aprobado crea revisión o devuelve a borrador según política.
+- [ ] Fallos conservan código, mensaje seguro y posibilidad de reintento.
+- [ ] Cancelación no borra historial ni evidencia.
+
+### Verificación obligatoria
+
+- [ ] Tests de cada transición permitida y prohibida.
+- [ ] Prueba de dos actualizaciones concurrentes.
+- [ ] Revisión de que controladores no escriben estados directamente.
+
+### Fuera de alcance
+
+- Llamar a OpenAI o Meta.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T05 — Construir borradores, medios y revisiones
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P1-T07`, `P2-T03`, `P2-T04`
+- Riesgo: Alto
+
+### Objetivo
+
+Permitir crear y editar un borrador con formato, texto, CTA, productos y medios,
+manteniendo versiones revisables.
+
+### Entregables
+
+- Casos de uso CRUD limitados al dominio.
+- Revisión versionada y snapshot.
+- Endpoints tipados y validación.
+
+### Criterios de aceptación
+
+- [ ] Crear o actualizar no puede disparar una publicación externa.
+- [ ] Inputs se validan antes del caso de uso.
+- [ ] Medios pertenecen a la misma organización.
+- [ ] Una actualización requiere versión esperada.
+- [ ] El historial permite identificar qué versión fue aprobada.
+- [ ] Errores parciales no dejan referencias huérfanas.
+- [ ] Listados están paginados y filtrados en servidor.
+
+### Verificación obligatoria
+
+- [ ] Tests de repositorio, servicio y endpoint.
+- [ ] Pruebas de ownership, concurrencia y rollback.
+- [ ] Flujo E2E crear–editar–versionar–consultar.
+
+### Fuera de alcance
+
+- Brief libre con IA.
+- Programación.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T06 — Implementar auditoría, idempotencia y outbox
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P2-T04`, `P2-T05`
+- Riesgo: Alto
+
+### Objetivo
+
+Hacer trazables las mutaciones y preparar efectos asíncronos sin transacciones
+distribuidas ni duplicación accidental.
+
+### Entregables
+
+- Registro de auditoría append-only.
+- Tabla y servicio de idempotencia.
+- Outbox transaccional y publicador.
+
+### Criterios de aceptación
+
+- [ ] Mutación y evento outbox se confirman en la misma transacción.
+- [ ] Repetir una clave devuelve el resultado anterior o conflicto coherente.
+- [ ] Claves se limitan por organización, operación y actor.
+- [ ] Payloads de auditoría omiten secretos y datos innecesarios.
+- [ ] El publicador tolera reinicio y entrega repetida.
+- [ ] Existe retención y limpieza segura documentada.
+
+### Verificación obligatoria
+
+- [ ] Repetir requests concurrentes con la misma clave.
+- [ ] Detener el proceso entre commit y entrega y confirmar recuperación.
+- [ ] Inspeccionar auditoría de un flujo completo.
+
+### Fuera de alcance
+
+- Garantizar exactly-once en proveedores externos.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T07 — Construir shell del panel y compositores explícitos
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P2-T02`, `P2-T05`
+- Riesgo: Medio
+
+### Objetivo
+
+Crear navegación, listados y un compositor escalable con variantes explícitas
+para plantilla, IA, historia recurrente y promoción de productos.
+
+### Entregables
+
+- Shell autenticado y listado de publicaciones.
+- `TemplatePublicationComposer`, `AICreativeComposer`,
+  `RecurringStoryComposer` y `ProductPromotionComposer`.
+- Provider compartido con `state`, `actions` y `meta`.
+
+### Criterios de aceptación
+
+- [ ] No existe un componente monolítico controlado por muchos booleanos.
+- [ ] Cada variante muestra solo las acciones válidas para su flujo.
+- [ ] Estado compartido y metadatos de formulario están separados.
+- [ ] Estados loading, empty, error, success y forbidden son explícitos.
+- [ ] Formularios son navegables por teclado y anuncian errores.
+- [ ] Datos iniciales se cargan en servidor cuando evita waterfalls.
+- [ ] Los consumidores dependen de contratos públicos, no del contexto interno.
+
+### Verificación obligatoria
+
+- [ ] Tests de composición y acciones inválidas fuera del provider.
+- [ ] E2E de listado y compositor por plantilla.
+- [ ] Auditoría de accesibilidad y revisión de renders innecesarios.
+
+### Fuera de alcance
+
+- Implementar lógica de IA, recurrente o producto; solo sus límites de UI.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## P2-T08 — Completar vertical determinista de borrador y aprobación
+
+- [ ] Tarea completada
+- Estado: PENDIENTE
+- Dependencias: `P1-T06`, `P2-T06`, `P2-T07`
+- Riesgo: Alto
+
+### Objetivo
+
+Demostrar el flujo completo local: crear una pieza desde plantilla, renderizarla,
+revisarla, aprobarla y conservar su snapshot.
+
+### Entregables
+
+- Orquestación API–worker–almacenamiento.
+- UI de preview y aprobación.
+- Prueba E2E y evidencia visual.
+
+### Criterios de aceptación
+
+- [ ] El usuario selecciona layout, formato y medios permitidos.
+- [ ] El worker produce PNG y el panel refleja éxito o fallo real.
+- [ ] Aprobar fija contenido, activo, formato y versión de diseño.
+- [ ] Reintentar render no duplica revisiones ni medios.
+- [ ] Un editor no puede aprobar; un approver sí.
+- [ ] Cada paso aparece en auditoría y estado.
+
+### Verificación obligatoria
+
+- [ ] E2E desde sesión nueva hasta snapshot aprobado.
+- [ ] Repetir el flujo con imagen corrupta y confirmar fallo explícito.
+- [ ] Restaurar el snapshot y comparar con el PNG aprobado.
+
+### Fuera de alcance
+
+- Publicación externa.
+- Contenido generado por IA.
+
+### Notas de progreso
+
+- Sin notas.
+
+### Evidencia de cierre
+
+- Pendiente.
+
+## Criterios de salida de Fase 2
+
+- [ ] `P2-T01` a `P2-T08` están completas.
+- [ ] Aislamiento, autorización e idempotencia tienen pruebas.
+- [ ] Existe un flujo determinista aprobado de punta a punta.
+- [ ] Ninguna acción del panel publica o llama a IA de forma implícita.
+- [ ] El snapshot aprobado puede reconstruirse y auditarse.
