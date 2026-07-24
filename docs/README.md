@@ -15,6 +15,8 @@
 
 - [`architecture/ARCHITECTURE.md`](architecture/ARCHITECTURE.md)
 - [`architecture/DOMAIN.md`](architecture/DOMAIN.md)
+- [`architecture/DESIGN-SYSTEM-SOURCE-MAP.md`](architecture/DESIGN-SYSTEM-SOURCE-MAP.md):
+  origen exacto y forma de migración del sistema visual.
 - [`architecture/decisions/`](architecture/decisions/)
 
 ## Integraciones

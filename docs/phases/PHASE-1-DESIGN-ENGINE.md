@@ -8,6 +8,13 @@ por un worker, sin depender del repositorio anterior en tiempo de ejecución.
 
 ## Invariantes
 
+- La migración sigue
+  [`DESIGN-SYSTEM-SOURCE-MAP.md`](../architecture/DESIGN-SYSTEM-SOURCE-MAP.md).
+- Colores, tipografías, temas, formatos y safe zones se expresan como variables
+  o registros tipados.
+- Los layouts se implementan como componentes React; PNG y HTML son únicamente
+  referencias o fixtures.
+- El repositorio fuente no es dependencia de build ni runtime.
 - Una idea principal por pieza y texto legible en móvil.
 - CTA principal orientado a consulta o WhatsApp.
 - Formatos y zonas seguras centralizados.
@@ -28,6 +35,8 @@ generador existente.
 
 ### Entregables
 
+- Snapshot con repositorio, commit y estado limpio del árbol fuente.
+- Mapa verificado de fuentes canónicas, referencias y salidas generadas.
 - Inventario de layouts, formatos, temas, iconos, logos y fuentes.
 - Fixtures representativos de feed, story y destacadas.
 - Capturas PNG de referencia con metadatos de origen.
@@ -35,6 +44,9 @@ generador existente.
 ### Criterios de aceptación
 
 - [ ] Cada layout productivo tiene al menos un fixture.
+- [ ] Se registra `source_repository`, `source_commit` y árbol fuente limpio.
+- [ ] Se verifica cada entrada del mapa de origen contra el snapshot fijado.
+- [ ] La carpeta histórica, `output/**` y `dist/**` quedan clasificadas como no canónicas.
 - [ ] Se incluyen textos largos, ausencia de foto y fotos con proporciones extremas.
 - [ ] Los activos tienen propietario o permiso de uso documentado.
 - [ ] Las referencias registran tamaño, fecha, contenido y comando de exportación.
@@ -73,6 +85,7 @@ puedan consumir tanto la web como el worker.
 ### Entregables
 
 - Tipos de `DesignDocument`, layout, tema, formato, activos y resultado.
+- Límite público para tokens, temas, formatos, primitivas y registro.
 - Validadores de borde.
 - Errores discriminados y API pública documentada.
 
@@ -83,6 +96,8 @@ puedan consumir tanto la web como el worker.
 - [ ] Los errores distinguen contenido, activo, layout, render y exportación.
 - [ ] El documento incluye versión de esquema para futuras migraciones.
 - [ ] Los formatos no se duplican fuera del módulo canónico.
+- [ ] La API permite consumir tokens y layouts sin importar el repositorio fuente.
+- [ ] Ningún contrato público expone rutas locales, Markdown o Playwright.
 - [ ] No se usa `any` ni aserciones evitables.
 
 ### Verificación obligatoria
@@ -118,13 +133,16 @@ resolver temas, fotos, iconos o logos.
 
 ### Entregables
 
-- Tokens y `themeFor`.
+- `COLORS`, `TYPOGRAPHY`, `SPACING`, `RADII` y `TYPE_SCALE` tipados.
+- `THEMES`, bindings CSS derivados y `themeFor`.
 - Primitivas equivalentes a `Photo`, `Icon` y `Logo`.
 - Fuentes y activos aprobados con licencias registradas.
 
 ### Criterios de aceptación
 
 - [ ] Colores, tipografías, radios y espacios provienen de tokens centralizados.
+- [ ] Los tokens son objetos inmutables y no valores mágicos repetidos.
+- [ ] Si existen tokens TypeScript y CSS, se generan desde una fuente o una prueba verifica paridad.
 - [ ] Iconos se seleccionan por nombre semántico y usan Lucide.
 - [ ] Fotos declaran encuadre y fallback de forma explícita.
 - [ ] Logos conservan área segura y relación de aspecto.
@@ -163,13 +181,16 @@ formatos y un registro tipado.
 
 ### Entregables
 
-- Registro de layouts.
-- Definición canónica de formatos y safe zones.
+- `FORMATS` y safe zones como datos tipados.
+- Layouts como componentes React y registro exhaustivo.
 - Render de fixtures de la línea base.
 
 ### Criterios de aceptación
 
 - [ ] Cada layout inventariado está registrado y tipado.
+- [ ] Ningún layout se implementa mediante un PNG de fondo con texto horneado.
+- [ ] Ningún layout importa HTML exportado o código desde fuera del monorepo.
+- [ ] Valores compartidos se resuelven mediante tokens, formatos o primitivas.
 - [ ] Feed, story y portada destacada respetan dimensiones y zonas seguras.
 - [ ] Las portadas quedan centradas dentro del círculo seguro.
 - [ ] Texto excesivo falla con diagnóstico o aplica una regla explícita aprobada.
@@ -336,3 +357,5 @@ aptas para render y futura publicación en Meta.
 - [ ] El worker falla de forma explícita ante activos no decodificables.
 - [ ] Medios remotos conservan trazabilidad y pueden renderizarse.
 - [ ] El generador anterior ya no es una dependencia de ejecución.
+- [ ] Tokens, temas, formatos y layouts son código nativo versionable del paquete.
+- [ ] PNG/HTML del repositorio fuente se usan solo como evidencia o fixtures.

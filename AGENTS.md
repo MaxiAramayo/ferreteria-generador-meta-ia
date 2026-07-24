@@ -50,6 +50,7 @@ tarea correspondiente de Fase 0 los implemente.
 | Índice documental | [`docs/README.md`](docs/README.md) |
 | Arquitectura y límites | [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) |
 | Estados, entidades e invariantes | [`docs/architecture/DOMAIN.md`](docs/architecture/DOMAIN.md) |
+| Fuente y migración del diseño | [`docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md`](docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md) |
 | Decisiones aprobadas | [`docs/architecture/decisions/`](docs/architecture/decisions/) |
 | OpenAI y selección de modelos | [`docs/integrations/OPENAI.md`](docs/integrations/OPENAI.md) |
 | RAG y sistema comercial | [`docs/integrations/RAG_AND_COMMERCIAL_DATA.md`](docs/integrations/RAG_AND_COMMERCIAL_DATA.md) |
@@ -96,6 +97,7 @@ auditoría, migraciones y concurrencia.
 Leer:
 
 - arquitectura;
+- `docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md` cuando afecte piezas o tokens;
 - contratos de la funcionalidad;
 - estados de dominio relevantes;
 - criterios visuales de Fase 1 o Fase 4;
@@ -310,6 +312,12 @@ forbidden y partial success cuando aplique.
 
 ### Reglas visuales de Aramayo
 
+- El sistema vigente se localiza mediante
+  `docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md`.
+- La migración es code-native: variables tipadas, tokens, formatos, primitivas y
+  componentes React.
+- PNG, HTML exportado y la carpeta histórica son referencias o fixtures; no son
+  la implementación del motor.
 - Una idea por pieza.
 - Jerarquía fuerte y lectura inmediata.
 - Sin decoración gratuita ni fondos recargados.

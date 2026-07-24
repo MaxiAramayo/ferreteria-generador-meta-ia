@@ -20,3 +20,6 @@ tipografía, precio, CTA y zonas seguras.
 - Una imagen de IA nunca es la pieza publicable completa.
 - Toda salida pasa por validación de dimensiones, decodificación y overflow.
 - El motor visual es una dependencia crítica de publicación.
+- El motor se migra como tokens, variables, contratos, primitivas y componentes,
+  según
+  [`ADR-005`](ADR-005-CODE-NATIVE-DESIGN-MIGRATION.md).
