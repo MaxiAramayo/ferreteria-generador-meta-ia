@@ -1,5 +1,10 @@
 # Índice de documentación
 
+## Inicio para agentes
+
+- [`../AGENTS.md`](../AGENTS.md): manual operativo, routing y acceso rápido.
+- [`../AGENT.md`](../AGENT.md): acceso singular compatible hacia el manual.
+
 ## Control del proyecto
 
 - [`STATUS.md`](STATUS.md): estado resumido y fase activa.
