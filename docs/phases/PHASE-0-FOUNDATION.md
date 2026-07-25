@@ -425,6 +425,9 @@ integración, no comprobaciones opcionales.
   `push` a `main`, en cada pull request y a demanda, con
   `pnpm install --frozen-lockfile`, Node tomado de `.node-version` y caché
   limitada al store de pnpm invalidado por el lockfile.
+- Ejecución real del workflow: corrida `30159029873` sobre `main`, job
+  «Calidad y build» aprobado en 5 m 55 s con los trece pasos en verde, incluido
+  el smoke de los tres procesos.
 - Documentación: `docs/operations/TESTING.md` incorpora la tabla de pruebas
   obligatorias por tipo de cambio y la descripción del pipeline.
 - Desviaciones:
@@ -434,8 +437,6 @@ integración, no comprobaciones opcionales.
     de antigüedad mínima de pnpm bloquea versiones recién liberadas.
   - Esta tarea incluye un formateo mecánico de todo el código existente; no
     modifica comportamiento y quedó cubierto por el pipeline completo.
-  - La ejecución real del workflow en GitHub Actions se observará en el primer
-    push; localmente se validó la secuencia equivalente paso a paso.
 
 ## P0-T07 — Definir identidad, ambientes y topología de despliegue
 
