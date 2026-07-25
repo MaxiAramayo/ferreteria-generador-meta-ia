@@ -24,7 +24,7 @@ por un worker, sin depender del repositorio anterior en tiempo de ejecución.
 ## P1-T01 — Congelar inventario y fixtures de referencia
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P0-T06`
 - Riesgo: Medio
 
@@ -43,20 +43,20 @@ generador existente.
 
 ### Criterios de aceptación
 
-- [ ] Cada layout productivo tiene al menos un fixture.
+- [x] Cada layout productivo tiene al menos un fixture.
 - [ ] Se registra `source_repository`, `source_commit` y árbol fuente limpio.
-- [ ] Se verifica cada entrada del mapa de origen contra el snapshot fijado.
-- [ ] La carpeta histórica, `output/**` y `dist/**` quedan clasificadas como no canónicas.
-- [ ] Se incluyen textos largos, ausencia de foto y fotos con proporciones extremas.
+- [x] Se verifica cada entrada del mapa de origen contra el snapshot fijado.
+- [x] La carpeta histórica, `output/**` y `dist/**` quedan clasificadas como no canónicas.
+- [x] Se incluyen textos largos, ausencia de foto y fotos con proporciones extremas.
 - [ ] Los activos tienen propietario o permiso de uso documentado.
-- [ ] Las referencias registran tamaño, fecha, contenido y comando de exportación.
-- [ ] El repositorio anterior no es modificado por esta tarea.
+- [x] Las referencias registran tamaño, fecha, contenido y comando de exportación.
+- [x] El repositorio anterior no es modificado por esta tarea.
 
 ### Verificación obligatoria
 
-- [ ] Regenerar las referencias con el comando documentado.
-- [ ] Comprobar dimensiones y hashes de los fixtures.
-- [ ] Revisar manualmente la cobertura del inventario.
+- [x] Regenerar las referencias con el comando documentado.
+- [x] Comprobar dimensiones y hashes de los fixtures.
+- [x] Revisar manualmente la cobertura del inventario.
 
 ### Fuera de alcance
 
@@ -64,11 +64,56 @@ generador existente.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-07-25.
+- Estado real: línea base congelada y verificable; faltan dos criterios que
+  dependen de decisiones del negocio.
+- Archivos modificados: `tools/design-baseline/**`,
+  `packages/design-engine/baseline/**`, `packages/design-engine/README.md`,
+  `docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md`, `package.json` y
+  `.github/workflows/ci.yml`.
+- Decisiones tomadas:
+  - el congelamiento corre sobre una copia descartable del generador, de modo
+    que el repositorio anterior no se modifica ni se ejecuta desde este
+    monorepo;
+  - la cobertura de fixtures se calcula automáticamente —una pieza por layout
+    en uso— en lugar de elegirse a mano, para que un layout nuevo no quede sin
+    fixture;
+  - los activos se clasifican por propiedad con estados explícitos y los que
+    requieren confirmación quedan listados, en vez de asumirse aprobados.
+- Verificaciones ejecutadas: `pnpm baseline:freeze` reproducido tres veces,
+  `pnpm baseline:verify` (33 fixtures y 33 referencias con hash y dimensiones
+  correctas), `pnpm verify` completo y revisión manual de `INVENTORY.md` y de
+  los PNG de casos borde.
+- Verificaciones pendientes: ninguna técnica.
+- Bloqueo: dos criterios necesitan una decisión del usuario.
+  1. **Árbol fuente limpio.** El generador tiene 244 rutas sin commitear, entre
+     ellas `src/**`, `posts/**` y `scripts/export.mts`, por lo que `HEAD`
+     (`234518f`) no representa el diseño vigente. La línea base se fijó por
+     hash de contenido de cada archivo canónico y registra las rutas sucias,
+     pero el criterio literal exige árbol limpio. Requiere que el usuario
+     commitee o descarte ese trabajo, o que acepte la excepción registrada.
+  2. **Propiedad de los activos.** 17 fotografías —genéricas y de catálogo de
+     proveedores— no tienen origen documentado. `INVENTORY.md` las lista.
+     Requiere confirmación de permiso de uso o reemplazo por fotografía propia.
+- Próximo paso exacto: obtener esas dos decisiones, volver a congelar si el
+  árbol fuente cambia y recién entonces cerrar la tarea y habilitar `P1-T02`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: la tarea no se cierra hasta resolver los dos criterios anteriores.
+- Evidencia parcial disponible:
+  - `packages/design-engine/baseline/manifest.json`: snapshot del generador
+    (`ferreteria-aramayo-image-generator`, remoto `ferreteria-post-creator`,
+    commit `234518f41e6358831c70384c3a01aa8a6bf8de25`), 20 archivos canónicos
+    con hash, inventario de 33 layouts, 5 formatos, 4 temas, 4 familias
+    tipográficas, 26 nombres de icono y 38 activos.
+  - `packages/design-engine/baseline/fixtures/`: 33 piezas —30 layouts en uso
+    más texto largo, ausencia de foto y foto panorámica—.
+  - `packages/design-engine/baseline/references/`: 33 PNG exportados con
+    `EXPORT_SCALE=1 npm run export`, con bytes, dimensiones, hash y fecha.
+  - Generador intacto: 244 rutas sucias y `HEAD` idénticos antes y después de
+    congelar.
+  - `pnpm baseline:verify` incorporado a `pnpm verify` y al workflow de CI.
 
 ## P1-T02 — Definir API pública del motor de diseño
 

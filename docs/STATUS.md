@@ -4,7 +4,10 @@ Actualizado: 2026-07-25
 
 ## Fase activa
 
-**Fase 0 — Fundación y decisiones verificables**
+**Fase 1 — Migración del motor visual**
+
+`P0-T07` queda diferida por decisión del usuario: depende de elegir dominio y
+cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Resumen
 
@@ -20,16 +23,25 @@ Actualizado: 2026-07-25
 
 ## Próxima tarea habilitada
 
-`P0-T07` — Definir identidad, ambientes y topología de despliegue.
+`P1-T01` — Congelar inventario y fixtures de referencia. **En progreso.**
 
-`P0-T06` dejó `pnpm verify` como pipeline único —formato, build, lint, tipos,
-pruebas y smoke— y el mismo orden en integración continua con instalación
-congelada. `P0-T07` es la última tarea de la fase: requiere decisiones con costo
-operativo (dominios, callbacks, separación staging/producción y propietarios de
-cada secreto), por lo que necesita aprobación explícita antes de cerrarse.
+La línea base ya está congelada y verificada en
+`packages/design-engine/baseline/`: 33 layouts inventariados, 33 fixtures y 33
+PNG de referencia, con el generador intacto. Faltan dos criterios que dependen
+de una decisión del usuario:
+
+1. el árbol del generador tiene 244 rutas sin commitear, así que el snapshot se
+   fijó por hash de contenido en lugar de por commit;
+2. 17 fotografías no tienen origen ni permiso de uso documentado.
+
+`P1-T02` queda habilitada recién cuando `P1-T01` cierre.
 
 ## Bloqueos externos conocidos
 
+- Dominio propio o comprado todavía no definido; difiere `P0-T07`.
+- Trabajo sin commitear en el generador visual: impide fijar el snapshot por
+  commit en `P1-T01`.
+- Origen y permiso de uso de 17 fotografías del generador sin confirmar.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI, Meta y Cloudinary no configuradas.

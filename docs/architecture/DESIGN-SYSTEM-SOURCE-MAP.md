@@ -23,6 +23,20 @@ migrar, `P1-T01` debe registrar un commit o snapshot fuente reproducible. No
 asumir que `HEAD` representa el diseño completo sin confirmar que el árbol de
 trabajo fuente esté limpio.
 
+## Línea base congelada
+
+`P1-T01` dejó la evidencia en
+[`packages/design-engine/baseline/`](../../packages/design-engine/baseline/):
+snapshot del generador, inventario, fixtures y PNG de referencia.
+
+```bash
+pnpm baseline:freeze   # vuelve a congelar desde el checkout del generador
+pnpm baseline:verify   # comprueba hashes y dimensiones sin el generador
+```
+
+El congelamiento trabaja sobre una copia descartable del generador: el
+repositorio fuente no se modifica ni se ejecuta desde este monorepo.
+
 ## Mapa canónico
 
 Todas las rutas de esta sección son relativas al repositorio fuente.

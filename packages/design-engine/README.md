@@ -25,3 +25,49 @@ El destino debe contener:
 No copiar archivos manualmente sin ejecutar `P1-T01`. No usar PNG, HTML
 exportado ni el repositorio anterior como implementación o dependencia de
 runtime.
+
+## Línea base congelada (`P1-T01`)
+
+`baseline/` es la evidencia contra la que se comparará la migración:
+
+| Ruta | Contenido |
+|---|---|
+| `baseline/manifest.json` | Snapshot del generador, inventario y hashes de todo lo congelado |
+| `baseline/INVENTORY.md` | Lectura humana del inventario y de la cobertura |
+| `baseline/fixtures/` | Una pieza por layout en uso, más los casos borde |
+| `baseline/references/` | PNG exportados desde el generador, a escala 1 |
+
+La línea base son datos, no código: nada de `baseline/` puede importarse desde
+el motor migrado.
+
+### Regenerar y verificar
+
+```bash
+pnpm baseline:freeze   # requiere el checkout del generador
+pnpm baseline:verify   # sólo necesita este repositorio
+```
+
+`freeze` copia el generador a un directorio descartable, deja únicamente los
+fixtures congelados y ejecuta allí `EXPORT_SCALE=1 npm run export`. El
+repositorio fuente nunca se modifica. `verify` recalcula hashes y comprueba que
+cada PNG tenga las dimensiones que declara su formato; corre en el pipeline sin
+necesidad del generador.
+
+### Comportamientos observados en los casos borde
+
+La línea base documenta cómo se comporta hoy el generador, no cómo debería
+comportarse:
+
+- `borde-texto-largo`: el título desborda el canvas y empuja subtítulo y CTA
+  fuera de la pieza, sin diagnóstico. `P1-T04` debe reemplazar esto por una
+  regla explícita o por un error.
+- `borde-sin-foto`: la pieza resuelve con un marcador visible; no queda un hueco
+  ambiguo.
+- `borde-foto-panoramica`: una foto con proporción extrema se resuelve con
+  `contain` dentro del marco.
+
+### Pendiente de confirmación del negocio
+
+`INVENTORY.md` lista los activos cuyo origen no está documentado —fotografías
+genéricas y de catálogo de proveedores—. `P1-T03` no debe migrarlos hasta
+confirmar permiso de uso o reemplazarlos por fotografía propia.
