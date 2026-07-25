@@ -23,6 +23,7 @@ Monorepo TypeScript con:
 - `packages/configuration`: validación y contratos de entorno por proceso;
 - `packages/domain`: reglas puras;
 - `packages/contracts`: contratos compartidos;
+- `packages/process-health`: sondas de infraestructura y readiness compartidas;
 - `packages/design-engine`: render visual;
 - PostgreSQL: fuente de verdad;
 - Redis/BullMQ: transporte de trabajos;
@@ -46,6 +47,28 @@ Monorepo TypeScript con:
 Los módulos exponen servicios mínimos. No se permiten dependencias circulares.
 Los proveedores externos implementan puertos del dominio mediante tokens de
 inyección.
+
+## Arranque y salud de los procesos
+
+Cada proceso convierte su entorno en un contrato tipado antes de aceptar trabajo:
+
+1. `apps/api` y `apps/worker` ejecutan el parser de `@aramayo/configuration`
+   como primera operación de `main.ts`. Un `ConfigurationError` termina el
+   proceso con código 1 antes de `listen()` o de registrar consumidores.
+2. `apps/web` valida el contrato público en el hook `register` de
+   `instrumentation.ts`; si es inválido, el servidor no sirve contenido.
+
+La API expone dos endpoints con responsabilidades distintas:
+
+- `GET /health` es liveness: responde 200 mientras el proceso esté vivo y no
+  consulta dependencias.
+- `GET /ready` es readiness: consulta PostgreSQL y Redis y responde 503 cuando
+  alguna no está disponible.
+
+El worker no expone HTTP: reporta el mismo estado en su log al arrancar y en
+cada latido, sin ejecutar trabajo simulado. Ambos comparten las sondas de
+`packages/process-health` ([ADR-010](decisions/ADR-010-PROCESS-HEALTH-BOUNDARY.md))
+y cierran de forma ordenada mediante los hooks de apagado de NestJS.
 
 ## Flujos largos
 

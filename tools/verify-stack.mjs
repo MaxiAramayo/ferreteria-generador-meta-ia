@@ -14,6 +14,8 @@ const expectedVersions = Object.freeze({
   "@nestjs/platform-express": "11.1.28",
   "@types/node": "24.13.3",
   "@types/pg": "8.20.0",
+  "@types/react": "19.2.17",
+  "@types/react-dom": "19.2.3",
   typescript: "5.9.3",
   prisma: "7.9.0",
   "@prisma/client": "7.9.0",

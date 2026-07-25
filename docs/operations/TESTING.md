@@ -66,6 +66,27 @@ Las pruebas unitarias nunca llaman APIs reales.
 - zonas seguras;
 - feed e historia.
 
+### Smoke de procesos
+
+`pnpm build && pnpm smoke` ejecuta cada aplicación como proceso real, con un
+entorno construido —nunca heredado de la terminal— y valores falsos que además
+sirven de sonda de fugas:
+
+- arranque rechazado por variable ausente o formato inválido, con el nombre de
+  la variable y sin su valor;
+- `GET /health` disponible sin consultar dependencias;
+- `GET /ready` en 503 con PostgreSQL y Redis inalcanzables y sin credenciales en
+  la respuesta;
+- worker que reporta estado y no procesa trabajo simulado;
+- cierre ordenado ante `SIGTERM` en API y worker;
+- panel que compila, renderiza su estado inicial y no expone configuración
+  privada en el bundle del cliente;
+- variable `NEXT_PUBLIC_` no declarada que impide servir el panel.
+
+El smoke no reemplaza la verificación con infraestructura real: readiness en 200
+se comprueba con `pnpm infra:up` antes de cerrar una tarea que toque el
+arranque.
+
 ## Pruebas reales controladas
 
 OpenAI y Meta requieren suites separadas, manuales o programadas con presupuesto:

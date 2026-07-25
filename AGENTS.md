@@ -32,14 +32,20 @@ Antes de modificar archivos:
 7. Declarar objetivo, invariantes, archivos previstos y verificación.
 8. Implementar solamente el alcance de la tarea habilitada.
 
-Comando disponible desde el primer commit:
+Comandos disponibles desde la raíz:
 
 ```bash
 pnpm verify:plan
+pnpm verify:stack
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm smoke
+pnpm dev
 ```
 
-No asumir que `dev`, `build`, `lint`, `typecheck` o `test` existen hasta que la
-tarea correspondiente de Fase 0 los implemente.
+`lint` y el pipeline de integración continua todavía no existen: pertenecen a
+`P0-T06`. No asumir comandos no listados aquí.
 
 ## 3. Acceso rápido a documentación
 
@@ -256,6 +262,7 @@ Una afirmación como “funciona” o “código terminado” no es evidencia.
 - `packages/configuration`: contratos de entorno tipados por proceso.
 - `packages/domain`: reglas puras sin Nest, React, SDK ni base de datos.
 - `packages/contracts`: contratos públicos entre procesos.
+- `packages/process-health`: sondas de infraestructura y readiness compartidas.
 - `packages/design-engine`: composición visual determinista.
 - `packages/brand-knowledge`: conocimiento aprobado y versionado.
 - `infrastructure`: migraciones y recursos operativos.
@@ -263,6 +270,9 @@ Una afirmación como “funciona” o “código terminado” no es evidencia.
 ### Backend
 
 - Monolito modular NestJS con worker separado.
+- El bootstrap valida configuración antes de aceptar tráfico o trabajos.
+- Liveness y readiness son endpoints distintos; readiness sí consulta
+  dependencias.
 - Controladores delgados.
 - Reglas en dominio o casos de uso.
 - Acceso a datos detrás de repositorios o puertos.

@@ -262,8 +262,8 @@ credenciales lleguen al cliente, logs o repositorio.
 
 ## P0-T05 — Inicializar web, API y worker
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T02`, `P0-T03`, `P0-T04`
 - Riesgo: Medio
 
@@ -280,18 +280,18 @@ de publicación.
 
 ### Criterios de aceptación
 
-- [ ] `pnpm dev` inicia los procesos requeridos o documenta comandos equivalentes.
-- [ ] Web muestra un estado inicial accesible y sin secretos serializados.
-- [ ] API expone health y readiness diferenciados.
-- [ ] Worker arranca, valida configuración y reporta estado sin procesar tareas falsas.
-- [ ] Las aplicaciones importan contratos compartidos sin dependencias circulares.
-- [ ] Los controladores permanecen delgados y no contienen reglas de dominio.
+- [x] `pnpm dev` inicia los procesos requeridos o documenta comandos equivalentes.
+- [x] Web muestra un estado inicial accesible y sin secretos serializados.
+- [x] API expone health y readiness diferenciados.
+- [x] Worker arranca, valida configuración y reporta estado sin procesar tareas falsas.
+- [x] Las aplicaciones importan contratos compartidos sin dependencias circulares.
+- [x] Los controladores permanecen delgados y no contienen reglas de dominio.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar build, typecheck y smoke test de cada aplicación.
-- [ ] Confirmar fallo de readiness cuando PostgreSQL o Redis no están disponibles.
-- [ ] Inspeccionar el bundle del cliente para descartar secretos.
+- [x] Ejecutar build, typecheck y smoke test de cada aplicación.
+- [x] Confirmar fallo de readiness cuando PostgreSQL o Redis no están disponibles.
+- [x] Inspeccionar el bundle del cliente para descartar secretos.
 
 ### Fuera de alcance
 
@@ -300,11 +300,57 @@ de publicación.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-25: se crearon el panel Next.js 16, la API NestJS con liveness y
+  readiness diferenciados, y el worker NestJS standalone que reporta estado sin
+  procesar trabajo simulado. Los tres validan configuración antes de aceptar
+  tráfico o trabajo.
+- 2026-07-25: los paquetes compartidos pasan a emitir `dist/` con declaraciones.
+  Node 24 ejecuta TypeScript pero no soporta propiedades de parámetro ni
+  `emitDecoratorMetadata`, que NestJS necesita para inyección de dependencias.
+- 2026-07-25: se agregó `packages/process-health` con las sondas de PostgreSQL y
+  Redis compartidas por API y worker; decisión registrada en `ADR-010`.
+- 2026-07-25: se agregó `tools/smoke` con escenarios de arranque, salud, cierre
+  ordenado y ausencia de secretos en el bundle del cliente.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P0-T05`.
+- `pnpm install --frozen-lockfile`: diez workspaces desde el lockfile, sin
+  advertencias de peer dependencies.
+- `pnpm typecheck`: seis workspaces más herramientas de infraestructura y smoke,
+  sin errores con TypeScript estricto.
+- `pnpm test`: 26 pruebas aprobadas (contratos 3, configuración 8,
+  process-health 4, infraestructura local 7, smoke 4).
+- `pnpm build`: paquetes compartidos, API, worker y panel compilados.
+- `pnpm smoke`: doce comprobaciones aprobadas sobre procesos reales (API 5,
+  panel 4, worker 3), con entorno construido y valores falsos como sonda.
+- Readiness negativa: `GET /ready` responde 503 con PostgreSQL y Redis
+  inalcanzables. Con infraestructura real, detener el contenedor de Redis
+  produjo `postgres:up,redis:down` y 503; reiniciarlo devolvió 200.
+- Readiness positiva: con `pnpm infra:up`, `GET /health` y `GET /ready`
+  respondieron 200 y el worker registró
+  `worker.ready estado=ready dependencias=postgres:up,redis:up`.
+- `pnpm dev`: panel en `:3000` (HTTP 200), API en `:3001` con `/health` y
+  `/ready` en 200, y worker reportando estado en paralelo.
+- Bundle del cliente: escaneo de `.next/static` compilado con secretos falsos en
+  el entorno, sin coincidencias; el HTML servido tampoco contiene la contraseña
+  de PostgreSQL.
+- Contrato público: una variable `NEXT_PUBLIC_` no declarada impide servir el
+  panel (HTTP 500) y el registro nombra la variable sin su valor.
+- `pnpm verify:stack` y `pnpm verify:plan`: versiones fijadas y 66 tareas
+  válidas.
+- Búsqueda de patrones de secretos en archivos rastreados: sin coincidencias.
+- Desviaciones:
+  - `packages/process-health` es un límite nuevo respecto de la estructura
+    original; justificado y registrado en `ADR-010`.
+  - `apps/web` usa `tools/run-with-env.mjs` para cargar el `.env` de la raíz:
+    Next.js propaga los `execArgv` del proceso padre por `NODE_OPTIONS`, donde
+    `--env-file-if-exists` está prohibido. API y worker usan el mismo mecanismo
+    por uniformidad.
+  - `sharp`, dependencia de Next.js, queda declarado en `allowBuilds: false`
+    para no ejecutar scripts de instalación de terceros.
+  - `lint` y el pipeline de integración continua permanecen fuera de alcance y
+    pertenecen a `P0-T06`.
 
 ## P0-T06 — Establecer controles de calidad y CI
 

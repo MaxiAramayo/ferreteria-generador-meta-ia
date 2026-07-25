@@ -12,6 +12,8 @@ catalog:
   "@prisma/client": 7.9.0
   "@types/node": 24.13.3
   "@types/pg": 8.20.0
+  "@types/react": 19.2.17
+  "@types/react-dom": 19.2.3
   next: 16.2.11
   pg: 8.22.0
   prisma: 7.9.0
@@ -21,3 +23,10 @@ catalog:
   reflect-metadata: 0.2.2
   rxjs: 7.8.2
   typescript: 5.9.3
+
+# `sharp` llega como dependencia de Next.js y sólo se usa para optimizar
+# imágenes. Sus binarios se distribuyen precompilados por plataforma, así que no
+# se autoriza su script de instalación: una instalación reproducible no debe
+# ejecutar scripts de terceros.
+allowBuilds:
+  sharp: false

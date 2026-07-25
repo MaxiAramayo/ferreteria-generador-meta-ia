@@ -1,0 +1,27 @@
+{
+  "name": "@aramayo/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "pnpm run build && node ../../tools/run-with-env.mjs node --enable-source-maps --watch dist/main.js",
+    "dev:types": "tsc --project tsconfig.build.json --watch",
+    "start": "node ../../tools/run-with-env.mjs node --enable-source-maps dist/main.js",
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@aramayo/configuration": "workspace:*",
+    "@aramayo/contracts": "workspace:*",
+    "@aramayo/process-health": "workspace:*",
+    "@nestjs/common": "catalog:",
+    "@nestjs/core": "catalog:",
+    "@nestjs/platform-express": "catalog:",
+    "reflect-metadata": "catalog:",
+    "rxjs": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

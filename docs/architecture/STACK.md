@@ -26,6 +26,11 @@ Las herramientas locales verificadas en `P0-T03` agregan `redis@6.1.0`,
 comprobar conectividad y tipos de la infraestructura; no forman contratos de
 aplicación.
 
+El bootstrap de aplicaciones (`P0-T05`) incorpora `@types/react@19.2.17` y
+`@types/react-dom@19.2.3`, alineados con la línea 19.2 de React fijada arriba.
+`pg` y `redis` pasan además a ser dependencias de `packages/process-health`,
+que implementa las sondas de readiness compartidas por API y worker.
+
 ## Forma de fijación
 
 - `.node-version` fija el runtime de desarrollo.
@@ -41,6 +46,32 @@ El catálogo declara versiones futuras sin instalarlas. Cada aplicación o paque
 las consumirá con `catalog:` sólo cuando una tarea requiera esa dependencia.
 Esto permite bloquear compatibilidad en `P0-T02` sin introducir código o
 dependencias ociosas antes de `P0-T05`.
+
+## Modelo de compilación y ejecución
+
+| Workspace | Compilación | Ejecución |
+|---|---|---|
+| `packages/*` | `tsc` a `dist/` con declaraciones | Consumido como JavaScript tipado |
+| `apps/api`, `apps/worker` | `tsc` a `dist/` | `node dist/main.js` |
+| `apps/web` | `next build` | `next start` o `next dev` |
+| `tools/*` | Sin compilación | `node archivo.ts` (type stripping de Node) |
+
+Node 24 ejecuta TypeScript directamente, pero sólo elimina tipos: no soporta
+propiedades de parámetro ni `emitDecoratorMetadata`. NestJS depende de ambos
+para inyección de dependencias, por lo que API y worker se compilan con `tsc`
+antes de ejecutarse. Las herramientas internas, que no usan decoradores,
+continúan ejecutándose directamente desde `.ts`.
+
+Los paquetes compartidos importan con extensión `.ts` y emiten `.js` mediante
+`rewriteRelativeImportExtensions`, de modo que el código fuente sigue siendo
+ejecutable por Node y el artefacto publicado no depende de un bundler.
+
+### Scripts de instalación de terceros
+
+`pnpm-workspace.yaml#allowBuilds` mantiene la instalación libre de scripts de
+terceros. `sharp` llega como dependencia de Next.js, distribuye binarios
+precompilados por plataforma y queda declarado en `false`. Autorizar un script
+nuevo exige revisarlo y registrarlo en esa lista.
 
 ## Decisiones de compatibilidad
 

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-24
+Actualizado: 2026-07-25
 
 ## Fase activa
 
@@ -20,12 +20,14 @@ Actualizado: 2026-07-24
 
 ## Próxima tarea habilitada
 
-`P0-T05` — Inicializar web, API y worker.
+`P0-T06` — Establecer controles de calidad y CI.
 
-`P0-T04` dejó contratos de configuración separados para web, API y worker,
-errores sin valores sensibles, grupos de proveedores completos o deshabilitados
-y una política versionada de cifrado y rotación. `P0-T05` debe conectar esos
-parsers como primera operación de cada bootstrap.
+`P0-T05` dejó panel, API y worker iniciables con `pnpm dev`, validación de
+configuración antes de aceptar tráfico o trabajo, liveness y readiness
+diferenciados, cierre ordenado y un smoke por aplicación. Los scripts raíz
+`build`, `typecheck`, `test` y `smoke` ya existen; `P0-T06` debe agregar `lint`,
+unificar las puertas de calidad y ejecutarlas en integración continua con
+instalación congelada.
 
 ## Bloqueos externos conocidos
 

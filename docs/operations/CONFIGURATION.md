@@ -13,9 +13,17 @@ entradas separadas:
 - `@aramayo/configuration/api`;
 - `@aramayo/configuration/worker`.
 
-`P0-T05` debe invocar el parser correspondiente como primera operación del
-bootstrap. Un `ConfigurationError` termina el proceso con código distinto de
-cero antes de `listen()` o de iniciar consumidores BullMQ.
+Cada proceso invoca su parser antes de aceptar trabajo:
+
+| Proceso | Punto de validación | Efecto de un `ConfigurationError` |
+|---|---|---|
+| API | `apps/api/src/main.ts`, antes de `listen()` | Registra las variables afectadas y termina con código 1 |
+| Worker | `apps/worker/src/main.ts`, antes de crear el contexto | Registra las variables afectadas y termina con código 1 |
+| Web | `apps/web/instrumentation.ts`, hook `register` | El servidor no sirve contenido: toda solicitud responde 500 |
+
+Los procesos leen `.env` de la raíz del repositorio mediante
+`--env-file-if-exists`; en staging y producción las variables provienen del
+proveedor y no de archivos versionados.
 
 ## Invariantes
 
@@ -102,11 +110,17 @@ issues, capturas ni documentación.
 ```bash
 pnpm config:typecheck
 pnpm config:test
+pnpm build && pnpm smoke
 ```
 
 Las pruebas cubren configuración válida, faltantes, formatos inválidos,
 secretos vacíos, grupos parciales, variables públicas no declaradas, redacción y
 la cobertura exacta de `.env.example`.
+
+El smoke verifica el límite en los procesos reales: arranque rechazado por
+variable ausente o formato inválido, errores que nombran la variable sin revelar
+su valor, y ausencia de configuración privada en el bundle del navegador y en
+las respuestas HTTP.
 
 ## Fuentes verificadas
 

@@ -22,7 +22,10 @@ Permitir que una persona autorizada:
 ## Estado actual
 
 - Repositorio y documentación: base inicial completa (`P0-T01`).
-- Aplicaciones ejecutables: pendientes de `P0-T05`.
+- Stack, infraestructura local y configuración: fijados (`P0-T02` a `P0-T04`).
+- Aplicaciones ejecutables: bootstrap completo con salud y cierre ordenado
+  (`P0-T05`).
+- Lint y CI: pendientes de `P0-T06`.
 - Motor visual actual: pendiente de migración en Fase 1.
 - Credenciales externas: no configuradas.
 - Publicaciones externas: deshabilitadas.
@@ -35,17 +38,52 @@ apps/
   api/                 Backend modular
   worker/              Generación, render y publicación
 packages/
+  configuration/       Contratos de entorno por proceso
   contracts/           Contratos compartidos
+  process-health/      Sondas de infraestructura y readiness
   domain/              Reglas de negocio puras
   design-engine/       Motor visual a migrar
   brand-knowledge/     Conocimiento aprobado
 infrastructure/
   database/            Esquema y migraciones
+  local/               PostgreSQL y Redis para desarrollo
 docs/
   architecture/        Arquitectura y decisiones
   integrations/        OpenAI, Meta y datos
   operations/          Seguridad, pruebas y operación
   phases/              Tareas y criterios de aceptación
+```
+
+## Puesta en marcha local
+
+```bash
+cp .env.example .env
+pnpm install --frozen-lockfile
+pnpm infra:up
+pnpm dev
+```
+
+Completar en `.env` contraseñas locales para PostgreSQL y Redis, sus
+`DATABASE_URL` y `REDIS_URL`, y al menos una llave en `TOKEN_ENCRYPTION_KEYS`
+(`openssl rand -base64 32`). Detalle en
+[`docs/operations/CONFIGURATION.md`](docs/operations/CONFIGURATION.md).
+
+`pnpm dev` compila los paquetes compartidos y levanta panel, API y worker en
+paralelo:
+
+- panel en `http://localhost:3000`;
+- API en `http://localhost:3001` con `/health` y `/ready`;
+- worker sin HTTP, reportando estado en su log.
+
+## Verificación
+
+```bash
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm smoke
+pnpm verify:stack
+pnpm verify:plan
 ```
 
 ## Cómo trabajar

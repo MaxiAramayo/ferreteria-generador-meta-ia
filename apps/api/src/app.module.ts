@@ -1,0 +1,21 @@
+import type { ApiConfiguration } from "@aramayo/configuration/api";
+import { Module, type DynamicModule } from "@nestjs/common";
+
+import { API_CONFIGURATION } from "./configuration.tokens.ts";
+import { HealthModule } from "./health/health.module.ts";
+import { ApplicationLifecycleService } from "./lifecycle/application-lifecycle.service.ts";
+
+@Module({})
+export class AppModule {
+  static forConfiguration(configuration: ApiConfiguration): DynamicModule {
+    return {
+      exports: [API_CONFIGURATION],
+      imports: [HealthModule.forConfiguration(configuration)],
+      module: AppModule,
+      providers: [
+        ApplicationLifecycleService,
+        { provide: API_CONFIGURATION, useValue: configuration },
+      ],
+    };
+  }
+}

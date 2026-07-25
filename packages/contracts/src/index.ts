@@ -1,1 +1,2 @@
-export * from './content-brief'
+export * from './content-brief.ts'
+export * from './process-health.ts'
