@@ -110,8 +110,11 @@ No editar a mano: se regenera desde el checkout fuente.
 | Fecha del commit | ${source.commitDate} |
 | Estado del árbol | ${source.treeState === "clean" ? "limpio" : `con ${source.dirtyPaths.length} rutas sin commitear`} |
 
-Los archivos canónicos quedaron fijados por hash en \`manifest.json\`; esa lista
-es la referencia cuando el árbol fuente no está limpio.
+${
+  source.treeState === "clean"
+    ? "El árbol fuente estaba limpio: el commit identifica exactamente el diseño congelado y `manifest.json` conserva además el hash de cada archivo canónico."
+    : "El árbol fuente no estaba limpio, así que el commit no alcanza para identificar el diseño congelado: la referencia son los hashes de cada archivo canónico y la lista de rutas sucias en `manifest.json`."
+}
 
 ## Cobertura
 

@@ -1,6 +1,6 @@
 # Inventario de la línea base visual
 
-Generado por `pnpm baseline:freeze` el 2026-07-25T13:57:54.074Z.
+Generado por `pnpm baseline:freeze` el 2026-07-25T14:28:21.816Z.
 Tarea: P1-T01.
 
 No editar a mano: se regenera desde el checkout fuente.
@@ -11,12 +11,11 @@ No editar a mano: se regenera desde el checkout fuente.
 |---|---|
 | Repositorio | `ferreteria-aramayo-image-generator` |
 | Remoto | `git@github.com:MaxiAramayo/ferreteria-post-creator.git` |
-| Commit | `234518f41e6358831c70384c3a01aa8a6bf8de25` |
-| Fecha del commit | 2026-07-03T12:26:24-03:00 |
-| Estado del árbol | con 244 rutas sin commitear |
+| Commit | `f6bccd2f97b94f65491d24536ce64d7f5fc3a199` |
+| Fecha del commit | 2026-07-25T11:26:16-03:00 |
+| Estado del árbol | limpio |
 
-Los archivos canónicos quedaron fijados por hash en `manifest.json`; esa lista
-es la referencia cuando el árbol fuente no está limpio.
+El árbol fuente estaba limpio: el commit identifica exactamente el diseño congelado y `manifest.json` conserva además el hash de cada archivo canónico.
 
 ## Cobertura
 
@@ -35,30 +34,9 @@ es la referencia cuando el árbol fuente no está limpio.
 
 | Estado | Activos | Criterio |
 |---|---:|---|
-| `libre-verificada` | 4 | Ilustración vectorial simple incluida en el repositorio fuente; verificar autoría antes de migrarla. |
-| `por-confirmar-stock` | 15 | Fotografía de producto tomada para la ferretería; confirmar que sea propia antes de reutilizarla. |
-| `aramayo` | 17 | Material propio de Ferretería y Lubricentro Aramayo: logos, frentes e interiores de sus locales. |
-| `por-confirmar-catalogo` | 2 | Fotografía de catálogo de un proveedor; requiere confirmar autorización de uso en redes. |
+| `aramayo` | 38 | Material propio de Ferretería y Lubricentro Aramayo; origen confirmado por el negocio el 2026-07-25. |
 
-Requieren confirmación del negocio antes de migrarse en `P1-T03`:
-
-- `public/media/botas-seguridad-pvc.jpg`
-- `public/media/cano-ips-bicapa.jpg`
-- `public/media/captura-pantalla-promo.png`
-- `public/media/catalogo-capea-italiana-feed.jpg`
-- `public/media/catalogo-capea-italiana-historia.jpg`
-- `public/media/conector-t-riego-goteo.jpg`
-- `public/media/deposito-plomeria-surtido.jpg`
-- `public/media/entrerosca-cano-ips.jpg`
-- `public/media/flexible-conexion-agua.jpg`
-- `public/media/machete-hacha-biassoni.jpg`
-- `public/media/manguera-azul.jpeg`
-- `public/media/manguera-azul.jpg`
-- `public/media/stock-epp.jpg`
-- `public/media/stock-herramientas-electricas.jpg`
-- `public/media/stock-pinturas.jpg`
-- `public/media/stock-plomeria.jpg`
-- `public/media/tapa-pvc-tuboforte.jpg`
+No quedan activos pendientes de confirmación.
 
 ## Tipografías e iconos
 

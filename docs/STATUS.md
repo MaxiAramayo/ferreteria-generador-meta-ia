@@ -12,7 +12,7 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 ## Resumen
 
 - [x] Fase documental inicial creada.
-- [ ] Fase 0 — Fundación y bootstrap.
+- [ ] Fase 0 — Fundación y bootstrap (falta `P0-T07`, diferida).
 - [ ] Fase 1 — Migración del motor visual.
 - [ ] Fase 2 — Dominio, persistencia y panel base.
 - [ ] Fase 3 — OpenAI, RAG y datos comerciales.
@@ -23,25 +23,20 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T01` — Congelar inventario y fixtures de referencia. **En progreso.**
+`P1-T02` — Definir API pública del motor de diseño.
 
-La línea base ya está congelada y verificada en
-`packages/design-engine/baseline/`: 33 layouts inventariados, 33 fixtures y 33
-PNG de referencia, con el generador intacto. Faltan dos criterios que dependen
-de una decisión del usuario:
+`P1-T01` dejó la línea base congelada en `packages/design-engine/baseline/`:
+snapshot del generador en `f6bccd2` con árbol limpio, inventario de 33 layouts,
+5 formatos, 4 temas y 38 activos con propiedad confirmada, 33 fixtures y 33 PNG
+de referencia verificables con `pnpm baseline:verify`.
 
-1. el árbol del generador tiene 244 rutas sin commitear, así que el snapshot se
-   fijó por hash de contenido en lugar de por commit;
-2. 17 fotografías no tienen origen ni permiso de uso documentado.
-
-`P1-T02` queda habilitada recién cuando `P1-T01` cierre.
+`P1-T02` debe definir los contratos del motor —documento, layout, tema, formato,
+activos y resultado— sin importar React, Playwright ni infraestructura, y
+validando toda entrada desconocida antes del render.
 
 ## Bloqueos externos conocidos
 
 - Dominio propio o comprado todavía no definido; difiere `P0-T07`.
-- Trabajo sin commitear en el generador visual: impide fijar el snapshot por
-  commit en `P1-T01`.
-- Origen y permiso de uso de 17 fotografías del generador sin confirmar.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI, Meta y Cloudinary no configuradas.

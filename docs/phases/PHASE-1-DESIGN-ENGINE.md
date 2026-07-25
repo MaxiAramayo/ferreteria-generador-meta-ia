@@ -23,8 +23,8 @@ por un worker, sin depender del repositorio anterior en tiempo de ejecución.
 
 ## P1-T01 — Congelar inventario y fixtures de referencia
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T06`
 - Riesgo: Medio
 
@@ -44,11 +44,11 @@ generador existente.
 ### Criterios de aceptación
 
 - [x] Cada layout productivo tiene al menos un fixture.
-- [ ] Se registra `source_repository`, `source_commit` y árbol fuente limpio.
+- [x] Se registra `source_repository`, `source_commit` y árbol fuente limpio.
 - [x] Se verifica cada entrada del mapa de origen contra el snapshot fijado.
 - [x] La carpeta histórica, `output/**` y `dist/**` quedan clasificadas como no canónicas.
 - [x] Se incluyen textos largos, ausencia de foto y fotos con proporciones extremas.
-- [ ] Los activos tienen propietario o permiso de uso documentado.
+- [x] Los activos tienen propietario o permiso de uso documentado.
 - [x] Las referencias registran tamaño, fecha, contenido y comando de exportación.
 - [x] El repositorio anterior no es modificado por esta tarea.
 
@@ -65,8 +65,8 @@ generador existente.
 ### Notas de progreso
 
 - Fecha: 2026-07-25.
-- Estado real: línea base congelada y verificable; faltan dos criterios que
-  dependen de decisiones del negocio.
+- Estado real: línea base congelada, verificable y con todos los criterios
+  cumplidos.
 - Archivos modificados: `tools/design-baseline/**`,
   `packages/design-engine/baseline/**`, `packages/design-engine/README.md`,
   `docs/architecture/DESIGN-SYSTEM-SOURCE-MAP.md`, `package.json` y
@@ -84,36 +84,45 @@ generador existente.
   `pnpm baseline:verify` (33 fixtures y 33 referencias con hash y dimensiones
   correctas), `pnpm verify` completo y revisión manual de `INVENTORY.md` y de
   los PNG de casos borde.
-- Verificaciones pendientes: ninguna técnica.
-- Bloqueo: dos criterios necesitan una decisión del usuario.
-  1. **Árbol fuente limpio.** El generador tiene 244 rutas sin commitear, entre
-     ellas `src/**`, `posts/**` y `scripts/export.mts`, por lo que `HEAD`
-     (`234518f`) no representa el diseño vigente. La línea base se fijó por
-     hash de contenido de cada archivo canónico y registra las rutas sucias,
-     pero el criterio literal exige árbol limpio. Requiere que el usuario
-     commitee o descarte ese trabajo, o que acepte la excepción registrada.
-  2. **Propiedad de los activos.** 17 fotografías —genéricas y de catálogo de
-     proveedores— no tienen origen documentado. `INVENTORY.md` las lista.
-     Requiere confirmación de permiso de uso o reemplazo por fotografía propia.
-- Próximo paso exacto: obtener esas dos decisiones, volver a congelar si el
-  árbol fuente cambia y recién entonces cerrar la tarea y habilitar `P1-T02`.
+- Verificaciones pendientes: ninguna.
+- Resolución de los dos criterios que dependían del negocio, el 2026-07-25:
+  1. **Árbol fuente limpio.** El usuario autorizó commitear el trabajo en curso
+     del generador. Se consolidó en `f6bccd2` —layouts de historias y
+     carruseles, piezas nuevas, exportaciones y ajustes de primitivas— y se
+     agregó `.claude/` a su `.gitignore`. El commit quedó local: publicarlo es
+     decisión del usuario. La línea base se volvió a congelar sobre ese árbol
+     limpio.
+  2. **Propiedad de los activos.** El usuario confirmó que las 38 imágenes son
+     propias. La confirmación quedó registrada activo por activo, con fecha, en
+     `tools/design-baseline/asset-ownership.ts`; un activo nuevo que no figure
+     en esa lista vuelve a marcarse como `por-confirmar`.
 
 ### Evidencia de cierre
 
-- Pendiente: la tarea no se cierra hasta resolver los dos criterios anteriores.
-- Evidencia parcial disponible:
-  - `packages/design-engine/baseline/manifest.json`: snapshot del generador
-    (`ferreteria-aramayo-image-generator`, remoto `ferreteria-post-creator`,
-    commit `234518f41e6358831c70384c3a01aa8a6bf8de25`), 20 archivos canónicos
-    con hash, inventario de 33 layouts, 5 formatos, 4 temas, 4 familias
-    tipográficas, 26 nombres de icono y 38 activos.
-  - `packages/design-engine/baseline/fixtures/`: 33 piezas —30 layouts en uso
-    más texto largo, ausencia de foto y foto panorámica—.
-  - `packages/design-engine/baseline/references/`: 33 PNG exportados con
-    `EXPORT_SCALE=1 npm run export`, con bytes, dimensiones, hash y fecha.
-  - Generador intacto: 244 rutas sucias y `HEAD` idénticos antes y después de
-    congelar.
-  - `pnpm baseline:verify` incorporado a `pnpm verify` y al workflow de CI.
+- Commit: commit de cierre de `P1-T01`.
+- `packages/design-engine/baseline/manifest.json`: snapshot del generador
+  (`ferreteria-aramayo-image-generator`, remoto `ferreteria-post-creator`,
+  commit `f6bccd2f97b94f65491d24536ce64d7f5fc3a199`, árbol limpio), 20 archivos
+  canónicos con hash e inventario de 33 layouts, 5 formatos, 4 temas, 4 familias
+  tipográficas, 26 nombres de icono y 38 activos con propiedad confirmada.
+- `packages/design-engine/baseline/fixtures/`: 33 piezas; una por cada uno de
+  los 30 layouts en uso, más texto largo, ausencia de foto y foto panorámica.
+  Los tres layouts registrados sin pieza —`historia-producto`,
+  `presentacion-marca` y `sucursales`— quedan listados para `P1-T04`.
+- `packages/design-engine/baseline/references/`: 33 PNG exportados con
+  `EXPORT_SCALE=1 npm run export`, cada uno con bytes, dimensiones, hash, fecha
+  y comando.
+- `pnpm baseline:freeze` reproducido cinco veces con el mismo resultado;
+  `pnpm baseline:verify` confirma hashes y dimensiones sin necesitar el
+  generador y forma parte de `pnpm verify` y del workflow de CI.
+- Revisión manual de `INVENTORY.md` y de los PNG de casos borde: el generador
+  actual deja desbordar el texto largo fuera del canvas, resuelve la ausencia de
+  foto con un marcador visible y aplica `contain` a la foto panorámica. Queda
+  documentado en el README del paquete como comportamiento a corregir en
+  `P1-T04`, no a replicar.
+- Desviaciones: la exportación corre sobre una copia descartable del generador
+  en lugar de sobre el repositorio original, para no modificarlo ni ejecutarlo
+  desde este monorepo.
 
 ## P1-T02 — Definir API pública del motor de diseño
 

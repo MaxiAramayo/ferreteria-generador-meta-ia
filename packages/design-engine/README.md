@@ -66,8 +66,11 @@ comportarse:
 - `borde-foto-panoramica`: una foto con proporción extrema se resuelve con
   `contain` dentro del marco.
 
-### Pendiente de confirmación del negocio
+### Propiedad de los activos
 
-`INVENTORY.md` lista los activos cuyo origen no está documentado —fotografías
-genéricas y de catálogo de proveedores—. `P1-T03` no debe migrarlos hasta
-confirmar permiso de uso o reemplazarlos por fotografía propia.
+Las 38 imágenes inventariadas son propias de Ferretería y Lubricentro Aramayo;
+la confirmación quedó registrada activo por activo, con fecha, en
+[`tools/design-baseline/asset-ownership.ts`](../../tools/design-baseline/asset-ownership.ts).
+
+Un activo que se agregue al generador y no figure en esa lista vuelve a
+aparecer como `por-confirmar`: `P1-T03` no debe migrarlo sin revisarlo.
