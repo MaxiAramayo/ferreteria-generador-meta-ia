@@ -5,4 +5,4 @@
  * fixtures y comparación de paridad. Este archivo evita que otros módulos
  * importen accidentalmente el repositorio anterior.
  */
-export const DESIGN_ENGINE_MIGRATION_PENDING = true as const
+export const DESIGN_ENGINE_MIGRATION_PENDING = true as const;

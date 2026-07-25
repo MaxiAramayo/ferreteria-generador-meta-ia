@@ -1,12 +1,7 @@
 export type ApplicationEnvironment =
-  | "development"
-  | "production"
-  | "staging"
-  | "test";
+  "development" | "production" | "staging" | "test";
 
-export type RawEnvironment = Readonly<
-  Record<string, string | undefined>
->;
+export type RawEnvironment = Readonly<Record<string, string | undefined>>;
 
 export interface DisabledIntegration {
   readonly enabled: false;
@@ -18,8 +13,7 @@ export interface EnabledIntegration<Credentials> {
 }
 
 export type OptionalIntegration<Credentials> =
-  | DisabledIntegration
-  | EnabledIntegration<Credentials>;
+  DisabledIntegration | EnabledIntegration<Credentials>;
 
 export class SecretValue {
   readonly #plainText: string;

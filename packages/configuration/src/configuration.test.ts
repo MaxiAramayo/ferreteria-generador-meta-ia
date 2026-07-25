@@ -40,10 +40,7 @@ test("builds separate immutable configurations for every process", () => {
   });
 
   assert.equal(webConfiguration.apiBaseUrl, "http://localhost:3001/");
-  assert.equal(
-    Object.hasOwn(webConfiguration, "OPENAI_API_KEY"),
-    false,
-  );
+  assert.equal(Object.hasOwn(webConfiguration, "OPENAI_API_KEY"), false);
   assert.equal(apiConfiguration.port, 3_001);
   assert.equal(apiConfiguration.meta.enabled, false);
   assert.equal(workerConfiguration.concurrency, 4);

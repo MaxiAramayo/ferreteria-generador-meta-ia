@@ -33,7 +33,9 @@ async function verifyPostgresConnection(
       probeRow.database_name !== environment.postgresDatabase ||
       probeRow.probe !== 1
     ) {
-      throw new Error("PostgreSQL respondió con una base o resultado inesperado.");
+      throw new Error(
+        "PostgreSQL respondió con una base o resultado inesperado.",
+      );
     }
   } finally {
     await postgresClient.end().catch(() => undefined);
@@ -62,7 +64,9 @@ async function verifyRedisConnection(
     }
   } finally {
     if (redisClient.isOpen) {
-      await redisClient.quit().catch(() => redisClient.destroy());
+      await redisClient.quit().catch(() => {
+        redisClient.destroy();
+      });
     }
   }
 }

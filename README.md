@@ -25,7 +25,8 @@ Permitir que una persona autorizada:
 - Stack, infraestructura local y configuración: fijados (`P0-T02` a `P0-T04`).
 - Aplicaciones ejecutables: bootstrap completo con salud y cierre ordenado
   (`P0-T05`).
-- Lint y CI: pendientes de `P0-T06`.
+- Formato, lint, tipos, pruebas, build y smoke como puertas de integración
+  continua (`P0-T06`).
 - Motor visual actual: pendiente de migración en Fase 1.
 - Credenciales externas: no configuradas.
 - Publicaciones externas: deshabilitadas.
@@ -78,13 +79,14 @@ paralelo:
 ## Verificación
 
 ```bash
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm smoke
-pnpm verify:stack
-pnpm verify:plan
+pnpm verify
 ```
+
+Ejecuta, en orden, `verify:stack`, `verify:plan`, `format:check`, `build`,
+`lint`, `typecheck`, `test` y `smoke`. Es la misma secuencia que corre
+integración continua en cada push y pull request; también puede ejecutarse cada
+paso por separado. Las pruebas obligatorias según el tipo de cambio están en
+[`docs/operations/TESTING.md`](docs/operations/TESTING.md).
 
 ## Cómo trabajar
 

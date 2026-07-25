@@ -35,17 +35,17 @@ Antes de modificar archivos:
 Comandos disponibles desde la raíz:
 
 ```bash
-pnpm verify:plan
-pnpm verify:stack
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm smoke
+pnpm verify
 pnpm dev
 ```
 
-`lint` y el pipeline de integración continua todavía no existen: pertenecen a
-`P0-T06`. No asumir comandos no listados aquí.
+`pnpm verify` ejecuta la misma secuencia que integración continua:
+`verify:stack`, `verify:plan`, `format:check`, `build`, `lint`, `typecheck`,
+`test` y `smoke`. Cada paso también puede ejecutarse por separado; el detalle y
+las pruebas obligatorias por tipo de cambio están en
+[`docs/operations/TESTING.md`](docs/operations/TESTING.md).
+
+No asumir comandos no listados en `package.json`.
 
 ## 3. Acceso rápido a documentación
 

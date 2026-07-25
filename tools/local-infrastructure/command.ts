@@ -2,12 +2,7 @@ export const localComposeProjectName = "aramayo-content-platform-local";
 export const cleanupConfirmationFlag = "--confirm";
 
 export type InfrastructureCommand =
-  | "clean"
-  | "config"
-  | "down"
-  | "health"
-  | "restart"
-  | "up";
+  "clean" | "config" | "down" | "health" | "restart" | "up";
 
 const supportedCommands: readonly InfrastructureCommand[] = [
   "clean",
@@ -21,19 +16,17 @@ const supportedCommands: readonly InfrastructureCommand[] = [
 export function parseInfrastructureCommand(
   commandName: string | undefined,
 ): InfrastructureCommand {
-  switch (commandName) {
-    case "clean":
-    case "config":
-    case "down":
-    case "health":
-    case "restart":
-    case "up":
-      return commandName;
+  const command = supportedCommands.find(
+    (supportedCommand) => supportedCommand === commandName,
+  );
+
+  if (command === undefined) {
+    throw new Error(
+      `Comando inválido. Usá uno de: ${supportedCommands.join(", ")}.`,
+    );
   }
 
-  throw new Error(
-    `Comando inválido. Usá uno de: ${supportedCommands.join(", ")}.`,
-  );
+  return command;
 }
 
 export function assertCleanupConfirmation(

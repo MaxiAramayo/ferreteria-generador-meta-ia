@@ -30,16 +30,18 @@ test("builds every Compose call with a fixed project scope", () => {
 });
 
 test("requires the exact project name before cleanup", () => {
-  assert.doesNotThrow(() =>
-    assertCleanupConfirmation(["--confirm", localComposeProjectName]),
-  );
-  assert.throws(
-    () => assertCleanupConfirmation(["--confirm", "another-project"]),
-    /aramayo-content-platform-local/u,
-  );
+  assert.doesNotThrow(() => {
+    assertCleanupConfirmation(["--confirm", localComposeProjectName]);
+  });
+  assert.throws(() => {
+    assertCleanupConfirmation(["--confirm", "another-project"]);
+  }, /aramayo-content-platform-local/u);
 });
 
 test("rejects unknown commands", () => {
   assert.equal(parseInfrastructureCommand("health"), "health");
-  assert.throws(() => parseInfrastructureCommand("destroy"), /Comando inválido/u);
+  assert.throws(
+    () => parseInfrastructureCommand("destroy"),
+    /Comando inválido/u,
+  );
 });

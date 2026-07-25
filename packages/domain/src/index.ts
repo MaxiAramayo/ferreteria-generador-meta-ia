@@ -1,1 +1,1 @@
-export * from './publication'
+export * from "./publication.ts";

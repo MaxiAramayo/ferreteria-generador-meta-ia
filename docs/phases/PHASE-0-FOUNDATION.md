@@ -354,8 +354,8 @@ de publicación.
 
 ## P0-T06 — Establecer controles de calidad y CI
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T05`
 - Riesgo: Medio
 
@@ -372,18 +372,18 @@ integración, no comprobaciones opcionales.
 
 ### Criterios de aceptación
 
-- [ ] `lint`, `typecheck`, `test`, `build` y `verify:plan` funcionan desde la raíz.
-- [ ] CI usa instalación congelada del lockfile.
-- [ ] Un error en cualquier workspace hace fallar el pipeline.
-- [ ] Los resultados indican qué aplicación o paquete falló.
-- [ ] Cachés no pueden ocultar un fallo reproducible.
-- [ ] Se documenta qué pruebas son obligatorias para cada tipo de cambio.
+- [x] `lint`, `typecheck`, `test`, `build` y `verify:plan` funcionan desde la raíz.
+- [x] CI usa instalación congelada del lockfile.
+- [x] Un error en cualquier workspace hace fallar el pipeline.
+- [x] Los resultados indican qué aplicación o paquete falló.
+- [x] Cachés no pueden ocultar un fallo reproducible.
+- [x] Se documenta qué pruebas son obligatorias para cada tipo de cambio.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar el pipeline local equivalente.
-- [ ] Introducir temporalmente un error tipado y confirmar que CI lo detectaría.
-- [ ] Ejecutar desde un checkout limpio.
+- [x] Ejecutar el pipeline local equivalente.
+- [x] Introducir temporalmente un error tipado y confirmar que CI lo detectaría.
+- [x] Ejecutar desde un checkout limpio.
 
 ### Fuera de alcance
 
@@ -392,11 +392,50 @@ integración, no comprobaciones opcionales.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-25: se agregaron ESLint 10 con análisis basado en tipos para todo el
+  monorepo, Prettier para archivos de código y el script raíz `pnpm verify`, que
+  ejecuta la misma secuencia que integración continua.
+- 2026-07-25: el `build` se ejecuta antes de `lint` y `typecheck` porque los
+  paquetes compartidos publican sus tipos desde `dist/`; sin compilarlos, el
+  análisis con tipos degrada cada import entre workspaces a `any`. El orden se
+  detectó ejecutando el pipeline en un checkout limpio.
+- 2026-07-25: las reglas agregadas sobre el preset estricto codifican
+  invariantes del manual: `no-explicit-any`, tipos de retorno explícitos,
+  `switch-exhaustiveness-check` y `no-console`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P0-T06`.
+- `pnpm verify` local: ocho pasos aprobados en orden (`verify:stack`,
+  `verify:plan`, `format:check`, `build`, `lint`, `typecheck`, `test`, `smoke`).
+- Checkout limpio: clon del repositorio en un directorio nuevo, sin `.env`, sin
+  `node_modules` y sin artefactos; `pnpm install --frozen-lockfile` seguido de
+  `pnpm verify` completó los ocho pasos, incluidas 26 pruebas y las doce
+  comprobaciones de smoke.
+- Error tipado introducido a propósito en `apps/api`: el pipeline falló con
+  `apps/api typecheck: src/health/health.controller.ts(24,5): error TS2322` y
+  `apps/api typecheck: Failed`, identificando el workspace responsable.
+- `any` introducido a propósito: `pnpm lint` falló con
+  `@typescript-eslint/no-explicit-any` y `@typescript-eslint/no-unsafe-return`.
+  Ambos casos se revirtieron y el pipeline volvió a quedar en verde.
+- Defecto real detectado por las nuevas puertas: `packages/domain/src/index.ts`
+  reexportaba sin extensión explícita y fallaba con `TS2835`; se corrigió en
+  esta tarea.
+- CI: [`ci.yml`](../../.github/workflows/ci.yml) ejecuta los mismos pasos en
+  `push` a `main`, en cada pull request y a demanda, con
+  `pnpm install --frozen-lockfile`, Node tomado de `.node-version` y caché
+  limitada al store de pnpm invalidado por el lockfile.
+- Documentación: `docs/operations/TESTING.md` incorpora la tabla de pruebas
+  obligatorias por tipo de cambio y la descripción del pipeline.
+- Desviaciones:
+  - Prettier se aplica sólo a archivos de código; la documentación conserva sus
+    saltos de línea deliberados y queda excluida en `.prettierignore`.
+  - Se fija `eslint@10.7.0` en lugar de la última publicada porque la política
+    de antigüedad mínima de pnpm bloquea versiones recién liberadas.
+  - Esta tarea incluye un formateo mecánico de todo el código existente; no
+    modifica comportamiento y quedó cubierto por el pipeline completo.
+  - La ejecución real del workflow en GitHub Actions se observará en el primer
+    push; localmente se validó la secuencia equivalente paso a paso.
 
 ## P0-T07 — Definir identidad, ambientes y topología de despliegue
 

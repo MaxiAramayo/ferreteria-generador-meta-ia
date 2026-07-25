@@ -67,11 +67,7 @@ export function parseMetaIntegration(
         "META_APP_ID",
         /^\d+$/u,
       ),
-      appSecret: parseSecret(
-        rawEnvironment,
-        processName,
-        "META_APP_SECRET",
-      ),
+      appSecret: parseSecret(rawEnvironment, processName, "META_APP_SECRET"),
       graphApiVersion: assertPattern(
         rawEnvironment,
         processName,
@@ -93,10 +89,7 @@ export function parseOpenAiIntegration(
   rawEnvironment: RawEnvironment,
   processName: string,
 ): OptionalIntegration<OpenAICredentials> {
-  const vectorStoreId = readOptional(
-    rawEnvironment,
-    "OPENAI_VECTOR_STORE_ID",
-  );
+  const vectorStoreId = readOptional(rawEnvironment, "OPENAI_VECTOR_STORE_ID");
   const coreIntegrationConfigured = isIntegrationConfigured(
     rawEnvironment,
     processName,
@@ -125,11 +118,7 @@ export function parseOpenAiIntegration(
   }
 
   const baseCredentials = {
-    apiKey: parseSecret(
-      rawEnvironment,
-      processName,
-      "OPENAI_API_KEY",
-    ),
+    apiKey: parseSecret(rawEnvironment, processName, "OPENAI_API_KEY"),
     projectId: assertPattern(
       rawEnvironment,
       processName,
@@ -160,12 +149,7 @@ export function parseCloudinaryIntegration(
 
   return Object.freeze({
     credentials: Object.freeze({
-      apiKey: parseSecret(
-        rawEnvironment,
-        processName,
-        "CLOUDINARY_API_KEY",
-        6,
-      ),
+      apiKey: parseSecret(rawEnvironment, processName, "CLOUDINARY_API_KEY", 6),
       apiSecret: parseSecret(
         rawEnvironment,
         processName,

@@ -31,7 +31,9 @@ export function createRedisProbe(
           }
         } finally {
           if (client.isOpen) {
-            await client.quit().catch(() => client.destroy());
+            await client.quit().catch(() => {
+              client.destroy();
+            });
           }
         }
       });

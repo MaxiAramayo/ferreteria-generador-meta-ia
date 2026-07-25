@@ -31,6 +31,16 @@ El bootstrap de aplicaciones (`P0-T05`) incorpora `@types/react@19.2.17` y
 `pg` y `redis` pasan además a ser dependencias de `packages/process-health`,
 que implementa las sondas de readiness compartidas por API y worker.
 
+Las puertas de calidad (`P0-T06`) agregan, sólo en la raíz,
+`eslint@10.7.0`, `@eslint/js@10.0.1`, `typescript-eslint@8.65.0`,
+`eslint-plugin-react-hooks@7.1.1`, `@next/eslint-plugin-next@16.2.11`,
+`globals@17.7.0` y `prettier@3.9.6`. `typescript-eslint@8.65.0` declara soporte
+para ESLint 8, 9 y 10 y TypeScript `>=4.8.4 <6.1.0`, compatible con el
+`5.9.3` fijado. `@next/eslint-plugin-next` se mantiene en la misma versión que
+Next.js. Se elige `eslint@10.7.0` en lugar del último publicado porque la
+política de antigüedad mínima de pnpm exige que una versión haya estado
+disponible el tiempo suficiente antes de instalarse.
+
 ## Forma de fijación
 
 - `.node-version` fija el runtime de desarrollo.

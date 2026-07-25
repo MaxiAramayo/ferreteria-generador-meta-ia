@@ -20,14 +20,13 @@ Actualizado: 2026-07-25
 
 ## Próxima tarea habilitada
 
-`P0-T06` — Establecer controles de calidad y CI.
+`P0-T07` — Definir identidad, ambientes y topología de despliegue.
 
-`P0-T05` dejó panel, API y worker iniciables con `pnpm dev`, validación de
-configuración antes de aceptar tráfico o trabajo, liveness y readiness
-diferenciados, cierre ordenado y un smoke por aplicación. Los scripts raíz
-`build`, `typecheck`, `test` y `smoke` ya existen; `P0-T06` debe agregar `lint`,
-unificar las puertas de calidad y ejecutarlas en integración continua con
-instalación congelada.
+`P0-T06` dejó `pnpm verify` como pipeline único —formato, build, lint, tipos,
+pruebas y smoke— y el mismo orden en integración continua con instalación
+congelada. `P0-T07` es la última tarea de la fase: requiere decisiones con costo
+operativo (dominios, callbacks, separación staging/producción y propietarios de
+cada secreto), por lo que necesita aprobación explícita antes de cerrarse.
 
 ## Bloqueos externos conocidos
 

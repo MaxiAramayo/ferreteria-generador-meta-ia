@@ -42,9 +42,7 @@ export async function scanDirectory(
 
     const filePath = join(entry.parentPath, entry.name);
     const content = await readFile(filePath, "utf8").catch(() => "");
-    findings.push(
-      ...findForbiddenValues(filePath, content, forbiddenValues),
-    );
+    findings.push(...findForbiddenValues(filePath, content, forbiddenValues));
   }
 
   return findings;

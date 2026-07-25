@@ -21,6 +21,8 @@
     "config:test": "node --test packages/configuration/src/*.test.ts",
     "config:typecheck": "tsc --project packages/configuration/tsconfig.json",
     "dev": "pnpm --recursive --filter \"./packages/*\" build && pnpm --recursive --parallel --filter \"./apps/*\" dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "infra:clean": "node tools/local-infrastructure/cli.ts clean",
     "infra:config": "node tools/local-infrastructure/cli.ts config",
     "infra:down": "node tools/local-infrastructure/cli.ts down",
@@ -29,18 +31,28 @@
     "infra:test": "node --test tools/local-infrastructure/*.test.ts",
     "infra:typecheck": "tsc --project tools/local-infrastructure/tsconfig.json",
     "infra:up": "node tools/local-infrastructure/cli.ts up",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "smoke": "node tools/smoke/cli.ts",
     "smoke:typecheck": "tsc --project tools/smoke/tsconfig.json",
     "test": "pnpm --recursive test && pnpm run infra:test && node --test tools/smoke/*.test.ts",
     "typecheck": "pnpm --recursive typecheck && pnpm run infra:typecheck && pnpm run smoke:typecheck",
+    "verify": "pnpm run verify:stack && pnpm run verify:plan && pnpm run format:check && pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run smoke",
     "verify:plan": "node tools/verify-plan.mjs",
     "verify:stack": "node tools/verify-stack.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@next/eslint-plugin-next": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
+    "globals": "catalog:",
     "pg": "catalog:",
+    "prettier": "catalog:",
     "redis": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:"
   }
 }

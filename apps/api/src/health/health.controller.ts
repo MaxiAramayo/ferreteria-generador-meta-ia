@@ -1,9 +1,5 @@
 import type { LivenessResponse, ReadinessResponse } from "@aramayo/contracts";
-import {
-  Controller,
-  Get,
-  ServiceUnavailableException,
-} from "@nestjs/common";
+import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 
 import { ProcessHealthService } from "./process-health.service.ts";
 

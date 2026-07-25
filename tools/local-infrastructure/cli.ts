@@ -75,9 +75,8 @@ function assertProjectVolumesRemoved(): void {
 }
 
 async function checkConnectivity(): Promise<void> {
-  const environment = await readLocalInfrastructureEnvironment(
-    environmentFilePath,
-  );
+  const environment =
+    await readLocalInfrastructureEnvironment(environmentFilePath);
   await verifyLocalInfrastructureConnectivity(environment);
   process.stdout.write(
     "PostgreSQL y Redis aceptan conexiones autenticadas en loopback.\n",

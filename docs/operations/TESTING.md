@@ -110,6 +110,53 @@ Antes de merge:
 - integración afectada;
 - documentación actualizada.
 
+El pipeline completo se ejecuta con un único comando local, idéntico en orden y
+contenido al de integración continua:
+
+```bash
+pnpm verify
+```
+
+Equivale a `verify:stack`, `verify:plan`, `format:check`, `build`, `lint`,
+`typecheck`, `test` y `smoke`. Cualquier paso fallido detiene el resto y el
+error indica el workspace responsable (por ejemplo `apps/api typecheck:
+Failed`).
+
+El `build` va antes que `lint` y `typecheck` porque los paquetes compartidos
+publican sus tipos desde `dist/`: sin compilarlos primero, el análisis con
+tipos vería `any` en cada import entre workspaces.
+
+### Pruebas obligatorias por tipo de cambio
+
+Todo cambio requiere `pnpm verify` en verde. La tabla agrega lo que además es
+obligatorio según lo que se toca:
+
+| Tipo de cambio | Además de `pnpm verify` |
+|---|---|
+| Contratos o dominio | Unitarias de transiciones e invariantes del paquete afectado |
+| Configuración o secretos | `pnpm config:test` y smoke del proceso afectado; revisión de que ningún valor llegue a logs o al cliente |
+| API | Smoke de `apps/api`; pruebas de contrato, autorización e idempotencia de las rutas nuevas |
+| Worker | Smoke de `apps/worker`; pruebas de reintentos, concurrencia y cierre ordenado |
+| Panel web | Smoke de `apps/web`; revisión de estados vacío, carga, error y accesibilidad |
+| Persistencia y migraciones | Integración con PostgreSQL real efímero; migración aplicada y revertida |
+| Infraestructura local | `pnpm infra:test` y ciclo real `infra:up`, `infra:health`, `infra:down` |
+| Motor visual | Fixtures por layout y regresión visual con comparación de dimensiones |
+| OpenAI, Meta o sistema comercial | Fixtures de contrato y dobles; las llamadas reales van en suites separadas y nunca en CI |
+| Documentación o plan | `pnpm verify:plan` y actualización de `docs/STATUS.md` cuando cambia la tarea activa |
+
+### Integración continua
+
+El workflow [`ci.yml`](../../.github/workflows/ci.yml) ejecuta los mismos pasos
+en `push` a `main`, en cada pull request y a demanda:
+
+- instala con `pnpm install --frozen-lockfile`; un lockfile desactualizado falla
+  antes de compilar;
+- fija Node desde `.node-version`, la misma fuente que el entorno local;
+- cachea únicamente el store de pnpm, invalidado por el lockfile. No se cachean
+  `dist/`, `.next/` ni `*.tsbuildinfo`, de modo que ninguna caché puede ocultar
+  un fallo reproducible;
+- ejecuta cada puerta como paso independiente para identificar cuál falló.
+
 Antes de producción:
 
 - E2E completo;

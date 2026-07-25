@@ -22,20 +22,23 @@ test("detecta un valor prohibido incrustado en el contenido", () => {
     'const token = "clave-super-secreta";',
     forbiddenValues,
   );
+  const [finding] = findings;
 
   assert.equal(findings.length, 1);
-  assert.equal(findings[0]?.location, "bundle.js");
+  assert.ok(finding);
+  assert.equal(finding.location, "bundle.js");
 });
 
 test("el hallazgo no reproduce el secreto completo", () => {
-  const findings = findForbiddenValues(
+  const [finding] = findForbiddenValues(
     "bundle.js",
     "clave-super-secreta",
     forbiddenValues,
   );
 
-  assert.equal(findings[0]?.forbiddenValue, "clave-…");
-  assert.ok(!findings[0]?.forbiddenValue.includes("super-secreta"));
+  assert.ok(finding);
+  assert.equal(finding.forbiddenValue, "clave-…");
+  assert.ok(!finding.forbiddenValue.includes("super-secreta"));
 });
 
 test("informa cada valor prohibido presente", () => {

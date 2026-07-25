@@ -1,7 +1,4 @@
-import type {
-  DependencyReport,
-  ReadinessResponse,
-} from "@aramayo/contracts";
+import type { DependencyReport, ReadinessResponse } from "@aramayo/contracts";
 
 /**
  * Estado observable de la API desde el panel.

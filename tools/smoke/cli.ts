@@ -110,7 +110,10 @@ async function smokeApi(): Promise<void> {
     invalidStart.output.includes("DATABASE_URL"),
     "El error debe nombrar la variable ausente.",
   );
-  assertWithoutSecrets("El error de configuración de la API", invalidStart.output);
+  assertWithoutSecrets(
+    "El error de configuración de la API",
+    invalidStart.output,
+  );
   reportCheck(
     "una variable ausente detiene el arranque nombrando DATABASE_URL y sin revelar valores",
   );
@@ -146,7 +149,10 @@ async function smokeApi(): Promise<void> {
       readiness.body.includes('"status":"not_ready"'),
       "Readiness debe informar el estado agregado.",
     );
-    for (const dependency of ['"dependency":"postgres"', '"dependency":"redis"']) {
+    for (const dependency of [
+      '"dependency":"postgres"',
+      '"dependency":"redis"',
+    ]) {
       assert.ok(
         readiness.body.includes(dependency),
         `Readiness debe informar ${dependency}.`,
@@ -260,11 +266,7 @@ async function smokeWeb(): Promise<void> {
     },
     buildTimeoutMs,
   );
-  assert.equal(
-    build.exitCode,
-    0,
-    `El build del panel falló:\n${build.output}`,
-  );
+  assert.equal(build.exitCode, 0, `El build del panel falló:\n${build.output}`);
   reportCheck("el panel compila con la configuración del proceso presente");
 
   const clientFindings = await scanDirectory(

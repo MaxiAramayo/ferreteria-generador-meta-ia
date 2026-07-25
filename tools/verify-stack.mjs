@@ -40,7 +40,9 @@ const workspaceContent = await readFile(
 
 function recordMismatch(label, actual, expected) {
   if (actual !== expected) {
-    errors.push(`${label}: se esperaba ${expected} y se encontró ${actual ?? "ausente"}.`);
+    errors.push(
+      `${label}: se esperaba ${expected} y se encontró ${actual ?? "ausente"}.`,
+    );
   }
 }
 
@@ -58,7 +60,7 @@ function readCatalogVersions(content) {
       break;
     }
 
-    const entryMatch = line.match(/^  "?([^"]+?)"?: ([^\s]+)$/);
+    const entryMatch = line.match(/^ {2}"?([^"]+?)"?: ([^\s]+)$/);
     if (entryMatch) {
       versions.set(entryMatch[1], entryMatch[2]);
     }
@@ -85,9 +87,21 @@ function detectPnpmVersion() {
 
 const catalogVersions = readCatalogVersions(workspaceContent);
 
-recordMismatch("packageManager", packageJson.packageManager, `pnpm@${expectedVersions.pnpm}`);
-recordMismatch("engines.node", packageJson.engines?.node, expectedVersions.node);
-recordMismatch("engines.pnpm", packageJson.engines?.pnpm, expectedVersions.pnpm);
+recordMismatch(
+  "packageManager",
+  packageJson.packageManager,
+  `pnpm@${expectedVersions.pnpm}`,
+);
+recordMismatch(
+  "engines.node",
+  packageJson.engines?.node,
+  expectedVersions.node,
+);
+recordMismatch(
+  "engines.pnpm",
+  packageJson.engines?.pnpm,
+  expectedVersions.pnpm,
+);
 recordMismatch(
   "devEngines.runtime.version",
   packageJson.devEngines?.runtime?.version,
@@ -115,7 +129,11 @@ const actualNodeVersion = process.versions.node;
 const actualPnpmVersion = detectPnpmVersion();
 recordMismatch("runtime Node.js", actualNodeVersion, expectedVersions.node);
 recordMismatch("runtime pnpm", actualPnpmVersion, expectedVersions.pnpm);
-recordMismatch("runtime TypeScript", typescript.version, expectedVersions.typescript);
+recordMismatch(
+  "runtime TypeScript",
+  typescript.version,
+  expectedVersions.typescript,
+);
 
 const rows = [
   ["Node.js", expectedVersions.node, actualNodeVersion],

@@ -19,9 +19,9 @@ export const fakeSecrets = Object.freeze({
   metaAppSecret: "smoke-meta-app-secret-falso",
   openAiApiKey: "sk-smoke-openai-api-key-falso",
   redisPassword: "smoke-redis-password-falso",
-  tokenEncryptionKey: Buffer.from(
-    "smoke-token-encryption-key-fake!",
-  ).toString("base64"),
+  tokenEncryptionKey: Buffer.from("smoke-token-encryption-key-fake!").toString(
+    "base64",
+  ),
 });
 
 export type SmokeEnvironment = Readonly<Record<string, string>>;
@@ -67,7 +67,10 @@ export function workerEnvironment(): SmokeEnvironment {
  * El panel recibe además secretos de proveedores que nunca le pertenecen. Es
  * intencional: comprueba que Next.js no filtre variables privadas al cliente.
  */
-export function webEnvironment(port: number, apiBaseUrl: string): SmokeEnvironment {
+export function webEnvironment(
+  port: number,
+  apiBaseUrl: string,
+): SmokeEnvironment {
   return Object.freeze({
     ...baseEnvironment(),
     CLOUDINARY_API_SECRET: fakeSecrets.cloudinaryApiSecret,

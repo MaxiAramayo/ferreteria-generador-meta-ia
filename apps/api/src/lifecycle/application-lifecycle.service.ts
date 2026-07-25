@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnApplicationShutdown,
-} from "@nestjs/common";
+import { Injectable, Logger, type OnApplicationShutdown } from "@nestjs/common";
 
 /**
  * Deja rastro observable del cierre ordenado.

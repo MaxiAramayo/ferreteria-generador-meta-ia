@@ -10,9 +10,8 @@ export async function register(): Promise<void> {
     return;
   }
 
-  const { parseWebPublicEnvironment } = await import(
-    "@aramayo/configuration/web"
-  );
+  const { parseWebPublicEnvironment } =
+    await import("@aramayo/configuration/web");
 
   parseWebPublicEnvironment(process.env);
 }

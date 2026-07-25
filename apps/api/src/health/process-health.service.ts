@@ -12,9 +12,7 @@ import { DEPENDENCY_PROBES } from "./health.tokens.ts";
 export class ProcessHealthService {
   readonly #probes: readonly DependencyProbe[];
 
-  constructor(
-    @Inject(DEPENDENCY_PROBES) probes: readonly DependencyProbe[],
-  ) {
+  constructor(@Inject(DEPENDENCY_PROBES) probes: readonly DependencyProbe[]) {
     this.#probes = probes;
   }
 

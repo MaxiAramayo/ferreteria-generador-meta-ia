@@ -1,7 +1,4 @@
-import {
-  parseMetaIntegration,
-  type MetaCredentials,
-} from "./providers.ts";
+import { parseMetaIntegration, type MetaCredentials } from "./providers.ts";
 import type {
   CommonConfiguration,
   EncryptionKeyRing,
@@ -33,11 +30,7 @@ export function parseApiEnvironment(
 
   return Object.freeze({
     ...commonConfiguration,
-    databaseUrl: parsePrivateServiceUrl(
-      rawEnvironment,
-      "api",
-      "DATABASE_URL",
-    ),
+    databaseUrl: parsePrivateServiceUrl(rawEnvironment, "api", "DATABASE_URL"),
     meta: parseMetaIntegration(
       rawEnvironment,
       "api",

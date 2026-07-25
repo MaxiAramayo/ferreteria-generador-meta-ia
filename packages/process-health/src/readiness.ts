@@ -30,9 +30,7 @@ export async function reportReadiness(
   });
 }
 
-export function summarizeDependencies(
-  readiness: ReadinessResponse,
-): string {
+export function summarizeDependencies(readiness: ReadinessResponse): string {
   return readiness.dependencies
     .map((dependency) => `${dependency.dependency}:${dependency.status}`)
     .join(",");

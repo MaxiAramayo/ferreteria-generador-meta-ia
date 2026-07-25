@@ -1,7 +1,4 @@
-import type {
-  CommonConfiguration,
-  RawEnvironment,
-} from "./types.ts";
+import type { CommonConfiguration, RawEnvironment } from "./types.ts";
 import {
   failConfiguration,
   parseCommonConfiguration,

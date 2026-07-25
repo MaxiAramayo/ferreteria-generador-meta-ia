@@ -76,9 +76,13 @@ for (const fileName of expectedPhaseFiles) {
       }
     }
 
-    const statusMatch = taskSection.match(/- Estado: (PENDIENTE|EN PROGRESO|BLOQUEADA|COMPLETA)/);
+    const statusMatch = taskSection.match(
+      /- Estado: (PENDIENTE|EN PROGRESO|BLOQUEADA|COMPLETA)/,
+    );
     if (!statusMatch) {
-      errors.push(`${taskId} en ${fileName} tiene un Estado inválido o ausente.`);
+      errors.push(
+        `${taskId} en ${fileName} tiene un Estado inválido o ausente.`,
+      );
     }
 
     const dependencyLine = taskSection.match(/- Dependencias: (.+)/)?.[1];
@@ -103,11 +107,15 @@ for (const fileName of expectedPhaseFiles) {
       )?.[1] ?? "";
 
     if ((acceptanceSection.match(/^- \[[ x]\] /gm) ?? []).length < 3) {
-      errors.push(`${taskId} debe tener al menos tres criterios de aceptación.`);
+      errors.push(
+        `${taskId} debe tener al menos tres criterios de aceptación.`,
+      );
     }
 
     if ((verificationSection.match(/^- \[[ x]\] /gm) ?? []).length < 1) {
-      errors.push(`${taskId} debe tener al menos una verificación obligatoria.`);
+      errors.push(
+        `${taskId} debe tener al menos una verificación obligatoria.`,
+      );
     }
   }
 }
@@ -180,9 +188,7 @@ for (const markdownPath of await collectMarkdownFiles(repositoryDirectory)) {
     try {
       await access(resolvedTarget);
     } catch {
-      errors.push(
-        `Enlace interno roto en ${markdownPath}: ${linkTarget}.`,
-      );
+      errors.push(`Enlace interno roto en ${markdownPath}: ${linkTarget}.`);
     }
   }
 }

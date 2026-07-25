@@ -9,16 +9,13 @@ export interface LocalInfrastructureEnvironment {
   readonly redisPort: number;
 }
 
-const requiredKeys = [
-  "POSTGRES_DB",
-  "POSTGRES_PASSWORD",
-  "POSTGRES_PORT",
-  "POSTGRES_USER",
-  "REDIS_PASSWORD",
-  "REDIS_PORT",
-] as const;
-
-type RequiredKey = (typeof requiredKeys)[number];
+type RequiredKey =
+  | "POSTGRES_DB"
+  | "POSTGRES_PASSWORD"
+  | "POSTGRES_PORT"
+  | "POSTGRES_USER"
+  | "REDIS_PASSWORD"
+  | "REDIS_PORT";
 
 function normalizeEnvironmentValue(rawValue: string): string {
   const trimmedValue = rawValue.trim();
@@ -78,7 +75,9 @@ function readRequiredValue(
 ): string {
   const environmentValue = environmentEntries.get(key);
   if (!environmentValue) {
-    throw new Error(`Falta definir ${key} con un valor local no vacío en .env.`);
+    throw new Error(
+      `Falta definir ${key} con un valor local no vacío en .env.`,
+    );
   }
   return environmentValue;
 }
@@ -117,7 +116,10 @@ export function buildLocalInfrastructureEnvironment(
 
   return {
     postgresDatabase,
-    postgresPassword: readRequiredValue(environmentEntries, "POSTGRES_PASSWORD"),
+    postgresPassword: readRequiredValue(
+      environmentEntries,
+      "POSTGRES_PASSWORD",
+    ),
     postgresPort: parsePort(
       readRequiredValue(environmentEntries, "POSTGRES_PORT"),
       "POSTGRES_PORT",

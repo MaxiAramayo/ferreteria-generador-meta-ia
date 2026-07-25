@@ -5,7 +5,11 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { SmokeEnvironment } from "./environment.ts";
 
-/** Los logs de NestJS y Next.js incluyen color; se limpia para poder comparar. */
+/**
+ * Los logs de NestJS y Next.js incluyen color; se limpia para poder comparar.
+ * El carácter de control es intencional: es el inicio de la secuencia ANSI.
+ */
+// eslint-disable-next-line no-control-regex
 const ansiPattern = /\u001B\[[0-9;]*m/gu;
 
 type SmokeChildProcess = ChildProcessByStdio<null, Readable, Readable>;
@@ -18,9 +22,7 @@ export interface CompletedProcess {
 
 export interface RunningProcess {
   readonly output: () => string;
-  readonly terminate: (
-    signal?: NodeJS.Signals,
-  ) => Promise<CompletedProcess>;
+  readonly terminate: (signal?: NodeJS.Signals) => Promise<CompletedProcess>;
   readonly waitForOutput: (
     expectedText: string,
     timeoutMs: number,
@@ -38,9 +40,7 @@ export interface ProcessOptions {
  * también a sus hijos. Next.js y NestJS levantan procesos auxiliares que, si
  * quedan vivos, retienen el puerto y contaminan el siguiente escenario.
  */
-function spawnProcess(
-  options: ProcessOptions,
-): SmokeChildProcess {
+function spawnProcess(options: ProcessOptions): SmokeChildProcess {
   return spawn(process.execPath, [...options.arguments], {
     cwd: options.workingDirectory,
     detached: true,
@@ -127,7 +127,9 @@ export function startProcess(options: ProcessOptions): RunningProcess {
 
   return {
     output: readOutput,
-    async terminate(signal: NodeJS.Signals = "SIGTERM") {
+    async terminate(
+      signal: NodeJS.Signals = "SIGTERM",
+    ): Promise<CompletedProcess> {
       if (!exited) {
         killProcessTree(child, signal);
       }
@@ -146,7 +148,10 @@ export function startProcess(options: ProcessOptions): RunningProcess {
 
       return result;
     },
-    async waitForOutput(expectedText: string, timeoutMs: number) {
+    async waitForOutput(
+      expectedText: string,
+      timeoutMs: number,
+    ): Promise<string> {
       const deadline = Date.now() + timeoutMs;
 
       while (Date.now() < deadline) {

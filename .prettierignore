@@ -1,0 +1,13 @@
+# Artefactos y dependencias.
+node_modules/
+dist/
+.next/
+coverage/
+
+# Archivos generados o gestionados por herramientas.
+pnpm-lock.yaml
+next-env.d.ts
+
+# La documentación se escribe con saltos de línea deliberados a 80 columnas;
+# reformatearla automáticamente rompe tablas y listas revisadas a mano.
+*.md

@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Un push nuevo cancela la ejecución anterior de la misma rama, pero nunca la de
+# `main`: el resultado de la rama principal debe quedar registrado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Calidad y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v7
+        with:
+          # La versión sale de .node-version: una sola fuente de verdad con el
+          # entorno local. La caché es únicamente del store de pnpm, que se
+          # invalida con el lockfile; nunca se cachean dist/, .next/ ni
+          # tsbuildinfo, para que un fallo reproducible no quede oculto.
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Verificar stack fijado
+        run: pnpm run verify:stack
+
+      - name: Verificar plan y documentación
+        run: pnpm run verify:plan
+
+      - name: Formato
+        run: pnpm run format:check
+
+      # El build va antes que lint y typecheck: los paquetes compartidos
+      # publican sus tipos desde `dist/`, así que sin compilarlos primero el
+      # análisis con tipos vería `any` en cada import entre workspaces.
+      - name: Build
+        run: pnpm run build
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Pruebas
+        run: pnpm run test
+
+      - name: Smoke de procesos
+        run: pnpm run smoke

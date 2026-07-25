@@ -98,11 +98,7 @@ export function parseCommonConfiguration(
       failConfiguration(processName, "NODE_ENV", "invalid");
   }
 
-  const timeZone = readRequired(
-    rawEnvironment,
-    processName,
-    "APP_TIMEZONE",
-  );
+  const timeZone = readRequired(rawEnvironment, processName, "APP_TIMEZONE");
   try {
     new Intl.DateTimeFormat("es-AR", { timeZone }).format();
   } catch {

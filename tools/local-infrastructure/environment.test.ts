@@ -27,7 +27,7 @@ test("parses a complete local environment without exposing secrets", () => {
 
 test("rejects a missing password by variable name", () => {
   const environmentEntries = parseEnvironmentContent(
-    validEnvironmentContent.replace("POSTGRES_PASSWORD=\"local password\"", ""),
+    validEnvironmentContent.replace('POSTGRES_PASSWORD="local password"', ""),
   );
 
   assert.throws(
@@ -39,9 +39,7 @@ test("rejects a missing password by variable name", () => {
 test("rejects duplicate variables", () => {
   assert.throws(
     () =>
-      parseEnvironmentContent(
-        `${validEnvironmentContent}\nREDIS_PORT=56380\n`,
-      ),
+      parseEnvironmentContent(`${validEnvironmentContent}\nREDIS_PORT=56380\n`),
     /REDIS_PORT más de una vez/u,
   );
 });

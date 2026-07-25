@@ -3,7 +3,11 @@ import { test } from "node:test";
 
 import { createPostgresProbe } from "./postgres-probe.ts";
 import { createRedisProbe } from "./redis-probe.ts";
-import { reportLiveness, reportReadiness, summarizeDependencies } from "./readiness.ts";
+import {
+  reportLiveness,
+  reportReadiness,
+  summarizeDependencies,
+} from "./readiness.ts";
 import type { DependencyProbe } from "./dependency-probe.ts";
 
 /** Puerto reservado sin servicio: produce ECONNREFUSED inmediato. */
@@ -16,7 +20,7 @@ function stubProbe(
 ): DependencyProbe {
   return {
     dependency,
-    check: async () => ({ dependency, latencyMs: 0, status }),
+    check: () => Promise.resolve({ dependency, latencyMs: 0, status }),
   };
 }
 

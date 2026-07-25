@@ -41,12 +41,10 @@ export function parseWorkerEnvironment(
   return Object.freeze({
     ...commonConfiguration,
     cloudinary: parseCloudinaryIntegration(rawEnvironment, "worker"),
-    concurrency: parseInteger(
-      rawEnvironment,
-      "worker",
-      "WORKER_CONCURRENCY",
-      { maximum: 64, minimum: 1 },
-    ),
+    concurrency: parseInteger(rawEnvironment, "worker", "WORKER_CONCURRENCY", {
+      maximum: 64,
+      minimum: 1,
+    }),
     databaseUrl: parsePrivateServiceUrl(
       rawEnvironment,
       "worker",
