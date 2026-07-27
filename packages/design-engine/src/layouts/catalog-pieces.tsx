@@ -671,3 +671,118 @@ export function HistoriaTip(props: LayoutProps): ReactElement {
     </div>
   );
 }
+
+/**
+ * Dónde estamos: las dos sucursales, con horario y forma de llegar.
+ *
+ * Es la pieza de confianza: quien la ve tiene que poder ubicar el local sin
+ * salir de la historia.
+ */
+export function HistoriaLocales(props: LayoutProps): ReactElement {
+  const { content, context, document, theme } = props;
+  const places = [
+    {
+      address: context.brand.central,
+      asset: mediaAt(document, 0),
+      detail: "Ferretería completa + Lubricentro",
+      icon: "lubricentro" as const,
+      label: "Casa Central",
+    },
+    {
+      address: content.branch ?? context.brand.branch,
+      asset: mediaAt(document, 1),
+      detail: "Ferretería completa",
+      icon: "tienda" as const,
+      label: "Sucursal",
+    },
+  ];
+
+  return (
+    <div style={safeAreaStyle(props)}>
+      <Header eyebrow={content.badge ?? "Dónde estamos"} theme={theme} />
+      <Text as="h1" style={{ marginTop: SPACING.xl, maxWidth: 900 }} token="h1">
+        {content.title}
+      </Text>
+      {content.subtitle === undefined ? null : (
+        <Text
+          as="p"
+          color={theme.colors.muted}
+          style={{ marginTop: SPACING.md, maxWidth: 860 }}
+          token="sub"
+        >
+          {content.subtitle}
+        </Text>
+      )}
+      <div
+        style={{
+          display: "grid",
+          flex: 1,
+          gap: SPACING.md,
+          marginTop: SPACING.xl,
+          minHeight: 0,
+        }}
+      >
+        {places.map((place) => (
+          <div
+            key={place.label}
+            style={{
+              alignItems: "center",
+              backgroundColor: withAlpha(COLORS.white, 0.08),
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: RADII.card,
+              display: "flex",
+              gap: SPACING.md,
+              minHeight: 0,
+              overflow: "hidden",
+              padding: SPACING.sm,
+            }}
+          >
+            <ProductImage
+              asset={place.asset}
+              context={context}
+              fallbackIcon={place.icon}
+              radius={RADII.icon}
+              style={{ flexShrink: 0, height: 260, width: 320 }}
+              theme={theme}
+            />
+            <div style={{ minWidth: 0 }}>
+              <Text color={theme.colors.primary} token="label">
+                {place.label}
+              </Text>
+              <Text as="div" style={{ marginTop: SPACING.xs }} token="h2">
+                {place.address}
+              </Text>
+              <div
+                style={{
+                  color: theme.colors.muted,
+                  fontFamily: TYPOGRAPHY.body.cssStack,
+                  fontSize: 28,
+                  fontWeight: FONT_WEIGHTS.semibold,
+                  lineHeight: 1.1,
+                  marginTop: SPACING.xs,
+                }}
+              >
+                {place.detail}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: SPACING.xl }}>
+        <Cta theme={theme}>{content.callToAction ?? "Cómo llegar"}</Cta>
+        <div
+          style={{
+            color: theme.colors.muted,
+            fontFamily: TYPOGRAPHY.body.cssStack,
+            fontSize: 28,
+            fontWeight: FONT_WEIGHTS.semibold,
+            marginTop: SPACING.md,
+          }}
+        >
+          Lun a sáb · 08:30 a 13:00 · 16:30 a 20:30 ·{" "}
+          {content.phone ?? context.brand.phone}
+        </div>
+      </div>
+    </div>
+  );
+}

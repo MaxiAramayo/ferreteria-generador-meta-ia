@@ -10,6 +10,7 @@ import type { DesignIssue } from "../validation/issues.ts";
 import { BannerMarca, DestacadaCover } from "./brand-pieces.tsx";
 import {
   ComboKit,
+  HistoriaLocales,
   HistoriaPrecioDia,
   HistoriaTip,
   HistoriaTurnoLubricentro,
@@ -45,6 +46,7 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "combo-kit": ComboKit,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
+    "historia-locales": HistoriaLocales,
     "historia-precio-dia": HistoriaPrecioDia,
     "historia-producto": HistoriaProducto,
     "historia-tip": HistoriaTip,

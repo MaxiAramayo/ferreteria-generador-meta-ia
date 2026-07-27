@@ -9,6 +9,8 @@ import type { LayoutId } from "./layout-id.ts";
  *
  * - `current`: pieza vigente; se migra y se puede publicar.
  * - `redesign`: la idea se conserva, la composición se rehace.
+ *   Una pieza cuya idea ya cubre otra del catálogo no queda en `redesign`: se
+ *   retira y el reemplazo queda documentado en `PIECE-CATALOG.md`.
  * - `retired`: no se migra. Se conserva el identificador para no perder la
  *   trazabilidad con la línea base congelada, pero componerla falla.
  */
@@ -33,20 +35,20 @@ export const CATALOG_STATUS: Readonly<Record<LayoutId, CatalogStatus>> =
     "historia-apertura": "retired",
     "historia-encuesta": "retired",
     "historia-informativa": "retired",
-    "historia-locales": "redesign",
+    "historia-locales": "current",
     "historia-lubricentro-diaria": "retired",
-    "historia-oferta-diaria": "redesign",
+    "historia-oferta-diaria": "retired",
     "historia-precio-dia": "current",
     "historia-preguntas": "retired",
     "historia-producto": "current",
     "historia-producto-del-dia": "retired",
-    "historia-promo": "redesign",
-    "historia-recordatorio-lubricentro": "redesign",
+    "historia-promo": "retired",
+    "historia-recordatorio-lubricentro": "retired",
     "historia-reposicion": "retired",
     "historia-resena": "retired",
     "historia-tip": "current",
     "historia-turno-lubricentro": "current",
-    "historia-tip-diario": "redesign",
+    "historia-tip-diario": "retired",
     "lubricentro-servicio": "current",
     "presentacion-marca": "current",
     "problema-solucion": "current",

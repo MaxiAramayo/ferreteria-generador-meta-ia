@@ -79,9 +79,18 @@ afirmación de disponibilidad sin dato que la respalde.
 
 | Estado | Identificadores | Criterio |
 |---|---|---|
-| Vigente | `producto-destacado`, `promo-producto`, `producto-mosaico`, `epp-seguridad`, `tip-oficio`, `lubricentro-servicio`, `presentacion-marca`, `sucursales`, `banner-marca`, `destacada-cover`, `historia-producto` | Tienen objetivo claro y contenido real; ya están migrados |
-| Rediseño | `historia-promo`, `historia-oferta-diaria`, `historia-tip-diario`, `historia-recordatorio-lubricentro`, `historia-locales` | La idea sirve; la composición se rehace con la jerarquía del catálogo nuevo |
-| Retirado | Los nueve `carrusel-*`, `historia-apertura`, `historia-informativa`, `historia-lubricentro-diaria`, `historia-producto-del-dia`, `historia-reposicion`, `historia-encuesta`, `historia-preguntas`, `historia-resena` | Piezas de campañas puntuales, sin contenido vigente o solapadas con otra pieza del catálogo |
+| Vigente | `producto-destacado`, `promo-producto`, `producto-mosaico`, `epp-seguridad`, `tip-oficio`, `lubricentro-servicio`, `presentacion-marca`, `sucursales`, `banner-marca`, `destacada-cover`, `historia-producto`, `historia-locales` | Tienen objetivo claro y contenido real; están migradas |
+| Retirado | Los nueve `carrusel-*` y las historias listadas abajo | Campañas puntuales, sin contenido vigente, o reemplazadas por una pieza nueva |
+
+Piezas heredadas reemplazadas por una pieza del catálogo propio:
+
+| Pieza heredada | La reemplaza | Por qué |
+|---|---|---|
+| `historia-promo`, `historia-oferta-diaria` | `historia-precio-dia` | Una sola pieza de precio con vigencia, en lugar de dos casi iguales |
+| `historia-tip-diario` | `historia-tip` | Misma idea con pasos numerados y jerarquía más clara |
+| `historia-recordatorio-lubricentro`, `historia-lubricentro-diaria` | `historia-turno-lubricentro` | El objetivo es el turno, no el recordatorio |
+| `historia-producto-del-dia`, `historia-reposicion` | `producto-precio`, `historia-precio-dia` | El precio resuelve mejor lo que buscaban esas piezas |
+| `historia-apertura`, `historia-informativa`, `historia-encuesta`, `historia-preguntas`, `historia-resena` | — | Sin contenido vigente; `testimonio` cubrirá la prueba social cuando se aprueben las reseñas |
 
 Los identificadores retirados siguen registrados para conservar la trazabilidad
 con la línea base congelada; componerlos falla de forma explícita.

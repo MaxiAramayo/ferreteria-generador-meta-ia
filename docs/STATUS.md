@@ -23,16 +23,20 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T04` — Migrar layouts, formatos y zonas seguras (en progreso).
+`P1-T05` — Implementar render y exportación en worker.
 
-Hay 17 piezas compuestas de 39 registradas: las once heredadas vigentes y las
-seis nuevas del catálogo propio (`producto-precio`, `combo-kit`,
-`problema-solucion`, `historia-precio-dia`, `historia-turno-lubricentro` e
-`historia-tip`). El precio es opcional en todas ellas.
+`P1-T04` cerró con 18 piezas compuestas sobre 39 identificadores registrados:
+doce heredadas vigentes y seis nuevas del catálogo propio. Los 21 identificadores
+retirados conservan su trazabilidad y fallan con `layout: not-registered`.
 
-Falta definir con el negocio el contenido del carrusel y las piezas que aún no
-están en el catálogo, rehacer las cinco historias marcadas como `redesign`,
-adaptar los fixtures a documentos y comparar contra las referencias.
+`P1-T05` debe renderizar un documento en un proceso aislado y exportar el nodo
+`[data-card]` como PNG reproducible, con espera de fuentes e imágenes, timeout,
+límite de concurrencia y resultado con dimensiones, hash y error estructurado.
+Es también lo que habilita la comparación visual automatizada que `ADR-011`
+trasladó desde `P1-T04`.
+
+Pendiente de definición del negocio, sin bloquear `P1-T05`: contenido del
+carrusel, piezas adicionales del catálogo y uso de reseñas en `testimonio`.
 
 ## Bloqueos externos conocidos
 

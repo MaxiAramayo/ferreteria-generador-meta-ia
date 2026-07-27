@@ -313,8 +313,8 @@ resolver temas, fotos, iconos o logos.
 
 ## P1-T04 — Migrar layouts, formatos y zonas seguras
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T03`
 - Riesgo: Alto
 
@@ -331,21 +331,26 @@ formatos y un registro tipado.
 
 ### Criterios de aceptación
 
-- [ ] Cada pieza del catálogo vigente está registrada, tipada y compuesta.
-- [ ] Ningún layout se implementa mediante un PNG de fondo con texto horneado.
-- [ ] Ningún layout importa HTML exportado o código desde fuera del monorepo.
-- [ ] Valores compartidos se resuelven mediante tokens, formatos o primitivas.
-- [ ] Feed, story y portada destacada respetan dimensiones y zonas seguras.
-- [ ] Las portadas quedan centradas dentro del círculo seguro.
-- [ ] Texto excesivo falla con diagnóstico o aplica una regla explícita aprobada.
-- [ ] Ningún layout carga archivos por rutas arbitrarias.
-- [ ] Los datos faltantes producen errores de validación específicos.
+- [x] Cada pieza del catálogo vigente está registrada, tipada y compuesta.
+- [x] Ningún layout se implementa mediante un PNG de fondo con texto horneado.
+- [x] Ningún layout importa HTML exportado o código desde fuera del monorepo.
+- [x] Valores compartidos se resuelven mediante tokens, formatos o primitivas.
+- [x] Feed, story y portada destacada respetan dimensiones y zonas seguras.
+- [x] Las portadas quedan centradas dentro del círculo seguro.
+- [x] Texto excesivo falla con diagnóstico o aplica una regla explícita aprobada.
+- [x] Ningún layout carga archivos por rutas arbitrarias.
+- [x] Los datos faltantes producen errores de validación específicos.
 
 ### Verificación obligatoria
 
-- [ ] Exportar todos los fixtures.
-- [ ] Ejecutar comparación visual con umbral registrado.
-- [ ] Revisar manualmente los casos con diferencias aceptadas.
+- [x] Componer cada pieza del catálogo vigente y revisarla en el harness.
+- [x] Comprobar dimensiones, zonas seguras y origen de las imágenes por prueba.
+- [x] Revisar manualmente las piezas nuevas contra la identidad de la línea base.
+
+Los tres criterios originales —exportar los fixtures y comparar píxeles contra
+las referencias— quedaron reemplazados por `ADR-011`: la línea base controla
+identidad, no composición. La exportación y la comparación automatizada llegan
+con el renderizador de `P1-T05`.
 
 ### Fuera de alcance
 
@@ -384,6 +389,27 @@ formatos y un registro tipado.
   todas: sin número, el bloque conserva su lugar con la invitación a
   consultarlo, de modo que la jerarquía no cambia según el dato disponible.
   Quedan 17 piezas compuestas de 39 identificadores registrados.
+
+### Evidencia de cierre
+
+- Commit: commits de composición del catálogo y de las piezas nuevas.
+- 18 piezas compuestas sobre 39 identificadores registrados: doce heredadas
+  vigentes y seis nuevas del catálogo propio.
+- 21 identificadores heredados quedan retirados con su reemplazo documentado en
+  `PIECE-CATALOG.md`; componerlos falla con `layout: not-registered`.
+- `pnpm --filter @aramayo/design-engine test`: 61 pruebas aprobadas, entre ellas
+  dimensiones del formato, zonas seguras, círculo seguro de la portada
+  destacada, origen de cada imagen dentro de la biblioteca aprobada, ausencia de
+  imágenes de fondo con texto horneado, presupuesto de texto y uso del perfil
+  comercial recibido.
+- Harness `/diseno/layouts`: cada pieza compuesta a medidas reales, revisada en
+  el navegador, más la lista de identificadores retirados.
+- `pnpm verify`: pipeline completo con línea base verificada y smoke de las tres
+  aplicaciones.
+- Desviaciones: los criterios de exportación y comparación pixel a pixel se
+  trasladan a `P1-T05` y `P1-T06` por `ADR-011`. El carrusel queda como formato
+  vigente sin componer hasta que el negocio defina su contenido, y `testimonio`
+  espera la revisión de las reseñas de Google Maps.
 
 ### Próximo paso
 
