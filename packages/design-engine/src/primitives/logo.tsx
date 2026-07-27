@@ -59,7 +59,7 @@ export function logoDescriptorFor(variant: string): string {
 }
 
 export interface AramayoMarkProps {
-  readonly color?: string;
+  readonly color?: string | undefined;
   readonly size: number;
 }
 
@@ -110,12 +110,12 @@ export function AramayoMark({
 }
 
 export interface LogoProps {
-  readonly markColor?: string;
-  readonly showDescriptor?: boolean;
-  readonly size?: number;
-  readonly textColor?: string;
-  readonly tone?: ThemeTone;
-  readonly variant?: LogoVariant;
+  readonly markColor?: string | undefined;
+  readonly showDescriptor?: boolean | undefined;
+  readonly size?: number | undefined;
+  readonly textColor?: string | undefined;
+  readonly tone?: ThemeTone | undefined;
+  readonly variant?: LogoVariant | undefined;
 }
 
 export function Logo({

@@ -30,8 +30,8 @@ export function typeStyleFor(token: TypeStyleToken): CSSProperties {
 export interface TextProps {
   readonly as?: "div" | "h1" | "h2" | "p" | "span";
   readonly children: ReactNode;
-  readonly color?: string;
-  readonly style?: CSSProperties;
+  readonly color?: string | undefined;
+  readonly style?: CSSProperties | undefined;
   readonly token: TypeStyleToken;
 }
 

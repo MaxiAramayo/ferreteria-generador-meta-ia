@@ -23,15 +23,15 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T04` — Migrar layouts, formatos y zonas seguras.
+`P1-T04` — Migrar layouts, formatos y zonas seguras (en progreso).
 
-`P1-T03` dejó los tokens, los cuatro temas resueltos a color, las primitivas
-`Canvas`, `SafeArea`, `Photo`, `Icon`, `Logo` y `Text`, los 38 activos aprobados
-migrados con verificación de hash, y un harness en `/diseno/primitivas`.
+Van 11 de 33 layouts: las ocho publicaciones de feed y cuadrado, el banner de
+portada y la portada destacada. El registro de componentes es parcial a
+propósito y un layout sin componente falla con `layout: not-registered`.
 
-`P1-T04` debe implementar los 33 layouts como componentes React sobre esas
-primitivas, sin valores sueltos y sin PNG con texto horneado, y renderizar los
-fixtures congelados para comparar con las referencias.
+Falta migrar los nueve carruseles y los catorce layouts de historia, cerrar el
+registro exhaustivo, adaptar los 33 fixtures congelados a documentos y comparar
+contra las referencias PNG.
 
 ## Bloqueos externos conocidos
 

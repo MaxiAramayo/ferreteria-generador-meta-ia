@@ -50,10 +50,10 @@ export function Backdrop({ theme }: BackdropProps): ReactElement {
 }
 
 export interface CanvasProps {
-  readonly backdrop?: boolean;
+  readonly backdrop?: boolean | undefined;
   readonly children: ReactNode;
   readonly format: DesignFormat;
-  readonly style?: CSSProperties;
+  readonly style?: CSSProperties | undefined;
   readonly theme: Theme;
 }
 
@@ -93,7 +93,7 @@ export function Canvas({
 export interface SafeAreaProps {
   readonly children: ReactNode;
   readonly format: DesignFormat;
-  readonly style?: CSSProperties;
+  readonly style?: CSSProperties | undefined;
 }
 
 export function SafeArea({

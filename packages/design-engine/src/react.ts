@@ -34,3 +34,31 @@ export {
   type PhotoProps,
 } from "./primitives/photo.tsx";
 export { Text, typeStyleFor, type TextProps } from "./primitives/text.tsx";
+export {
+  BulletList,
+  Cta,
+  Eyebrow,
+  Footer,
+  Header,
+  IconBadge,
+  PhotoScrim,
+  ProductImage,
+  Subtitle,
+  Title,
+} from "./layouts/kit.tsx";
+export {
+  footerBranch,
+  mediaAt,
+  type LayoutBrandProfile,
+  type LayoutContext,
+  type LayoutProps,
+} from "./layouts/layout-context.ts";
+export {
+  assertTextFits,
+  DesignPiece,
+  isLayoutMigrated,
+  layoutComponentFor,
+  TEXT_BUDGET,
+  type LayoutComponent,
+  type RenderOptions,
+} from "./layouts/registry.tsx";

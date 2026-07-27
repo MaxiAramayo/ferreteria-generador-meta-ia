@@ -309,7 +309,7 @@ resolver temas, fotos, iconos o logos.
 ## P1-T04 — Migrar layouts, formatos y zonas seguras
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P1-T03`
 - Riesgo: Alto
 
@@ -348,7 +348,31 @@ formatos y un registro tipado.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-27: migrados 11 de 33 layouts —las ocho publicaciones de feed y
+  cuadrado, el banner de portada y la portada destacada—, compuestos con las
+  primitivas de `P1-T03` y las medidas del formato. Quedan pendientes los nueve
+  carruseles y los catorce layouts de historia.
+- 2026-07-27: el registro de componentes es parcial a propósito. Un layout
+  registrado en `LAYOUT_SPECS` pero todavía sin componente falla con
+  `layout: not-registered`; nunca compone una pieza a medias. Al completar la
+  migración, el registro pasa a `Record<LayoutId, LayoutComponent>` exhaustivo.
+- 2026-07-27: los datos comerciales salen del motor. `BRAND` del generador se
+  migró a `@aramayo/brand-knowledge` como perfil aprobado y los layouts lo
+  reciben en su contexto: teléfono y direcciones cambian con el negocio, no con
+  el diseño.
+- 2026-07-27: regla explícita de texto excesivo (`TEXT_BUDGET`): título 90,
+  subtítulo 150 e ítems 60 caracteres. Excederlo produce un fallo de contenido
+  con la ruta del campo, en lugar del desborde silencioso que documenta
+  `borde-texto-largo` en la línea base.
+- 2026-07-27: harness en `/diseno/layouts` con cada layout migrado a medidas
+  reales y la lista de los pendientes.
+
+### Próximo paso
+
+Migrar los nueve carruseles (`carrusel-*`) y los catorce layouts de historia
+(`historia-*`) desde `src/layouts/launchCarousels.tsx`, `dailyStories.tsx` y
+`storySeries.tsx` del generador congelado; luego cerrar el registro exhaustivo,
+adaptar los 33 fixtures a documentos y comparar contra las referencias.
 
 ### Evidencia de cierre
 

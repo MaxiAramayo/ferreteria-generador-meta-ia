@@ -87,10 +87,10 @@ export function iconComponentFor(name: string): LucideIcon {
 }
 
 export interface IconProps {
-  readonly color?: string;
+  readonly color?: string | undefined;
   readonly name: IconName;
-  readonly size?: number;
-  readonly strokeWidth?: number;
+  readonly size?: number | undefined;
+  readonly strokeWidth?: number | undefined;
 }
 
 export function Icon({

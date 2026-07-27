@@ -9,6 +9,7 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
+    "@aramayo/brand-knowledge": "workspace:*",
     "@aramayo/configuration": "workspace:*",
     "@aramayo/contracts": "workspace:*",
     "@aramayo/design-engine": "workspace:*",

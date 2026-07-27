@@ -22,11 +22,11 @@ import type { IconName } from "../registry/icons.ts";
 export interface PhotoProps {
   readonly asset: MediaAsset;
   readonly assetBaseUrl: string;
-  readonly className?: string;
+  readonly className?: string | undefined;
   /** Color visible cuando la foto se ajusta con `contain`. */
-  readonly matte?: string;
-  readonly radius?: number;
-  readonly style?: CSSProperties;
+  readonly matte?: string | undefined;
+  readonly radius?: number | undefined;
+  readonly style?: CSSProperties | undefined;
 }
 
 export function Photo({
@@ -88,10 +88,10 @@ export function fontFamilyFor(role: string): string {
 }
 
 export interface PhotoFallbackProps {
-  readonly className?: string;
-  readonly icon?: IconName;
-  readonly radius?: number;
-  readonly style?: CSSProperties;
+  readonly className?: string | undefined;
+  readonly icon?: IconName | undefined;
+  readonly radius?: number | undefined;
+  readonly style?: CSSProperties | undefined;
   readonly theme: Theme;
 }
 
