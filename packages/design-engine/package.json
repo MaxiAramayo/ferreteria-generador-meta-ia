@@ -4,13 +4,21 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --project tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

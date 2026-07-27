@@ -126,8 +126,8 @@ generador existente.
 
 ## P1-T02 — Definir API pública del motor de diseño
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T01`
 - Riesgo: Alto
 
@@ -145,20 +145,20 @@ puedan consumir tanto la web como el worker.
 
 ### Criterios de aceptación
 
-- [ ] El contrato no importa React, Playwright ni infraestructura.
-- [ ] Entradas desconocidas se validan antes de llegar al render.
-- [ ] Los errores distinguen contenido, activo, layout, render y exportación.
-- [ ] El documento incluye versión de esquema para futuras migraciones.
-- [ ] Los formatos no se duplican fuera del módulo canónico.
-- [ ] La API permite consumir tokens y layouts sin importar el repositorio fuente.
-- [ ] Ningún contrato público expone rutas locales, Markdown o Playwright.
-- [ ] No se usa `any` ni aserciones evitables.
+- [x] El contrato no importa React, Playwright ni infraestructura.
+- [x] Entradas desconocidas se validan antes de llegar al render.
+- [x] Los errores distinguen contenido, activo, layout, render y exportación.
+- [x] El documento incluye versión de esquema para futuras migraciones.
+- [x] Los formatos no se duplican fuera del módulo canónico.
+- [x] La API permite consumir tokens y layouts sin importar el repositorio fuente.
+- [x] Ningún contrato público expone rutas locales, Markdown o Playwright.
+- [x] No se usa `any` ni aserciones evitables.
 
 ### Verificación obligatoria
 
-- [ ] Tests unitarios para documentos válidos e inválidos.
-- [ ] Typecheck de consumidores de ejemplo.
-- [ ] Revisión de dependencias para confirmar dirección hacia el dominio.
+- [x] Tests unitarios para documentos válidos e inválidos.
+- [x] Typecheck de consumidores de ejemplo.
+- [x] Revisión de dependencias para confirmar dirección hacia el dominio.
 
 ### Fuera de alcance
 
@@ -167,11 +167,45 @@ puedan consumir tanto la web como el worker.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-27: se definieron los contratos del motor sobre la línea base
+  congelada: documento versionado, referencia de activos, registro de layouts,
+  formatos canónicos, identidad de temas, iconos semánticos, fallos por etapa y
+  puerto de render.
+- 2026-07-27: los identificadores de layout, tema, formato e icono se conservan
+  en español porque nombran piezas reales del sistema visual; los campos de
+  contenido se traducen al vocabulario en inglés del resto de los contratos de
+  la plataforma.
+- 2026-07-27: `FORMATS` queda en este paquete, adelantando un entregable
+  previsto en `P1-T04`. La validación necesita dimensiones y zonas seguras, y
+  duplicarlas habría violado la regla de fuente única.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P1-T02`.
+- Superficie pública: `packages/design-engine/src/index.ts` exporta contratos,
+  formatos, temas, registro y validación; `README.md` documenta la API, el
+  ejemplo de uso y las reglas del contrato.
+- Dirección de dependencias: `dependencies` vacío; las únicas importaciones son
+  relativas al propio paquete y, en pruebas, `node:test`, `node:assert/strict` y
+  `node:fs`. Ninguna referencia a React, Playwright, NestJS, Next.js, disco o
+  red en el código de producción.
+- `pnpm --filter @aramayo/design-engine test`: 28 pruebas aprobadas —19 de
+  validación con documentos válidos e inválidos, 6 de integridad del registro
+  contra `baseline/manifest.json` y 3 del consumidor de ejemplo del puerto de
+  render.
+- Integridad con la línea base: el registro cubre exactamente los 33 layouts, 5
+  formatos con sus dimensiones y zonas seguras, 4 temas y 26 iconos congelados;
+  los 33 fixtures encajan en el formato aprobado de su layout.
+- Validación de borde: se rechazan entrada que no es objeto, versión de esquema
+  distinta, layout desconocido, formato no aprobado, campo obligatorio ausente,
+  campo no admitido por el layout, campo inexistente, texto vacío o excesivo,
+  ítems fuera de rango, icono fuera del registro, medios en layouts sin ranura,
+  exceso de imágenes, activo sin texto alternativo, ruta local, URL sin HTTPS y
+  encuadre o zoom fuera de límites.
+- `pnpm verify`: ocho pasos aprobados, 67 pruebas en total y smoke completo de
+  las tres aplicaciones.
+- Desviaciones: los tokens de color y tipografía no se migran en esta tarea;
+  `P1-T03` los incorpora sobre los identificadores de tema ya fijados.
 
 ## P1-T03 — Migrar identidad, primitivas y activos
 

@@ -26,6 +26,69 @@ No copiar archivos manualmente sin ejecutar `P1-T01`. No usar PNG, HTML
 exportado ni el repositorio anterior como implementación o dependencia de
 runtime.
 
+## API pública (`P1-T02`)
+
+El paquete no tiene dependencias de ejecución: no importa React, Playwright,
+NestJS, Next.js, disco ni red. Todo lo que exporta es dato o contrato.
+
+| Módulo | Responsabilidad | Exporta |
+|---|---|---|
+| `contracts/document` | Documento de diseño versionado | `DesignDocument`, `DesignContent`, `MediaAsset`, `AssetReference`, `DESIGN_SCHEMA_VERSION` |
+| `contracts/errors` | Fallos por etapa | `DesignFailure`, `DesignEngineError` |
+| `contracts/render` | Puerto de render y resultado | `DesignRenderer`, `RenderRequest`, `RenderResult` |
+| `formats` | Dimensiones y zonas seguras canónicas | `FORMATS`, `formatFor`, `hasCircularSafeArea` |
+| `themes` | Identidad de temas | `THEME_DESCRIPTORS`, `DEFAULT_THEME_ID` |
+| `registry` | Layouts e iconos semánticos | `LAYOUT_SPECS`, `layoutSpecFor`, `ICON_NAMES` |
+| `validation` | Validación de borde | `parseDesignDocument`, `DesignIssue` |
+
+### Documento de diseño
+
+```ts
+import { parseDesignDocument } from "@aramayo/design-engine";
+
+const result = parseDesignDocument({
+  content: { title: "Taladros para resolver en el día" },
+  format: "feed",
+  layout: "producto-destacado",
+  media: [
+    {
+      alt: "Taladro sobre un banco de trabajo",
+      reference: { assetId: "stock-herramientas", source: "brand-library" },
+    },
+  ],
+  schemaVersion: 1,
+  slug: "producto-destacado-taladros",
+  theme: "taller",
+});
+
+if (!result.ok) {
+  // Cada problema nombra su ruta y su causa, nunca el valor recibido.
+  return result.issues;
+}
+```
+
+Reglas del contrato:
+
+- `schemaVersion` viaja con el documento; un valor distinto se rechaza en lugar
+  de interpretarse.
+- El documento no transporta caption ni hashtags: ese copy pertenece al
+  contrato de contenido de la plataforma.
+- Una referencia de activo es un identificador del inventario aprobado o una
+  URL HTTPS. Nunca una ruta local ni un nombre de archivo del generador.
+- El texto alternativo de cada imagen es obligatorio.
+- Un campo que el layout no admite es un error (`field-not-supported`), igual
+  que un campo inexistente en el contrato (`unknown-field`).
+- Los fallos se discriminan por etapa —contenido, activo, layout, render y
+  exportación— para que quien los recibe sepa qué acción tomar.
+
+Los identificadores de layout, tema, formato e icono se conservan en español
+porque nombran piezas reales del sistema visual congelado; los campos de
+contenido usan el vocabulario en inglés del resto de los contratos de la
+plataforma.
+
+Los tokens, las primitivas y los componentes React de cada layout se incorporan
+en `P1-T03` y `P1-T04` sobre estos mismos identificadores.
+
 ## Línea base congelada (`P1-T01`)
 
 `baseline/` es la evidencia contra la que se comparará la migración:

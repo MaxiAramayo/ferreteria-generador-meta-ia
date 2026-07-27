@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-25
+Actualizado: 2026-07-27
 
 ## Fase activa
 
@@ -23,16 +23,18 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T02` — Definir API pública del motor de diseño.
+`P1-T03` — Migrar identidad, primitivas y activos.
 
-`P1-T01` dejó la línea base congelada en `packages/design-engine/baseline/`:
-snapshot del generador en `f6bccd2` con árbol limpio, inventario de 33 layouts,
-5 formatos, 4 temas y 38 activos con propiedad confirmada, 33 fixtures y 33 PNG
-de referencia verificables con `pnpm baseline:verify`.
+`P1-T02` dejó la API pública del motor: documento de diseño versionado,
+registro tipado de los 33 layouts, formatos y zonas seguras canónicos,
+identidad de temas, iconos semánticos, fallos discriminados por etapa, puerto de
+render y validación de borde que rechaza toda entrada desconocida. El paquete no
+tiene dependencias de ejecución.
 
-`P1-T02` debe definir los contratos del motor —documento, layout, tema, formato,
-activos y resultado— sin importar React, Playwright ni infraestructura, y
-validando toda entrada desconocida antes del render.
+`P1-T03` debe migrar `COLORS`, `TYPOGRAPHY`, `SPACING`, `RADII` y `TYPE_SCALE`
+como tokens tipados, completar los temas sobre los identificadores ya fijados y
+recrear las primitivas `Photo`, `Icon` y `Logo` con errores útiles ante activos
+inválidos.
 
 ## Bloqueos externos conocidos
 
