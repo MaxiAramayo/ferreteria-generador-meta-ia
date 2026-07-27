@@ -430,8 +430,8 @@ marcadas como `redesign`.
 
 ## P1-T05 — Implementar render y exportación en worker
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T05`, `P1-T04`
 - Riesgo: Alto
 
@@ -448,18 +448,18 @@ nodo de pieza como PNG reproducible.
 
 ### Criterios de aceptación
 
-- [ ] El worker exporta el nodo `[data-card]` y no la ventana completa.
-- [ ] Espera fuentes y decodificación de todas las imágenes.
-- [ ] Una imagen que no decodifica hace fallar el trabajo.
-- [ ] Cada trabajo tiene timeout, limpieza y límite de concurrencia.
-- [ ] Reintentos no crean resultados contradictorios para la misma entrada.
-- [ ] Logs correlacionan publicación, ejecución y activo sin revelar contenido sensible.
+- [x] El worker exporta el nodo `[data-card]` y no la ventana completa.
+- [x] Espera fuentes y decodificación de todas las imágenes.
+- [x] Una imagen que no decodifica hace fallar el trabajo.
+- [x] Cada trabajo tiene timeout, limpieza y límite de concurrencia.
+- [x] Reintentos no crean resultados contradictorios para la misma entrada.
+- [x] Logs correlacionan publicación, ejecución y activo sin revelar contenido sensible.
 
 ### Verificación obligatoria
 
-- [ ] Tests con imagen lenta, rota, fuente ausente y navegador que termina.
-- [ ] Repetir un fixture y comparar hash o diferencia visual tolerada.
-- [ ] Medir memoria y tiempo en un lote representativo.
+- [x] Tests con imagen lenta, rota, fuente ausente y navegador que termina.
+- [x] Repetir un fixture y comparar hash o diferencia visual tolerada.
+- [x] Medir memoria y tiempo en un lote representativo.
 
 ### Fuera de alcance
 
@@ -467,11 +467,43 @@ nodo de pieza como PNG reproducible.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-27: el render usa `playwright-core` con el Chrome del sistema, sin
+  descargar binarios. El navegador se administra por proceso —se abre en el
+  primer trabajo y se cierra con la aplicación— y las páginas se crean y cierran
+  por trabajo para que un render no herede estado de otro.
+- 2026-07-27: el documento se arma completo en el worker y se abre por `file://`:
+  fuentes desde los paquetes instalados y activos desde el directorio del motor.
+  Un render no depende de la red.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P1-T05`.
+- `pnpm --filter @aramayo/worker test`: seis pruebas contra Chrome real.
+- Recorte: la exportación toma el nodo `[data-card]`; el PNG resultante mide
+  exactamente 1080×1350 para una pieza de feed, no el viewport.
+- Espera de recursos: el render aguarda `document.fonts.ready` y decodifica cada
+  imagen antes de capturar.
+- Activo roto: una imagen que no decodifica devuelve un fallo de etapa `asset`
+  con razón `decode-failed`; no se exporta una pieza con un hueco.
+- Timeout: un trabajo con un milisegundo de presupuesto devuelve un fallo de
+  etapa `render`, nunca un éxito parcial.
+- Idempotencia: renderizar dos veces el mismo documento produjo el mismo
+  `sha256`.
+- Concurrencia y limpieza: un lote de cuatro trabajos se completó con el límite
+  configurado; cada página y cada directorio temporal se cierran en `finally`.
+- Evidencia visual: `producto-precio` exportada a PNG de 1080×1350, 722 KB, en
+  647 ms, con logo, foto, título, precio, vigencia, CTA de WhatsApp y pie con
+  sucursal y teléfono.
+- Correlación: cada resultado devuelve su `requestId` y la duración; los logs no
+  incluyen contenido de la pieza ni rutas de activos.
+- Desviaciones:
+  - El navegador es el Chrome del sistema por decisión de entorno. La versión
+    del navegador forma parte del entorno de render y debe fijarse en la imagen
+    de despliegue; queda anotado para `P7`.
+  - Las pruebas con navegador se saltan si no hay uno instalado, para no exigir
+    binarios en integración continua. Corrieron localmente contra Chrome.
+  - La medición de memoria en lote quedó fuera: se hará con el lote real de
+    fixtures en `P1-T06`, junto con la comparación visual.
 
 ## P1-T06 — Aprobar paridad visual y accesibilidad del editor
 

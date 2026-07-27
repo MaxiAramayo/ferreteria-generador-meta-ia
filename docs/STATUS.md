@@ -23,20 +23,15 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T05` — Implementar render y exportación en worker.
+`P1-T06` — Aprobar paridad visual y accesibilidad del editor.
 
-`P1-T04` cerró con 18 piezas compuestas sobre 39 identificadores registrados:
-doce heredadas vigentes y seis nuevas del catálogo propio. Los 21 identificadores
-retirados conservan su trazabilidad y fallan con `layout: not-registered`.
+`P1-T05` dejó el render funcionando: el worker exporta el nodo `[data-card]` con
+Chrome del sistema, espera fuentes e imágenes, falla explícito ante un activo que
+no decodifica o un timeout, y produce el mismo hash para la misma entrada.
 
-`P1-T05` debe renderizar un documento en un proceso aislado y exportar el nodo
-`[data-card]` como PNG reproducible, con espera de fuentes e imágenes, timeout,
-límite de concurrencia y resultado con dimensiones, hash y error estructurado.
-Es también lo que habilita la comparación visual automatizada que `ADR-011`
-trasladó desde `P1-T04`.
-
-Pendiente de definición del negocio, sin bloquear `P1-T05`: contenido del
-carrusel, piezas adicionales del catálogo y uso de reseñas en `testimonio`.
+`P1-T06` debe aprobar la identidad de las piezas contra la línea base —color,
+tipografía, marca y activos—, revisar las piezas nuevas en tamaño real y auditar
+accesibilidad y navegación por teclado del harness del panel.
 
 ## Bloqueos externos conocidos
 
