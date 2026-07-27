@@ -4,10 +4,16 @@
  * Los identificadores se conservan en español porque nombran piezas reales del
  * sistema visual vigente: renombrarlos rompería la trazabilidad con los
  * fixtures y las referencias PNG aprobadas.
+ *
+ * El catálogo propio agrega piezas que el generador no tenía; su estado y su
+ * objetivo comercial están en `docs/architecture/PIECE-CATALOG.md`.
  */
 
 export type PublicationLayoutId =
   | "producto-destacado"
+  | "producto-precio"
+  | "combo-kit"
+  | "problema-solucion"
   | "promo-producto"
   | "lubricentro-servicio"
   | "tip-oficio"
@@ -29,6 +35,9 @@ export type CarouselLayoutId =
 
 export type StoryLayoutId =
   | "historia-producto"
+  | "historia-precio-dia"
+  | "historia-turno-lubricentro"
+  | "historia-tip"
   | "historia-promo"
   | "historia-apertura"
   | "historia-locales"

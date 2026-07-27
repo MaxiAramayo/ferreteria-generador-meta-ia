@@ -25,14 +25,14 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 `P1-T04` — Migrar layouts, formatos y zonas seguras (en progreso).
 
-El negocio cambió la premisa: no se reproduce el inventario heredado, se migra
-un catálogo curado y mejor (`ADR-011`). Las once piezas vigentes ya están
-compuestas; los nueve carruseles y ocho historias quedan retirados y cinco
-historias quedan marcadas para rediseño.
+Hay 17 piezas compuestas de 39 registradas: las once heredadas vigentes y las
+seis nuevas del catálogo propio (`producto-precio`, `combo-kit`,
+`problema-solucion`, `historia-precio-dia`, `historia-turno-lubricentro` e
+`historia-tip`). El precio es opcional en todas ellas.
 
-Antes de componer las piezas nuevas hace falta confirmar el catálogo propuesto
-en `docs/architecture/PIECE-CATALOG.md`: si el precio se muestra en la pieza,
-qué reseñas reales pueden usarse y cómo se toman los turnos del lubricentro.
+Falta definir con el negocio el contenido del carrusel y las piezas que aún no
+están en el catálogo, rehacer las cinco historias marcadas como `redesign`,
+adaptar los fixtures a documentos y comparar contra las referencias.
 
 ## Bloqueos externos conocidos
 

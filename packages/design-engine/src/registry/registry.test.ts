@@ -130,12 +130,20 @@ function safeAreaNumbers(description: string): readonly number[] {
 
 const manifest = readManifest();
 
-test("el registro cubre exactamente los layouts congelados", () => {
-  assert.deepEqual(
-    [...LAYOUT_IDS].sort(),
-    [...manifest.inventory.layouts].sort(),
+test("el registro conserva todo el inventario congelado y suma el catálogo propio", () => {
+  const registered = new Set<string>(LAYOUT_IDS);
+
+  for (const layout of manifest.inventory.layouts) {
+    assert.ok(
+      registered.has(layout),
+      `El layout congelado ${layout} dejó de estar registrado.`,
+    );
+  }
+
+  assert.ok(
+    LAYOUT_IDS.length >= manifest.inventory.layouts.length,
+    "El registro no puede perder identificadores de la línea base.",
   );
-  assert.equal(LAYOUT_IDS.length, 33);
 });
 
 test("los formatos coinciden en identificador, tamaño y zona segura", () => {

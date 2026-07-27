@@ -378,9 +378,20 @@ formatos y un registro tipado.
 - 2026-07-27: harness en `/diseno/layouts` con cada layout migrado a medidas
   reales y la lista de los pendientes.
 
+- 2026-07-27: compuestas las seis piezas nuevas del catálogo —`producto-precio`,
+  `combo-kit`, `problema-solucion`, `historia-precio-dia`,
+  `historia-turno-lubricentro` e `historia-tip`—. El precio es opcional en
+  todas: sin número, el bloque conserva su lugar con la invitación a
+  consultarlo, de modo que la jerarquía no cambia según el dato disponible.
+  Quedan 17 piezas compuestas de 39 identificadores registrados.
+
 ### Próximo paso
 
-Confirmar con el negocio el catálogo propuesto en `PIECE-CATALOG.md` —sobre todo
+Definir con el negocio el contenido del carrusel —qué enseña, en cuántas
+tarjetas y con qué oferta cierra— y las piezas que falten en el catálogo; luego
+rehacer las cinco historias marcadas como `redesign`, adaptar los fixtures a
+documentos y comparar contra las referencias. El catálogo original está en
+`PIECE-CATALOG.md` —sobre todo
 si el precio se muestra en la pieza, qué reseñas pueden usarse y cómo se toman
 los turnos del lubricentro— y luego componer las piezas nuevas
 (`producto-precio`, `combo-kit`, `problema-solucion`, `historia-precio-dia`,

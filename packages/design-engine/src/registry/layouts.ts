@@ -44,6 +44,62 @@ const mosaic: MediaCapacity = { maximum: 6, minimum: 0 };
 
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
+    "combo-kit": specFor(
+      "combo-kit",
+      "publicacion",
+      ["feed"],
+      ["title", "items"],
+      ["subtitle", "category", "price", "badge", "validity", "callToAction"],
+      { maximum: 3, minimum: 0 },
+    ),
+    "historia-precio-dia": specFor(
+      "historia-precio-dia",
+      "historia",
+      ["historia"],
+      ["title"],
+      [
+        "subtitle",
+        "category",
+        "price",
+        "previousPrice",
+        "badge",
+        "validity",
+        "callToAction",
+      ],
+      singlePhoto,
+    ),
+    "historia-tip": specFor(
+      "historia-tip",
+      "historia",
+      ["historia"],
+      ["title"],
+      ["subtitle", "badge", "icon", "items", "callToAction"],
+      noMedia,
+    ),
+    "historia-turno-lubricentro": specFor(
+      "historia-turno-lubricentro",
+      "historia",
+      ["historia"],
+      ["title"],
+      ["subtitle", "badge", "icon", "items", "branch", "phone", "callToAction"],
+      singlePhoto,
+    ),
+    "problema-solucion": specFor(
+      "problema-solucion",
+      "publicacion",
+      ["feed"],
+      ["title", "subtitle"],
+      ["category", "badge", "icon", "items", "callToAction"],
+      singlePhoto,
+    ),
+    "producto-precio": specFor(
+      "producto-precio",
+      "publicacion",
+      ["feed"],
+      ["title"],
+      ["subtitle", "category", "price", "badge", "validity", "callToAction"],
+      singlePhoto,
+    ),
     "banner-marca": specFor(
       "banner-marca",
       "banner",

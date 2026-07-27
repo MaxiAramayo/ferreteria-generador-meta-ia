@@ -8,6 +8,14 @@ import type { LayoutId } from "../registry/layout-id.ts";
 import { themeFor } from "../themes/theme-colors.ts";
 import type { DesignIssue } from "../validation/issues.ts";
 import { BannerMarca, DestacadaCover } from "./brand-pieces.tsx";
+import {
+  ComboKit,
+  HistoriaPrecioDia,
+  HistoriaTip,
+  HistoriaTurnoLubricentro,
+  ProblemaSolucion,
+  ProductoPrecio,
+} from "./catalog-pieces.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
 import {
   EppSeguridad,
@@ -34,13 +42,19 @@ export type LayoutComponent = (props: LayoutProps) => ReactElement;
 const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
   Object.freeze({
     "banner-marca": BannerMarca,
+    "combo-kit": ComboKit,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
+    "historia-precio-dia": HistoriaPrecioDia,
     "historia-producto": HistoriaProducto,
+    "historia-tip": HistoriaTip,
+    "historia-turno-lubricentro": HistoriaTurnoLubricentro,
     "lubricentro-servicio": LubricentroServicio,
     "presentacion-marca": PresentacionMarca,
+    "problema-solucion": ProblemaSolucion,
     "producto-destacado": ProductoDestacado,
     "producto-mosaico": ProductoMosaico,
+    "producto-precio": ProductoPrecio,
     "promo-producto": PromoProducto,
     sucursales: Sucursales,
     "tip-oficio": TipOficio,
@@ -126,8 +140,11 @@ export function DesignPiece({
   const format = formatFor(document.format);
   const theme = themeFor(document.theme);
   const Layout = layoutComponentFor(document.layout);
-  const backdrop =
-    document.layout !== "banner-marca" && document.layout !== "destacada-cover";
+  const withoutBackdrop: ReadonlySet<string> = new Set([
+    "banner-marca",
+    "destacada-cover",
+  ]);
+  const backdrop = !withoutBackdrop.has(document.layout);
 
   return (
     <Canvas backdrop={backdrop} format={format} theme={theme}>

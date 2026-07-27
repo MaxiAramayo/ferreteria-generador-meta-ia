@@ -1,6 +1,6 @@
 # Catálogo de piezas
 
-- Estado: propuesta para revisión del negocio
+- Estado: vigente, con decisiones del negocio del 2026-07-27
 - Fecha: 2026-07-27
 - Decisión que lo habilita: [`ADR-011`](decisions/ADR-011-CURATED-PIECE-CATALOG.md)
 
@@ -41,7 +41,7 @@ afirmación de disponibilidad sin dato que la respalde.
 | Pieza | Objetivo | Contenido mínimo | CTA |
 |---|---|---|---|
 | `producto-destacado` | Mostrar un producto y su categoría | Foto, título, rubro | Consultar stock |
-| `producto-precio` | Responder "cuánto sale" sin fricción | Foto, título, precio, vigencia opcional | Reservar por WhatsApp |
+| `producto-precio` | Responder "cuánto sale" sin fricción | Foto, título; precio opcional | Reservar por WhatsApp |
 | `promo-producto` | Oferta con precio anterior y vigencia | Foto, título, precio, antes, vigencia | Reservar por WhatsApp |
 | `combo-kit` | Vender el conjunto que se compra junto | Hasta 3 productos, precio del combo | Consultar combo |
 | `problema-solucion` | Partir del problema del cliente | Problema, solución, producto | Consultar cómo resolverlo |
@@ -54,7 +54,7 @@ afirmación de disponibilidad sin dato que la respalde.
 |---|---|---|---|
 | `historia-producto` | Producto a pantalla completa | Foto, título | Pedir por WhatsApp |
 | `historia-precio-dia` | Precio del día, con urgencia real | Foto, título, precio, vigencia | Reservar hoy |
-| `historia-turno-lubricentro` | Pedir turno de servicio | Servicio, horario, teléfono | Pedir turno |
+| `historia-turno-lubricentro` | Pedir turno de servicio | Servicio, horario, teléfono | Pedir turno por WhatsApp o en el local |
 | `historia-tip` | Tip corto de oficio o mantenimiento | Título, tip, icono | Guardar el tip |
 | `historia-locales` | Dónde estamos y hasta qué hora | Direcciones, horario | Cómo llegar |
 
@@ -86,15 +86,24 @@ afirmación de disponibilidad sin dato que la respalde.
 Los identificadores retirados siguen registrados para conservar la trazabilidad
 con la línea base congelada; componerlos falla de forma explícita.
 
-## Qué falta decidir
+## Decisiones del negocio (2026-07-27)
 
-Antes de implementar las piezas nuevas se necesita confirmación del negocio
-sobre:
+1. **El precio es opcional en la pieza.** Puede mostrarse o dejarse para
+   responder por WhatsApp, según lo que convenga a cada publicación. Las piezas
+   de precio se componen igual con y sin él: sin precio, el lugar del número lo
+   ocupa la invitación a consultar.
+2. **Los turnos del lubricentro se toman por WhatsApp o en el local.** Ese es el
+   CTA; no se promete reserva online.
+3. **El carrusel se conserva como formato**, pero su contenido está sin definir:
+   qué enseña y qué ofrece cada tarjeta se decide antes de componerlo.
+4. **`testimonio` queda para después.** Hay reseñas en Google Maps; usarlas
+   requiere revisar autorización y forma de atribución.
+5. **El catálogo va a crecer.** Esta versión cubre lo esencial; se refina con
+   más piezas en una tarea posterior.
 
-1. Si el catálogo cubre lo que se quiere publicar, o falta alguna pieza.
-2. Si el precio se muestra en la pieza o se responde por WhatsApp. Cambia la
-   pieza `producto-precio` y el pilar principal.
-3. Qué reseñas reales pueden usarse en `testimonio`, con autorización.
-4. Si el lubricentro toma turnos por WhatsApp o por teléfono; define el CTA.
-5. Si se conserva el carrusel como formato para guías, con otra composición, o
-   se descarta por completo.
+## Pendientes de definición
+
+- Contenido y estructura del carrusel: qué enseña, en cuántas tarjetas y con
+  qué oferta cierra.
+- Piezas adicionales que el negocio quiera publicar y todavía no están acá.
+- Uso de reseñas reales en `testimonio`, con autorización y atribución.
