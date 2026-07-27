@@ -11,6 +11,9 @@
   "dependencies": {
     "@aramayo/configuration": "workspace:*",
     "@aramayo/contracts": "workspace:*",
+    "@aramayo/design-engine": "workspace:*",
+    "@fontsource/archivo": "catalog:",
+    "@fontsource/saira-condensed": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

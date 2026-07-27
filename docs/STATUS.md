@@ -23,18 +23,15 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T03` — Migrar identidad, primitivas y activos.
+`P1-T04` — Migrar layouts, formatos y zonas seguras.
 
-`P1-T02` dejó la API pública del motor: documento de diseño versionado,
-registro tipado de los 33 layouts, formatos y zonas seguras canónicos,
-identidad de temas, iconos semánticos, fallos discriminados por etapa, puerto de
-render y validación de borde que rechaza toda entrada desconocida. El paquete no
-tiene dependencias de ejecución.
+`P1-T03` dejó los tokens, los cuatro temas resueltos a color, las primitivas
+`Canvas`, `SafeArea`, `Photo`, `Icon`, `Logo` y `Text`, los 38 activos aprobados
+migrados con verificación de hash, y un harness en `/diseno/primitivas`.
 
-`P1-T03` debe migrar `COLORS`, `TYPOGRAPHY`, `SPACING`, `RADII` y `TYPE_SCALE`
-como tokens tipados, completar los temas sobre los identificadores ya fijados y
-recrear las primitivas `Photo`, `Icon` y `Logo` con errores útiles ante activos
-inválidos.
+`P1-T04` debe implementar los 33 layouts como componentes React sobre esas
+primitivas, sin valores sueltos y sin PNG con texto horneado, y renderizar los
+fixtures congelados para comparar con las referencias.
 
 ## Bloqueos externos conocidos
 

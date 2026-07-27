@@ -111,6 +111,10 @@ export default async function HomePage() {
           No hay publicaciones ni borradores para mostrar. La creación, revisión
           y aprobación se habilitan en la Fase 2 del plan.
         </p>
+        <p className="hint">
+          El sistema visual migrado puede revisarse en{" "}
+          <a href="/diseno/primitivas">primitivas del motor de diseño</a>.
+        </p>
       </section>
     </main>
   );

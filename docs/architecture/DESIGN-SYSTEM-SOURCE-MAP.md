@@ -151,6 +151,17 @@ export const FORMATS = {
 El ejemplo comunica la forma, no autoriza a copiar valores sin ejecutar el
 inventario y la comparación de `P1-T01`.
 
+## Estado de la migración
+
+| Pieza | Estado |
+|---|---|
+| Inventario, fixtures y referencias | Congelados en `P1-T01` |
+| Contratos, formatos y registro de layouts | Migrados en `P1-T02` |
+| Tokens, temas, primitivas y activos | Migrados en `P1-T03` |
+| Layouts y zonas seguras por pieza | Pendientes de `P1-T04` |
+| Render y exportación PNG | Pendientes de `P1-T05` |
+| Paridad visual aprobada | Pendiente de `P1-T06` |
+
 ## Procedimiento de migración
 
 1. Verificar que el checkout fuente sea reproducible.

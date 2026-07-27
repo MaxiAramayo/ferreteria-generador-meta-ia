@@ -89,6 +89,56 @@ plataforma.
 Los tokens, las primitivas y los componentes React de cada layout se incorporan
 en `P1-T03` y `P1-T04` sobre estos mismos identificadores.
 
+## Identidad, primitivas y activos (`P1-T03`)
+
+Los tokens son la única fuente de valores visuales y las primitivas los
+consumen; ningún componente escribe un color, un tamaño o un radio suelto.
+
+| Módulo | Contenido |
+|---|---|
+| `tokens/colors` | `COLORS`, `withAlpha` y `rgbChannels` |
+| `tokens/typography` | `TYPOGRAPHY` (familias, pesos, licencia) y `TYPE_SCALE` |
+| `tokens/space` | `SPACING`, `RADII` y `STROKES` |
+| `themes/theme-colors` | `THEMES` con diez roles de color resueltos y `themeFor` |
+| `themes/theme-css` | Variables CSS derivadas y `designEngineStylesheet()` |
+| `assets` | `BRAND_ASSETS`, `resolveAssetUrl` y la ubicación en disco |
+
+Las primitivas se publican en `@aramayo/design-engine/react`:
+
+| Primitiva | Responsabilidad |
+|---|---|
+| `Canvas` | Nodo exportable `[data-card]` con tamaño, tema y fondo |
+| `SafeArea` | Márgenes seguros del formato, sin repetir `72` por layout |
+| `Photo` | Foto con encuadre, foco y zoom declarados |
+| `Icon` | Icono de Lucide elegido por nombre semántico |
+| `Logo` / `AramayoMark` | Marca con relación de aspecto y área segura publicadas |
+| `Text` | Escala tipográfica aplicada desde los tokens |
+
+### Decisiones de la migración
+
+- **Sin Tailwind.** El generador expresaba temas como clases (`bg-ink`,
+  `text-paper/72`). Acá cada rol es un color derivado de tokens y las piezas se
+  componen con estilos explícitos: el motor no necesita un build de CSS para
+  saber de qué color es una pieza, y el worker puede renderizar sin él.
+- **Fallar en lugar de improvisar.** Un icono fuera del registro, una variante
+  de logo inexistente, un activo que no está en la biblioteca o un isotipo por
+  debajo de su tamaño mínimo detienen la composición con un `DesignEngineError`
+  de la etapa correspondiente. El generador caía en una llave inglesa o dejaba
+  un hueco.
+- **Los activos viven una sola vez.** `pnpm assets:sync` copia desde el
+  generador los 38 activos con propiedad confirmada, verifica su hash contra la
+  línea base y regenera `BRAND_ASSETS`. El panel los sirve desde el paquete; no
+  hay copia en `public/`.
+- **CSS generado, no paralelo.** `designEngineStylesheet()` produce las
+  variables desde los mismos objetos que usan las primitivas y una prueba
+  comprueba la paridad valor por valor.
+
+### Harness
+
+`pnpm dev` y luego `http://localhost:3000/diseno/primitivas` muestra los cuatro
+temas, la paleta, la escala tipográfica, la marca y los 26 iconos. Es la
+superficie que audita `P1-T06`.
+
 ## Línea base congelada (`P1-T01`)
 
 `baseline/` es la evidencia contra la que se comparará la migración:

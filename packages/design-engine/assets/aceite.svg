@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <rect width="1200" height="900" fill="#191715"/>
+  <rect x="82" y="78" width="1036" height="744" rx="56" fill="#fffaf0"/>
+  <rect x="420" y="170" width="360" height="550" rx="44" fill="#24211f"/>
+  <rect x="470" y="110" width="260" height="90" rx="28" fill="#c64a2f"/>
+  <rect x="472" y="310" width="256" height="216" rx="30" fill="#f6c343"/>
+  <path d="M600 366c52 69 78 112 78 158 0 51-35 89-78 89s-78-38-78-89c0-46 26-89 78-158Z" fill="#c64a2f"/>
+  <text x="600" y="430" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="900" fill="#24211f">ACEITE</text>
+  <text x="600" y="790" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="900" fill="#24211f">Lubricentro</text>
+</svg>

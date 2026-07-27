@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <rect width="1200" height="900" fill="#fffaf0"/>
+  <rect x="92" y="92" width="1016" height="716" rx="54" fill="#f6c343"/>
+  <rect x="380" y="268" width="330" height="360" rx="42" fill="#24211f"/>
+  <rect x="350" y="214" width="390" height="92" rx="34" fill="#c64a2f"/>
+  <path d="M814 276h78c52 0 94 42 94 94v22c0 52-42 94-94 94h-78v-72h72c20 0 36-16 36-36v-6c0-20-16-36-36-36h-72v-64Z" fill="#24211f"/>
+  <path d="M465 421c53 72 80 117 80 166 0 52-36 91-80 91s-80-39-80-91c0-49 27-94 80-166Z" fill="#fffaf0"/>
+  <text x="545" y="476" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="900" fill="#fffaf0">PINTURA</text>
+  <text x="600" y="742" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="52" font-weight="900" fill="#24211f">Hogar y oficio</text>
+</svg>

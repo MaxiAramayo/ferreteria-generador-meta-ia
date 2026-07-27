@@ -9,6 +9,12 @@ catalogs:
     '@eslint/js':
       specifier: 10.0.1
       version: 10.0.1
+    '@fontsource/archivo':
+      specifier: 5.2.8
+      version: 5.2.8
+    '@fontsource/saira-condensed':
+      specifier: 5.2.8
+      version: 5.2.8
     '@nestjs/common':
       specifier: 11.1.28
       version: 11.1.28
@@ -42,6 +48,9 @@ catalogs:
     globals:
       specifier: 17.7.0
       version: 17.7.0
+    lucide-react:
+      specifier: 0.561.0
+      version: 0.561.0
     next:
       specifier: 16.2.11
       version: 16.2.11
@@ -159,6 +168,15 @@ importers:
       '@aramayo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@aramayo/design-engine':
+        specifier: workspace:*
+        version: link:../../packages/design-engine
+      '@fontsource/archivo':
+        specifier: 'catalog:'
+        version: 5.2.8
+      '@fontsource/saira-condensed':
+        specifier: 'catalog:'
+        version: 5.2.8
       next:
         specifier: 'catalog:'
         version: 16.2.11(@babel/core@7.29.7)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -234,10 +252,32 @@ importers:
         version: 5.9.3
 
   packages/design-engine:
+    dependencies:
+      lucide-react:
+        specifier: 'catalog:'
+        version: 0.561.0(react@19.2.8)
     devDependencies:
+      '@fontsource/archivo':
+        specifier: 'catalog:'
+        version: 5.2.8
+      '@fontsource/saira-condensed':
+        specifier: 'catalog:'
+        version: 5.2.8
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -386,6 +426,12 @@ packages:
   '@eslint/plugin-kit@0.7.2':
     resolution: {integrity: sha512-+CNAzxglkrpNf/kKywqQfk74QjtceuOE7Qm+AF8miRvPF/wmmK5+OJOgVh3AVTT3RP2mH3+FOaxlE5v72owk0A==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+
+  '@fontsource/archivo@5.2.8':
+    resolution: {integrity: sha512-Fc4yuMt85MmcYooUVpYHAJRJTymPv2+J9HsMP2f5mxR/0pIWgE2V5XfgNTavPpklX2rJFprdT36iE6Rr8ds9MA==}
+
+  '@fontsource/saira-condensed@5.2.8':
+    resolution: {integrity: sha512-wRNl7O45JWSB5TUVRhJFXZ4QXD/rATKkM1XMUJvPIZjIqIqIzXdcZs55iAMZ8BV0GMHVpoQ3Oa1W4ydHrRrs3Q==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1241,6 +1287,11 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
+  lucide-react@0.561.0:
+    resolution: {integrity: sha512-Y59gMY38tl4/i0qewcqohPdEbieBy7SovpBL9IFebhc2mDd8x4PZSOsiFRkpPcOq6bj1r/mjH/Rk73gSlIJP2A==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -1973,6 +2024,10 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
+
+  '@fontsource/archivo@5.2.8': {}
+
+  '@fontsource/saira-condensed@5.2.8': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -2774,6 +2829,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-react@0.561.0(react@19.2.8):
+    dependencies:
+      react: 19.2.8
 
   math-intrinsics@1.1.0: {}
 

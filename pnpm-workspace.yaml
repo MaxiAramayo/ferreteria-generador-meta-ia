@@ -6,6 +6,8 @@ catalogMode: strict
 
 catalog:
   "@eslint/js": 10.0.1
+  "@fontsource/archivo": 5.2.8
+  "@fontsource/saira-condensed": 5.2.8
   "@nestjs/common": 11.1.28
   "@nestjs/core": 11.1.28
   "@nestjs/platform-express": 11.1.28
@@ -19,6 +21,7 @@ catalog:
   eslint: 10.7.0
   eslint-plugin-react-hooks: 7.1.1
   globals: 17.7.0
+  lucide-react: 0.561.0
   next: 16.2.11
   pg: 8.22.0
   prettier: 3.9.6

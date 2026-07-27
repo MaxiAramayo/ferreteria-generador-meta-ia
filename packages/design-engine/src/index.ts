@@ -8,13 +8,15 @@
  * Superficie por responsabilidad:
  *
  * - contratos: documento, activos, errores y resultado de render;
+ * - tokens: color, tipografía, espaciado, radios y escala;
  * - formatos: dimensiones y zonas seguras canónicas;
- * - temas: identificadores y metadatos de marca;
+ * - temas: identidad, colores resueltos y bindings CSS derivados;
  * - registro: layouts y nombres semánticos de icono;
+ * - activos: biblioteca aprobada y resolución a URL;
  * - validación: conversión de entrada desconocida en documento válido.
  *
- * Los tokens, las primitivas y los componentes de layout se incorporan en
- * `P1-T03` y `P1-T04` sobre estos mismos identificadores.
+ * Las primitivas React se publican aparte, en
+ * `@aramayo/design-engine/react`; los componentes de layout llegan en `P1-T04`.
  */
 
 export {
@@ -83,6 +85,30 @@ export {
   layoutSpecFor,
   supportsFormat,
 } from "./registry/layouts.ts";
+export { BRAND_ASSETS, type BrandAsset } from "./assets/asset-library.ts";
+export {
+  assetFileUrl,
+  designEngineAssetsUrl,
+} from "./assets/asset-location.ts";
+export {
+  describeReference,
+  findBrandAsset,
+  resolveAssetUrl,
+  type AssetResolutionOptions,
+} from "./assets/asset-resolver.ts";
+export {
+  THEME_COLOR_ROLES,
+  THEMES,
+  themeFor,
+  type Theme,
+  type ThemeColors,
+} from "./themes/theme-colors.ts";
+export {
+  colorVariableName,
+  designEngineStylesheet,
+  fontVariableName,
+  themeCssVariables,
+} from "./themes/theme-css.ts";
 export {
   DEFAULT_THEME_ID,
   isThemeId,
@@ -94,6 +120,28 @@ export {
   type ThemeId,
   type ThemeTone,
 } from "./themes/themes.ts";
+export {
+  COLORS,
+  FONT_ROLES,
+  FONT_WEIGHTS,
+  isFontRole,
+  RADII,
+  rgbChannels,
+  SPACING,
+  STROKES,
+  TYPE_SCALE,
+  TYPOGRAPHY,
+  withAlpha,
+  type ColorToken,
+  type FontFamilyToken,
+  type FontRole,
+  type FontWeightToken,
+  type RadiusToken,
+  type SpacingToken,
+  type StrokeToken,
+  type TypeStyle,
+  type TypeStyleToken,
+} from "./tokens/index.ts";
 export {
   describeIssues,
   issue,

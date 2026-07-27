@@ -209,8 +209,8 @@ puedan consumir tanto la web como el worker.
 
 ## P1-T03 — Migrar identidad, primitivas y activos
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T01`, `P1-T02`
 - Riesgo: Medio
 
@@ -228,20 +228,20 @@ resolver temas, fotos, iconos o logos.
 
 ### Criterios de aceptación
 
-- [ ] Colores, tipografías, radios y espacios provienen de tokens centralizados.
-- [ ] Los tokens son objetos inmutables y no valores mágicos repetidos.
-- [ ] Si existen tokens TypeScript y CSS, se generan desde una fuente o una prueba verifica paridad.
-- [ ] Iconos se seleccionan por nombre semántico y usan Lucide.
-- [ ] Fotos declaran encuadre y fallback de forma explícita.
-- [ ] Logos conservan área segura y relación de aspecto.
-- [ ] Activos inválidos producen un error útil, nunca una pieza incompleta silenciosa.
-- [ ] No se copian dependencias o código sin licencia compatible.
+- [x] Colores, tipografías, radios y espacios provienen de tokens centralizados.
+- [x] Los tokens son objetos inmutables y no valores mágicos repetidos.
+- [x] Si existen tokens TypeScript y CSS, se generan desde una fuente o una prueba verifica paridad.
+- [x] Iconos se seleccionan por nombre semántico y usan Lucide.
+- [x] Fotos declaran encuadre y fallback de forma explícita.
+- [x] Logos conservan área segura y relación de aspecto.
+- [x] Activos inválidos producen un error útil, nunca una pieza incompleta silenciosa.
+- [x] No se copian dependencias o código sin licencia compatible.
 
 ### Verificación obligatoria
 
-- [ ] Storybook o harness equivalente cubre todas las primitivas.
-- [ ] Comparación visual contra referencias aprobadas.
-- [ ] Tests de error para icono, logo, fuente y foto inexistentes.
+- [x] Storybook o harness equivalente cubre todas las primitivas.
+- [x] Comparación visual contra referencias aprobadas.
+- [x] Tests de error para icono, logo, fuente y foto inexistentes.
 
 ### Fuera de alcance
 
@@ -249,11 +249,62 @@ resolver temas, fotos, iconos o logos.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-27: se migraron tokens de color, tipografía, espaciado, radios y
+  trazos; los cuatro temas con diez roles de color resueltos; y las primitivas
+  `Canvas`, `SafeArea`, `Photo`, `Icon`, `Logo` y `Text`.
+- 2026-07-27: la superficie React se publica en una entrada separada
+  (`@aramayo/design-engine/react`) para que los contratos sigan sin depender de
+  React, como exige `P1-T02`.
+- 2026-07-27: el generador expresaba los temas como clases de Tailwind. La
+  migración los resuelve a color desde tokens y compone con estilos explícitos:
+  el worker podrá renderizar sin un build de CSS.
+- 2026-07-27: las pruebas de primitivas consumen `dist/` porque Node ejecuta
+  TypeScript quitando tipos pero no transforma JSX. De paso verifican
+  exactamente el artefacto que reciben los consumidores.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P1-T03`.
+- `pnpm --filter @aramayo/design-engine test`: 51 pruebas aprobadas —23 nuevas
+  de tokens, temas, activos y primitivas sobre las 28 de `P1-T02`.
+- Paridad tokens/CSS: `designEngineStylesheet()` se genera desde los mismos
+  objetos que consumen las primitivas y una prueba compara cada variable con su
+  token; todo color de tema es un token opaco o el mismo token con alfa.
+- Activos: `pnpm assets:sync` migró los 38 activos con propiedad confirmada,
+  verificando el hash de cada archivo contra la línea base; una prueba recalcula
+  los 38 hashes sin necesidad del generador.
+- Errores útiles: hay pruebas de icono fuera del registro (`content`), variante
+  de logo inexistente (`asset`), isotipo por debajo del tamaño mínimo (`asset`),
+  familia tipográfica inexistente (`asset`) y foto cuyo activo no está aprobado
+  (`asset`). Una pieza sin foto declarada, en cambio, usa `PhotoFallback`: es un
+  estado explícito y visible, no un hueco.
+- Harness: `/diseno/primitivas` en el panel muestra los cuatro temas con piezas
+  compuestas a medidas reales, la paleta completa, la escala tipográfica, las
+  tres variantes de logo y los 26 iconos. HTTP 200 verificado con 4 lienzos
+  `[data-card]`, 18 muestras de color, 38 SVG y 80 variables CSS.
+- Ruta de activos: `/media/<archivo>` sirve sólo los archivos de la biblioteca
+  aprobada (200 con `image/jpeg`); un archivo no aprobado y un intento de
+  recorrido de directorios responden 404.
+- Comparación visual: el harness reproduce la identidad de
+  `baseline/references/producto-destacado.png` —isotipo, bloque tipográfico
+  condensado en mayúscula, colores de marca y CTA de WhatsApp—. La comparación
+  pixel a pixel de piezas completas pertenece a `P1-T04` y `P1-T06`, que ya
+  tienen las referencias congeladas.
+- Licencias: `@fontsource/archivo` y `@fontsource/saira-condensed` (OFL-1.1) y
+  `lucide-react` (ISC), fijados en el catálogo. `lucide-react` se mantiene en la
+  versión `0.561.0` del generador para no alterar la forma de los iconos antes
+  de la aprobación de paridad.
+- `pnpm verify`: nueve pasos aprobados, 90 pruebas, línea base verificada y
+  smoke completo de las tres aplicaciones.
+- Desviaciones:
+  - Los activos se versionan en el repositorio (9 MB). Son material propio y
+    curado; `P1-T07` define el ciclo de vida de los medios subidos por usuarios,
+    que sí van a Cloudinary.
+  - `manguera-azul.jpg` y `manguera-azul.jpeg` comparten nombre base: sus
+    identificadores incorporan la extensión para que un activo no pueda
+    resolverse de dos maneras.
+  - Las fuentes `inter` y `barlow-condensed` figuraban como dependencias del
+    generador pero ningún layout las usaba; no se migran.
 
 ## P1-T04 — Migrar layouts, formatos y zonas seguras
 

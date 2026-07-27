@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <rect width="1200" height="900" fill="#fffaf0"/>
+  <rect x="70" y="70" width="1060" height="760" rx="54" fill="#24211f"/>
+  <circle cx="905" cy="180" r="86" fill="#f6c343"/>
+  <path d="M280 312h425c42 0 82 17 112 47l84 84c18 18 18 48 0 66l-39 39c-18 18-48 18-66 0l-77-77H570v83c0 25-20 45-45 45h-93v132c0 25-20 45-45 45h-89c-25 0-45-20-45-45V599h-58c-25 0-45-20-45-45V442c0-72 58-130 130-130Z" fill="#f6c343"/>
+  <path d="M280 312h315v159H195v-29c0-72 58-130 130-130Z" fill="#c64a2f"/>
+  <rect x="254" y="599" width="178" height="177" rx="45" fill="#39342f"/>
+  <text x="600" y="214" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="52" font-weight="800" fill="#fffaf0">Herramientas</text>
+</svg>

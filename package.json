@@ -17,6 +17,7 @@
     }
   },
   "scripts": {
+    "assets:sync": "node tools/design-baseline/sync-assets.ts",
     "baseline:freeze": "node tools/design-baseline/cli.ts freeze",
     "baseline:typecheck": "tsc --project tools/design-baseline/tsconfig.json",
     "baseline:verify": "node tools/design-baseline/cli.ts verify",
