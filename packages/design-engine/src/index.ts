@@ -62,6 +62,12 @@ export {
   type FormatId,
   type SafeArea,
 } from "./formats/formats.ts";
+export {
+  CATALOG_STATUS,
+  catalogStatusFor,
+  isPublishable,
+  type CatalogStatus,
+} from "./registry/catalog.ts";
 export { ICON_NAMES, isIconName, type IconName } from "./registry/icons.ts";
 export type {
   BannerLayoutId,

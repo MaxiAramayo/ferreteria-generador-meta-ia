@@ -4,6 +4,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import {
+  CATALOG_STATUS,
+  catalogStatusFor,
   DESIGN_SCHEMA_VERSION,
   DesignEngineError,
   FORMATS,
@@ -92,9 +94,45 @@ const migratedLayouts = LAYOUT_IDS.filter((layout: LayoutId) =>
   isLayoutMigrated(layout),
 );
 
-test("la migración avanza por familias y declara qué falta", () => {
+test("cada identificador declara su estado en el catálogo curado", () => {
+  assert.equal(Object.keys(CATALOG_STATUS).length, LAYOUT_IDS.length);
+
+  for (const layout of LAYOUT_IDS) {
+    assert.ok(
+      ["current", "redesign", "retired"].includes(catalogStatusFor(layout)),
+      `${layout} no declara un estado de catálogo válido.`,
+    );
+  }
+});
+
+test("una pieza retirada no tiene componente y falla al componerse", () => {
+  for (const layout of LAYOUT_IDS) {
+    if (catalogStatusFor(layout) !== "retired") {
+      continue;
+    }
+
+    assert.ok(
+      !isLayoutMigrated(layout),
+      `${layout} está retirada pero tiene componente.`,
+    );
+    assert.throws(
+      () => layoutComponentFor(layout),
+      (error: unknown) =>
+        error instanceof DesignEngineError && error.failure.stage === "layout",
+    );
+  }
+});
+
+test("toda pieza migrada está vigente en el catálogo", () => {
   assert.ok(migratedLayouts.length > 0);
-  assert.equal(LAYOUT_IDS.length, 33);
+
+  for (const layout of migratedLayouts) {
+    assert.equal(
+      catalogStatusFor(layout),
+      "current",
+      `${layout} tiene componente pero no está vigente en el catálogo.`,
+    );
+  }
 });
 
 test("cada layout migrado compone dentro de las dimensiones de su formato", () => {

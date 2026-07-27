@@ -10,6 +10,11 @@ por un worker, sin depender del repositorio anterior en tiempo de ejecución.
 
 - La migración sigue
   [`DESIGN-SYSTEM-SOURCE-MAP.md`](../architecture/DESIGN-SYSTEM-SOURCE-MAP.md).
+- El catálogo de piezas lo decide el negocio en
+  [`PIECE-CATALOG.md`](../architecture/PIECE-CATALOG.md); no se reproduce el
+  inventario heredado pieza por pieza ([`ADR-011`](../architecture/decisions/ADR-011-CURATED-PIECE-CATALOG.md)).
+- La línea base congelada controla identidad —color, tipografía, marca y
+  activos—, no la composición de cada pieza.
 - Colores, tipografías, temas, formatos y safe zones se expresan como variables
   o registros tipados.
 - Los layouts se implementan como componentes React; PNG y HTML son únicamente
@@ -326,7 +331,7 @@ formatos y un registro tipado.
 
 ### Criterios de aceptación
 
-- [ ] Cada layout inventariado está registrado y tipado.
+- [ ] Cada pieza del catálogo vigente está registrada, tipada y compuesta.
 - [ ] Ningún layout se implementa mediante un PNG de fondo con texto horneado.
 - [ ] Ningún layout importa HTML exportado o código desde fuera del monorepo.
 - [ ] Valores compartidos se resuelven mediante tokens, formatos o primitivas.
@@ -347,6 +352,12 @@ formatos y un registro tipado.
 - Incorporar prompts o decisiones automáticas de IA.
 
 ### Notas de progreso
+
+- 2026-07-27: el negocio revisó las primeras piezas y cambió la premisa de la
+  tarea: no se reproduce el inventario heredado, se migra un catálogo curado y
+  mejor. Queda registrado en `ADR-011` y propuesto en `PIECE-CATALOG.md`.
+  Cada identificador heredado declara ahora su estado —`current`, `redesign` o
+  `retired`— y una pieza retirada no tiene componente.
 
 - 2026-07-27: migrados 11 de 33 layouts —las ocho publicaciones de feed y
   cuadrado, el banner de portada y la portada destacada—, compuestos con las
@@ -369,10 +380,12 @@ formatos y un registro tipado.
 
 ### Próximo paso
 
-Migrar los nueve carruseles (`carrusel-*`) y los catorce layouts de historia
-(`historia-*`) desde `src/layouts/launchCarousels.tsx`, `dailyStories.tsx` y
-`storySeries.tsx` del generador congelado; luego cerrar el registro exhaustivo,
-adaptar los 33 fixtures a documentos y comparar contra las referencias.
+Confirmar con el negocio el catálogo propuesto en `PIECE-CATALOG.md` —sobre todo
+si el precio se muestra en la pieza, qué reseñas pueden usarse y cómo se toman
+los turnos del lubricentro— y luego componer las piezas nuevas
+(`producto-precio`, `combo-kit`, `problema-solucion`, `historia-precio-dia`,
+`historia-turno-lubricentro`, `historia-tip`, `testimonio`) y rehacer las cinco
+marcadas como `redesign`.
 
 ### Evidencia de cierre
 

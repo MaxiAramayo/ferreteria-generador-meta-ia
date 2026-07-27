@@ -25,13 +25,14 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 `P1-T04` — Migrar layouts, formatos y zonas seguras (en progreso).
 
-Van 11 de 33 layouts: las ocho publicaciones de feed y cuadrado, el banner de
-portada y la portada destacada. El registro de componentes es parcial a
-propósito y un layout sin componente falla con `layout: not-registered`.
+El negocio cambió la premisa: no se reproduce el inventario heredado, se migra
+un catálogo curado y mejor (`ADR-011`). Las once piezas vigentes ya están
+compuestas; los nueve carruseles y ocho historias quedan retirados y cinco
+historias quedan marcadas para rediseño.
 
-Falta migrar los nueve carruseles y los catorce layouts de historia, cerrar el
-registro exhaustivo, adaptar los 33 fixtures congelados a documentos y comparar
-contra las referencias PNG.
+Antes de componer las piezas nuevas hace falta confirmar el catálogo propuesto
+en `docs/architecture/PIECE-CATALOG.md`: si el precio se muestra en la pieza,
+qué reseñas reales pueden usarse y cómo se toman los turnos del lubricentro.
 
 ## Bloqueos externos conocidos
 
