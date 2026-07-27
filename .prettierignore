@@ -10,6 +10,7 @@ next-env.d.ts
 
 # Línea base visual: datos congelados que produce "pnpm baseline:freeze".
 packages/design-engine/baseline/
+packages/design-engine/catalog-reference/
 
 # La documentación se escribe con saltos de línea deliberados a 80 columnas;
 # reformatearla automáticamente rompe tablas y listas revisadas a mano.

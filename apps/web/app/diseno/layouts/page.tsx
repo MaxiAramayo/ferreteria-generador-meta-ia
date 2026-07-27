@@ -10,6 +10,7 @@ import {
 } from "@aramayo/design-engine";
 import { DesignPiece, isLayoutMigrated } from "@aramayo/design-engine/react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 /**
  * Harness de layouts.
@@ -98,7 +99,9 @@ function LayoutPreview({ layout }: { readonly layout: LayoutId }) {
         <strong>{layout}</strong> · {format.id} · {format.width}×{format.height}
       </figcaption>
       <div
+        aria-label={`Vista previa de la pieza ${layout}`}
         className="preview-frame"
+        role="img"
         style={{ height: format.height * scale, width: format.width * scale }}
       >
         <div
@@ -122,6 +125,12 @@ export default function LayoutsHarnessPage() {
 
   return (
     <main>
+      <nav aria-label="Revisión de diseño" className="harness-nav">
+        <Link href="/">Panel</Link>
+        <Link href="/diseno/primitivas">Primitivas</Link>
+        <Link href="/diseno/layouts">Layouts</Link>
+      </nav>
+
       <h1>Layouts del motor de diseño</h1>
       <p className="lead">
         {migrated.length} de {LAYOUT_IDS.length} layouts migrados, compuestos

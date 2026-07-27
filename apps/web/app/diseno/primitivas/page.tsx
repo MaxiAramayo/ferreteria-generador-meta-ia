@@ -25,6 +25,7 @@ import {
   Text,
 } from "@aramayo/design-engine/react";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 /**
  * Harness de primitivas.
@@ -79,7 +80,9 @@ function ThemePreview({ themeId }: { readonly themeId: ThemeId }) {
         <strong>{themeId}</strong> · {theme.brand} · {theme.tone}
       </figcaption>
       <div
+        aria-label={`Vista previa del tema ${themeId}`}
         className="preview-frame"
+        role="img"
         style={{
           height: format.height * previewScale,
           width: format.width * previewScale,
@@ -151,6 +154,12 @@ export default function PrimitivesHarnessPage() {
   return (
     <main>
       <style>{designEngineStylesheet()}</style>
+
+      <nav aria-label="Revisión de diseño" className="harness-nav">
+        <Link href="/">Panel</Link>
+        <Link href="/diseno/primitivas">Primitivas</Link>
+        <Link href="/diseno/layouts">Layouts</Link>
+      </nav>
 
       <h1>Primitivas del motor de diseño</h1>
       <p className="lead">

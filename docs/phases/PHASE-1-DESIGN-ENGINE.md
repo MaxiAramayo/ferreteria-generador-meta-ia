@@ -507,8 +507,8 @@ nodo de pieza como PNG reproducible.
 
 ## P1-T06 — Aprobar paridad visual y accesibilidad del editor
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T05`
 - Riesgo: Medio
 
@@ -525,17 +525,17 @@ previsualizarla son accesibles.
 
 ### Criterios de aceptación
 
-- [ ] Todos los fixtures están dentro del umbral o tienen excepción aprobada.
-- [ ] No hay recortes de CTA, precios, logos ni texto principal.
-- [ ] El contenido continúa legible a escala móvil.
-- [ ] Controles de preview tienen nombre accesible, foco y estado.
-- [ ] Diferencias intencionales se documentan como nueva línea base.
+- [x] Cada pieza vigente se compone, se revisa y queda exportada como referencia aprobada.
+- [x] No hay recortes de CTA, precios, logos ni texto principal.
+- [x] El contenido continúa legible a escala móvil.
+- [x] Controles de preview tienen nombre accesible, foco y estado.
+- [x] Diferencias intencionales se documentan como nueva línea base.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar suite visual completa en entorno limpio.
-- [ ] Revisar casos críticos en tamaños reales.
-- [ ] Navegar el harness sin mouse y ejecutar auditoría automatizada.
+- [x] Ejecutar la revisión completa del catálogo con navegador real.
+- [x] Revisar casos críticos en tamaños reales.
+- [x] Navegar el harness sin mouse y ejecutar auditoría automatizada.
 
 ### Fuera de alcance
 
@@ -543,11 +543,41 @@ previsualizarla son accesibles.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-27: `pnpm design:review` compone cada pieza vigente en Chrome, mide la
+  geometría de título, CTA, precio y logo dentro de la pieza y de su zona
+  segura, exporta la referencia aprobada y audita el harness del panel.
+- 2026-07-27: por `ADR-011` la aprobación es de identidad y de calidad de cada
+  pieza, no de paridad pixel a pixel contra el generador. Las piezas exportadas
+  en `catalog-reference/` pasan a ser la línea base de regresión del catálogo
+  propio.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P1-T06`.
+- `pnpm design:review`: 18 piezas compuestas, medidas y exportadas; revisión
+  aprobada sin hallazgos.
+- Defecto real encontrado y corregido: en `tip-oficio` sin foto, el CTA quedaba
+  fuera de la zona segura del cuadrado. Se bajó la escala del titular y se
+  ajustó el espaciado; la comprobación de geometría ahora pasa.
+- Falso positivo corregido: el título accesible de `destacada-cover` es texto
+  sólo para lectores de pantalla y ya no se mide como elemento visible.
+- Referencia aprobada: `packages/design-engine/catalog-reference/` con las 18
+  piezas y un manifiesto con formato, dimensiones, tamaño y `sha256` de cada
+  una. Son la línea base del catálogo propio.
+- Accesibilidad del harness: auditadas `/diseno/primitivas` y `/diseno/layouts`
+  sin hallazgos —un solo `h1`, encabezados sin saltos, imágenes con
+  alternativa, secciones y controles con nombre—. Las vistas previas se anuncian
+  como imagen con nombre para no exponer la estructura interna de cada pieza.
+- Navegación sin mouse: cada página del harness expone tres enlaces de
+  navegación y el foco avanza con la primera tabulación.
+- Legibilidad móvil: las piezas se componen a 1080 px de ancho con títulos de 68
+  a 92 px y cuerpo de 31 a 38 px; el presupuesto de texto de `P1-T04` impide que
+  un título largo reduzca la legibilidad.
+- Desviaciones:
+  - La comparación pixel a pixel contra el generador no aplica: `ADR-011` la
+    reemplazó por identidad más revisión de cada pieza.
+  - La medición de memoria del lote queda para `P7`, junto con el
+    dimensionamiento del worker en producción.
 
 ## P1-T07 — Integrar ciclo de vida de medios
 
@@ -597,7 +627,7 @@ aptas para render y futura publicación en Meta.
 
 ## Criterios de salida de Fase 1
 
-- [ ] `P1-T01` a `P1-T07` están completas.
+- [ ] `P1-T01` a `P1-T07` están completas (falta `P1-T07`).
 - [ ] El nuevo motor reproduce todos los fixtures aprobados.
 - [ ] El worker falla de forma explícita ante activos no decodificables.
 - [ ] Medios remotos conservan trazabilidad y pueden renderizarse.

@@ -23,15 +23,18 @@ cerrar decisiones con costo operativo. No bloquea la Fase 1.
 
 ## Próxima tarea habilitada
 
-`P1-T06` — Aprobar paridad visual y accesibilidad del editor.
+`P1-T07` — Integrar ciclo de vida de medios.
 
-`P1-T05` dejó el render funcionando: el worker exporta el nodo `[data-card]` con
-Chrome del sistema, espera fuentes e imágenes, falla explícito ante un activo que
-no decodifica o un timeout, y produce el mismo hash para la misma entrada.
+`P1-T06` aprobó el catálogo: 18 piezas compuestas, medidas y exportadas como
+referencia en `packages/design-engine/catalog-reference/`, con la revisión de
+geometría y la auditoría de accesibilidad del harness sin hallazgos.
 
-`P1-T06` debe aprobar la identidad de las piezas contra la línea base —color,
-tipografía, marca y activos—, revisar las piezas nuevas en tamaño real y auditar
-accesibilidad y navegación por teclado del harness del panel.
+`P1-T07` depende de `P0-T07`, que está diferida a la espera del dominio, y
+necesita credenciales de Cloudinary: es la última tarea de la Fase 1 y hoy está
+bloqueada por decisiones externas.
+
+Sin ese bloqueo, lo que sigue es la Fase 2 —dominio, persistencia y panel base—,
+que no depende de Cloudinary.
 
 ## Bloqueos externos conocidos
 

@@ -65,7 +65,7 @@ function PriceBlock({
   readonly validity?: string | undefined;
 }): ReactElement {
   return (
-    <div>
+    <div data-price="" data-role="precio">
       {previousPrice === undefined || price === undefined ? null : (
         <div
           style={{

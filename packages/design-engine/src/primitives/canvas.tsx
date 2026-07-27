@@ -68,6 +68,7 @@ export function Canvas({
     <div
       data-card=""
       data-format={format.id}
+      data-safe-area={JSON.stringify(format.safeArea)}
       data-theme={theme.id}
       style={{
         backgroundColor: theme.colors.background,

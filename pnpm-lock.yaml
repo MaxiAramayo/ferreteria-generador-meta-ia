@@ -89,6 +89,12 @@ importers:
 
   .:
     devDependencies:
+      '@aramayo/brand-knowledge':
+        specifier: workspace:*
+        version: link:packages/brand-knowledge
+      '@aramayo/design-engine':
+        specifier: workspace:*
+        version: link:packages/design-engine
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.7.0)
@@ -116,9 +122,18 @@ importers:
       pg:
         specifier: 'catalog:'
         version: 8.22.0
+      playwright-core:
+        specifier: 'catalog:'
+        version: 1.62.0
       prettier:
         specifier: 'catalog:'
         version: 3.9.6
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
       redis:
         specifier: 'catalog:'
         version: 6.1.0

@@ -97,6 +97,8 @@ export function Cta({
 }): ReactElement {
   return (
     <div
+      data-cta=""
+      data-role="cta"
       style={{
         backgroundColor: theme.colors.action,
         borderRadius: RADII.pill,

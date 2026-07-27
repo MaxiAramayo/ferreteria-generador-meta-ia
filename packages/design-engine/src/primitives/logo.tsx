@@ -134,6 +134,8 @@ export function Logo({
 
   return (
     <div
+      data-logo=""
+      data-role="logo"
       style={{
         alignItems: "center",
         color: resolvedTextColor,

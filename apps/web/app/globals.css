@@ -223,3 +223,14 @@ a {
   flex-wrap: wrap;
   gap: 2rem;
 }
+
+.harness-nav {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.harness-nav a {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}

@@ -398,17 +398,17 @@ export function TipOficio(props: LayoutProps): ReactElement {
         theme={theme}
       />
       {photo === undefined ? (
-        <div style={{ marginTop: SPACING.gutter - 8 }}>
+        <div style={{ marginTop: SPACING.xl }}>
           <IconBadge
             icon={content.icon ?? "herramienta"}
-            iconSize={66}
-            size={118}
+            iconSize={60}
+            size={104}
             theme={theme}
           />
           <Text
             as="h1"
-            style={{ marginTop: SPACING.xl, maxWidth: 880 }}
-            token="h1"
+            style={{ marginTop: SPACING.md, maxWidth: 880 }}
+            token="h2"
           >
             {content.title}
           </Text>
@@ -433,7 +433,7 @@ export function TipOficio(props: LayoutProps): ReactElement {
           </Text>
         </div>
       )}
-      <div style={{ marginTop: photo === undefined ? 56 : SPACING.xl }}>
+      <div style={{ marginTop: SPACING.md, minHeight: 0 }}>
         <BulletList items={items} theme={theme} />
       </div>
       <div

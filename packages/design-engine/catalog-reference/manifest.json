@@ -1,0 +1,150 @@
+{
+  "approvedAt": "2026-07-27T15:33:28.512Z",
+  "pieces": [
+    {
+      "bytes": 192247,
+      "format": "banner-fb",
+      "height": 624,
+      "layout": "banner-marca",
+      "sha256": "4ad5f97e68399e32efbe6e2213c95eb6049dcf37fa1e5586586a10412c400aa2",
+      "width": 1640
+    },
+    {
+      "bytes": 156161,
+      "format": "feed",
+      "height": 1350,
+      "layout": "combo-kit",
+      "sha256": "812f3f4cffc1c850d740263b828aa8c9120ed67a2bf6b060c61ccfcb1a2b4679",
+      "width": 1080
+    },
+    {
+      "bytes": 102861,
+      "format": "destacada",
+      "height": 1080,
+      "layout": "destacada-cover",
+      "sha256": "e6d28631f8124ff2d3eb5505f1c121c014a55b5bc05cd4aa209f866ad40a6d7f",
+      "width": 1080
+    },
+    {
+      "bytes": 137480,
+      "format": "feed",
+      "height": 1350,
+      "layout": "epp-seguridad",
+      "sha256": "057c0afb1d927b468dd91d88f1709c27965a814280db4e1780403c2131c2e59b",
+      "width": 1080
+    },
+    {
+      "bytes": 179637,
+      "format": "historia",
+      "height": 1920,
+      "layout": "historia-locales",
+      "sha256": "007bfe5461d555f604a208cc753d17e51f23b375dd2eb5ff0d18b4b5f055941e",
+      "width": 1080
+    },
+    {
+      "bytes": 120446,
+      "format": "historia",
+      "height": 1920,
+      "layout": "historia-precio-dia",
+      "sha256": "7ea81e2b1253a18483bf825e612f292a28d1627d7f51396461f96c597d7ff319",
+      "width": 1080
+    },
+    {
+      "bytes": 119833,
+      "format": "historia",
+      "height": 1920,
+      "layout": "historia-producto",
+      "sha256": "e45004227ca33d21cd4f02d3ab93e5da5d3c6931aaba80fcde7c8fc726c89196",
+      "width": 1080
+    },
+    {
+      "bytes": 126668,
+      "format": "historia",
+      "height": 1920,
+      "layout": "historia-tip",
+      "sha256": "5599ab869c0e785b9525b3dca1c67a24eba64491b1d2ea040fa8d12c0d604eb0",
+      "width": 1080
+    },
+    {
+      "bytes": 131629,
+      "format": "historia",
+      "height": 1920,
+      "layout": "historia-turno-lubricentro",
+      "sha256": "7d6b187a7079630f153f2f5103ffa8e8e429fedb73fa70efb51d00366d8190a0",
+      "width": 1080
+    },
+    {
+      "bytes": 128295,
+      "format": "feed",
+      "height": 1350,
+      "layout": "lubricentro-servicio",
+      "sha256": "b18bc4130ca0d567f77154747ee642f641fb3e1dd4a54adba58c988fba122271",
+      "width": 1080
+    },
+    {
+      "bytes": 124156,
+      "format": "feed",
+      "height": 1350,
+      "layout": "presentacion-marca",
+      "sha256": "f91b6e640285aeef6e923253a987bcc523ff217bd0783fb2f79b886544fc98a3",
+      "width": 1080
+    },
+    {
+      "bytes": 135705,
+      "format": "feed",
+      "height": 1350,
+      "layout": "problema-solucion",
+      "sha256": "8f0f66a2eb848af4640f2e35f6c1035d04d7778e25def9fb41602bff7c1cfd1a",
+      "width": 1080
+    },
+    {
+      "bytes": 111243,
+      "format": "feed",
+      "height": 1350,
+      "layout": "producto-destacado",
+      "sha256": "f1b7eb27214261e80f02f83a1eb4fdb09a10e584a4ad999b4509a575ec1e346c",
+      "width": 1080
+    },
+    {
+      "bytes": 118416,
+      "format": "feed",
+      "height": 1350,
+      "layout": "producto-mosaico",
+      "sha256": "da16709977f5ff3f6c5aaaf29633f96ab42808fe5924e8414b2bfd1cfa5a5f3f",
+      "width": 1080
+    },
+    {
+      "bytes": 124852,
+      "format": "feed",
+      "height": 1350,
+      "layout": "producto-precio",
+      "sha256": "969a3728971fe997c7a5b56d456f4a1b72b7442bc51baed8c46008991d9cd852",
+      "width": 1080
+    },
+    {
+      "bytes": 139480,
+      "format": "feed",
+      "height": 1350,
+      "layout": "promo-producto",
+      "sha256": "168387e8a41d50d5e5d35ca8e50ea1426b72ecc1acc97cc2289e2cc5b9f09a68",
+      "width": 1080
+    },
+    {
+      "bytes": 146002,
+      "format": "feed",
+      "height": 1350,
+      "layout": "sucursales",
+      "sha256": "4540ac3510d4379a3b100e3fb931a0dfb3bc00e335582753f366967c3f7b8c92",
+      "width": 1080
+    },
+    {
+      "bytes": 105385,
+      "format": "cuadrado",
+      "height": 1080,
+      "layout": "tip-oficio",
+      "sha256": "374b5ac859611c77ead0d48493c01ffcb5ec5de6d9b16028a330ccedc26bef7e",
+      "width": 1080
+    }
+  ],
+  "task": "P1-T06"
+}
