@@ -21,6 +21,12 @@ Los peers mínimos asociados quedan fijados en el catálogo: `pg@8.22.0`,
 como una unidad compatible. Los paquetes `@nestjs/*` se mantienen en la misma
 versión exacta.
 
+`P2-T01` instala `prisma`, `@prisma/client` y `@prisma/adapter-pg` en el
+workspace de base. Prisma 7 genera un cliente ESM en una ruta explícita y exige
+el adaptador `pg` al crear cada cliente. La URL vive en `prisma.config.ts` para
+migraciones y se entrega al adaptador desde la configuración validada en
+runtime.
+
 Las herramientas locales verificadas en `P0-T03` agregan `redis@6.1.0`,
 `@types/node@24.13.3` y `@types/pg@8.20.0`. Sólo se instalan en la raíz para
 comprobar conectividad y tipos de la infraestructura; no forman contratos de
@@ -79,9 +85,9 @@ ejecutable por Node y el artefacto publicado no depende de un bundler.
 ### Scripts de instalación de terceros
 
 `pnpm-workspace.yaml#allowBuilds` mantiene la instalación libre de scripts de
-terceros. `sharp` llega como dependencia de Next.js, distribuye binarios
-precompilados por plataforma y queda declarado en `false`. Autorizar un script
-nuevo exige revisarlo y registrarlo en esa lista.
+terceros. `sharp`, `prisma` y `@prisma/engines` quedan declarados en `false`;
+la generación explícita del cliente funciona sin sus scripts de instalación.
+Autorizar un script nuevo exige revisarlo y registrarlo en esa lista.
 
 ## Decisiones de compatibilidad
 

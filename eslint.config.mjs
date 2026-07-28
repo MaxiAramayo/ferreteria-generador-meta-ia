@@ -21,6 +21,7 @@ export default typescriptEslint.config(
     ignores: [
       "**/.next/**",
       "**/dist/**",
+      "**/src/generated/**",
       "**/next-env.d.ts",
       "**/node_modules/**",
     ],

@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - infrastructure/database
   - packages/*
 
 catalogMode: strict
@@ -11,6 +12,7 @@ catalog:
   "@nestjs/common": 11.1.28
   "@nestjs/core": 11.1.28
   "@nestjs/platform-express": 11.1.28
+  "@nestjs/testing": 11.1.28
   "@next/eslint-plugin-next": 16.2.11
   "@prisma/adapter-pg": 7.9.0
   "@prisma/client": 7.9.0
@@ -35,9 +37,10 @@ catalog:
   typescript: 5.9.3
   typescript-eslint: 8.65.0
 
-# `sharp` llega como dependencia de Next.js y sólo se usa para optimizar
-# imágenes. Sus binarios se distribuyen precompilados por plataforma, así que no
-# se autoriza su script de instalación: una instalación reproducible no debe
-# ejecutar scripts de terceros.
+# La instalación no ejecuta scripts de terceros. Sharp distribuye binarios
+# precompilados y Prisma genera su cliente de forma explícita durante build, por
+# lo que sus scripts de instalación permanecen bloqueados.
 allowBuilds:
+  "@prisma/engines": false
+  prisma: false
   sharp: false

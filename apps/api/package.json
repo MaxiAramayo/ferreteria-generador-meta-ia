@@ -8,11 +8,14 @@
     "dev": "pnpm run build && node ../../tools/run-with-env.mjs node --enable-source-maps --watch dist/main.js",
     "dev:types": "tsc --project tsconfig.build.json --watch",
     "start": "node ../../tools/run-with-env.mjs node --enable-source-maps dist/main.js",
+    "test": "node --test \"dist/**/*.test.js\"",
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
     "@aramayo/configuration": "workspace:*",
     "@aramayo/contracts": "workspace:*",
+    "@aramayo/database": "workspace:*",
+    "@aramayo/domain": "workspace:*",
     "@aramayo/process-health": "workspace:*",
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
@@ -21,6 +24,7 @@
     "rxjs": "catalog:"
   },
   "devDependencies": {
+    "@nestjs/testing": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   }

@@ -144,6 +144,10 @@ obligatorio según lo que se toca:
 | OpenAI, Meta o sistema comercial | Fixtures de contrato y dobles; las llamadas reales van en suites separadas y nunca en CI |
 | Documentación o plan | `pnpm verify:plan` y actualización de `docs/STATUS.md` cuando cambia la tarea activa |
 
+La verificación reproducible del núcleo persistente es `pnpm db:test`. Usa una
+base efímera, nunca la base configurada como destino de datos de desarrollo, y
+la elimina al terminar.
+
 ### Integración continua
 
 El workflow [`ci.yml`](../../.github/workflows/ci.yml) ejecuta los mismos pasos

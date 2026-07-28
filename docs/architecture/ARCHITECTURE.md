@@ -25,6 +25,8 @@ Monorepo TypeScript con:
 - `packages/contracts`: contratos compartidos;
 - `packages/process-health`: sondas de infraestructura y readiness compartidas;
 - `packages/design-engine`: render visual;
+- `infrastructure/database`: schema, migraciones, cliente Prisma generado y
+  adaptadores de repositorio;
 - PostgreSQL: fuente de verdad;
 - Redis/BullMQ: transporte de trabajos;
 - Cloudinary: media pública y derivaciones.
@@ -47,6 +49,10 @@ Monorepo TypeScript con:
 Los módulos exponen servicios mínimos. No se permiten dependencias circulares.
 Los proveedores externos implementan puertos del dominio mediante tokens de
 inyección.
+
+Prisma queda confinado a `infrastructure/database`. Los repositorios convierten
+filas a tipos de `packages/domain`; ni los casos de uso ni los contratos
+públicos reciben tipos generados por el ORM.
 
 ## Arranque y salud de los procesos
 

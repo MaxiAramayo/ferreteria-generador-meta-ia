@@ -91,3 +91,21 @@ La clave mínima combina:
 La respuesta externa se guarda dentro de la misma transición protegida. Antes de
 reintentar se consulta el registro local y, cuando la API lo permite, el estado
 externo.
+
+## Aplicación de transiciones
+
+`packages/domain` contiene la matriz exhaustiva y comandos discriminados:
+avanzar, aprobar, fallar, cancelar, expirar y editar contenido aprobado. Aprobar
+no es un `advance` genérico: exige snapshot, revisor y timestamp. Cancelar,
+expirar y registrar un fallo también exigen comandos propios para no perder
+motivo ni diagnóstico.
+
+La política inicial para editar contenido aprobado es siempre crear otra
+revisión y volver a `draft`; la aprobación anterior queda en el historial, pero
+deja de ser la aprobación vigente. No se modifica una revisión ni un snapshot
+aprobado.
+
+Cada comando declara `expectedVersion`. Persistencia hace compare-and-swap de
+estado y versión y agrega `PublicationStateTransition` en la misma transacción.
+Perder la carrera devuelve conflicto; nunca informa éxito ni agrega un evento
+parcial. El historial es append-only.

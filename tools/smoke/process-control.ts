@@ -11,6 +11,7 @@ import type { SmokeEnvironment } from "./environment.ts";
  */
 // eslint-disable-next-line no-control-regex
 const ansiPattern = /\u001B\[[0-9;]*m/gu;
+const processTimeout = Symbol("process-timeout");
 
 type SmokeChildProcess = ChildProcessByStdio<null, Readable, Readable>;
 
@@ -90,6 +91,32 @@ function awaitExit(
   });
 }
 
+function withTimeout<Result>(
+  operation: Promise<Result>,
+  timeoutMs: number,
+): Promise<Result | typeof processTimeout> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      resolve(processTimeout);
+    }, timeoutMs);
+
+    void operation.then(
+      (result) => {
+        clearTimeout(timeout);
+        resolve(result);
+      },
+      (cause: unknown) => {
+        clearTimeout(timeout);
+        reject(
+          cause instanceof Error
+            ? cause
+            : new Error("La supervisión del proceso falló.", { cause }),
+        );
+      },
+    );
+  });
+}
+
 export async function runProcess(
   options: ProcessOptions,
   timeoutMs = 30_000,
@@ -97,11 +124,9 @@ export async function runProcess(
   const child = spawnProcess(options);
   const readOutput = collectOutput(child);
   const exitPromise = awaitExit(child, readOutput);
+  const result = await withTimeout(exitPromise, timeoutMs);
 
-  const timeout = delay(timeoutMs, "timeout" as const);
-  const result = await Promise.race([exitPromise, timeout]);
-
-  if (result === "timeout") {
+  if (result === processTimeout) {
     killProcessTree(child, "SIGKILL");
     throw new Error(
       `El proceso no terminó en ${timeoutMs} ms. Salida:\n${readOutput()}`,
@@ -134,12 +159,9 @@ export function startProcess(options: ProcessOptions): RunningProcess {
         killProcessTree(child, signal);
       }
 
-      const result = await Promise.race([
-        exitPromise,
-        delay(15_000, "timeout" as const),
-      ]);
+      const result = await withTimeout(exitPromise, 15_000);
 
-      if (result === "timeout") {
+      if (result === processTimeout) {
         killProcessTree(child, "SIGKILL");
         throw new Error(
           `El proceso ignoró ${signal}. Salida:\n${readOutput()}`,

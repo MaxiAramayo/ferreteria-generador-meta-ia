@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  active   @map("active")
+  disabled @map("disabled")
+
+  @@map("user_status")
+}
+
+enum MembershipStatus {
+  active  @map("active")
+  revoked @map("revoked")
+
+  @@map("membership_status")
+}
+
+enum OrganizationRole {
+  admin     @map("admin")
+  editor    @map("editor")
+  approver  @map("approver")
+  publisher @map("publisher")
+  viewer    @map("viewer")
+
+  @@map("organization_role")
+}
+
+enum PublicationStatus {
+  draft               @map("draft")
+  retrieving_context  @map("retrieving_context")
+  missing_information @map("missing_information")
+  generating_assets   @map("generating_assets")
+  ready_for_review    @map("ready_for_review")
+  approved            @map("approved")
+  scheduled           @map("scheduled")
+  publishing          @map("publishing")
+  partially_published @map("partially_published")
+  published           @map("published")
+  generation_failed   @map("generation_failed")
+  validation_failed   @map("validation_failed")
+  publish_failed      @map("publish_failed")
+  cancelled           @map("cancelled")
+  expired             @map("expired")
+
+  @@map("publication_status")
+}
+
+enum PublicationRevisionStatus {
+  draft      @map("draft")
+  in_review  @map("in_review")
+  approved   @map("approved")
+  superseded @map("superseded")
+
+  @@map("publication_revision_status")
+}
+
+enum PublicationTransitionCommandType {
+  advance       @map("advance")
+  approve       @map("approve")
+  cancel        @map("cancel")
+  edit_approved @map("edit_approved")
+  expire        @map("expire")
+  fail          @map("fail")
+
+  @@map("publication_transition_command_type")
+}
+
+enum MediaAssetStatus {
+  pending_upload   @map("pending_upload")
+  available        @map("available")
+  failed           @map("failed")
+  pending_deletion @map("pending_deletion")
+  deleted          @map("deleted")
+
+  @@map("media_asset_status")
+}
+
+enum MediaAssetOrigin {
+  approved_library  @map("approved_library")
+  commercial_system @map("commercial_system")
+  generated         @map("generated")
+  uploaded          @map("uploaded")
+
+  @@map("media_asset_origin")
+}
+
+enum MediaStorageProvider {
+  brand_library @map("brand_library")
+  cloudinary    @map("cloudinary")
+
+  @@map("media_storage_provider")
+}
+
+model Organization {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique(map: "organizations_slug_key") @db.VarChar(80)
+  legalName   String   @map("legal_name") @db.VarChar(160)
+  displayName String   @map("display_name") @db.VarChar(120)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  approvalSnapshots ApprovalSnapshot[]
+  brands            Brand[]
+  locations         Location[]
+  mediaAssets       MediaAsset[]
+  memberships       OrganizationMembership[]
+  publications      Publication[]
+  revisionMedia     PublicationRevisionMedia[]
+  revisions         PublicationRevision[]
+  stateTransitions  PublicationStateTransition[]
+
+  @@map("organizations")
+}
+
+model User {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String     @unique(map: "users_email_key") @db.VarChar(254)
+  displayName String     @map("display_name") @db.VarChar(120)
+  status      UserStatus @default(active)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships OrganizationMembership[]
+
+  @@map("users")
+}
+
+model OrganizationMembership {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  userId         String             @map("user_id") @db.Uuid
+  roles          OrganizationRole[]
+  status         MembershipStatus   @default(active)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                User                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshots   ApprovalSnapshot[]
+  createdMedia        MediaAsset[]
+  createdPublications Publication[]
+  createdRevisions    PublicationRevision[]
+  stateTransitions    PublicationStateTransition[]
+
+  @@unique([organizationId, userId], map: "memberships_organization_user_key")
+  @@unique([organizationId, id], map: "memberships_organization_id_key")
+  @@index([userId, status], map: "memberships_user_status_idx")
+  @@map("organization_memberships")
+}
+
+model Brand {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(120)
+  profile        Json
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  locations    Location[]
+
+  @@unique([organizationId, name], map: "brands_organization_name_key")
+  @@unique([organizationId, id], map: "brands_organization_id_key")
+  @@map("brands")
+}
+
+model Location {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  brandId        String   @map("brand_id") @db.Uuid
+  name           String   @db.VarChar(120)
+  addressLine    String   @map("address_line") @db.VarChar(200)
+  city           String   @db.VarChar(120)
+  province       String   @db.VarChar(120)
+  timeZone       String   @default("America/Argentina/Cordoba") @map("time_zone") @db.VarChar(80)
+  phone          String?  @db.VarChar(40)
+  whatsapp       String?  @db.VarChar(40)
+  openingHours   Json     @map("opening_hours")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  brand        Brand         @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publications Publication[]
+
+  @@unique([organizationId, name], map: "locations_organization_name_key")
+  @@unique([organizationId, id], map: "locations_organization_id_key")
+  @@index([organizationId, isActive, name], map: "locations_org_active_name_idx")
+  @@map("locations")
+}
+
+model Publication {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String            @map("organization_id") @db.Uuid
+  locationId            String?           @map("location_id") @db.Uuid
+  createdByMembershipId String            @map("created_by_membership_id") @db.Uuid
+  title                 String            @db.VarChar(180)
+  status                PublicationStatus @default(draft)
+  version               Int               @default(1)
+  scheduledFor          DateTime?         @map("scheduled_for") @db.Timestamptz(3)
+  timeZone              String            @default("America/Argentina/Cordoba") @map("time_zone") @db.VarChar(80)
+  failureCode           String?           @map("failure_code") @db.VarChar(80)
+  failureMessage        String?           @map("failure_message") @db.VarChar(300)
+  failureRetryable      Boolean?          @map("failure_retryable")
+  failureOccurredAt     DateTime?         @map("failure_occurred_at") @db.Timestamptz(3)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location          Location?                    @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy         OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshots ApprovalSnapshot[]
+  revisions         PublicationRevision[]
+  stateTransitions  PublicationStateTransition[]
+
+  @@unique([organizationId, id], map: "publications_organization_id_key")
+  @@index([organizationId, status, createdAt(sort: Desc), id], map: "publications_org_status_created_idx")
+  @@index([organizationId, scheduledFor, id], map: "publications_org_scheduled_idx")
+  @@index([organizationId, locationId, createdAt(sort: Desc)], map: "publications_org_location_created_idx")
+  @@map("publications")
+}
+
+model PublicationRevision {
+  id                    String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                    @map("organization_id") @db.Uuid
+  publicationId         String                    @map("publication_id") @db.Uuid
+  createdByMembershipId String                    @map("created_by_membership_id") @db.Uuid
+  revisionNumber        Int                       @map("revision_number")
+  status                PublicationRevisionStatus @default(draft)
+  schemaVersion         Int                       @map("schema_version")
+  content               Json
+  designDocument        Json                      @map("design_document")
+  contentHash           String?                   @map("content_hash") @db.Char(64)
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication                  @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy        OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshot ApprovalSnapshot?
+  media            PublicationRevisionMedia[]
+  stateTransitions PublicationStateTransition[] @relation("TransitionNewRevision")
+
+  @@unique([organizationId, id], map: "revisions_organization_id_key")
+  @@unique([organizationId, publicationId, revisionNumber], map: "revisions_publication_number_key")
+  @@index([organizationId, status, updatedAt(sort: Desc)], map: "revisions_org_status_updated_idx")
+  @@map("publication_revisions")
+}
+
+model ApprovalSnapshot {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId         String   @map("organization_id") @db.Uuid
+  publicationId          String   @map("publication_id") @db.Uuid
+  revisionId             String   @map("revision_id") @db.Uuid
+  approvedByMembershipId String   @map("approved_by_membership_id") @db.Uuid
+  approvedAt             DateTime @map("approved_at") @db.Timestamptz(3)
+  contentHash            String   @map("content_hash") @db.Char(64)
+  snapshot               Json
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication                  @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  revision         PublicationRevision          @relation(fields: [organizationId, revisionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvedBy       OrganizationMembership       @relation(fields: [organizationId, approvedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  stateTransitions PublicationStateTransition[] @relation("TransitionApprovalSnapshot")
+
+  @@unique([organizationId, revisionId], map: "approval_snapshots_revision_key")
+  @@unique([organizationId, id], map: "approval_snapshots_organization_id_key")
+  @@index([organizationId, publicationId, approvedAt(sort: Desc)], map: "approval_snapshots_org_publication_approved_idx")
+  @@map("approval_snapshots")
+}
+
+model MediaAsset {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String               @map("organization_id") @db.Uuid
+  ownerMembershipId String               @map("owner_membership_id") @db.Uuid
+  origin            MediaAssetOrigin
+  status            MediaAssetStatus     @default(pending_upload)
+  storageProvider   MediaStorageProvider @map("storage_provider")
+  storageKey        String?              @map("storage_key") @db.VarChar(255)
+  storageVersion    Int?                 @map("storage_version")
+  originalFileName  String               @map("original_file_name") @db.VarChar(255)
+  mimeType          String?              @map("mime_type") @db.VarChar(120)
+  byteSize          BigInt?              @map("byte_size")
+  checksumSha256    String?              @map("checksum_sha256") @db.Char(64)
+  width             Int?
+  height            Int?
+  secureUrl         String?              @map("secure_url") @db.Text
+  retentionUntil    DateTime?            @map("retention_until") @db.Timestamptz(3)
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  owner        OrganizationMembership     @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  revisions    PublicationRevisionMedia[]
+
+  @@unique([organizationId, id], map: "media_assets_organization_id_key")
+  @@unique([organizationId, storageProvider, storageKey, storageVersion], map: "media_assets_storage_version_key")
+  @@index([organizationId, status, createdAt(sort: Desc)], map: "media_assets_org_status_created_idx")
+  @@index([organizationId, checksumSha256], map: "media_assets_org_checksum_idx")
+  @@map("media_assets")
+}
+
+model PublicationRevisionMedia {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  revisionId     String   @map("revision_id") @db.Uuid
+  mediaAssetId   String   @map("media_asset_id") @db.Uuid
+  slot           String   @db.VarChar(80)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  revision     PublicationRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  mediaAsset   MediaAsset          @relation(fields: [organizationId, mediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, revisionId, slot], map: "revision_media_slot_key")
+  @@index([organizationId, mediaAssetId], map: "revision_media_org_asset_idx")
+  @@map("publication_revision_media")
+}
+
+model PublicationStateTransition {
+  id                 String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String                           @map("organization_id") @db.Uuid
+  publicationId      String                           @map("publication_id") @db.Uuid
+  actorMembershipId  String                           @map("actor_membership_id") @db.Uuid
+  commandType        PublicationTransitionCommandType @map("command_type")
+  fromStatus         PublicationStatus                @map("from_status")
+  toStatus           PublicationStatus                @map("to_status")
+  fromVersion        Int                              @map("from_version")
+  toVersion          Int                              @map("to_version")
+  occurredAt         DateTime                         @map("occurred_at") @db.Timestamptz(3)
+  reasonCode         String?                          @map("reason_code") @db.VarChar(80)
+  failureCode        String?                          @map("failure_code") @db.VarChar(80)
+  failureMessage     String?                          @map("failure_message") @db.VarChar(300)
+  failureRetryable   Boolean?                         @map("failure_retryable")
+  newRevisionId      String?                          @map("new_revision_id") @db.Uuid
+  approvalSnapshotId String?                          @map("approval_snapshot_id") @db.Uuid
+  createdAt          DateTime                         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                         @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication            @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  actor            OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshot ApprovalSnapshot?      @relation("TransitionApprovalSnapshot", fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  newRevision      PublicationRevision?   @relation("TransitionNewRevision", fields: [organizationId, newRevisionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, publicationId, toVersion], map: "state_transitions_publication_version_key")
+  @@index([organizationId, publicationId, occurredAt(sort: Desc)], map: "state_transitions_org_publication_time_idx")
+  @@map("publication_state_transitions")
+}

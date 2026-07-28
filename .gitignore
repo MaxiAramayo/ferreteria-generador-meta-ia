@@ -17,3 +17,6 @@ test-results/
 
 tmp/
 output/
+
+# Prisma Client se regenera durante build desde el schema versionado.
+infrastructure/database/src/generated/

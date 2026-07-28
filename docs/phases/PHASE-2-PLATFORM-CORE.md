@@ -16,8 +16,8 @@ auditado y protegido contra escrituras duplicadas.
 
 ## P2-T01 — Diseñar esquema y migraciones del núcleo
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T02`, `P0-T03`, `P1-T02`
 - Riesgo: Alto
 
@@ -34,19 +34,19 @@ y medios con integridad referencial y migraciones reversibles.
 
 ### Criterios de aceptación
 
-- [ ] Todas las tablas de negocio tienen identificador, timestamps y ownership.
-- [ ] Estados se restringen a valores de dominio válidos.
-- [ ] Snapshots aprobados no dependen de filas mutables para reconstruirse.
-- [ ] Índices cubren listados por organización, estado y programación.
-- [ ] Borrados y cascadas tienen comportamiento explícito.
-- [ ] No se filtran entidades de otra organización por error.
+- [x] Todas las tablas de negocio tienen identificador, timestamps y ownership.
+- [x] Estados se restringen a valores de dominio válidos.
+- [x] Snapshots aprobados no dependen de filas mutables para reconstruirse.
+- [x] Índices cubren listados por organización, estado y programación.
+- [x] Borrados y cascadas tienen comportamiento explícito.
+- [x] No se filtran entidades de otra organización por error.
 
 ### Verificación obligatoria
 
-- [ ] Aplicar migraciones desde base vacía.
-- [ ] Revertir y reaplicar la última migración.
-- [ ] Ejecutar tests de aislamiento entre dos organizaciones.
-- [ ] Revisar plan de consultas de listados críticos.
+- [x] Aplicar migraciones desde base vacía.
+- [x] Revertir y reaplicar la última migración.
+- [x] Ejecutar tests de aislamiento entre dos organizaciones.
+- [x] Revisar plan de consultas de listados críticos.
 
 ### Fuera de alcance
 
@@ -55,11 +55,43 @@ y medios con integridad referencial y migraciones reversibles.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: se modelaron organizaciones, identidades globales, membresías,
+  marcas, ubicaciones, publicaciones, revisiones, snapshots y medios. Las
+  relaciones tenant usan claves compuestas con `organization_id`; un UUID de
+  otra organización falla también a nivel PostgreSQL.
+- 2026-07-28: Prisma vive en `infrastructure/database`; los puertos están en
+  `packages/domain` y la API compone los adaptadores con tokens. Ningún tipo
+  generado atraviesa al dominio.
+- 2026-07-28: el snapshot aprobado guarda el documento autocontenido y un
+  trigger impide actualizarlo o eliminarlo. Todos los borrados de negocio son
+  restrictivos y reemplazar un medio implica otra fila/version.
+- 2026-07-28: al auditar el estado previo se detectó que el smoke dejaba vivo el
+  timer de cinco minutos usado para supervisar `next build`. Se cancelan timers
+  al completar cada proceso y una prueba reproduce el defecto; era necesario
+  para que `pnpm verify` pudiera terminar.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: árbol de trabajo de cierre de `P2-T01`.
+- `pnpm db:test`: base efímera creada; migración aplicada desde cero; seed
+  idempotente verificado; aislamiento, snapshots, referencias e índices
+  aprobados; `down.sql` ejecutado; migración reaplicada y pruebas repetidas.
+- `pnpm verify`: pipeline completo aprobado y smoke finalizado sin handles
+  abiertos.
+- Aislamiento: repositorios exigen `organizationId`, devuelven `null` frente a
+  IDs de otro tenant y las claves compuestas rechazan relaciones cruzadas.
+- Inmutabilidad: actualizar un snapshot aprobado y borrar un medio referenciado
+  fallan en PostgreSQL.
+- Planes: `EXPLAIN` usa `publications_org_status_created_idx` y
+  `publications_org_scheduled_idx`.
+- Seed: organización Aramayo, identidad local `.invalid`, membresía de
+  desarrollo, perfil aprobado y dos ubicaciones; no contiene responsables ni
+  credenciales reales.
+- Fuentes oficiales verificadas el 2026-07-28: configuración, cliente con
+  adaptador `pg`, migraciones y seed de Prisma ORM 7.
+- Desviaciones: Prisma Migrate no posee `down` automático; la migración conserva
+  un `down.sql` explícito y `pnpm db:test` demuestra rollback y reaplicación en
+  una base descartable.
 
 ## P2-T02 — Implementar autenticación y autorización
 
@@ -153,8 +185,8 @@ contexto obligatorio para generar contenido.
 
 ## P2-T04 — Implementar máquina de estados de publicación
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T01`
 - Riesgo: Alto
 
@@ -171,18 +203,18 @@ cancelación, dejando estados de publicación externa para fases posteriores.
 
 ### Criterios de aceptación
 
-- [ ] Transiciones inválidas fallan sin mutar datos.
-- [ ] La versión esperada evita sobrescrituras concurrentes.
-- [ ] `approved` requiere snapshot, revisor y timestamp.
-- [ ] Editar contenido aprobado crea revisión o devuelve a borrador según política.
-- [ ] Fallos conservan código, mensaje seguro y posibilidad de reintento.
-- [ ] Cancelación no borra historial ni evidencia.
+- [x] Transiciones inválidas fallan sin mutar datos.
+- [x] La versión esperada evita sobrescrituras concurrentes.
+- [x] `approved` requiere snapshot, revisor y timestamp.
+- [x] Editar contenido aprobado crea revisión o devuelve a borrador según política.
+- [x] Fallos conservan código, mensaje seguro y posibilidad de reintento.
+- [x] Cancelación no borra historial ni evidencia.
 
 ### Verificación obligatoria
 
-- [ ] Tests de cada transición permitida y prohibida.
-- [ ] Prueba de dos actualizaciones concurrentes.
-- [ ] Revisión de que controladores no escriben estados directamente.
+- [x] Tests de cada transición permitida y prohibida.
+- [x] Prueba de dos actualizaciones concurrentes.
+- [x] Revisión de que controladores no escriben estados directamente.
 
 ### Fuera de alcance
 
@@ -190,11 +222,37 @@ cancelación, dejando estados de publicación externa para fases posteriores.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: se implementó una matriz exhaustiva sobre los quince estados y
+  comandos discriminados para avance, aprobación, fallo, cancelación,
+  expiración y edición de contenido aprobado.
+- 2026-07-28: aprobar exige snapshot, revisor y timestamp. La política de
+  edición aprobada exige `newRevisionId`, vuelve a `draft` e invalida la
+  aprobación vigente sin borrar el snapshot histórico.
+- 2026-07-28: `PublicationTransitionService` sólo orquesta dominio y puerto.
+  `PrismaPublicationStateRepository` aplica compare-and-swap por estado/versión
+  y agrega el historial en una misma transacción.
+- 2026-07-28: no se agregaron controladores de contenido. Los controladores
+  existentes son únicamente health/readiness y no pueden escribir estados.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: árbol de trabajo de cierre de `P2-T04`.
+- `pnpm --filter @aramayo/domain test`: seis pruebas; la matriz compara los 225
+  pares estado-origen/destino y cubre versión vencida, aprobación, edición,
+  fallos y terminales.
+- `pnpm --filter @aramayo/api test`: tres pruebas de composición Nest; una
+  transición inválida no llega al repositorio, otro tenant devuelve
+  `not-found` y perder compare-and-swap devuelve conflicto.
+- `pnpm db:test`: dos commits concurrentes sobre la misma versión producen
+  exactamente un `committed`, un `version-conflict`, una sola fila de historial
+  y versión incrementada una vez. El historial rechaza mutaciones.
+- `pnpm verify`: build, lint, typecheck, suites, línea base y smoke completos.
+- La segunda migración agrega diagnóstico actual y un historial append-only con
+  ownership compuesto; su `down.sql` fue ejecutado y reaplicado en PostgreSQL
+  efímero.
+- Desviaciones: los estados de publicación externa están definidos para
+  mantener una sola máquina, pero esta tarea no invoca OpenAI, Meta, colas ni
+  adaptadores externos.
 
 ## P2-T05 — Construir borradores, medios y revisiones
 
