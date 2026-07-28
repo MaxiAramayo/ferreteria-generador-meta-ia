@@ -26,9 +26,11 @@ Usar Render como plataforma inicial de staging y piloto:
 - migraciones mediante `preDeployCommand` controlado, nunca desde cada réplica;
 - healthcheck y cierre ordenado con `SIGTERM`.
 
-Producción y staging usan recursos, bases, colas, credenciales y dominios
-separados. `P0-T07` definirá nombres, región, propietarios, callbacks, tamaños,
-backups y promoción exacta antes de provisionar producción.
+Producción y staging usan recursos, bases, colas, credenciales y hostnames
+separados. [ADR-012](ADR-012-IDENTITY-ENVIRONMENTS-OWNERSHIP.md) y
+[`ENVIRONMENTS.md`](../../operations/ENVIRONMENTS.md) definen nombres,
+propietarios y callbacks. Región, tamaños, backups y promoción se confirman
+antes de provisionar; ningún recurso remoto se crea por esta decisión.
 
 ## Restricciones
 

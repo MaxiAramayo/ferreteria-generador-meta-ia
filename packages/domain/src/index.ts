@@ -9,6 +9,28 @@ export {
   type PublicationRepository,
 } from "./persistence.ts";
 export {
+  authorizeActor,
+  organizationPermissions,
+  organizationRoles,
+  type AuthenticatedActor,
+  type AuthenticatedSessionRecord,
+  type AuthenticationEventInput,
+  type AuthenticationEventType,
+  type AuthorizationDecision,
+  type ChangeMembershipRolesInput,
+  type CreateAuthenticationSessionInput,
+  type IdentityRepository,
+  type LoginFailureFilter,
+  type LoginIdentityRecord,
+  type LoginMembershipRecord,
+  type OrganizationPermission,
+  type OrganizationRole,
+  type RevokeAllSessionsInput,
+  type RevokeMembershipInput,
+  type RevokeSessionInput,
+  type ScopedMutationResult,
+} from "./identity.ts";
+export {
   isPublicationTransitionAllowed,
   PUBLICATION_TRANSITIONS,
   transitionPublication,

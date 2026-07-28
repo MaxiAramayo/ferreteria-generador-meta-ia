@@ -5,6 +5,7 @@ import { API_CONFIGURATION } from "./configuration.tokens.ts";
 import { PublicationTransitionService } from "./content/publication-transition.service.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { HealthModule } from "./health/health.module.ts";
+import { IdentityModule } from "./identity/identity.module.ts";
 import { ApplicationLifecycleService } from "./lifecycle/application-lifecycle.service.ts";
 
 @Module({})
@@ -15,6 +16,7 @@ export class AppModule {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
         HealthModule.forConfiguration(configuration),
+        IdentityModule.forConfiguration(configuration),
       ],
       module: AppModule,
       providers: [

@@ -20,7 +20,8 @@ Implementar identidad local en el módulo `identity` de NestJS:
 - sesión opaca aleatoria; en PostgreSQL se guarda sólo su hash, actor,
   expiración y metadatos de auditoría;
 - cookie `HttpOnly`, `Secure` en ambientes remotos y `SameSite=Lax`;
-- rotación del identificador al autenticar o elevar privilegios;
+- identificador nuevo en cada autenticación; los cambios de rol se leen desde
+  la membresía vigente y la baja revoca las sesiones afectadas;
 - revocación individual y global por usuario;
 - protección CSRF para toda mutación autenticada por cookie;
 - rate limiting y auditoría de intentos de ingreso;
@@ -28,8 +29,10 @@ Implementar identidad local en el módulo `identity` de NestJS:
 - roles y membresías consultados desde PostgreSQL, no confiados desde el cliente.
 
 Los roles iniciales siguen siendo `admin`, `editor`, `approver`, `publisher` y
-`viewer`. Una persona puede tener varios roles. La asignación nominal queda para
-`P0-T07`.
+`viewer`. Una persona puede tener varios roles. Los límites, propietarios y
+procedimiento de asignación quedan definidos en
+[ADR-012](ADR-012-IDENTITY-ENVIRONMENTS-OWNERSHIP.md); los datos nominales
+permanecen en el inventario privado de accesos y no en Git.
 
 ## Invariantes
 
@@ -65,9 +68,15 @@ reevaluar si aparecen SSO, MFA corporativo o gestión centralizada obligatoria.
 
 - La autenticación es responsabilidad sensible del backend y requiere pruebas de
   sesión, CSRF, rate limiting, revocación y ownership.
-- No se instala una librería de autenticación en esta tarea.
-- Argon2, cookies y protección CSRF se elegirán y fijarán al implementar el
-  módulo, usando el catálogo y una evaluación de seguridad vigente.
+- No se delega el esquema, la sesión ni la autorización a una librería de
+  autenticación transversal.
+- `P2-T02` fija `argon2@0.45.1` y aplica Argon2id con 19 MiB, dos iteraciones,
+  paralelismo uno y 32 bytes de salida; sólo su binding nativo queda autorizado
+  en `allowBuilds`.
+- NestJS aplica guards globales para origen, sesión, CSRF y permisos. Las únicas
+  excepciones públicas actuales son login, health y readiness.
+- El seed local no contiene contraseña: el alta de una credencial continúa
+  siendo una operación administrativa explícita, no un acceso predeterminado.
 
 ## Fuentes verificadas
 

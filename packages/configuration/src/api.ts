@@ -15,6 +15,7 @@ import {
 } from "./validation.ts";
 
 export interface ApiConfiguration extends CommonConfiguration {
+  readonly authenticationSessionTtlSeconds: number;
   readonly databaseUrl: SecretValue;
   readonly meta: OptionalIntegration<MetaCredentials>;
   readonly port: number;
@@ -30,6 +31,15 @@ export function parseApiEnvironment(
 
   return Object.freeze({
     ...commonConfiguration,
+    authenticationSessionTtlSeconds: parseInteger(
+      rawEnvironment,
+      "api",
+      "AUTH_SESSION_TTL_SECONDS",
+      {
+        maximum: 2_592_000,
+        minimum: 900,
+      },
+    ),
     databaseUrl: parsePrivateServiceUrl(rawEnvironment, "api", "DATABASE_URL"),
     meta: parseMetaIntegration(
       rawEnvironment,

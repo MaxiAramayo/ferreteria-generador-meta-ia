@@ -45,6 +45,7 @@ function unreachableRedisUrl(): string {
 export function apiEnvironment(port: number): SmokeEnvironment {
   return Object.freeze({
     ...baseEnvironment(),
+    AUTH_SESSION_TTL_SECONDS: "43200",
     DATABASE_URL: unreachableDatabaseUrl(),
     PORT: String(port),
     REDIS_URL: unreachableRedisUrl(),

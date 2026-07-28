@@ -33,6 +33,8 @@
   PostgreSQL y Redis reproducibles para desarrollo.
 - [`operations/CONFIGURATION.md`](operations/CONFIGURATION.md): contratos de
   entorno y matriz por proceso.
+- [`operations/ENVIRONMENTS.md`](operations/ENVIRONMENTS.md): topología,
+  callbacks, recursos, propietarios y ciclo de acceso por ambiente.
 - [`operations/SECURITY.md`](operations/SECURITY.md)
 - [`operations/SECRETS.md`](operations/SECRETS.md): almacenamiento, cifrado y
   rotación.

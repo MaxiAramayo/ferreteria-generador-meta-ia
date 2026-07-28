@@ -95,8 +95,8 @@ y medios con integridad referencial y migraciones reversibles.
 
 ## P2-T02 — Implementar autenticación y autorización
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T07`, `P2-T01`
 - Riesgo: Alto
 
@@ -113,18 +113,18 @@ aprobación, configuración y futura publicación.
 
 ### Criterios de aceptación
 
-- [ ] Ningún endpoint privado confía en un rol enviado por el cliente.
-- [ ] `editor` no puede aprobar ni gestionar conexiones.
-- [ ] `approver` puede aprobar pero no administrar secretos.
-- [ ] `admin` opera solo dentro de su organización.
-- [ ] Sesiones expiradas y usuarios revocados pierden acceso.
-- [ ] Respuestas no revelan si existe un recurso fuera del scope.
+- [x] Ningún endpoint privado confía en un rol enviado por el cliente.
+- [x] `editor` no puede aprobar ni gestionar conexiones.
+- [x] `approver` puede aprobar pero no administrar secretos.
+- [x] `admin` opera solo dentro de su organización.
+- [x] Sesiones expiradas y usuarios revocados pierden acceso.
+- [x] Respuestas no revelan si existe un recurso fuera del scope.
 
 ### Verificación obligatoria
 
-- [ ] Matriz automatizada de rol × acción × ownership.
-- [ ] Pruebas de sesión ausente, expirada y usuario deshabilitado.
-- [ ] Revisión de todos los controladores mediante guard global o excepción explícita.
+- [x] Matriz automatizada de rol × acción × ownership.
+- [x] Pruebas de sesión ausente, expirada y usuario deshabilitado.
+- [x] Revisión de todos los controladores mediante guard global o excepción explícita.
 
 ### Fuera de alcance
 
@@ -132,11 +132,45 @@ aprobación, configuración y futura publicación.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: `packages/domain` define cinco roles, ocho permisos y una matriz
+  exhaustiva sin herencia implícita. Los roles son acumulables y toda decisión
+  incluye el `organizationId` del recurso.
+- 2026-07-28: `IdentityModule` agrega login local, sesión opaca revocable,
+  logout individual/global y guards globales de origen, sesión, CSRF y permiso.
+  Sólo login, health y readiness declaran excepción pública.
+- 2026-07-28: las contraseñas usan Argon2id versionado. Cookie, sesión y CSRF
+  siguen contratos separados; la cookie CSRF permite recuperarlo después de
+  recargar la web. PostgreSQL conserva sólo hashes de los tokens y vuelve a
+  consultar usuario, membresía y roles en cada request.
+- 2026-07-28: cinco fallos por sujeto y huella dentro de quince minutos bloquean
+  el ingreso. Los rechazos no distinguen email, contraseña, organización,
+  usuario deshabilitado o membresía revocada.
+- 2026-07-28: la tercera migración agrega credenciales opcionales, sesiones y
+  eventos append-only. Cambio de contraseña, deshabilitación, vencimiento,
+  revocación de sesión o membresía eliminan acceso.
+- 2026-07-28: el seed sigue sin contraseña ni acceso predeterminado. Alta,
+  recuperación de cuenta y MFA continúan como procedimientos administrativos
+  explícitos antes del piloto; no se agregó registro público.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: árbol de trabajo de cierre de `P0-T07` y `P2-T02`.
+- `pnpm --filter @aramayo/domain test`: matriz exhaustiva para cada combinación
+  rol × permiso, composición de roles y denegación para otra organización.
+- `pnpm --filter @aramayo/api test`: diez pruebas; login, rechazo uniforme,
+  rate limit, hashes de tokens, CSRF, cookie, origen, permisos, revocación,
+  usuario deshabilitado y parámetros Argon2id reales.
+- `pnpm db:test`: base efímera desde cero, sesiones vencidas, roles vigentes,
+  cambio de contraseña, usuario deshabilitado, cambio/revocación de membresía,
+  aislamiento entre organizaciones y auditoría inmutable. La migración se
+  revirtió y reaplicó.
+- `pnpm verify`: stack, plan, formato, build, lint, typecheck, pruebas, línea
+  base y smoke de API, web y worker completos.
+- Revisión de controladores: los cuatro guards son globales; `HealthController`
+  es público por clase y sólo `POST /auth/login` lo es dentro de identidad.
+- Desviaciones: OAuth Meta, registro público, recuperación y MFA permanecen
+  fuera de alcance. El bootstrap del primer administrador se ejecutará al
+  provisionar staging y no introduce una credencial versionada.
 
 ## P2-T03 — Gestionar organización, marca y ubicaciones
 

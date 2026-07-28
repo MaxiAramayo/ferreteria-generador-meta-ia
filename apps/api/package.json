@@ -20,12 +20,19 @@
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
     "@nestjs/platform-express": "catalog:",
+    "argon2": "catalog:",
+    "class-transformer": "catalog:",
+    "class-validator": "catalog:",
+    "cookie": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:"
   },
   "devDependencies": {
     "@nestjs/testing": "catalog:",
+    "@types/express": "catalog:",
     "@types/node": "catalog:",
+    "@types/supertest": "catalog:",
+    "supertest": "catalog:",
     "typescript": "catalog:"
   }
 }

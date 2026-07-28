@@ -46,6 +46,7 @@ proveedor y no de archivos versionados.
 | `NEXT_PUBLIC_API_BASE_URL` | Sí, pública | No | No | Siempre |
 | `PORT` | No | Sí | No | Siempre; Render puede inyectarla |
 | `WEB_ORIGIN` | No | Sí | No | Siempre; origen sin path |
+| `AUTH_SESSION_TTL_SECONDS` | No | Sí | No | Siempre; entre 15 minutos y 30 días |
 | `WORKER_CONCURRENCY` | No | No | Sí | Siempre; entero entre 1 y 64 |
 | `DATABASE_URL` | No | Sí | Sí | Siempre; privada |
 | `REDIS_URL` | No | Sí | Sí | Siempre; privada |

@@ -1,6 +1,13 @@
 import type {
   ApprovalSnapshotRecord,
   ApprovalSnapshotRepository,
+  AuthenticatedSessionRecord,
+  AuthenticationEventInput,
+  ChangeMembershipRolesInput,
+  CreateAuthenticationSessionInput,
+  IdentityRepository,
+  LoginFailureFilter,
+  LoginIdentityRecord,
   MediaAssetRecord,
   MediaAssetRepository,
   OrganizationScope,
@@ -11,6 +18,10 @@ import type {
   PublicationStateRepository,
   PublicationTransitionEvent,
   PublicationWorkflowState,
+  RevokeAllSessionsInput,
+  RevokeMembershipInput,
+  RevokeSessionInput,
+  ScopedMutationResult,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
@@ -85,6 +96,117 @@ type MediaAssetRow = Prisma.MediaAssetGetPayload<{
 type PublicationWorkflowRow = Prisma.PublicationGetPayload<{
   select: typeof publicationWorkflowSelection;
 }>;
+
+const loginIdentitySelection = {
+  displayName: true,
+  email: true,
+  id: true,
+  memberships: {
+    orderBy: [{ organizationId: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      organization: {
+        select: {
+          slug: true,
+        },
+      },
+      organizationId: true,
+      roles: true,
+      status: true,
+    },
+  },
+  passwordHash: true,
+  passwordHashVersion: true,
+  status: true,
+} satisfies Prisma.UserSelect;
+
+const authenticatedSessionSelection = {
+  createdAt: true,
+  csrfTokenHash: true,
+  expiresAt: true,
+  id: true,
+  membership: {
+    select: {
+      id: true,
+      organizationId: true,
+      roles: true,
+      user: {
+        select: {
+          displayName: true,
+          email: true,
+          id: true,
+          passwordChangedAt: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.AuthenticationSessionSelect;
+
+type LoginIdentityRow = Prisma.UserGetPayload<{
+  select: typeof loginIdentitySelection;
+}>;
+type AuthenticatedSessionRow = Prisma.AuthenticationSessionGetPayload<{
+  select: typeof authenticatedSessionSelection;
+}>;
+
+function mapLoginIdentity(row: LoginIdentityRow): LoginIdentityRecord {
+  return Object.freeze({
+    displayName: row.displayName,
+    email: row.email,
+    id: row.id,
+    memberships: Object.freeze(
+      row.memberships.map((membership) =>
+        Object.freeze({
+          id: membership.id,
+          organizationId: membership.organizationId,
+          organizationSlug: membership.organization.slug,
+          roles: Object.freeze([...membership.roles]),
+          status: membership.status,
+        }),
+      ),
+    ),
+    ...(row.passwordHash === null ? {} : { passwordHash: row.passwordHash }),
+    ...(row.passwordHashVersion === null
+      ? {}
+      : { passwordHashVersion: row.passwordHashVersion }),
+    status: row.status,
+  });
+}
+
+function mapAuthenticatedSession(
+  row: AuthenticatedSessionRow,
+): AuthenticatedSessionRecord {
+  return Object.freeze({
+    actor: Object.freeze({
+      displayName: row.membership.user.displayName,
+      email: row.membership.user.email,
+      membershipId: row.membership.id,
+      organizationId: row.membership.organizationId,
+      roles: Object.freeze([...row.membership.roles]),
+      sessionId: row.id,
+      userId: row.membership.user.id,
+    }),
+    csrfTokenHash: row.csrfTokenHash,
+    expiresAt: row.expiresAt.toISOString(),
+  });
+}
+
+function authenticationEventData(
+  event: AuthenticationEventInput,
+): Prisma.AuthenticationEventUncheckedCreateInput {
+  return {
+    actorMembershipId: event.actorMembershipId ?? null,
+    clientFingerprintHash: event.clientFingerprintHash ?? null,
+    eventType: event.eventType,
+    metadata: { ...event.metadata },
+    occurredAt: new Date(event.occurredAt),
+    organizationId: event.organizationId ?? null,
+    subjectHash: event.subjectHash ?? null,
+    succeeded: event.succeeded,
+    targetMembershipId: event.targetMembershipId ?? null,
+    userId: event.userId ?? null,
+  };
+}
 
 function mapPublication(row: PublicationRow): PublicationRecord {
   return Object.freeze({
@@ -243,6 +365,236 @@ export class PrismaPublicationRepository implements PublicationRepository {
     });
 
     return Object.freeze(publications.map(mapPublication));
+  }
+}
+
+export class PrismaIdentityRepository implements IdentityRepository {
+  readonly #database: DatabaseClient;
+
+  constructor(database: DatabaseClient) {
+    this.#database = database;
+  }
+
+  async findLoginIdentity(email: string): Promise<LoginIdentityRecord | null> {
+    const identity = await this.#database.user.findUnique({
+      select: loginIdentitySelection,
+      where: { email },
+    });
+
+    return identity === null ? null : mapLoginIdentity(identity);
+  }
+
+  async countRecentLoginFailures(filter: LoginFailureFilter): Promise<number> {
+    return this.#database.authenticationEvent.count({
+      where: {
+        clientFingerprintHash: filter.clientFingerprintHash,
+        eventType: "login_failed",
+        occurredAt: {
+          gte: new Date(filter.since),
+        },
+        subjectHash: filter.subjectHash,
+      },
+    });
+  }
+
+  async createSession(
+    input: CreateAuthenticationSessionInput,
+  ): Promise<AuthenticatedSessionRecord> {
+    return this.#database.$transaction(async (transaction) => {
+      const session = await transaction.authenticationSession.create({
+        data: {
+          clientFingerprintHash: input.clientFingerprintHash ?? null,
+          createdAt: new Date(input.event.occurredAt),
+          csrfTokenHash: input.csrfTokenHash,
+          expiresAt: new Date(input.expiresAt),
+          lastSeenAt: new Date(input.event.occurredAt),
+          membershipId: input.membershipId,
+          organizationId: input.organizationId,
+          tokenHash: input.tokenHash,
+          updatedAt: new Date(input.event.occurredAt),
+          userId: input.userId,
+        },
+        select: authenticatedSessionSelection,
+      });
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData(input.event),
+      });
+
+      return mapAuthenticatedSession(session);
+    });
+  }
+
+  async findSessionByTokenHash(
+    tokenHash: string,
+    at: string,
+  ): Promise<AuthenticatedSessionRecord | null> {
+    const session = await this.#database.authenticationSession.findFirst({
+      select: authenticatedSessionSelection,
+      where: {
+        expiresAt: { gt: new Date(at) },
+        membership: {
+          status: "active",
+        },
+        revokedAt: null,
+        tokenHash,
+        user: {
+          status: "active",
+        },
+      },
+    });
+
+    if (
+      session === null ||
+      (session.membership.user.passwordChangedAt !== null &&
+        session.membership.user.passwordChangedAt > session.createdAt)
+    ) {
+      return null;
+    }
+
+    return mapAuthenticatedSession(session);
+  }
+
+  async recordAuthenticationEvent(
+    event: AuthenticationEventInput,
+  ): Promise<void> {
+    await this.#database.authenticationEvent.create({
+      data: authenticationEventData(event),
+    });
+  }
+
+  async revokeSession(input: RevokeSessionInput): Promise<boolean> {
+    return this.#database.$transaction(async (transaction) => {
+      const revoked = await transaction.authenticationSession.updateMany({
+        data: {
+          revokeReason: input.reason,
+          revokedAt: new Date(input.revokedAt),
+        },
+        where: {
+          id: input.sessionId,
+          revokedAt: null,
+          userId: input.userId,
+        },
+      });
+      if (revoked.count === 0) {
+        return false;
+      }
+
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData(input.event),
+      });
+      return true;
+    });
+  }
+
+  async revokeAllSessions(input: RevokeAllSessionsInput): Promise<number> {
+    return this.#database.$transaction(async (transaction) => {
+      const revoked = await transaction.authenticationSession.updateMany({
+        data: {
+          revokeReason: input.reason,
+          revokedAt: new Date(input.revokedAt),
+        },
+        where: {
+          ...(input.exceptSessionId === undefined
+            ? {}
+            : { id: { not: input.exceptSessionId } }),
+          revokedAt: null,
+          userId: input.userId,
+        },
+      });
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData({
+          ...input.event,
+          metadata: {
+            ...input.event.metadata,
+            revokedCount: revoked.count,
+          },
+        }),
+      });
+
+      return revoked.count;
+    });
+  }
+
+  async changeMembershipRoles(
+    input: ChangeMembershipRolesInput,
+  ): Promise<ScopedMutationResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const updated = await transaction.organizationMembership.updateMany({
+        data: {
+          roles: [...input.roles],
+        },
+        where: {
+          id: input.targetMembershipId,
+          organizationId: input.organizationId,
+          status: "active",
+        },
+      });
+      if (updated.count === 0) {
+        return Object.freeze({ status: "not-found" });
+      }
+
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData({
+          actorMembershipId: input.actorMembershipId,
+          eventType: "membership_roles_changed",
+          metadata: {
+            roles: input.roles.join(","),
+          },
+          occurredAt: input.changedAt,
+          organizationId: input.organizationId,
+          succeeded: true,
+          targetMembershipId: input.targetMembershipId,
+        }),
+      });
+      return Object.freeze({ status: "updated" });
+    });
+  }
+
+  async revokeMembership(
+    input: RevokeMembershipInput,
+  ): Promise<ScopedMutationResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const revoked = await transaction.organizationMembership.updateMany({
+        data: {
+          status: "revoked",
+        },
+        where: {
+          id: input.targetMembershipId,
+          organizationId: input.organizationId,
+          status: "active",
+        },
+      });
+      if (revoked.count === 0) {
+        return Object.freeze({ status: "not-found" });
+      }
+
+      const sessions = await transaction.authenticationSession.updateMany({
+        data: {
+          revokeReason: input.reason,
+          revokedAt: new Date(input.revokedAt),
+        },
+        where: {
+          membershipId: input.targetMembershipId,
+          organizationId: input.organizationId,
+          revokedAt: null,
+        },
+      });
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData({
+          actorMembershipId: input.actorMembershipId,
+          eventType: "membership_revoked",
+          metadata: {
+            reason: input.reason,
+            revokedSessions: sessions.count,
+          },
+          occurredAt: input.revokedAt,
+          organizationId: input.organizationId,
+          succeeded: true,
+          targetMembershipId: input.targetMembershipId,
+        }),
+      });
+      return Object.freeze({ status: "updated" });
+    });
   }
 }
 

@@ -11,6 +11,9 @@ públicos; los casos de uso reciben repositorios tipados.
 erDiagram
   ORGANIZATION ||--o{ ORGANIZATION_MEMBERSHIP : owns
   USER ||--o{ ORGANIZATION_MEMBERSHIP : joins
+  USER ||--o{ AUTHENTICATION_SESSION : authenticates
+  ORGANIZATION_MEMBERSHIP ||--o{ AUTHENTICATION_SESSION : scopes
+  ORGANIZATION ||--o{ AUTHENTICATION_EVENT : audits
   ORGANIZATION ||--o{ BRAND : owns
   BRAND ||--o{ LOCATION : configures
   ORGANIZATION_MEMBERSHIP ||--o{ PUBLICATION : creates
@@ -46,6 +49,16 @@ válido de otra organización no alcanza para relacionarlo ni recuperarlo.
   una fila append-only a `publication_state_transitions` dentro de la misma
   transacción. Fallos actuales conservan código, mensaje seguro, reintento y
   timestamp.
+- Las credenciales locales son opcionales y consistentes: hash, versión y fecha
+  de cambio existen juntas o son nulas juntas. El seed no crea una contraseña.
+- Una sesión referencia usuario, membresía y organización mediante ownership
+  compuesto. Sólo persiste hashes de sesión y CSRF; vencimiento y revocación
+  tienen constraints e índices propios.
+- Los eventos de autenticación son append-only. Un cambio de roles queda
+  limitado por organización y una revocación de membresía revoca sus sesiones
+  dentro de la misma transacción.
+- La lectura de sesión consulta roles y estados vigentes. También rechaza una
+  sesión creada antes de `password_changed_at`.
 
 ## Comandos
 
@@ -72,8 +85,9 @@ requiere el procedimiento operativo, respaldo y autorización correspondientes.
 Nunca se usa `db push` en ambientes compartidos.
 
 El seed es idempotente y exclusivamente de desarrollo: crea Aramayo, una
-identidad `.invalid`, una membresía con todos los roles para pruebas, la marca y
-dos ubicaciones desde `@aramayo/brand-knowledge`. No asigna responsables reales.
+identidad `.invalid` sin credencial, una membresía con todos los roles para
+pruebas, la marca y dos ubicaciones desde `@aramayo/brand-knowledge`. No asigna
+responsables reales ni habilita un acceso por defecto.
 
 La instancia local y sus procedimientos están documentados en
 [`../local/README.md`](../local/README.md). PostgreSQL `17.9` queda fijado;

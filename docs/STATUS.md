@@ -6,13 +6,14 @@ Actualizado: 2026-07-28
 
 **Fase 2 — Dominio, persistencia y panel base**
 
-La Fase 1 conserva `P1-T07` bloqueada. Mientras tanto se completaron las tareas
-locales independientes `P2-T01` y `P2-T04`.
+La Fase 0 quedó cerrada. La Fase 1 conserva `P1-T07` bloqueada por credenciales
+de Cloudinary. En Fase 2 están completas `P2-T01`, `P2-T02` y `P2-T04`;
+`P2-T03` queda habilitada.
 
 ## Resumen
 
 - [x] Fase documental inicial creada.
-- [ ] Fase 0 — Fundación y bootstrap (falta `P0-T07`, diferida).
+- [x] Fase 0 — Fundación y bootstrap.
 - [ ] Fase 1 — Migración del motor visual.
 - [ ] Fase 2 — Dominio, persistencia y panel base.
 - [ ] Fase 3 — OpenAI, RAG y datos comerciales.
@@ -21,26 +22,23 @@ locales independientes `P2-T01` y `P2-T04`.
 - [ ] Fase 6 — Programación y automatizaciones.
 - [ ] Fase 7 — Endurecimiento y salida a producción.
 
-## Próximo desbloqueo requerido
+## Próxima tarea
 
-No queda una tarea local habilitada sin resolver un bloqueo externo.
+`P2-T03` — gestionar organización, marca y ubicaciones con validación,
+auditoría, permisos y estados explícitos en el panel.
 
-`P2-T01` dejó el esquema, migraciones, seed, repositorios e integración real
-cerrados. `P2-T04` dejó la máquina de estados, compare-and-swap e historial
-append-only cerrados.
-
-El próximo desbloqueo es `P0-T07`: elegir dominio y cerrar identidad, ambientes
-y topología. Después queda habilitada `P2-T02` —autenticación y autorización—.
-`P1-T07` requiere además credenciales de Cloudinary; al cerrarla, junto con
-`P2-T02` y `P2-T03`, se habilita `P2-T05`.
+`P1-T07` requiere credenciales de Cloudinary; al cerrarla junto con `P2-T03`,
+se habilita `P2-T05`.
 
 ## Bloqueos externos conocidos
 
-- Dominio propio o comprado todavía no definido; difiere `P0-T07`.
+- Dominio propio no definido; no bloquea el piloto con hostnames de Render y se
+  reevalúa en Fase 7.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI, Meta y Cloudinary no configuradas.
-- Responsables y roles internos no confirmados.
+- Asignaciones nominales de responsables y roles se confirman al provisionar
+  staging y se mantienen fuera de Git.
 
 Estos bloqueos no impiden completar la parte local de Fase 0 ni Fase 1.
 

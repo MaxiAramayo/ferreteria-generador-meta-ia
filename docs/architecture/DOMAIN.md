@@ -2,6 +2,34 @@
 
 ## Agregados principales
 
+### Identity
+
+`User` es una identidad global. El acceso existe únicamente mediante una
+`OrganizationMembership` activa; una misma persona puede pertenecer a más de
+una organización y debe elegirla al ingresar cuando tenga varias membresías.
+No existe registro público.
+
+Los roles se componen de forma aditiva, pero `admin` no hereda permisos
+editoriales:
+
+| Rol | Permisos |
+|---|---|
+| `admin` | lectura, conexiones, configuración de organización e identidades |
+| `editor` | lectura y edición de contenido |
+| `approver` | lectura, aprobación y programación |
+| `publisher` | lectura y publicación |
+| `viewer` | lectura |
+
+El actor autenticado contiene usuario, membresía, organización, roles y sesión.
+El servidor vuelve a consultar usuario y membresía para cada solicitud: un
+cambio de rol se aplica sin renovar la cookie. Deshabilitar la identidad,
+revocar la membresía, cambiar la contraseña, vencer o revocar la sesión elimina
+el acceso.
+
+Las decisiones de autorización combinan permiso y `organizationId`. Una
+operación sobre otra organización se representa como no encontrada en el caso
+de uso o repositorio, sin revelar que el identificador existe.
+
 ### Publication
 
 Representa una intención editorial completa. Contiene brief, recursos,

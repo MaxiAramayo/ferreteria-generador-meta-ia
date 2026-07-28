@@ -19,6 +19,9 @@ Con repositorios y proveedores mock:
 
 - casos de uso;
 - permisos;
+- login con rechazo uniforme y rate limiting;
+- cookie de sesión, origen confiable y CSRF;
+- sesión ausente, vencida, revocada y usuario deshabilitado;
 - mapping de errores;
 - transacciones;
 - encolado;
@@ -42,6 +45,9 @@ Las pruebas unitarias nunca llaman APIs reales.
 - PostgreSQL real efímero.
 - Redis real efímero.
 - migraciones hacia arriba y abajo;
+- sesiones revocables, roles vigentes, cambio de contraseña y auditoría
+  append-only;
+- aislamiento de membresías entre organizaciones;
 - concurrencia de dispatcher;
 - locks e idempotencia;
 - carga y descarga de media de prueba.

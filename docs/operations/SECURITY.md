@@ -22,6 +22,36 @@
 Una persona puede tener varios roles. El backend decide autorización; la UI no
 es un límite de seguridad.
 
+## Autenticación y sesiones
+
+- No existe registro público; las credenciales se incorporan mediante un flujo
+  administrativo auditado.
+- Las contraseñas usan Argon2id versionado con 19 MiB de memoria, dos
+  iteraciones, paralelismo uno y salida de 32 bytes.
+- El identificador de sesión y el token CSRF tienen 32 bytes aleatorios. La
+  base conserva únicamente sus hashes SHA-256.
+- La cookie de sesión es `HttpOnly`, `SameSite=Lax`, `Path=/` y `Secure` fuera
+  de desarrollo y test. Una segunda cookie CSRF, legible por el panel, permite
+  reconstruir el header después de una recarga; su hash sigue siendo la única
+  copia persistida por el servidor. En ambientes remotos ambas usan el prefijo
+  `__Host-`.
+- Las mutaciones autenticadas por cookie exigen `X-CSRF-Token`; además, un
+  `Origin` presente debe coincidir exactamente con `WEB_ORIGIN`.
+- El ingreso responde con el mismo rechazo ante email, contraseña,
+  organización, usuario o membresía inválidos.
+- Cinco fallos para el mismo hash de email y huella de cliente dentro de quince
+  minutos bloquean nuevos intentos y generan auditoría.
+- Las sesiones son opacas, revocables y expiran según
+  `AUTH_SESSION_TTL_SECONDS`. Roles y estados se leen desde PostgreSQL en cada
+  solicitud.
+- Los eventos de ingreso, rate limit, revocación y cambio de membresía son
+  append-only. Email e IP no se guardan en esos eventos: sólo hashes de sujeto
+  y huella.
+
+Health y readiness son excepciones públicas explícitas. El resto de los
+controladores queda detrás de guards globales de origen, sesión, CSRF y permiso;
+un endpoint público nuevo debe declarar `@PublicRoute()`.
+
 ## Secretos
 
 - Nunca en Git.

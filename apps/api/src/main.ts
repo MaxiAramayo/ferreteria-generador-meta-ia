@@ -5,7 +5,7 @@ import {
   parseApiEnvironment,
   type ApiConfiguration,
 } from "@aramayo/configuration/api";
-import { Logger } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module.ts";
@@ -41,6 +41,13 @@ async function bootstrap(): Promise<void> {
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     origin: configuration.webOrigin,
   });
+  application.useGlobalPipes(
+    new ValidationPipe({
+      forbidNonWhitelisted: true,
+      transform: true,
+      whitelist: true,
+    }),
+  );
   application.enableShutdownHooks();
 
   await application.listen(configuration.port);

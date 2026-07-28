@@ -1,6 +1,7 @@
 import type { LivenessResponse, ReadinessResponse } from "@aramayo/contracts";
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 
+import { PublicRoute } from "../identity/identity.decorators.ts";
 import { ProcessHealthService } from "./process-health.service.ts";
 
 /**
@@ -11,6 +12,7 @@ import { ProcessHealthService } from "./process-health.service.ts";
  * cuando alguna dependencia no está disponible.
  */
 @Controller()
+@PublicRoute()
 export class HealthController {
   readonly #health: ProcessHealthService;
 

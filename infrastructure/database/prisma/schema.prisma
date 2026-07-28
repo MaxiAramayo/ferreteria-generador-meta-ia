@@ -31,6 +31,18 @@ enum OrganizationRole {
   @@map("organization_role")
 }
 
+enum AuthenticationEventType {
+  login_succeeded          @map("login_succeeded")
+  login_failed             @map("login_failed")
+  login_rate_limited       @map("login_rate_limited")
+  session_revoked          @map("session_revoked")
+  sessions_revoked         @map("sessions_revoked")
+  membership_roles_changed @map("membership_roles_changed")
+  membership_revoked       @map("membership_revoked")
+
+  @@map("authentication_event_type")
+}
+
 enum PublicationStatus {
   draft               @map("draft")
   retrieving_context  @map("retrieving_context")
@@ -105,28 +117,35 @@ model Organization {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  approvalSnapshots ApprovalSnapshot[]
-  brands            Brand[]
-  locations         Location[]
-  mediaAssets       MediaAsset[]
-  memberships       OrganizationMembership[]
-  publications      Publication[]
-  revisionMedia     PublicationRevisionMedia[]
-  revisions         PublicationRevision[]
-  stateTransitions  PublicationStateTransition[]
+  approvalSnapshots      ApprovalSnapshot[]
+  authenticationEvents   AuthenticationEvent[]
+  authenticationSessions AuthenticationSession[]
+  brands                 Brand[]
+  locations              Location[]
+  mediaAssets            MediaAsset[]
+  memberships            OrganizationMembership[]
+  publications           Publication[]
+  revisionMedia          PublicationRevisionMedia[]
+  revisions              PublicationRevision[]
+  stateTransitions       PublicationStateTransition[]
 
   @@map("organizations")
 }
 
 model User {
-  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email       String     @unique(map: "users_email_key") @db.VarChar(254)
-  displayName String     @map("display_name") @db.VarChar(120)
-  status      UserStatus @default(active)
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String     @unique(map: "users_email_key") @db.VarChar(254)
+  displayName         String     @map("display_name") @db.VarChar(120)
+  status              UserStatus @default(active)
+  passwordHash        String?    @map("password_hash") @db.Text
+  passwordHashVersion Int?       @map("password_hash_version")
+  passwordChangedAt   DateTime?  @map("password_changed_at") @db.Timestamptz(3)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships OrganizationMembership[]
+  authenticationEvents   AuthenticationEvent[]
+  authenticationSessions AuthenticationSession[]
+  memberships            OrganizationMembership[]
 
   @@map("users")
 }
@@ -140,18 +159,72 @@ model OrganizationMembership {
   createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user                User                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  approvalSnapshots   ApprovalSnapshot[]
-  createdMedia        MediaAsset[]
-  createdPublications Publication[]
-  createdRevisions    PublicationRevision[]
-  stateTransitions    PublicationStateTransition[]
+  organization                 Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                         User                         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshots            ApprovalSnapshot[]
+  authenticationSessions       AuthenticationSession[]
+  actedAuthenticationEvents    AuthenticationEvent[]        @relation("AuthenticationEventActor")
+  createdMedia                 MediaAsset[]
+  createdPublications          Publication[]
+  createdRevisions             PublicationRevision[]
+  stateTransitions             PublicationStateTransition[]
+  targetedAuthenticationEvents AuthenticationEvent[]        @relation("AuthenticationEventTarget")
 
   @@unique([organizationId, userId], map: "memberships_organization_user_key")
   @@unique([organizationId, id], map: "memberships_organization_id_key")
+  @@unique([organizationId, userId, id], map: "memberships_organization_user_id_key")
   @@index([userId, status], map: "memberships_user_status_idx")
   @@map("organization_memberships")
+}
+
+model AuthenticationSession {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  membershipId          String    @map("membership_id") @db.Uuid
+  tokenHash             String    @unique(map: "authentication_sessions_token_hash_key") @map("token_hash") @db.Char(64)
+  csrfTokenHash         String    @map("csrf_token_hash") @db.Char(64)
+  clientFingerprintHash String?   @map("client_fingerprint_hash") @db.Char(64)
+  expiresAt             DateTime  @map("expires_at") @db.Timestamptz(3)
+  lastSeenAt            DateTime  @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt             DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason          String?   @map("revoke_reason") @db.VarChar(80)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  membership   OrganizationMembership @relation(fields: [organizationId, userId, membershipId], references: [organizationId, userId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, revokedAt, expiresAt], map: "authentication_sessions_user_active_idx")
+  @@index([organizationId, membershipId, revokedAt], map: "authentication_sessions_membership_active_idx")
+  @@index([expiresAt], map: "authentication_sessions_expiry_idx")
+  @@map("authentication_sessions")
+}
+
+model AuthenticationEvent {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String?                 @map("organization_id") @db.Uuid
+  userId                String?                 @map("user_id") @db.Uuid
+  actorMembershipId     String?                 @map("actor_membership_id") @db.Uuid
+  targetMembershipId    String?                 @map("target_membership_id") @db.Uuid
+  eventType             AuthenticationEventType @map("event_type")
+  succeeded             Boolean
+  subjectHash           String?                 @map("subject_hash") @db.Char(64)
+  clientFingerprintHash String?                 @map("client_fingerprint_hash") @db.Char(64)
+  occurredAt            DateTime                @map("occurred_at") @db.Timestamptz(3)
+  metadata              Json
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  actor        OrganizationMembership? @relation("AuthenticationEventActor", fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization?           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  target       OrganizationMembership? @relation("AuthenticationEventTarget", fields: [organizationId, targetMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  user         User?                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([subjectHash, clientFingerprintHash, eventType, occurredAt(sort: Desc)], map: "authentication_events_login_limit_idx")
+  @@index([organizationId, occurredAt(sort: Desc)], map: "authentication_events_org_occurred_idx")
+  @@map("authentication_events")
 }
 
 model Brand {

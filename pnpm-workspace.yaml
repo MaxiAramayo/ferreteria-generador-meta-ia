@@ -16,10 +16,16 @@ catalog:
   "@next/eslint-plugin-next": 16.2.11
   "@prisma/adapter-pg": 7.9.0
   "@prisma/client": 7.9.0
+  "@types/express": 5.0.6
   "@types/node": 24.13.3
   "@types/pg": 8.20.0
   "@types/react": 19.2.17
   "@types/react-dom": 19.2.3
+  "@types/supertest": 7.2.1
+  argon2: 0.45.1
+  class-transformer: 0.5.1
+  class-validator: 0.15.1
+  cookie: 2.0.1
   eslint: 10.7.0
   eslint-plugin-react-hooks: 7.1.1
   globals: 17.7.0
@@ -34,13 +40,15 @@ catalog:
   redis: 6.1.0
   reflect-metadata: 0.2.2
   rxjs: 7.8.2
+  supertest: 7.2.2
   typescript: 5.9.3
   typescript-eslint: 8.65.0
 
-# La instalación no ejecuta scripts de terceros. Sharp distribuye binarios
-# precompilados y Prisma genera su cliente de forma explícita durante build, por
-# lo que sus scripts de instalación permanecen bloqueados.
+# Argon2 necesita instalar su binding nativo y queda permitido de forma
+# explícita. Sharp distribuye binarios precompilados y Prisma genera su cliente
+# durante build, por lo que sus scripts permanecen bloqueados.
 allowBuilds:
   "@prisma/engines": false
+  argon2: true
   prisma: false
   sharp: false

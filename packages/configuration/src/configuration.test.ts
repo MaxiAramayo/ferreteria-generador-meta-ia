@@ -17,6 +17,7 @@ const commonEnvironment = Object.freeze({
 
 const privateServiceEnvironment = Object.freeze({
   ...commonEnvironment,
+  AUTH_SESSION_TTL_SECONDS: "43200",
   DATABASE_URL:
     "postgresql://aramayo:local-placeholder@127.0.0.1:5432/aramayo_content",
   REDIS_URL: "redis://aramayo:local-placeholder@127.0.0.1:6379",
@@ -42,6 +43,7 @@ test("builds separate immutable configurations for every process", () => {
   assert.equal(webConfiguration.apiBaseUrl, "http://localhost:3001/");
   assert.equal(Object.hasOwn(webConfiguration, "OPENAI_API_KEY"), false);
   assert.equal(apiConfiguration.port, 3_001);
+  assert.equal(apiConfiguration.authenticationSessionTtlSeconds, 43_200);
   assert.equal(apiConfiguration.meta.enabled, false);
   assert.equal(workerConfiguration.concurrency, 4);
   assert.equal(workerConfiguration.openAi.enabled, false);
@@ -190,6 +192,7 @@ test(".env.example documents the complete contract without secret values", async
 
   const expectedVariables = [
     "APP_TIMEZONE",
+    "AUTH_SESSION_TTL_SECONDS",
     "CLOUDINARY_API_KEY",
     "CLOUDINARY_API_SECRET",
     "CLOUDINARY_CLOUD_NAME",

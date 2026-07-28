@@ -440,8 +440,8 @@ integración, no comprobaciones opcionales.
 
 ## P0-T07 — Definir identidad, ambientes y topología de despliegue
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T02`, `P0-T06`
 - Riesgo: Alto
 
@@ -458,18 +458,18 @@ secretos y separación entre staging y producción.
 
 ### Criterios de aceptación
 
-- [ ] Staging y producción usan bases, colas, buckets y credenciales separados.
-- [ ] Los roles mínimos `admin`, `editor` y `approver` están definidos.
-- [ ] Se documentan URLs públicas necesarias para Meta y Cloudinary.
-- [ ] API y worker no quedan expuestos más allá de lo necesario.
-- [ ] Cada secreto tiene propietario, ubicación y procedimiento de rotación.
-- [ ] La estrategia permite revocar acceso de una persona sin rotar todo el sistema.
+- [x] Staging y producción usan bases, colas, buckets y credenciales separados.
+- [x] Los roles mínimos `admin`, `editor` y `approver` están definidos.
+- [x] Se documentan URLs públicas necesarias para Meta y Cloudinary.
+- [x] API y worker no quedan expuestos más allá de lo necesario.
+- [x] Cada secreto tiene propietario, ubicación y procedimiento de rotación.
+- [x] La estrategia permite revocar acceso de una persona sin rotar todo el sistema.
 
 ### Verificación obligatoria
 
-- [ ] Revisar el diagrama contra los requisitos de OpenAI, Meta y Cloudinary.
-- [ ] Simular alta, baja y cambio de rol de un usuario.
-- [ ] Obtener aprobación explícita de las decisiones con costo operativo.
+- [x] Revisar el diagrama contra los requisitos de OpenAI, Meta y Cloudinary.
+- [x] Simular alta, baja y cambio de rol de un usuario.
+- [x] Obtener aprobación explícita de las decisiones con costo operativo.
 
 ### Fuera de alcance
 
@@ -478,16 +478,38 @@ secretos y separación entre staging y producción.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: se eligieron hostnames administrados por Render para staging y el
+  piloto. Esto elimina la dependencia de una compra o propiedad de DNS no
+  confirmada; un dominio propio queda como promoción controlada de Fase 7.
+- 2026-07-28: los propietarios se expresan como funciones operativas con
+  cuentas individuales. Los datos nominales quedan en inventarios privados para
+  no versionar información personal ni normalizar cuentas compartidas.
+- 2026-07-28: el usuario indicó continuar después de recibir la topología y un
+  orden de magnitud de USD 82 mensuales para dos ambientes mínimos pagos. La
+  aprobación no autoriza provisionamiento ni cargos.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- [ADR-012](../architecture/decisions/ADR-012-IDENTITY-ENVIRONMENTS-OWNERSHIP.md)
+  registra identidad, roles, hostnames, ownership, costo y límites de la
+  aprobación.
+- [`ENVIRONMENTS.md`](../operations/ENVIRONMENTS.md) contiene el diagrama,
+  matriz de recursos, callbacks, secretos y la simulación de alta, cambio de
+  rol y baja.
+- Revisión oficial 2026-07-28: dominios, red privada, workers, Blueprints y
+  precios de Render; callbacks y firmas de Cloudinary; requisitos Meta ya
+  inventariados en [`META.md`](../integrations/META.md).
+- `pnpm verify:plan`: 66 tareas únicas y dependencias válidas.
+- `pnpm install --frozen-lockfile`: lockfile vigente y políticas de cadena de
+  suministro aprobadas.
+- `pnpm infra:health`: PostgreSQL y Redis saludables, autenticados y expuestos
+  sólo en loopback.
+- `pnpm verify`: pipeline completo aprobado junto con el cierre de `P2-T02`.
 
 ## Criterios de salida de Fase 0
 
-- [ ] `P0-T01` a `P0-T07` están completas.
-- [ ] Un checkout limpio instala, valida, prueba y compila.
-- [ ] Web, API, worker, PostgreSQL y Redis tienen healthchecks verificables.
-- [ ] Stack, identidad, secretos y despliegue tienen decisiones registradas.
-- [ ] No existen bloqueos técnicos ocultos para iniciar la migración visual.
+- [x] `P0-T01` a `P0-T07` están completas.
+- [x] Un checkout limpio instala, valida, prueba y compila.
+- [x] Web, API, worker, PostgreSQL y Redis tienen healthchecks verificables.
+- [x] Stack, identidad, secretos y despliegue tienen decisiones registradas.
+- [x] No existen bloqueos técnicos ocultos para iniciar la migración visual.

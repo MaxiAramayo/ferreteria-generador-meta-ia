@@ -8,6 +8,7 @@ import { transitionPublication } from "@aramayo/domain";
 import { createDatabaseClient } from "./client.ts";
 import {
   PrismaApprovalSnapshotRepository,
+  PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
@@ -26,6 +27,247 @@ const database = createDatabaseClient(databaseUrl);
 
 after(async () => {
   await database.$disconnect();
+});
+
+test("identidad persiste sesiones revocables, roles vivos y auditoría aislada", async () => {
+  const organizationA = randomUUID();
+  const organizationB = randomUUID();
+  const userA = randomUUID();
+  const userB = randomUUID();
+  const membershipA = randomUUID();
+  const membershipB = randomUUID();
+  const tokenHash = "c".repeat(64);
+  const csrfTokenHash = "d".repeat(64);
+  const subjectHash = "e".repeat(64);
+  const clientFingerprintHash = "f".repeat(64);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1_000);
+
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización identidad A",
+        id: organizationA,
+        legalName: "Organización identidad A",
+        slug: `identity-a-${organizationA}`,
+      },
+      {
+        displayName: "Organización identidad B",
+        id: organizationB,
+        legalName: "Organización identidad B",
+        slug: `identity-b-${organizationB}`,
+      },
+    ],
+  });
+  await database.user.createMany({
+    data: [
+      {
+        displayName: "Identidad A",
+        email: `${userA}@example.invalid`,
+        id: userA,
+        passwordChangedAt: now,
+        passwordHash: `$argon2id$${"a".repeat(64)}`,
+        passwordHashVersion: 1,
+      },
+      {
+        displayName: "Identidad B",
+        email: `${userB}@example.invalid`,
+        id: userB,
+        passwordChangedAt: now,
+        passwordHash: `$argon2id$${"b".repeat(64)}`,
+        passwordHashVersion: 1,
+      },
+    ],
+  });
+  await database.organizationMembership.createMany({
+    data: [
+      {
+        id: membershipA,
+        organizationId: organizationA,
+        roles: ["editor"],
+        userId: userA,
+      },
+      {
+        id: membershipB,
+        organizationId: organizationB,
+        roles: ["admin"],
+        userId: userB,
+      },
+    ],
+  });
+
+  const repository = new PrismaIdentityRepository(database);
+  const loginIdentity = await repository.findLoginIdentity(
+    `${userA}@example.invalid`,
+  );
+  assert.notEqual(loginIdentity, null);
+  if (loginIdentity === null) {
+    throw new Error("Expected login identity.");
+  }
+  const loginMembership = loginIdentity.memberships[0];
+  assert.notEqual(loginMembership, undefined);
+  if (loginMembership === undefined) {
+    throw new Error("Expected login membership.");
+  }
+  assert.equal(loginMembership.organizationId, organizationA);
+  assert.deepEqual(loginMembership.roles, ["editor"]);
+
+  const session = await repository.createSession({
+    clientFingerprintHash,
+    csrfTokenHash,
+    event: {
+      clientFingerprintHash,
+      eventType: "login_succeeded",
+      metadata: { passwordHashVersion: 1 },
+      occurredAt: now.toISOString(),
+      organizationId: organizationA,
+      subjectHash,
+      succeeded: true,
+      userId: userA,
+    },
+    expiresAt: expiresAt.toISOString(),
+    membershipId: membershipA,
+    organizationId: organizationA,
+    tokenHash,
+    userId: userA,
+  });
+  assert.equal(session.actor.organizationId, organizationA);
+  assert.deepEqual(session.actor.roles, ["editor"]);
+
+  assert.equal(
+    await repository.findSessionByTokenHash(
+      tokenHash,
+      new Date(expiresAt.getTime() + 1_000).toISOString(),
+    ),
+    null,
+    "una sesión vencida deja de autenticar",
+  );
+
+  const activeSession = await repository.findSessionByTokenHash(
+    tokenHash,
+    now.toISOString(),
+  );
+  assert.notEqual(activeSession, null);
+
+  const operationAt = new Date();
+  const crossOrganizationChange = await repository.changeMembershipRoles({
+    actorMembershipId: membershipB,
+    changedAt: operationAt.toISOString(),
+    organizationId: organizationB,
+    roles: ["approver"],
+    targetMembershipId: membershipA,
+  });
+  assert.deepEqual(crossOrganizationChange, { status: "not-found" });
+
+  const roleChange = await repository.changeMembershipRoles({
+    actorMembershipId: membershipA,
+    changedAt: operationAt.toISOString(),
+    organizationId: organizationA,
+    roles: ["approver"],
+    targetMembershipId: membershipA,
+  });
+  assert.deepEqual(roleChange, { status: "updated" });
+  const sessionWithCurrentRoles = await repository.findSessionByTokenHash(
+    tokenHash,
+    now.toISOString(),
+  );
+  assert.deepEqual(sessionWithCurrentRoles?.actor.roles, ["approver"]);
+
+  await database.user.update({
+    data: {
+      passwordChangedAt: new Date(now.getTime() + 1_000),
+    },
+    where: { id: userA },
+  });
+  assert.equal(
+    await repository.findSessionByTokenHash(tokenHash, now.toISOString()),
+    null,
+    "cambiar la contraseña invalida sesiones anteriores",
+  );
+  await database.user.update({
+    data: { passwordChangedAt: now },
+    where: { id: userA },
+  });
+
+  await repository.recordAuthenticationEvent({
+    clientFingerprintHash,
+    eventType: "login_failed",
+    metadata: { reason: "credentials_rejected" },
+    occurredAt: operationAt.toISOString(),
+    subjectHash,
+    succeeded: false,
+  });
+  assert.equal(
+    await repository.countRecentLoginFailures({
+      clientFingerprintHash,
+      since: new Date(now.getTime() - 1_000).toISOString(),
+      subjectHash,
+    }),
+    1,
+  );
+  await database.authenticationEvent.create({
+    data: {
+      clientFingerprintHash,
+      eventType: "login_failed",
+      metadata: { reason: "clock_skew_within_tolerance" },
+      occurredAt: new Date(Date.now() + 60 * 1_000),
+      subjectHash,
+      succeeded: false,
+    },
+  });
+  await assert.rejects(
+    database.authenticationEvent.create({
+      data: {
+        clientFingerprintHash,
+        eventType: "login_failed",
+        metadata: { reason: "clock_skew_exceeds_tolerance" },
+        occurredAt: new Date(Date.now() + 10 * 60 * 1_000),
+        subjectHash,
+        succeeded: false,
+      },
+    }),
+  );
+
+  await database.user.update({
+    data: { status: "disabled" },
+    where: { id: userA },
+  });
+  assert.equal(
+    await repository.findSessionByTokenHash(tokenHash, now.toISOString()),
+    null,
+  );
+  await database.user.update({
+    data: { status: "active" },
+    where: { id: userA },
+  });
+
+  const membershipRevocation = await repository.revokeMembership({
+    actorMembershipId: membershipA,
+    organizationId: organizationA,
+    reason: "access_removed",
+    revokedAt: new Date().toISOString(),
+    targetMembershipId: membershipA,
+  });
+  assert.deepEqual(membershipRevocation, { status: "updated" });
+  assert.equal(
+    await repository.findSessionByTokenHash(tokenHash, now.toISOString()),
+    null,
+  );
+
+  const auditEvent = await database.authenticationEvent.findFirstOrThrow({
+    orderBy: { createdAt: "desc" },
+    where: {
+      eventType: "membership_revoked",
+      organizationId: organizationA,
+      targetMembershipId: membershipA,
+    },
+  });
+  await assert.rejects(
+    database.authenticationEvent.update({
+      data: { metadata: { tampered: true } },
+      where: { id: auditEvent.id },
+    }),
+  );
 });
 
 test("repositorios y constraints aíslan organizaciones y preservan snapshots", async () => {

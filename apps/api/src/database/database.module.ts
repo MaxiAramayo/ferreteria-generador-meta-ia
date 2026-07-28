@@ -3,12 +3,14 @@ import {
   createDatabaseClient,
   type DatabaseClient,
   PrismaApprovalSnapshotRepository,
+  PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
 } from "@aramayo/database";
 import type {
   ApprovalSnapshotRepository,
+  IdentityRepository,
   MediaAssetRepository,
   PublicationRepository,
   PublicationStateRepository,
@@ -19,6 +21,7 @@ import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
   APPROVAL_SNAPSHOT_REPOSITORY,
   DATABASE_CLIENT,
+  IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
@@ -30,16 +33,24 @@ export class DatabaseModule {
     return {
       exports: [
         APPROVAL_SNAPSHOT_REPOSITORY,
+        IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
       ],
+      global: true,
       module: DatabaseModule,
       providers: [
         {
           provide: DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: IDENTITY_REPOSITORY,
+          useFactory: (database: DatabaseClient): IdentityRepository =>
+            new PrismaIdentityRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

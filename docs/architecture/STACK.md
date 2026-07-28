@@ -27,6 +27,11 @@ el adaptador `pg` al crear cada cliente. La URL vive en `prisma.config.ts` para
 migraciones y se entrega al adaptador desde la configuración validada en
 runtime.
 
+`P2-T02` incorpora en la API `argon2@0.45.1`, `cookie@2.0.1`,
+`class-validator@0.15.1` y `class-transformer@0.5.1`. Las pruebas HTTP usan
+`supertest@7.2.2`. Argon2 es la única dependencia de este grupo con instalación
+nativa autorizada.
+
 Las herramientas locales verificadas en `P0-T03` agregan `redis@6.1.0`,
 `@types/node@24.13.3` y `@types/pg@8.20.0`. Sólo se instalan en la raíz para
 comprobar conectividad y tipos de la infraestructura; no forman contratos de
@@ -85,9 +90,11 @@ ejecutable por Node y el artefacto publicado no depende de un bundler.
 ### Scripts de instalación de terceros
 
 `pnpm-workspace.yaml#allowBuilds` mantiene la instalación libre de scripts de
-terceros. `sharp`, `prisma` y `@prisma/engines` quedan declarados en `false`;
-la generación explícita del cliente funciona sin sus scripts de instalación.
-Autorizar un script nuevo exige revisarlo y registrarlo en esa lista.
+terceros. `argon2` queda autorizado porque instala el binding nativo usado para
+hash de contraseñas. `sharp`, `prisma` y `@prisma/engines` permanecen en
+`false`; la generación explícita del cliente funciona sin sus scripts de
+instalación. Autorizar un script nuevo exige revisarlo y registrarlo en esa
+lista.
 
 ## Decisiones de compatibilidad
 
