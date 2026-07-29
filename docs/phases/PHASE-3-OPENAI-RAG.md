@@ -145,8 +145,8 @@ qué afirmaciones requieren aprobación humana.
 
 ## P3-T02 — Implementar gateway de OpenAI
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P0-T04`, `P3-T01`
 - Riesgo: Alto
 
@@ -163,18 +163,18 @@ telemetría y costos detrás de un puerto de aplicación.
 
 ### Criterios de aceptación
 
-- [ ] Ningún módulo de dominio importa el SDK de OpenAI.
-- [ ] Modelo, timeout y límites son configuración validada.
-- [ ] Rate limit, timeout, rechazo de seguridad y error de proveedor se distinguen.
-- [ ] Logs no contienen claves, prompts sensibles completos ni archivos.
-- [ ] Cada ejecución conserva request ID, modelo, latencia y tokens/costo disponible.
-- [ ] Reintentos se limitan a errores transitorios y usan backoff.
+- [x] Ningún módulo de dominio importa el SDK de OpenAI.
+- [x] Modelo, timeout y límites son configuración validada.
+- [x] Rate limit, timeout, rechazo de seguridad y error de proveedor se distinguen.
+- [x] Logs no contienen claves, prompts sensibles completos ni archivos.
+- [x] Cada ejecución conserva request ID, modelo, latencia y tokens/costo disponible.
+- [x] Reintentos se limitan a errores transitorios y usan backoff.
 
 ### Verificación obligatoria
 
-- [ ] Tests con adaptador falso para cada categoría de error.
-- [ ] Smoke test controlado contra API real en entorno no productivo.
-- [ ] Confirmar que la clave no aparece en cliente ni logs.
+- [x] Tests con adaptador falso para cada categoría de error.
+- [x] Smoke test controlado contra API real en entorno no productivo.
+- [x] Confirmar que la clave no aparece en cliente ni logs.
 
 ### Fuera de alcance
 
@@ -183,11 +183,37 @@ telemetría y costos detrás de un puerto de aplicación.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: se validó la credencial del proyecto staging sin imprimirla y la
+  API respondió correctamente dentro del proyecto configurado.
+- El puerto `TextGenerationPort` permanece libre del SDK. El worker implementa
+  Responses API con el cliente oficial, `store: false`, logs del SDK
+  desactivados y telemetría segura sin input ni instrucciones.
+- La política inicial enruta trabajo rutinario a `gpt-5.6-luna`, briefs a
+  `gpt-5.6-terra` y trabajo complejo a `gpt-5.6-sol`. Timeout, límites y
+  reintentos admiten overrides validados por entorno.
+- El gateway desactiva los reintentos internos del SDK y aplica su propio
+  backoff exponencial solamente a rate limit, timeout, conexión, HTTP 408/409 y
+  errores 5xx. Los rechazos de seguridad y fallos permanentes no se reintentan.
+- El costo se estima con tokens reportados y tarifas estándar de contexto corto
+  verificadas el 2026-07-29. Modelos fuera de la tabla conservan uso pero
+  declaran costo no disponible.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P3-T02`.
+- Comandos y resultados:
+  - validación autenticada `GET /v1/models`: HTTP 200 y request ID presente;
+  - `pnpm --filter @aramayo/configuration test`: 10/10;
+  - `pnpm --filter @aramayo/domain test`: 23/23;
+  - `pnpm --filter @aramayo/worker test`: 38/38, 1 integración omitida según su
+    puerta explícita;
+  - `NODE_ENV=staging pnpm openai:smoke`: Responses API completada con
+    `gpt-5.6-luna`, 27 tokens y costo estimado de USD 0,000052;
+  - `pnpm verify`: completo; stack, plan, formato, build, lint, typecheck, tests,
+    baseline y smoke de procesos en verde.
+- Evidencia remota: request ID conservado por el smoke real, sin registrar
+  prompt, output ni credencial.
+- Desviaciones aprobadas: ninguna.
 
 ## P3-T03 — Ingerir documentos aprobados en File Search
 

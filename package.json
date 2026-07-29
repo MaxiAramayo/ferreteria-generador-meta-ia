@@ -45,6 +45,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "media:smoke:cloudinary": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker smoke:cloudinary",
+    "openai:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/worker smoke:openai",
     "production:build": "node tools/production-infrastructure/cli.ts build",
     "production:caddy": "node tools/production-infrastructure/cli.ts caddy",
     "production:config": "node tools/production-infrastructure/cli.ts config",

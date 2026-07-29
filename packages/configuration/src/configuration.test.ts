@@ -180,10 +180,75 @@ test("enables complete provider groups and redacts their secrets", () => {
   assert.equal(workerConfiguration.cloudinary.enabled, true);
   assert.equal(workerConfiguration.meta.enabled, true);
   assert.equal(workerConfiguration.openAi.enabled, true);
+  assert.deepEqual(workerConfiguration.openAi.policy, {
+    maximumInputCharacters: 50_000,
+    maximumOutputTokens: 4_096,
+    maximumRetries: 2,
+    models: {
+      brief: "gpt-5.6-terra",
+      complex: "gpt-5.6-sol",
+      routine: "gpt-5.6-luna",
+    },
+    requestTimeoutMilliseconds: 60_000,
+    retryBaseDelayMilliseconds: 500,
+  });
 
   const serializedConfiguration = JSON.stringify(workerConfiguration);
   assert.equal(serializedConfiguration.includes("placeholder-secret"), false);
   assert.equal(serializedConfiguration.includes("placeholder-key"), false);
+});
+
+test("validates OpenAI model, timeout and execution limits", () => {
+  assert.throws(
+    () =>
+      parseWorkerEnvironment({
+        ...privateServiceEnvironment,
+        OPENAI_API_KEY: "openai-placeholder-key",
+        OPENAI_MAX_RETRIES: "5",
+        OPENAI_MODEL_BRIEF: "invalid model",
+        OPENAI_PROJECT_ID: "proj_placeholder",
+        OPENAI_REQUEST_TIMEOUT_MS: "999",
+        WORKER_CONCURRENCY: "4",
+      }),
+    (cause: unknown) =>
+      cause instanceof ConfigurationError &&
+      cause.issues.some((issue) => issue.variable === "OPENAI_MAX_RETRIES"),
+  );
+
+  const workerConfiguration = parseWorkerEnvironment({
+    ...privateServiceEnvironment,
+    OPENAI_API_KEY: "openai-placeholder-key",
+    OPENAI_MAX_INPUT_CHARACTERS: "120000",
+    OPENAI_MAX_OUTPUT_TOKENS: "8192",
+    OPENAI_MAX_RETRIES: "1",
+    OPENAI_MODEL_BRIEF: "gpt-5.6-terra-snapshot",
+    OPENAI_MODEL_COMPLEX: "gpt-5.6-sol-snapshot",
+    OPENAI_MODEL_ROUTINE: "gpt-5.6-luna-snapshot",
+    OPENAI_PROJECT_ID: "proj_placeholder",
+    OPENAI_REQUEST_TIMEOUT_MS: "45000",
+    OPENAI_RETRY_BASE_DELAY_MS: "750",
+    WORKER_CONCURRENCY: "4",
+  });
+
+  assert.equal(workerConfiguration.openAi.enabled, true);
+  assert.equal(
+    workerConfiguration.openAi.policy.maximumInputCharacters,
+    120_000,
+  );
+  assert.equal(workerConfiguration.openAi.policy.maximumOutputTokens, 8_192);
+  assert.equal(workerConfiguration.openAi.policy.maximumRetries, 1);
+  assert.equal(
+    workerConfiguration.openAi.policy.models.brief,
+    "gpt-5.6-terra-snapshot",
+  );
+  assert.equal(
+    workerConfiguration.openAi.policy.requestTimeoutMilliseconds,
+    45_000,
+  );
+  assert.equal(
+    workerConfiguration.openAi.policy.retryBaseDelayMilliseconds,
+    750,
+  );
 });
 
 test("rejects undeclared browser variables", () => {
@@ -236,7 +301,15 @@ test(".env.example documents the complete contract without secret values", async
     "NEXT_PUBLIC_API_BASE_URL",
     "NODE_ENV",
     "OPENAI_API_KEY",
+    "OPENAI_MAX_INPUT_CHARACTERS",
+    "OPENAI_MAX_OUTPUT_TOKENS",
+    "OPENAI_MAX_RETRIES",
+    "OPENAI_MODEL_BRIEF",
+    "OPENAI_MODEL_COMPLEX",
+    "OPENAI_MODEL_ROUTINE",
     "OPENAI_PROJECT_ID",
+    "OPENAI_REQUEST_TIMEOUT_MS",
+    "OPENAI_RETRY_BASE_DELAY_MS",
     "OPENAI_VECTOR_STORE_ID",
     "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
     "PORT",

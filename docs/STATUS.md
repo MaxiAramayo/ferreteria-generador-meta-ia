@@ -31,11 +31,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P3-T05` — completar la revisión técnica con la función
-`Administrador de Odoo` usando `docs/integrations/ODOO-READ-ACCESS.md`. En
-paralelo, provisionar una clave OpenAI de staging para iniciar `P3-T02` con su
-smoke real disponible; sin esa puerta no se inicia el gateway ni sus tareas
-dependientes.
+Iniciar `P3-T03` — ingerir documentos aprobados en File Search y registrar su
+ciclo de vida local/remoto. `P3-T02` quedó cerrado con pruebas de contrato y
+smoke real del proyecto OpenAI staging.
+
+En paralelo continúa `P3-T05`: completar la revisión técnica con la función
+`Administrador de Odoo` usando `docs/integrations/ODOO-READ-ACCESS.md`.
 
 La excepción de continuidad queda limitada al smoke remoto pendiente de
 `P1-T07`; no autoriza publicar ni conectar proveedores reales.
@@ -64,16 +65,17 @@ de cerrar Fase 1.
   key de usuario técnico de solo lectura; falta revisar endpoints, ACL, modelos,
   campos y mapping de sucursales con esa función.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
-- Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue
-  actualizado por el usuario, pero el ambiente staging aún debe confirmarse
-  antes del smoke externo.
+- La credencial del proyecto OpenAI staging está configurada localmente y el
+  smoke real de `P3-T02` pasó. Producción continúa sin credenciales OpenAI.
+  Meta no está configurada. Cloudinary local fue actualizado por el usuario,
+  pero el ambiente staging aún debe confirmarse antes del smoke externo.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-La ausencia de credenciales OpenAI staging impide iniciar la implementación
-respaldada por API y cerrar los smoke reales de `P3-T02` y tareas dependientes.
 `P3-T05` tiene contratos, fixtures y tests locales completos, pero su revisión
-obligatoria con el `Administrador de Odoo` impide cerrarla y conectar el sistema.
+obligatoria con el `Administrador de Odoo` impide cerrarla y conectar el
+sistema. El Vector Store de staging todavía no existe; `P3-T03` debe crearlo y
+registrar su identificador sin versionar credenciales.
 
 ## Registro de decisiones pendientes
 

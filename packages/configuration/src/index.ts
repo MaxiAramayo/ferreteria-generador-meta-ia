@@ -15,5 +15,10 @@ export {
 } from "./types.ts";
 export {
   parseCloudinaryIntegration,
+  parseOpenAiIntegration,
   type CloudinaryCredentials,
+  type OpenAICredentials,
+  type OpenAIIntegration,
+  type OpenAIModelPolicy,
+  type OpenAIRuntimePolicy,
 } from "./providers.ts";

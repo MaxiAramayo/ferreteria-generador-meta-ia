@@ -4,7 +4,7 @@ import {
   parseOpenAiIntegration,
   type CloudinaryCredentials,
   type MetaCredentials,
-  type OpenAICredentials,
+  type OpenAIIntegration,
 } from "./providers.ts";
 import type {
   CommonConfiguration,
@@ -27,7 +27,7 @@ export interface WorkerConfiguration extends CommonConfiguration {
   readonly concurrency: number;
   readonly databaseUrl: SecretValue;
   readonly meta: OptionalIntegration<MetaCredentials>;
-  readonly openAi: OptionalIntegration<OpenAICredentials>;
+  readonly openAi: OpenAIIntegration;
   readonly redisUrl: SecretValue;
   readonly tokenEncryption: EncryptionKeyRing;
 }

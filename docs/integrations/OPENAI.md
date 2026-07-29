@@ -1,6 +1,6 @@
 # Integración OpenAI
 
-Verificado contra documentación oficial: 2026-07-23.
+Verificado contra documentación oficial: 2026-07-29.
 
 ## Responsabilidades
 
@@ -131,6 +131,37 @@ Fuente:
 - Registrar tokens y costo por `GenerationRun`.
 - No registrar prompts que contengan datos personales innecesarios.
 - La disponibilidad de GPT Image puede requerir verificación de organización.
+
+## Gateway de Responses
+
+`P3-T02` implementa `TextGenerationPort` en el dominio y mantiene el SDK oficial
+confinado al módulo `generation` del worker. La política inicial es:
+
+| Carga | Modelo | Reasoning |
+|---|---|---|
+| rutinaria | `gpt-5.6-luna` | `none` |
+| brief y herramientas | `gpt-5.6-terra` | `low` |
+| trabajo complejo | `gpt-5.6-sol` | `medium` |
+
+El cliente usa `store: false`, servicio estándar, timeout explícito y cero
+reintentos internos. El gateway aplica hasta dos reintentos con backoff
+exponencial a conexión, timeout, rate limit, HTTP 408/409 y 5xx. Rechazos de
+seguridad, solicitudes inválidas y errores permanentes no se reintentan.
+
+Cada resultado conserva modelo efectivo, response ID, request ID, intentos,
+latencia, tokens de entrada, caché, salida y razonamiento. El costo estimado usa
+la tarifa estándar de contexto corto publicada para los tres modelos; un modelo
+sin tarifa registrada conserva el uso y devuelve costo no disponible.
+
+Los eventos seguros nunca incluyen input, instrucciones, output, archivos ni
+credenciales. El logger interno del SDK permanece desactivado.
+
+Fuentes:
+
+- [Responses API](https://developers.openai.com/api/reference/resources/responses/methods/create)
+- [Model guidance](https://developers.openai.com/api/docs/guides/latest-model)
+- [Precios de API](https://developers.openai.com/api/docs/pricing)
+- [SDK oficial de JavaScript](https://github.com/openai/openai-node)
 
 ## Evals mínimas
 

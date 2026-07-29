@@ -27,6 +27,29 @@ export interface OpenAICredentials {
   readonly vectorStoreId?: string;
 }
 
+export interface OpenAIModelPolicy {
+  readonly brief: string;
+  readonly complex: string;
+  readonly routine: string;
+}
+
+export interface OpenAIRuntimePolicy {
+  readonly maximumInputCharacters: number;
+  readonly maximumOutputTokens: number;
+  readonly maximumRetries: number;
+  readonly models: OpenAIModelPolicy;
+  readonly requestTimeoutMilliseconds: number;
+  readonly retryBaseDelayMilliseconds: number;
+}
+
+export type OpenAIIntegration =
+  | Readonly<{ enabled: false }>
+  | Readonly<{
+      credentials: OpenAICredentials;
+      enabled: true;
+      policy: OpenAIRuntimePolicy;
+    }>;
+
 export interface CloudinaryCredentials {
   readonly apiKey: SecretValue;
   readonly apiSecret: SecretValue;
@@ -42,6 +65,19 @@ const metaVariables = [
 ] as const;
 
 const openAiVariables = ["OPENAI_API_KEY", "OPENAI_PROJECT_ID"] as const;
+
+const openAiPolicyDefaults = Object.freeze({
+  maximumInputCharacters: 50_000,
+  maximumOutputTokens: 4_096,
+  maximumRetries: 2,
+  models: Object.freeze({
+    brief: "gpt-5.6-terra",
+    complex: "gpt-5.6-sol",
+    routine: "gpt-5.6-luna",
+  }),
+  requestTimeoutMilliseconds: 60_000,
+  retryBaseDelayMilliseconds: 500,
+});
 
 const cloudinaryVariables = [
   "CLOUDINARY_CLOUD_NAME",
@@ -88,7 +124,7 @@ export function parseMetaIntegration(
 export function parseOpenAiIntegration(
   rawEnvironment: RawEnvironment,
   processName: string,
-): OptionalIntegration<OpenAICredentials> {
+): OpenAIIntegration {
   const vectorStoreId = readOptional(rawEnvironment, "OPENAI_VECTOR_STORE_ID");
   const coreIntegrationConfigured = isIntegrationConfigured(
     rawEnvironment,
@@ -134,7 +170,108 @@ export function parseOpenAiIntegration(
         : { ...baseCredentials, vectorStoreId },
     ),
     enabled: true,
+    policy: Object.freeze({
+      maximumInputCharacters: parseOpenAiInteger(
+        rawEnvironment,
+        processName,
+        "OPENAI_MAX_INPUT_CHARACTERS",
+        openAiPolicyDefaults.maximumInputCharacters,
+        1_000,
+        200_000,
+      ),
+      maximumOutputTokens: parseOpenAiInteger(
+        rawEnvironment,
+        processName,
+        "OPENAI_MAX_OUTPUT_TOKENS",
+        openAiPolicyDefaults.maximumOutputTokens,
+        16,
+        128_000,
+      ),
+      maximumRetries: parseOpenAiInteger(
+        rawEnvironment,
+        processName,
+        "OPENAI_MAX_RETRIES",
+        openAiPolicyDefaults.maximumRetries,
+        0,
+        4,
+      ),
+      models: Object.freeze({
+        brief: parseOpenAiModel(
+          rawEnvironment,
+          processName,
+          "OPENAI_MODEL_BRIEF",
+          openAiPolicyDefaults.models.brief,
+        ),
+        complex: parseOpenAiModel(
+          rawEnvironment,
+          processName,
+          "OPENAI_MODEL_COMPLEX",
+          openAiPolicyDefaults.models.complex,
+        ),
+        routine: parseOpenAiModel(
+          rawEnvironment,
+          processName,
+          "OPENAI_MODEL_ROUTINE",
+          openAiPolicyDefaults.models.routine,
+        ),
+      }),
+      requestTimeoutMilliseconds: parseOpenAiInteger(
+        rawEnvironment,
+        processName,
+        "OPENAI_REQUEST_TIMEOUT_MS",
+        openAiPolicyDefaults.requestTimeoutMilliseconds,
+        1_000,
+        300_000,
+      ),
+      retryBaseDelayMilliseconds: parseOpenAiInteger(
+        rawEnvironment,
+        processName,
+        "OPENAI_RETRY_BASE_DELAY_MS",
+        openAiPolicyDefaults.retryBaseDelayMilliseconds,
+        100,
+        10_000,
+      ),
+    }),
   });
+}
+
+function parseOpenAiInteger(
+  rawEnvironment: RawEnvironment,
+  processName: string,
+  variable: string,
+  defaultValue: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const rawValue = readOptional(rawEnvironment, variable);
+  if (rawValue === undefined) {
+    return defaultValue;
+  }
+  if (!/^\d+$/u.test(rawValue)) {
+    failConfiguration(processName, variable, "invalid");
+  }
+  const parsedValue = Number(rawValue);
+  if (
+    !Number.isSafeInteger(parsedValue) ||
+    parsedValue < minimum ||
+    parsedValue > maximum
+  ) {
+    failConfiguration(processName, variable, "invalid");
+  }
+  return parsedValue;
+}
+
+function parseOpenAiModel(
+  rawEnvironment: RawEnvironment,
+  processName: string,
+  variable: string,
+  defaultValue: string,
+): string {
+  const model = readOptional(rawEnvironment, variable) ?? defaultValue;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$/u.test(model)) {
+    failConfiguration(processName, variable, "invalid");
+  }
+  return model;
 }
 
 export function parseCloudinaryIntegration(

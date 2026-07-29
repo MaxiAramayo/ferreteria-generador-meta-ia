@@ -122,6 +122,17 @@ recurso en `finally`. Rechaza `NODE_ENV` distinto de `staging` o una
 `CLOUDINARY_FOLDER` que no identifique explícitamente staging. No forma parte de
 `pnpm verify` porque realiza escrituras externas.
 
+El smoke de OpenAI usa un input sintético, `store: false`, la ruta rutinaria de
+menor costo y un máximo de 32 tokens:
+
+```bash
+NODE_ENV=staging pnpm openai:smoke
+```
+
+Requiere el proyecto y credencial exclusivos de staging, conserva request ID,
+modelo, latencia, tokens y costo estimado, y nunca imprime clave, prompt ni
+output. Tampoco forma parte de `pnpm verify` porque consume una API facturable.
+
 ## Puertas de calidad
 
 Antes de merge:

@@ -2,6 +2,7 @@ import type { WorkerConfiguration } from "@aramayo/configuration/worker";
 import { Module, type DynamicModule } from "@nestjs/common";
 
 import { DatabaseModule } from "./database/database.module.ts";
+import { GenerationModule } from "./generation/generation.module.ts";
 import { MediaModule } from "./media/media.module.ts";
 import { OutboxModule } from "./outbox/outbox.module.ts";
 import { RenderingModule } from "./rendering/rendering.module.ts";
@@ -13,6 +14,7 @@ export class WorkerModule {
     return {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
+        GenerationModule.forConfiguration(configuration.openAi),
         MediaModule.forConfiguration(configuration.cloudinary),
         RenderingModule.forConfiguration(configuration),
         OutboxModule,

@@ -151,6 +151,17 @@ export {
   type SafeJsonValue,
 } from "./reliable-operations.ts";
 export {
+  GenerationGatewayError,
+  type GenerateTextCommand,
+  type GeneratedText,
+  type GenerationExecution,
+  type GenerationFailureContext,
+  type GenerationGatewayErrorCode,
+  type GenerationTokenUsage,
+  type GenerationWorkload,
+  type TextGenerationPort,
+} from "./text-generation.ts";
+export {
   isPublicationTransitionAllowed,
   PUBLICATION_TRANSITIONS,
   transitionPublication,
