@@ -197,6 +197,9 @@ importers:
       '@aramayo/database':
         specifier: workspace:*
         version: link:../../infrastructure/database
+      '@aramayo/design-engine':
+        specifier: workspace:*
+        version: link:../../packages/design-engine
       '@aramayo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -413,6 +416,10 @@ importers:
         version: 5.9.3
 
   packages/contracts:
+    dependencies:
+      '@aramayo/design-engine':
+        specifier: workspace:*
+        version: link:../design-engine
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

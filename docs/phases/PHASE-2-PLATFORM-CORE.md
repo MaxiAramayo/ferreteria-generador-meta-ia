@@ -324,7 +324,7 @@ cancelación, dejando estados de publicación externa para fases posteriores.
 ## P2-T05 — Construir borradores, medios y revisiones
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P1-T07`, `P2-T03`, `P2-T04`
 - Riesgo: Alto
 
@@ -362,7 +362,15 @@ manteniendo versiones revisables.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: iniciada por autorización explícita del usuario mientras el smoke
+  remoto de `P1-T07` permanece en espera. La excepción permite desarrollar y
+  verificar toda la vertical local; no convierte los criterios remotos de
+  Cloudinary en aprobados ni habilita efectos externos.
+- Objetivo operativo: crear y editar borradores mediante revisiones nuevas,
+  ownership de medios, compare-and-swap y transacciones sin publicación
+  implícita.
+- Verificaciones previstas: dominio, servicio, HTTP E2E, PostgreSQL con
+  ownership/concurrencia/rollback, `pnpm db:test` y `pnpm verify`.
 
 ### Evidencia de cierre
 

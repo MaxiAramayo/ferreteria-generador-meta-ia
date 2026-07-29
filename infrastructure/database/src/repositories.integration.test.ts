@@ -18,6 +18,7 @@ import {
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
+import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 
 function requiredDatabaseUrl(): string {
   const databaseUrl = process.env["DATABASE_URL"];
@@ -147,6 +148,7 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
   await database.publicationRevision.create({
     data: {
       content: { title: "Publicación con medio" },
+      contentHash: "c".repeat(64),
       createdByMembershipId: membershipId,
       designDocument: { layout: "producto-destacado" },
       id: revisionId,
@@ -158,6 +160,7 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
   });
   await database.publicationRevisionMedia.create({
     data: {
+      alt: "Producto principal",
       mediaAssetId,
       organizationId,
       revisionId,
@@ -287,6 +290,7 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
   await assert.rejects(
     database.publicationRevisionMedia.create({
       data: {
+        alt: "Medio descartable",
         mediaAssetId: deletableMediaAssetId,
         organizationId,
         revisionId,
@@ -327,6 +331,343 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
   assert.equal(failed.status, "updated");
   assert.equal(failed.asset.status, "failed");
   assert.equal(failed.asset.failureCode, "provider-unavailable");
+});
+
+test("borradores versionan con ownership, concurrencia, rollback e historial inmutable", async () => {
+  const organizationA = randomUUID();
+  const organizationB = randomUUID();
+  const userA = randomUUID();
+  const userB = randomUUID();
+  const membershipA = randomUUID();
+  const membershipB = randomUUID();
+  const mediaA = randomUUID();
+  const mediaASecondary = randomUUID();
+  const mediaB = randomUUID();
+  const publicationId = randomUUID();
+  const firstRevisionId = randomUUID();
+  const checksumA = "1".repeat(64);
+  const checksumASecondary = "2".repeat(64);
+  const checksumB = "3".repeat(64);
+
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización de borradores A",
+        id: organizationA,
+        legalName: "Organización de borradores A",
+        slug: `draft-a-${organizationA}`,
+      },
+      {
+        displayName: "Organización de borradores B",
+        id: organizationB,
+        legalName: "Organización de borradores B",
+        slug: `draft-b-${organizationB}`,
+      },
+    ],
+  });
+  await database.user.createMany({
+    data: [
+      {
+        displayName: "Editora de borradores A",
+        email: `${userA}@draft.invalid`,
+        id: userA,
+      },
+      {
+        displayName: "Editora de borradores B",
+        email: `${userB}@draft.invalid`,
+        id: userB,
+      },
+    ],
+  });
+  await database.organizationMembership.createMany({
+    data: [
+      {
+        id: membershipA,
+        organizationId: organizationA,
+        roles: ["editor", "approver"],
+        userId: userA,
+      },
+      {
+        id: membershipB,
+        organizationId: organizationB,
+        roles: ["editor"],
+        userId: userB,
+      },
+    ],
+  });
+  await database.mediaAsset.createMany({
+    data: [
+      {
+        byteSize: 1024n,
+        checksumSha256: checksumA,
+        height: 1350,
+        id: mediaA,
+        mimeType: "image/png",
+        organizationId: organizationA,
+        origin: "uploaded",
+        originalFileName: "producto-a.png",
+        ownerMembershipId: membershipA,
+        secureUrl:
+          "https://res.cloudinary.com/demo/image/upload/v1/draft/producto-a.png",
+        status: "available",
+        storageKey: `draft/${mediaA}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+      {
+        byteSize: 2048n,
+        checksumSha256: checksumASecondary,
+        height: 1350,
+        id: mediaASecondary,
+        mimeType: "image/png",
+        organizationId: organizationA,
+        origin: "uploaded",
+        originalFileName: "producto-a-secundario.png",
+        ownerMembershipId: membershipA,
+        secureUrl:
+          "https://res.cloudinary.com/demo/image/upload/v1/draft/producto-a-secundario.png",
+        status: "available",
+        storageKey: `draft/${mediaASecondary}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+      {
+        byteSize: 1024n,
+        checksumSha256: checksumB,
+        height: 1350,
+        id: mediaB,
+        mimeType: "image/png",
+        organizationId: organizationB,
+        origin: "uploaded",
+        originalFileName: "producto-b.png",
+        ownerMembershipId: membershipB,
+        secureUrl:
+          "https://res.cloudinary.com/demo/image/upload/v1/draft/producto-b.png",
+        status: "available",
+        storageKey: `draft/${mediaB}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+    ],
+  });
+
+  const repository = new PrismaPublicationDraftRepository(database);
+  const baseInput = {
+    content: {
+      caption: "Consultá modelos disponibles.",
+      products: [{ label: "Taladro 13 mm", reference: "SKU:TA-13" }],
+    },
+    contentHash: "4".repeat(64),
+    createdByMembershipId: membershipA,
+    designDocument: {
+      content: {
+        callToAction: "Consultá stock",
+        title: "Taladros para el taller",
+      },
+      format: "feed",
+      layout: "producto-destacado",
+      media: [
+        {
+          alt: "Taladro sobre banco de trabajo",
+          reference: {
+            source: "remote",
+            url: "https://res.cloudinary.com/demo/image/upload/v1/draft/producto-a.png",
+          },
+        },
+      ],
+      schemaVersion: 1,
+      slug: "producto-destacado-taladro",
+      theme: "taller",
+    },
+    media: [
+      {
+        alt: "Taladro sobre banco de trabajo",
+        mediaAssetId: mediaA,
+        slot: "media-00",
+      },
+    ],
+    organizationId: organizationA,
+    publicationId,
+    revisionId: firstRevisionId,
+    schemaVersion: 1,
+    title: "Taladros para el taller",
+  } as const;
+
+  const invalidOwnership = await repository.create({
+    ...baseInput,
+    media: [
+      {
+        alt: "Medio de otra organización",
+        mediaAssetId: mediaB,
+        slot: "media-00",
+      },
+    ],
+  });
+  assert.equal(invalidOwnership.status, "invalid-reference");
+  assert.equal(
+    await database.publication.count({ where: { id: publicationId } }),
+    0,
+  );
+  assert.equal(
+    await database.publicationRevision.count({
+      where: { id: firstRevisionId },
+    }),
+    0,
+  );
+
+  const created = await repository.create(baseInput);
+  assert.equal(created.status, "created");
+  assert.equal(created.detail.publication.version, 1);
+  assert.equal(created.detail.latestRevision.media[0]?.mediaAssetId, mediaA);
+
+  const approvalSnapshotId = randomUUID();
+  await database.approvalSnapshot.create({
+    data: {
+      approvedAt: new Date("2026-07-28T12:00:00.000Z"),
+      approvedByMembershipId: membershipA,
+      contentHash: baseInput.contentHash,
+      id: approvalSnapshotId,
+      organizationId: organizationA,
+      publicationId,
+      revisionId: firstRevisionId,
+      snapshot: {
+        contentHash: baseInput.contentHash,
+        revisionId: firstRevisionId,
+      },
+    },
+  });
+
+  const concurrentUpdates = await Promise.all([
+    repository.update({
+      ...baseInput,
+      contentHash: "5".repeat(64),
+      expectedVersion: 1,
+      revisionId: randomUUID(),
+      title: "Taladros actualizados A",
+    }),
+    repository.update({
+      ...baseInput,
+      contentHash: "6".repeat(64),
+      expectedVersion: 1,
+      revisionId: randomUUID(),
+      title: "Taladros actualizados B",
+    }),
+  ]);
+  assert.deepEqual(concurrentUpdates.map((result) => result.status).sort(), [
+    "conflict",
+    "updated",
+  ]);
+
+  const detailAfterConcurrency = await repository.findById(
+    { organizationId: organizationA },
+    publicationId,
+  );
+  if (detailAfterConcurrency === null) {
+    assert.fail("La publicación creada dejó de estar disponible.");
+  }
+  assert.equal(detailAfterConcurrency.publication.version, 2);
+  assert.equal(detailAfterConcurrency.latestRevision.revisionNumber, 2);
+  assert.equal(
+    await database.publicationRevision.count({
+      where: { organizationId: organizationA, publicationId },
+    }),
+    2,
+  );
+
+  const revisionsBeforeRollback = await database.publicationRevision.count({
+    where: { organizationId: organizationA, publicationId },
+  });
+  const mediaReferencesBeforeRollback =
+    await database.publicationRevisionMedia.count({
+      where: { organizationId: organizationA },
+    });
+  await assert.rejects(
+    repository.update({
+      ...baseInput,
+      contentHash: "7".repeat(64),
+      expectedVersion: 2,
+      media: [
+        {
+          alt: "Taladro principal",
+          mediaAssetId: mediaA,
+          slot: "media-00",
+        },
+        {
+          alt: "Taladro secundario",
+          mediaAssetId: mediaASecondary,
+          slot: "media-00",
+        },
+      ],
+      revisionId: randomUUID(),
+      title: "Edición que debe revertirse",
+    }),
+  );
+  const publicationAfterRollback = await database.publication.findUniqueOrThrow(
+    {
+      where: { id: publicationId },
+    },
+  );
+  assert.equal(publicationAfterRollback.version, 2);
+  assert.equal(
+    await database.publicationRevision.count({
+      where: { organizationId: organizationA, publicationId },
+    }),
+    revisionsBeforeRollback,
+  );
+  assert.equal(
+    await database.publicationRevisionMedia.count({
+      where: { organizationId: organizationA },
+    }),
+    mediaReferencesBeforeRollback,
+  );
+
+  const revisionHistory = await repository.listRevisions({
+    limit: 10,
+    organizationId: organizationA,
+    page: 1,
+    publicationId,
+  });
+  assert.equal(revisionHistory.total, 2);
+  const approvedRevision = revisionHistory.items.find(
+    ({ revisionNumber }) => revisionNumber === 1,
+  );
+  assert.equal(approvedRevision?.approvalSnapshotId, approvalSnapshotId);
+
+  const filteredPage = await repository.list({
+    limit: 1,
+    organizationId: organizationA,
+    page: 1,
+    status: "draft",
+  });
+  assert.equal(filteredPage.total, 1);
+  assert.equal(filteredPage.items.length, 1);
+  assert.equal(filteredPage.items[0]?.latestRevisionNumber, 2);
+  assert.equal(
+    await repository.findById({ organizationId: organizationB }, publicationId),
+    null,
+  );
+
+  await assert.rejects(
+    database.publicationRevision.update({
+      data: { content: { caption: "Mutación inválida", products: [] } },
+      where: { id: firstRevisionId },
+    }),
+  );
+  const firstRevisionMedia =
+    await database.publicationRevisionMedia.findFirstOrThrow({
+      where: {
+        organizationId: organizationA,
+        revisionId: firstRevisionId,
+      },
+    });
+  await assert.rejects(
+    database.publicationRevisionMedia.delete({
+      where: { id: firstRevisionMedia.id },
+    }),
+  );
 });
 
 test("configuración usa ownership, versiones, auditoría y no muta snapshots", async () => {
@@ -985,6 +1326,7 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
     data: [
       {
         content: { title: "Publicación A" },
+        contentHash: checksumA,
         createdByMembershipId: membershipA,
         designDocument: { layout: "producto-destacado" },
         id: revisionA,
@@ -996,6 +1338,7 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
       },
       {
         content: { title: "Publicación B" },
+        contentHash: checksumB,
         createdByMembershipId: membershipB,
         designDocument: { layout: "producto-destacado" },
         id: revisionB,
@@ -1046,6 +1389,7 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
   });
   await database.publicationRevisionMedia.create({
     data: {
+      alt: "Activo principal",
       mediaAssetId: mediaA,
       organizationId: organizationA,
       revisionId: revisionA,
@@ -1116,6 +1460,7 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
     database.publicationRevision.create({
       data: {
         content: { title: "Cruce inválido" },
+        contentHash: "d".repeat(64),
         createdByMembershipId: membershipA,
         designDocument: { layout: "producto-destacado" },
         organizationId: organizationA,

@@ -15,6 +15,7 @@
     "@aramayo/configuration": "workspace:*",
     "@aramayo/contracts": "workspace:*",
     "@aramayo/database": "workspace:*",
+    "@aramayo/design-engine": "workspace:*",
     "@aramayo/domain": "workspace:*",
     "@aramayo/process-health": "workspace:*",
     "@nestjs/common": "catalog:",

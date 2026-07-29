@@ -699,6 +699,26 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
     return mediaAsset === null ? null : mapMediaAsset(mediaAsset);
   }
 
+  async findAvailableByIds(
+    scope: OrganizationScope,
+    mediaAssetIds: readonly string[],
+  ): Promise<readonly MediaAssetRecord[]> {
+    if (mediaAssetIds.length === 0) {
+      return Object.freeze([]);
+    }
+    const mediaAssets = await this.#database.mediaAsset.findMany({
+      orderBy: { id: "asc" },
+      select: mediaAssetSelection,
+      where: {
+        id: { in: [...mediaAssetIds] },
+        organizationId: scope.organizationId,
+        status: "available",
+      },
+    });
+
+    return Object.freeze(mediaAssets.map(mapMediaAsset));
+  }
+
   async reserveUpload(
     input: ReserveMediaUploadInput,
   ): Promise<MediaUploadReservation> {

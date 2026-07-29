@@ -12,6 +12,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@aramayo/design-engine": "workspace:*"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "test": "node --test src/*.test.ts",

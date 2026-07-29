@@ -41,7 +41,16 @@ válido de otra organización no alcanza para relacionarlo ni recuperarlo.
   organización + fecha programada.
 - Todas las relaciones de negocio usan `ON DELETE RESTRICT`; no existe una
   cascada que borre historial o medios de manera implícita.
-- Una revisión numera sus versiones dentro de una publicación.
+- Una revisión numera sus versiones dentro de una publicación, exige
+  `content_hash` SHA-256 y es append-only. Sólo su estado puede avanzar; el
+  contenido, diseño, autor, numeración y referencias a medios no se actualizan
+  ni eliminan.
+- Crear o editar un borrador valida autor, ubicación y medios con
+  `organization_id`, bloquea la publicación para comparar `expectedVersion` y
+  confirma publicación, revisión y referencias en una sola transacción.
+- Los listados de publicaciones y revisiones paginan y filtran en PostgreSQL;
+  una revisión vinculada a `approval_snapshots` conserva esa identificación en
+  el historial.
 - Un medio `available` exige hash, MIME, tamaño, versión, clave y URL HTTPS.
 - El ciclo de medios conserva errores como par código/mensaje únicamente en
   `failed`, dimensiones en todo activo `available` y fecha de borrado únicamente

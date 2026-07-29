@@ -2,7 +2,7 @@ import type { ApiConfiguration } from "@aramayo/configuration/api";
 import { Module, type DynamicModule } from "@nestjs/common";
 
 import { API_CONFIGURATION } from "./configuration.tokens.ts";
-import { PublicationTransitionService } from "./content/publication-transition.service.ts";
+import { ContentModule } from "./content/content.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { HealthModule } from "./health/health.module.ts";
 import { IdentityModule } from "./identity/identity.module.ts";
@@ -16,6 +16,7 @@ export class AppModule {
       exports: [API_CONFIGURATION],
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
+        ContentModule,
         HealthModule.forConfiguration(configuration),
         IdentityModule.forConfiguration(configuration),
         OrganizationsModule,
@@ -23,7 +24,6 @@ export class AppModule {
       module: AppModule,
       providers: [
         ApplicationLifecycleService,
-        PublicationTransitionService,
         { provide: API_CONFIGURATION, useValue: configuration },
       ],
     };

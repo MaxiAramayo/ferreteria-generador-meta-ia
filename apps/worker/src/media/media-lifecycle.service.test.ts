@@ -150,6 +150,10 @@ class FakeMediaRepository implements MediaAssetRepository {
     return Promise.resolve(null);
   }
 
+  findAvailableByIds(): Promise<readonly MediaAssetRecord[]> {
+    return Promise.resolve(Object.freeze([]));
+  }
+
   reserveUpload(): Promise<MediaUploadReservation> {
     return Promise.resolve(this.reservation);
   }

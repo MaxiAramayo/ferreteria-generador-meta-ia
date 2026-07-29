@@ -54,6 +54,19 @@ Prisma queda confinado a `infrastructure/database`. Los repositorios convierten
 filas a tipos de `packages/domain`; ni los casos de uso ni los contratos
 públicos reciben tipos generados por el ORM.
 
+El módulo `content` expone la vertical síncrona de borradores:
+
+- `POST /publications` crea publicación y primera revisión;
+- `GET /publications` lista con paginación y filtros de estado o ubicación;
+- `GET /publications/:publicationId` recupera la revisión vigente;
+- `GET /publications/:publicationId/revisions` consulta historial paginado;
+- `PATCH /publications/:publicationId` agrega una revisión con
+  `expectedVersion`.
+
+Las rutas reciben únicamente identificadores de medios; el caso de uso resuelve
+URLs y metadatos controlados dentro del tenant. Ninguna ruta de borradores
+encola, programa ni publica contenido.
+
 ## Arranque y salud de los procesos
 
 Cada proceso convierte su entorno en un contrato tipado antes de aceptar trabajo:

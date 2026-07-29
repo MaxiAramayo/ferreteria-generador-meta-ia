@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260728040000_media_lifecycle";
+const latestMigrationName = "20260728050000_publication_drafts";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -144,6 +144,7 @@ async function verifyDatabase(): Promise<void> {
       const downSql = await readFile(downMigrationPath, "utf8");
       await testPool.query(downSql);
       const rollbackState = await testPool.query<{
+        alt_column_exists: boolean;
         configuration_table: string | null;
         core_table: string | null;
         failure_column_exists: boolean;
@@ -158,7 +159,14 @@ async function verifyDatabase(): Promise<void> {
               WHERE table_schema = 'public'
                 AND table_name = 'media_assets'
                 AND column_name = 'failure_code'
-            ) AS "failure_column_exists"
+            ) AS "failure_column_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_revision_media'
+                AND column_name = 'alt'
+            ) AS "alt_column_exists"
         `,
       );
       const rollbackEvidence = rollbackState.rows[0];
@@ -170,7 +178,8 @@ async function verifyDatabase(): Promise<void> {
         rollbackEvidence.configuration_table,
         "organization_configuration_events",
       );
-      assert.equal(rollbackEvidence.failure_column_exists, false);
+      assert.equal(rollbackEvidence.failure_column_exists, true);
+      assert.equal(rollbackEvidence.alt_column_exists, false);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

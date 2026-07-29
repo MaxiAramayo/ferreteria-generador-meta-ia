@@ -6,6 +6,7 @@ import {
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
+  PrismaPublicationDraftRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
 } from "@aramayo/database";
@@ -14,6 +15,7 @@ import type {
   IdentityRepository,
   MediaAssetRepository,
   OrganizationConfigurationRepository,
+  PublicationDraftRepository,
   PublicationRepository,
   PublicationStateRepository,
 } from "@aramayo/domain";
@@ -26,6 +28,7 @@ import {
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
+  PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
 } from "./database.tokens.ts";
@@ -39,6 +42,7 @@ export class DatabaseModule {
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
+        PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
       ],
@@ -49,6 +53,12 @@ export class DatabaseModule {
           provide: DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_DRAFT_REPOSITORY,
+          useFactory: (database: DatabaseClient): PublicationDraftRepository =>
+            new PrismaPublicationDraftRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

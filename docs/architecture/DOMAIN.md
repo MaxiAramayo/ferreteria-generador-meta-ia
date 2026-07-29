@@ -58,6 +58,23 @@ medios que tenía al aprobarse.
 Representa una intención editorial completa. Contiene brief, recursos,
 aprobación y destinos.
 
+Mientras está en `draft`, cada guardado crea una `PublicationRevision` nueva y
+eleva la versión de la publicación mediante compare-and-swap. El cliente debe
+enviar `expectedVersion`; una carrera devuelve conflicto y no crea una revisión
+parcial. El título, texto, referencias comerciales y documento del motor de
+diseño se validan antes de persistir.
+
+La organización y membresía autora se derivan de la sesión. Una revisión sólo
+puede adjuntar `MediaAsset` disponibles de esa organización y conserva por
+ranura el identificador, texto alternativo, URL controlada, hash, dimensiones y
+versión del almacenamiento. Publicación, revisión y referencias a medios se
+escriben en una única transacción.
+
+Las revisiones son append-only: editar significa agregar otra fila, no mutar la
+anterior. El historial paginado expone `approvalSnapshotId` y `approvedAt`
+cuando una revisión fue aprobada, aunque una edición posterior pase a ser la
+vigente.
+
 ### PublicationTarget
 
 Representa la entrega a un destino concreto. Cada destino tiene su propio

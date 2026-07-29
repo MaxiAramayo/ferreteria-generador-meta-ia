@@ -4,12 +4,13 @@ Actualizado: 2026-07-28
 
 ## Fase activa
 
-**Fase 1 — Migración del motor visual**
+**Fase 2 — Dominio, persistencia y panel base**
 
 La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
 bloqueada únicamente por las credenciales de Cloudinary staging necesarias
 para su verificación remota. En Fase 2 están completas `P2-T01`, `P2-T02`,
-`P2-T03` y `P2-T04`.
+`P2-T03` y `P2-T04`; `P2-T05` está en progreso por autorización explícita del
+usuario mientras el smoke remoto queda en espera.
 
 ## Resumen
 
@@ -25,11 +26,13 @@ para su verificación remota. En Fase 2 están completas `P2-T01`, `P2-T02`,
 
 ## Próxima tarea
 
-Continuar `P1-T07` — ejecutar `pnpm media:smoke:cloudinary` con credenciales
-separadas de staging. La implementación, migración y pruebas locales están
-completas; solo faltan carga, accesibilidad HTTPS y render remoto reales.
+Continuar `P2-T05` — construir borradores, revisiones versionadas, ownership de
+medios y endpoints paginados. La excepción de dependencia queda limitada al
+smoke remoto pendiente de `P1-T07`; no autoriza publicación ni conexiones
+reales.
 
-Al cerrar `P1-T07` se habilita `P2-T05`.
+El smoke `pnpm media:smoke:cloudinary` sigue pendiente y debe ejecutarse antes
+de cerrar Fase 1.
 
 ## Bloqueos externos conocidos
 

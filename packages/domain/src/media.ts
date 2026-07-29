@@ -268,6 +268,10 @@ export interface MediaAssetRepository {
     scope: OrganizationScope,
     mediaAssetId: string,
   ): Promise<MediaAssetRecord | null>;
+  findAvailableByIds(
+    scope: OrganizationScope,
+    mediaAssetIds: readonly string[],
+  ): Promise<readonly MediaAssetRecord[]>;
   reserveUpload(
     input: ReserveMediaUploadInput,
   ): Promise<MediaUploadReservation>;

@@ -76,6 +76,28 @@ export {
   type UpdateLocationConfigurationCommand,
 } from "./organization-configuration.ts";
 export {
+  normalizePublicationDraftContent,
+  publicationDraftLimits,
+  PublicationDraftValidationError,
+  type DraftMediaReferenceInput,
+  type PaginatedRecords,
+  type PersistPublicationDraftInput,
+  type PersistPublicationDraftUpdateInput,
+  type PublicationDraftContent,
+  type PublicationDraftCreateResult,
+  type PublicationDraftDetailRecord,
+  type PublicationDraftListFilter,
+  type PublicationDraftListItemRecord,
+  type PublicationDraftRepository,
+  type PublicationDraftUpdateResult,
+  type PublicationDraftValidationErrorCode,
+  type PublicationProductReference,
+  type PublicationRevisionListFilter,
+  type PublicationRevisionMediaRecord,
+  type PublicationRevisionRecord,
+  type PublicationRevisionStatus,
+} from "./publication-draft.ts";
+export {
   isPublicationTransitionAllowed,
   PUBLICATION_TRANSITIONS,
   transitionPublication,

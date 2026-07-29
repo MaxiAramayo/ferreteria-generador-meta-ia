@@ -343,7 +343,7 @@ model PublicationRevision {
   schemaVersion         Int                       @map("schema_version")
   content               Json
   designDocument        Json                      @map("design_document")
-  contentHash           String?                   @map("content_hash") @db.Char(64)
+  contentHash           String                    @map("content_hash") @db.Char(64)
   createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -425,6 +425,7 @@ model PublicationRevisionMedia {
   revisionId     String   @map("revision_id") @db.Uuid
   mediaAssetId   String   @map("media_asset_id") @db.Uuid
   slot           String   @db.VarChar(80)
+  alt            String   @db.VarChar(240)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
