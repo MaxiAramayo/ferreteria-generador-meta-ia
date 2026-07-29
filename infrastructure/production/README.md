@@ -12,6 +12,9 @@ versionado despliega remotamente. El smoke crea y elimina sólo un proyecto
 Docker local con nombre fijo y credenciales falsas; no usa el `.env` del
 desarrollador ni una base persistente real.
 
+El host base fue provisionado y verificado el 2026-07-29. Todavía no contiene
+la aplicación, bases, volúmenes de aplicación ni secretos de proveedores.
+
 ## Topología
 
 ```mermaid
@@ -40,16 +43,19 @@ flowchart LR
 
 ## Hostnames
 
-Los registros DNS que se prepararán en Donweb son:
+Los registros DNS que se preparan en Donweb son:
 
-| Uso | Hostname | Destino |
-|---|---|---|
-| Panel | `content.ferreteriaaramayo.com.ar` | IP pública del VPS nuevo |
-| API | `api.content.ferreteriaaramayo.com.ar` | IP pública del VPS nuevo |
+| Tipo | Nombre en la zona | Destino | TTL inicial |
+|---|---|---|---:|
+| `A` | `content` | `144.217.91.115` | 300 |
+| `AAAA` | `content` | `2607:5300:205:200::9f41` | 300 |
+| `A` | `api.content` | `144.217.91.115` | 300 |
+| `AAAA` | `api.content` | `2607:5300:205:200::9f41` | 300 |
 
-No cambiar DNS hasta que Caddy, la API y el panel estén listos para la
-verificación remota. El apex, la web comercial y Odoo permanecen fuera de este
-VPS y de este Compose.
+Donweb completa `ferreteriaaramayo.com.ar`; no se crean CNAME ni se modifican
+`@`, `www`, correo u Odoo. Los registros pueden propagarse antes del despliegue,
+pero Caddy no se inicia hasta que API y panel estén listos para la verificación
+remota.
 
 Caddy obtiene y renueva certificados automáticamente cuando ambos registros A
 resuelven al VPS y los puertos 80/443 están accesibles. `ACME_EMAIL` debe ser
@@ -130,15 +136,32 @@ El proveedor/destino del backup externo y los objetivos RPO/RTO siguen
 pendientes. No se habilitará el piloto como producción hasta cerrar
 [`P7-T04`](../../docs/phases/PHASE-7-PRODUCTION.md).
 
-## Pendientes antes del primer acceso
+## Baseline remoto verificado
 
-- autorizar una clave pública para `ubuntu@vps-f94a1dd2.vps.ovh.ca`;
-- confirmar sistema operativo, arquitectura, firewall y puertos ocupados;
-- crear un usuario de despliegue definitivo sin login por contraseña;
+- Ubuntu `26.04 LTS` x86-64 con kernel `7.0.0-28`;
+- 4 vCPU, 7,6 GiB de RAM, 2 GiB de swap y 72 GB útiles en ext4;
+- Docker Engine `29.6.2`, Buildx `0.35.0` y Compose `5.3.1` desde el
+  repositorio oficial;
+- SSH por clave únicamente para `ubuntu`; root, contraseña, teclado interactivo
+  y X11 deshabilitados;
+- UFW activo para IPv4/IPv6: sólo `22/tcp`, `80/tcp`, `443/tcp` y `443/udp`;
+- AppArmor y timers de actualizaciones/fstrim activos;
+- `/opt/aramayo-content` con modo `0750`; entorno y backups locales con modo
+  `0700`;
+- Caddy `2.11.4` descargado por el digest fijado y ejecutado sin error;
+- ningún contenedor activo y sólo SSH escuchando al cerrar la preparación.
+
+Docker desvía los puertos publicados antes de las reglas de UFW. La garantía de
+exposición depende también del validador de Compose: sólo Caddy puede publicar
+puertos; PostgreSQL y Redis nunca declaran `ports`.
+
+## Pendientes antes del despliegue
+
 - decidir registry y publicar imágenes por SHA;
-- configurar firewall para SSH restringido, 80 y 443;
+- confirmar el email operativo de ACME;
 - confirmar destino de backup externo;
 - cargar secretos sin copiarlos a terminales, issues o logs;
+- verificar la propagación de los cuatro registros Donweb;
 - ejecutar staging/rollback según `P7-T07` antes del piloto.
 
 ## Fuentes
@@ -147,3 +170,6 @@ pendientes. No se habilitará el piloto como producción hasta cerrar
 - [Reverse proxy de Caddy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
 - [Orden y healthchecks en Docker Compose](https://docs.docker.com/compose/how-tos/startup-order/)
 - [Imagen oficial de Playwright](https://playwright.dev/docs/docker)
+- [Instalación oficial de Docker en Ubuntu](https://docs.docker.com/engine/install/ubuntu/)
+- [Docker y reglas de firewall](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
+- [Firewall de Ubuntu](https://documentation.ubuntu.com/server/how-to/security/firewalls/)

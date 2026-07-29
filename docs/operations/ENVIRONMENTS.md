@@ -43,12 +43,16 @@ total del VPS productivo sigue siendo un único dominio de falla.
 | IPv6 | `2607:5300:205:200::9f41` |
 | Usuario operativo inicial | `ubuntu` |
 | Puerto SSH observado | `22` |
+| Sistema | Ubuntu `26.04 LTS`, x86-64, kernel `7.0.0-28` |
+| Capacidad | 4 vCPU, 7,6 GiB RAM, 2 GiB swap, 72 GB ext4 útiles |
+| Contenedores | Docker Engine `29.6.2`, Compose `5.3.1` |
 
 El 2026-07-29 ambas direcciones resolvieron desde el hostname y el servidor
-respondió en SSH. La autenticación con la clave de despliegue local fue
-rechazada, por lo que no se verificaron todavía sistema operativo, arquitectura,
-firewall, Docker ni puertos ocupados. No se intentan contraseñas ni se cambia
-DNS hasta autorizar una clave pública.
+fue actualizado, reiniciado y validado por IPv4 e IPv6. SSH acepta sólo la clave
+ED25519 autorizada; contraseña, login de root y X11 están deshabilitados. UFW
+permite únicamente SSH, HTTP, HTTPS y HTTP/3; AppArmor y actualizaciones
+automáticas permanecen activos. Docker está vacío y sólo SSH escucha hasta
+publicar una release identificada y completar su entorno.
 
 ## Matriz de URLs
 

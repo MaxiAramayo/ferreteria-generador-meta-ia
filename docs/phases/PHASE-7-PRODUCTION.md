@@ -334,9 +334,12 @@ rollback de aplicación y migraciones compatibles.
 - Continúan pendientes y no simulados: acceso al VPS, publicación de imágenes
   inmutables, credenciales separadas, staging remoto, backup/restauración y
   rollback. La tarea permanece `PENDIENTE` hasta completar sus dependencias.
-- 2026-07-29: se verificó que `vps-f94a1dd2.vps.ovh.ca` resuelve a las IPv4 e
-  IPv6 asignadas y responde por SSH. El usuario `ubuntu` rechazó la clave local,
-  de modo que no se modificó ni inventarió el host.
+- 2026-07-29: después de autorizar la clave se actualizó y reinició Ubuntu
+  `26.04`, se instaló Docker desde su repositorio oficial, se agregaron 2 GiB de
+  swap y se prepararon directorios protegidos. SSH quedó limitado a clave sin
+  root/contraseña/X11; UFW permite sólo 22/tcp, 80/tcp, 443/tcp y 443/udp para
+  IPv4/IPv6. Caddy fijado por digest ejecutó correctamente. No se desplegaron
+  aplicación, bases ni secretos y la tarea continúa `PENDIENTE`.
 
 ### Evidencia de cierre
 

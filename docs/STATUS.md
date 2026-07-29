@@ -45,9 +45,9 @@ de cerrar Fase 1.
 ## Bloqueos externos conocidos
 
 - El VPS dedicado responde como `vps-f94a1dd2.vps.ovh.ca` en
-  `144.217.91.115` y `2607:5300:205:200::9f41`. SSH escucha para el usuario
-  `ubuntu`, pero todavía no autoriza la clave de despliegue; sistema operativo
-  y estado interno siguen sin verificar.
+  `144.217.91.115` y `2607:5300:205:200::9f41`. Su baseline de Ubuntu, SSH por
+  clave, UFW, swap, Docker y directorios protegidos quedó verificado. No hay
+  aplicación, base ni secretos desplegados.
 - Registry de imágenes y backup externo todavía no confirmados. El scaffolding
   local no autoriza un despliegue antes de las puertas de Fase 7.
 - Sistema comercial y método de acceso todavía no identificados.
