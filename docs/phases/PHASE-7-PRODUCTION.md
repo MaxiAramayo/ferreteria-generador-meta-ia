@@ -334,6 +334,9 @@ rollback de aplicación y migraciones compatibles.
 - Continúan pendientes y no simulados: acceso al VPS, publicación de imágenes
   inmutables, credenciales separadas, staging remoto, backup/restauración y
   rollback. La tarea permanece `PENDIENTE` hasta completar sus dependencias.
+- 2026-07-29: se verificó que `vps-f94a1dd2.vps.ovh.ca` resuelve a las IPv4 e
+  IPv6 asignadas y responde por SSH. El usuario `ubuntu` rechazó la clave local,
+  de modo que no se modificó ni inventarió el host.
 
 ### Evidencia de cierre
 

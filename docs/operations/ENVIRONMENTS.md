@@ -33,6 +33,23 @@ Sus bases, volúmenes, credenciales, proyectos externos y llaves son
 independientes aunque en el futuro puedan compartir proveedor físico. Un fallo
 total del VPS productivo sigue siendo un único dominio de falla.
 
+## Host productivo asignado
+
+| Campo | Valor verificado |
+|---|---|
+| Proveedor | OVHcloud |
+| Hostname | `vps-f94a1dd2.vps.ovh.ca` |
+| IPv4 | `144.217.91.115` |
+| IPv6 | `2607:5300:205:200::9f41` |
+| Usuario operativo inicial | `ubuntu` |
+| Puerto SSH observado | `22` |
+
+El 2026-07-29 ambas direcciones resolvieron desde el hostname y el servidor
+respondió en SSH. La autenticación con la clave de despliegue local fue
+rechazada, por lo que no se verificaron todavía sistema operativo, arquitectura,
+firewall, Docker ni puertos ocupados. No se intentan contraseñas ni se cambia
+DNS hasta autorizar una clave pública.
+
 ## Matriz de URLs
 
 | Uso | Staging | Piloto de producción | Propietario |

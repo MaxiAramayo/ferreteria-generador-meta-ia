@@ -132,8 +132,9 @@ pendientes. No se habilitará el piloto como producción hasta cerrar
 
 ## Pendientes antes del primer acceso
 
-- confirmar sistema operativo e IP del VPS nuevo;
-- crear usuario de despliegue sin login por contraseña;
+- autorizar una clave pública para `ubuntu@vps-f94a1dd2.vps.ovh.ca`;
+- confirmar sistema operativo, arquitectura, firewall y puertos ocupados;
+- crear un usuario de despliegue definitivo sin login por contraseña;
 - decidir registry y publicar imágenes por SHA;
 - configurar firewall para SSH restringido, 80 y 443;
 - confirmar destino de backup externo;
