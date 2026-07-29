@@ -8,9 +8,9 @@ Actualizado: 2026-07-28
 
 La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
 bloqueada únicamente por las credenciales de Cloudinary staging necesarias
-para su verificación remota. En Fase 2 están completas `P2-T01` a `P2-T05`;
-la continuidad local fue autorizada explícitamente mientras el smoke remoto
-queda en espera.
+para su verificación remota. En Fase 2 están completas `P2-T01` a `P2-T05` y
+`P2-T06` está en progreso; la continuidad local fue autorizada explícitamente
+mientras el smoke remoto queda en espera.
 
 ## Resumen
 
@@ -26,7 +26,7 @@ queda en espera.
 
 ## Próxima tarea
 
-Iniciar `P2-T06` — implementar auditoría append-only, idempotencia y outbox
+Continuar `P2-T06` — implementar auditoría append-only, idempotencia y outbox
 transaccional. La excepción de dependencia queda limitada al smoke remoto
 pendiente de `P1-T07`; no autoriza publicar ni conectar proveedores reales.
 

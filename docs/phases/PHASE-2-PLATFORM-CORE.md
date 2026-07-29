@@ -389,7 +389,7 @@ manteniendo versiones revisables.
 ## P2-T06 — Implementar auditoría, idempotencia y outbox
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P2-T04`, `P2-T05`
 - Riesgo: Alto
 
@@ -425,7 +425,29 @@ distribuidas ni duplicación accidental.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: iniciada después de publicar el cierre verificado de `P2-T05` en
+  `main`. La autorización para continuar localmente mantiene en espera sólo el
+  smoke remoto de `P1-T07`.
+- Unidad de consistencia prevista: reclamar la clave idempotente, ejecutar la
+  mutación, guardar resultado, auditoría y mensajes outbox dentro de una única
+  transacción PostgreSQL.
+- El dispatcher usará leases recuperables y entrega at-least-once; `eventId`
+  será la identidad estable para deduplicación del consumidor. No se promete
+  exactly-once ni se conecta un proveedor real.
+- Implementado: contratos y validadores de payload seguro;
+  migración para `audit_events`, `idempotency_records` y `outbox_messages`;
+  repositorios con locks, leases, replay, conflicto y limpieza selectiva;
+  servicio API y dispatcher worker con transporte deshabilitado explícito.
+- `POST /publications` y `PATCH /publications/:publicationId` requieren
+  `Idempotency-Key` e integran publicación/revisión, resultado idempotente,
+  auditoría y outbox en la misma transacción Prisma.
+- Verificación local específica aprobada: unitarias de dominio/API/dispatcher
+  y `pnpm db:test` con requests concurrentes, replay exacto, conflicto de
+  payload, rollback atómico, auditoría append-only y recuperación de lease.
+- `pnpm verify` completo aprobado: stack, plan, formato, build, lint,
+  typecheck, pruebas, baseline y smoke local de API/web/worker.
+- Pendiente antes de cerrar: registrar el commit de implementación y completar
+  la evidencia documental.
 
 ### Evidencia de cierre
 

@@ -11,6 +11,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -89,8 +90,13 @@ export class PublicationDraftController {
   create(
     @CurrentSession() session: AuthenticatedSessionRecord,
     @Body() input: CreatePublicationDraftDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationDraftResponse> {
-    return this.#service.create(session.actor, createSubmission(input));
+    return this.#service.create(
+      session.actor,
+      createSubmission(input),
+      idempotencyKey,
+    );
   }
 
   @Get()
@@ -144,11 +150,13 @@ export class PublicationDraftController {
     @Param("publicationId", new ParseUUIDPipe({ version: "4" }))
     publicationId: string,
     @Body() input: UpdatePublicationDraftDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationDraftResponse> {
     return this.#service.update(
       session.actor,
       publicationId,
       updateSubmission(input),
+      idempotencyKey,
     );
   }
 }

@@ -39,6 +39,8 @@
 - [`operations/SECRETS.md`](operations/SECRETS.md): almacenamiento, cifrado y
   rotación.
 - [`operations/TESTING.md`](operations/TESTING.md)
+- [`operations/RELIABLE_OPERATIONS.md`](operations/RELIABLE_OPERATIONS.md):
+  idempotencia, auditoría, outbox, leases y retención.
 - [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md)
 
 ## Regla de precedencia

@@ -7,4 +7,8 @@ export {
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
 export { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
+export {
+  PrismaOutboxRepository,
+  PrismaReliableOperationRepository,
+} from "./reliable-operation-repository.ts";
 export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";

@@ -1,5 +1,6 @@
 import type { OrganizationScope, PublicationRecord } from "./persistence.ts";
 import type { PublicationStatus } from "./publication.ts";
+import type { ReliableMutationContext } from "./reliable-operations.ts";
 
 export const publicationDraftLimits = Object.freeze({
   captionMaximum: 2_200,
@@ -191,6 +192,7 @@ export interface PersistPublicationDraftInput extends OrganizationScope {
   readonly locationId?: string;
   readonly media: readonly DraftMediaReferenceInput[];
   readonly publicationId: string;
+  readonly reliableOperation: ReliableMutationContext;
   readonly revisionId: string;
   readonly schemaVersion: number;
   readonly title: string;
@@ -203,17 +205,23 @@ export interface PersistPublicationDraftUpdateInput extends PersistPublicationDr
 export type PublicationDraftCreateResult =
   | Readonly<{
       detail: PublicationDraftDetailRecord;
+      replayed?: true;
       status: "created";
     }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
   | Readonly<{ status: "invalid-reference" }>
   | Readonly<{ status: "not-found" }>;
 
 export type PublicationDraftUpdateResult =
   | Readonly<{
       detail: PublicationDraftDetailRecord;
+      replayed?: true;
       status: "updated";
     }>
   | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
   | Readonly<{ status: "invalid-reference" }>
   | Readonly<{ status: "invalid-state" }>
   | Readonly<{ status: "not-found" }>;

@@ -7,6 +7,7 @@ import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
   transitionPublication,
+  type ReliableMutationContext,
 } from "@aramayo/domain";
 
 import { createDatabaseClient } from "./client.ts";
@@ -19,6 +20,10 @@ import {
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
+import {
+  PrismaOutboxRepository,
+  PrismaReliableOperationRepository,
+} from "./reliable-operation-repository.ts";
 
 function requiredDatabaseUrl(): string {
   const databaseUrl = process.env["DATABASE_URL"];
@@ -33,6 +38,28 @@ const database = createDatabaseClient(databaseUrl);
 
 function randomHash(): string {
   return randomUUID().replaceAll("-", "").repeat(2);
+}
+
+function reliableMutation(
+  organizationId: string,
+  actorMembershipId: string,
+  operation: string,
+): ReliableMutationContext {
+  const occurredAt = new Date().toISOString();
+  return Object.freeze({
+    auditEventId: randomUUID(),
+    claim: Object.freeze({
+      actorMembershipId,
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      keyHash: randomHash(),
+      operation,
+      organizationId,
+      requestHash: randomHash(),
+    }),
+    completedExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+    occurredAt,
+    outboxEventId: randomUUID(),
+  });
 }
 
 after(async () => {
@@ -491,6 +518,11 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
     ],
     organizationId: organizationA,
     publicationId,
+    reliableOperation: reliableMutation(
+      organizationA,
+      membershipA,
+      "content.publication:create",
+    ),
     revisionId: firstRevisionId,
     schemaVersion: 1,
     title: "Taladros para el taller",
@@ -518,10 +550,77 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
     0,
   );
 
-  const created = await repository.create(baseInput);
-  assert.equal(created.status, "created");
+  const concurrentCreates = await Promise.all([
+    repository.create(baseInput),
+    repository.create(baseInput),
+  ]);
+  assert.deepEqual(
+    concurrentCreates.map((result) => result.status),
+    ["created", "created"],
+  );
+  assert.equal(
+    concurrentCreates.filter(
+      (result) => result.status === "created" && result.replayed === true,
+    ).length,
+    1,
+  );
+  const created = concurrentCreates[0];
+  if (created.status !== "created") {
+    assert.fail("La creación concurrente no devolvió el borrador.");
+  }
   assert.equal(created.detail.publication.version, 1);
   assert.equal(created.detail.latestRevision.media[0]?.mediaAssetId, mediaA);
+  assert.equal(
+    await database.idempotencyRecord.count({
+      where: {
+        actorMembershipId: membershipA,
+        keyHash: baseInput.reliableOperation.claim.keyHash,
+        operation: baseInput.reliableOperation.claim.operation,
+        organizationId: organizationA,
+        status: "completed",
+      },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: { id: baseInput.reliableOperation.auditEventId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { id: baseInput.reliableOperation.outboxEventId },
+    }),
+    1,
+  );
+
+  const replayed = await repository.create({
+    ...baseInput,
+    publicationId: randomUUID(),
+    revisionId: randomUUID(),
+  });
+  assert.equal(replayed.status, "created");
+  assert.equal(replayed.replayed, true);
+  assert.deepEqual(replayed.detail, created.detail);
+  assert.equal(
+    await database.publication.count({
+      where: { organizationId: organizationA },
+    }),
+    1,
+  );
+
+  const idempotencyConflict = await repository.create({
+    ...baseInput,
+    reliableOperation: {
+      ...baseInput.reliableOperation,
+      claim: {
+        ...baseInput.reliableOperation.claim,
+        requestHash: randomHash(),
+      },
+    },
+  });
+  assert.equal(idempotencyConflict.status, "idempotency-conflict");
 
   const approvalSnapshotId = randomUUID();
   await database.approvalSnapshot.create({
@@ -545,6 +644,11 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
       ...baseInput,
       contentHash: "5".repeat(64),
       expectedVersion: 1,
+      reliableOperation: reliableMutation(
+        organizationA,
+        membershipA,
+        "content.publication:update",
+      ),
       revisionId: randomUUID(),
       title: "Taladros actualizados A",
     }),
@@ -552,6 +656,11 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
       ...baseInput,
       contentHash: "6".repeat(64),
       expectedVersion: 1,
+      reliableOperation: reliableMutation(
+        organizationA,
+        membershipA,
+        "content.publication:update",
+      ),
       revisionId: randomUUID(),
       title: "Taladros actualizados B",
     }),
@@ -584,6 +693,15 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
     await database.publicationRevisionMedia.count({
       where: { organizationId: organizationA },
     });
+  const idempotencyBeforeRollback = await database.idempotencyRecord.count({
+    where: { organizationId: organizationA },
+  });
+  const auditBeforeRollback = await database.auditEvent.count({
+    where: { organizationId: organizationA },
+  });
+  const outboxBeforeRollback = await database.outboxMessage.count({
+    where: { organizationId: organizationA },
+  });
   await assert.rejects(
     repository.update({
       ...baseInput,
@@ -601,6 +719,11 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
           slot: "media-00",
         },
       ],
+      reliableOperation: reliableMutation(
+        organizationA,
+        membershipA,
+        "content.publication:update",
+      ),
       revisionId: randomUUID(),
       title: "Edición que debe revertirse",
     }),
@@ -622,6 +745,24 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
       where: { organizationId: organizationA },
     }),
     mediaReferencesBeforeRollback,
+  );
+  assert.equal(
+    await database.idempotencyRecord.count({
+      where: { organizationId: organizationA },
+    }),
+    idempotencyBeforeRollback,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: { organizationId: organizationA },
+    }),
+    auditBeforeRollback,
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { organizationId: organizationA },
+    }),
+    outboxBeforeRollback,
   );
 
   const revisionHistory = await repository.listRevisions({
@@ -667,6 +808,260 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
     database.publicationRevisionMedia.delete({
       where: { id: firstRevisionMedia.id },
     }),
+  );
+});
+
+test("idempotencia, auditoría y outbox conservan atomicidad y recuperan leases", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización de operaciones confiables",
+      id: organizationId,
+      legalName: "Organización de operaciones confiables",
+      slug: `reliable-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Operadora confiable",
+      email: `${userId}@reliable.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["editor"],
+      userId,
+    },
+  });
+
+  const reliableRepository = new PrismaReliableOperationRepository(database);
+  const outboxRepository = new PrismaOutboxRepository(database);
+  const keyHash = "8".repeat(64);
+  const requestHash = "9".repeat(64);
+  const operation = "content.publication-draft:create";
+  const claimInput = {
+    actorMembershipId: membershipId,
+    expiresAt: "2030-07-28T12:00:00.000Z",
+    keyHash,
+    operation,
+    organizationId,
+    requestHash,
+  } as const;
+
+  const concurrentClaims = await Promise.all([
+    reliableRepository.claim(claimInput),
+    reliableRepository.claim(claimInput),
+  ]);
+  assert.deepEqual(concurrentClaims.map(({ status }) => status).sort(), [
+    "claimed",
+    "in-progress",
+  ]);
+  const claimed = concurrentClaims.find(
+    (result) => result.status === "claimed",
+  );
+  if (claimed?.status !== "claimed") {
+    assert.fail("Una solicitud concurrente debía reclamar la operación.");
+  }
+
+  const conflict = await reliableRepository.claim({
+    ...claimInput,
+    requestHash: "a".repeat(64),
+  });
+  assert.equal(conflict.status, "request-conflict");
+
+  const auditEventId = randomUUID();
+  const outboxEventId = randomUUID();
+  const committed = await reliableRepository.commit({
+    audit: {
+      actorMembershipId: membershipId,
+      entityId: "publication-1",
+      entityType: "publication",
+      eventId: auditEventId,
+      metadata: { publicationId: "publication-1", revisionNumber: 1 },
+      occurredAt: "2026-07-28T12:00:00.000Z",
+      operation,
+      organizationId,
+      outcome: "success",
+    },
+    idempotency: {
+      actorMembershipId: membershipId,
+      expiresAt: "2030-07-29T12:00:00.000Z",
+      keyHash,
+      operation,
+      organizationId,
+      recordId: claimed.recordId,
+      responseBody: { publicationId: "publication-1", version: 1 },
+      responseStatus: 201,
+    },
+    outbox: [
+      {
+        aggregateId: "publication-1",
+        aggregateType: "publication",
+        availableAt: "2026-07-28T12:00:00.000Z",
+        eventId: outboxEventId,
+        organizationId,
+        payload: { publicationId: "publication-1", revisionNumber: 1 },
+        topic: "content.publication.created:v1",
+      },
+    ],
+  });
+  assert.equal(committed, true);
+  assert.equal(
+    await database.auditEvent.count({ where: { id: auditEventId } }),
+    1,
+  );
+  assert.equal(
+    await database.outboxMessage.count({ where: { id: outboxEventId } }),
+    1,
+  );
+
+  const replayed = await reliableRepository.claim(claimInput);
+  assert.deepEqual(replayed, {
+    responseBody: { publicationId: "publication-1", version: 1 },
+    responseStatus: 201,
+    status: "replayed",
+  });
+
+  const rollbackClaim = await reliableRepository.claim({
+    ...claimInput,
+    keyHash: "b".repeat(64),
+  });
+  if (rollbackClaim.status !== "claimed") {
+    assert.fail("La segunda clave debía quedar disponible.");
+  }
+  const rollbackAuditId = randomUUID();
+  const duplicatedEventId = randomUUID();
+  await assert.rejects(
+    reliableRepository.commit({
+      audit: {
+        actorMembershipId: membershipId,
+        entityType: "publication",
+        eventId: rollbackAuditId,
+        metadata: { publicationId: "publication-rollback" },
+        occurredAt: "2026-07-28T12:05:00.000Z",
+        operation,
+        organizationId,
+        outcome: "success",
+      },
+      idempotency: {
+        actorMembershipId: membershipId,
+        expiresAt: "2030-07-29T12:00:00.000Z",
+        keyHash: "b".repeat(64),
+        operation,
+        organizationId,
+        recordId: rollbackClaim.recordId,
+        responseBody: { publicationId: "publication-rollback" },
+        responseStatus: 201,
+      },
+      outbox: [
+        {
+          aggregateId: "publication-rollback",
+          aggregateType: "publication",
+          availableAt: "2026-07-28T12:05:00.000Z",
+          eventId: duplicatedEventId,
+          organizationId,
+          payload: { sequence: 1 },
+          topic: "content.publication.created:v1",
+        },
+        {
+          aggregateId: "publication-rollback",
+          aggregateType: "publication",
+          availableAt: "2026-07-28T12:05:00.000Z",
+          eventId: duplicatedEventId,
+          organizationId,
+          payload: { sequence: 2 },
+          topic: "content.publication.created:v1",
+        },
+      ],
+    }),
+  );
+  const rollbackRecord = await database.idempotencyRecord.findUniqueOrThrow({
+    where: { id: rollbackClaim.recordId },
+  });
+  assert.equal(rollbackRecord.status, "processing");
+  assert.equal(
+    await database.auditEvent.count({ where: { id: rollbackAuditId } }),
+    0,
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { id: duplicatedEventId },
+    }),
+    0,
+  );
+
+  const firstLease = await outboxRepository.claimBatch({
+    at: "2026-07-28T12:10:00.000Z",
+    leaseExpiresAt: "2026-07-28T12:11:00.000Z",
+    limit: 10,
+    workerId: "worker-a",
+  });
+  assert.equal(firstLease.length, 1);
+  assert.equal(firstLease[0]?.eventId, outboxEventId);
+  assert.equal(firstLease[0].attempts, 1);
+  assert.deepEqual(
+    await outboxRepository.claimBatch({
+      at: "2026-07-28T12:10:30.000Z",
+      leaseExpiresAt: "2026-07-28T12:11:30.000Z",
+      limit: 10,
+      workerId: "worker-b",
+    }),
+    [],
+  );
+
+  const recoveredLease = await outboxRepository.claimBatch({
+    at: "2026-07-28T12:12:00.000Z",
+    leaseExpiresAt: "2026-07-28T12:13:00.000Z",
+    limit: 10,
+    workerId: "worker-b",
+  });
+  assert.equal(recoveredLease[0]?.eventId, outboxEventId);
+  assert.equal(recoveredLease[0].attempts, 2);
+  assert.equal(
+    await outboxRepository.markDelivered(
+      outboxEventId,
+      "worker-a",
+      "2026-07-28T12:12:30.000Z",
+    ),
+    false,
+  );
+  assert.equal(
+    await outboxRepository.markDelivered(
+      outboxEventId,
+      "worker-b",
+      "2026-07-28T12:12:30.000Z",
+    ),
+    true,
+  );
+
+  await assert.rejects(
+    database.auditEvent.delete({ where: { id: auditEventId } }),
+  );
+  assert.deepEqual(
+    await outboxRepository.purge("2026-07-29T00:00:00.000Z", 100),
+    { deleted: 1 },
+  );
+  const completedIdempotencyRecords = await database.idempotencyRecord.count({
+    where: {
+      expiresAt: { lt: new Date("2031-01-01T00:00:00.000Z") },
+      status: "completed",
+    },
+  });
+  assert.deepEqual(
+    await reliableRepository.purgeExpired("2031-01-01T00:00:00.000Z", 100),
+    { deleted: completedIdempotencyRecords },
+  );
+  assert.equal(
+    await database.idempotencyRecord.count({
+      where: { id: rollbackClaim.recordId },
+    }),
+    1,
+    "la limpieza no elimina operaciones incompletas",
   );
 });
 

@@ -117,6 +117,22 @@ enum MediaStorageProvider {
   @@map("media_storage_provider")
 }
 
+enum IdempotencyStatus {
+  processing @map("processing")
+  completed  @map("completed")
+
+  @@map("idempotency_status")
+}
+
+enum OutboxMessageStatus {
+  pending     @map("pending")
+  processing  @map("processing")
+  delivered   @map("delivered")
+  dead_letter @map("dead_letter")
+
+  @@map("outbox_message_status")
+}
+
 model Organization {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug        String   @unique(map: "organizations_slug_key") @db.VarChar(80)
@@ -127,6 +143,7 @@ model Organization {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   approvalSnapshots      ApprovalSnapshot[]
+  auditEvents            AuditEvent[]
   authenticationEvents   AuthenticationEvent[]
   authenticationSessions AuthenticationSession[]
   brands                 Brand[]
@@ -134,6 +151,8 @@ model Organization {
   locations              Location[]
   mediaAssets            MediaAsset[]
   memberships            OrganizationMembership[]
+  idempotencyRecords     IdempotencyRecord[]
+  outboxMessages         OutboxMessage[]
   publications           Publication[]
   revisionMedia          PublicationRevisionMedia[]
   revisions              PublicationRevision[]
@@ -174,10 +193,12 @@ model OrganizationMembership {
   approvalSnapshots            ApprovalSnapshot[]
   authenticationSessions       AuthenticationSession[]
   actedAuthenticationEvents    AuthenticationEvent[]            @relation("AuthenticationEventActor")
+  auditEvents                  AuditEvent[]
   actedConfigurationEvents     OrganizationConfigurationEvent[]
   createdMedia                 MediaAsset[]
   createdPublications          Publication[]
   createdRevisions             PublicationRevision[]
+  idempotencyRecords           IdempotencyRecord[]
   stateTransitions             PublicationStateTransition[]
   targetedAuthenticationEvents AuthenticationEvent[]            @relation("AuthenticationEventTarget")
 
@@ -467,4 +488,74 @@ model PublicationStateTransition {
   @@unique([organizationId, publicationId, toVersion], map: "state_transitions_publication_version_key")
   @@index([organizationId, publicationId, occurredAt(sort: Desc)], map: "state_transitions_org_publication_time_idx")
   @@map("publication_state_transitions")
+}
+
+model AuditEvent {
+  id                String   @id @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  actorMembershipId String?  @map("actor_membership_id") @db.Uuid
+  operation         String   @db.VarChar(120)
+  entityType        String   @map("entity_type") @db.VarChar(120)
+  entityId          String?  @map("entity_id") @db.VarChar(160)
+  outcome           String   @db.VarChar(20)
+  metadata          Json
+  occurredAt        DateTime @map("occurred_at") @db.Timestamptz(3)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor        OrganizationMembership? @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, occurredAt(sort: Desc), id], map: "audit_events_org_occurred_idx")
+  @@index([organizationId, entityType, entityId, occurredAt(sort: Desc)], map: "audit_events_entity_idx")
+  @@map("audit_events")
+}
+
+model IdempotencyRecord {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String            @map("organization_id") @db.Uuid
+  actorMembershipId String            @map("actor_membership_id") @db.Uuid
+  operation         String            @db.VarChar(120)
+  keyHash           String            @map("key_hash") @db.Char(64)
+  requestHash       String            @map("request_hash") @db.Char(64)
+  status            IdempotencyStatus @default(processing)
+  responseStatus    Int?              @map("response_status")
+  responseBody      Json?             @map("response_body")
+  expiresAt         DateTime          @map("expires_at") @db.Timestamptz(3)
+  completedAt       DateTime?         @map("completed_at") @db.Timestamptz(3)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, actorMembershipId, operation, keyHash], map: "idempotency_scope_key")
+  @@index([expiresAt, status], map: "idempotency_expiry_idx")
+  @@map("idempotency_records")
+}
+
+model OutboxMessage {
+  id               String              @id @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  topic            String              @db.VarChar(160)
+  aggregateType    String              @map("aggregate_type") @db.VarChar(120)
+  aggregateId      String              @map("aggregate_id") @db.VarChar(160)
+  payload          Json
+  status           OutboxMessageStatus @default(pending)
+  attempts         Int                 @default(0)
+  availableAt      DateTime            @map("available_at") @db.Timestamptz(3)
+  lockedAt         DateTime?           @map("locked_at") @db.Timestamptz(3)
+  leaseExpiresAt   DateTime?           @map("lease_expires_at") @db.Timestamptz(3)
+  lockedBy         String?             @map("locked_by") @db.VarChar(120)
+  deliveredAt      DateTime?           @map("delivered_at") @db.Timestamptz(3)
+  lastErrorCode    String?             @map("last_error_code") @db.VarChar(80)
+  lastErrorMessage String?             @map("last_error_message") @db.VarChar(300)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([status, availableAt, leaseExpiresAt, createdAt, id], map: "outbox_claim_idx")
+  @@index([organizationId, aggregateType, aggregateId, createdAt(sort: Desc)], map: "outbox_aggregate_idx")
+  @@index([status, deliveredAt], map: "outbox_retention_idx")
+  @@map("outbox_messages")
 }

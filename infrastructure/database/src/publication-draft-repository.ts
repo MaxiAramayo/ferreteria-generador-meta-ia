@@ -1,3 +1,4 @@
+import { PUBLICATION_STATUSES } from "@aramayo/domain";
 import type {
   PaginatedRecords,
   PersistPublicationDraftInput,
@@ -12,10 +13,17 @@ import type {
   PublicationRevisionListFilter,
   PublicationRevisionMediaRecord,
   PublicationRevisionRecord,
+  SafeJsonObject,
+  SafeJsonValue,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
+import {
+  claimReliableOperation,
+  commitReliableOperation,
+  discardReliableOperationClaim,
+} from "./reliable-operation-repository.ts";
 
 const publicationFields = {
   createdAt: true,
@@ -167,12 +175,352 @@ function mapDetail(row: PublicationDetailRow): PublicationDraftDetailRecord {
   });
 }
 
+function domainJsonValue(value: unknown, path: string): SafeJsonValue {
+  if (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "string"
+  ) {
+    return value;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze(
+      value.map((entry, index) =>
+        domainJsonValue(entry, `${path}[${String(index)}]`),
+      ),
+    );
+  }
+  if (typeof value === "object") {
+    return Object.freeze(
+      Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [
+          key,
+          domainJsonValue(entry, `${path}.${key}`),
+        ]),
+      ),
+    );
+  }
+  throw new TypeError(`${path} no puede persistirse como JSON.`);
+}
+
+function detailResponseBody(
+  detail: PublicationDraftDetailRecord,
+): SafeJsonObject {
+  const serialized = domainJsonValue(detail, "publicationDetail");
+  if (
+    typeof serialized !== "object" ||
+    serialized === null ||
+    isSafeJsonArray(serialized)
+  ) {
+    throw new TypeError("El detalle de publicación no es un objeto JSON.");
+  }
+  return serialized;
+}
+
+function isSafeJsonArray(
+  value: SafeJsonValue,
+): value is readonly SafeJsonValue[] {
+  return Array.isArray(value);
+}
+
+function replayObject(value: SafeJsonValue, path: string): SafeJsonObject {
+  if (typeof value !== "object" || value === null || isSafeJsonArray(value)) {
+    throw new TypeError(`${path} no conserva un objeto.`);
+  }
+  return value;
+}
+
+function replayArray(
+  value: SafeJsonValue | undefined,
+  path: string,
+): readonly SafeJsonValue[] {
+  if (value === undefined || !isSafeJsonArray(value)) {
+    throw new TypeError(`${path} no conserva una lista.`);
+  }
+  return value;
+}
+
+function replayString(value: SafeJsonValue | undefined, path: string): string {
+  if (typeof value !== "string") {
+    throw new TypeError(`${path} no conserva texto.`);
+  }
+  return value;
+}
+
+function replayNumber(value: SafeJsonValue | undefined, path: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new TypeError(`${path} no conserva un número.`);
+  }
+  return value;
+}
+
+function replayOptionalString(
+  object: SafeJsonObject,
+  key: string,
+  path: string,
+): string | undefined {
+  const value = object[key];
+  return value === undefined
+    ? undefined
+    : replayString(value, `${path}.${key}`);
+}
+
+function isPublicationStatus(
+  status: string,
+): status is PublicationRecord["status"] {
+  return PUBLICATION_STATUSES.some((candidate) => candidate === status);
+}
+
+function isRevisionStatus(
+  status: string,
+): status is PublicationRevisionRecord["status"] {
+  return ["approved", "draft", "in_review", "superseded"].some(
+    (candidate) => candidate === status,
+  );
+}
+
+function replayDetail(
+  responseBody: SafeJsonObject,
+): PublicationDraftDetailRecord {
+  const publication = replayObject(
+    responseBody["publication"] ?? null,
+    "responseBody.publication",
+  );
+  const revision = replayObject(
+    responseBody["latestRevision"] ?? null,
+    "responseBody.latestRevision",
+  );
+  const publicationStatus = replayString(
+    publication["status"],
+    "responseBody.publication.status",
+  );
+  if (!isPublicationStatus(publicationStatus)) {
+    throw new TypeError(
+      "responseBody.publication.status no conserva un estado válido.",
+    );
+  }
+  const revisionStatus = replayString(
+    revision["status"],
+    "responseBody.latestRevision.status",
+  );
+  if (!isRevisionStatus(revisionStatus)) {
+    throw new TypeError(
+      "responseBody.latestRevision.status no conserva un estado válido.",
+    );
+  }
+  const content = revision["content"];
+  const designDocument = revision["designDocument"];
+  if (content === undefined || designDocument === undefined) {
+    throw new TypeError("La respuesta idempotente está incompleta.");
+  }
+  const approvalSnapshotId = replayOptionalString(
+    revision,
+    "approvalSnapshotId",
+    "responseBody.latestRevision",
+  );
+  const approvedAt = replayOptionalString(
+    revision,
+    "approvedAt",
+    "responseBody.latestRevision",
+  );
+  const locationId = replayOptionalString(
+    publication,
+    "locationId",
+    "responseBody.publication",
+  );
+  const scheduledFor = replayOptionalString(
+    publication,
+    "scheduledFor",
+    "responseBody.publication",
+  );
+
+  return Object.freeze({
+    latestRevision: Object.freeze({
+      ...(approvalSnapshotId === undefined ? {} : { approvalSnapshotId }),
+      ...(approvedAt === undefined ? {} : { approvedAt }),
+      content,
+      contentHash: replayString(
+        revision["contentHash"],
+        "responseBody.latestRevision.contentHash",
+      ),
+      createdAt: replayString(
+        revision["createdAt"],
+        "responseBody.latestRevision.createdAt",
+      ),
+      createdByMembershipId: replayString(
+        revision["createdByMembershipId"],
+        "responseBody.latestRevision.createdByMembershipId",
+      ),
+      designDocument,
+      id: replayString(revision["id"], "responseBody.latestRevision.id"),
+      media: Object.freeze(
+        replayArray(revision["media"], "responseBody.latestRevision.media").map(
+          (entry, index) => {
+            const media = replayObject(
+              entry,
+              `responseBody.latestRevision.media[${String(index)}]`,
+            );
+            const mediaPath = `responseBody.latestRevision.media[${String(index)}]`;
+            return Object.freeze({
+              alt: replayString(media["alt"], `${mediaPath}.alt`),
+              checksumSha256: replayString(
+                media["checksumSha256"],
+                `${mediaPath}.checksumSha256`,
+              ),
+              height: replayNumber(media["height"], `${mediaPath}.height`),
+              mediaAssetId: replayString(
+                media["mediaAssetId"],
+                `${mediaPath}.mediaAssetId`,
+              ),
+              mimeType: replayString(
+                media["mimeType"],
+                `${mediaPath}.mimeType`,
+              ),
+              secureUrl: replayString(
+                media["secureUrl"],
+                `${mediaPath}.secureUrl`,
+              ),
+              slot: replayString(media["slot"], `${mediaPath}.slot`),
+              storageVersion: replayNumber(
+                media["storageVersion"],
+                `${mediaPath}.storageVersion`,
+              ),
+              width: replayNumber(media["width"], `${mediaPath}.width`),
+            });
+          },
+        ),
+      ),
+      organizationId: replayString(
+        revision["organizationId"],
+        "responseBody.latestRevision.organizationId",
+      ),
+      publicationId: replayString(
+        revision["publicationId"],
+        "responseBody.latestRevision.publicationId",
+      ),
+      revisionNumber: replayNumber(
+        revision["revisionNumber"],
+        "responseBody.latestRevision.revisionNumber",
+      ),
+      schemaVersion: replayNumber(
+        revision["schemaVersion"],
+        "responseBody.latestRevision.schemaVersion",
+      ),
+      status: revisionStatus,
+    }),
+    publication: Object.freeze({
+      createdAt: replayString(
+        publication["createdAt"],
+        "responseBody.publication.createdAt",
+      ),
+      id: replayString(publication["id"], "responseBody.publication.id"),
+      ...(locationId === undefined ? {} : { locationId }),
+      organizationId: replayString(
+        publication["organizationId"],
+        "responseBody.publication.organizationId",
+      ),
+      ...(scheduledFor === undefined ? {} : { scheduledFor }),
+      status: publicationStatus,
+      title: replayString(
+        publication["title"],
+        "responseBody.publication.title",
+      ),
+      updatedAt: replayString(
+        publication["updatedAt"],
+        "responseBody.publication.updatedAt",
+      ),
+      version: replayNumber(
+        publication["version"],
+        "responseBody.publication.version",
+      ),
+    }),
+  });
+}
+
 function assertPagination(page: number, limit: number): void {
   if (!Number.isInteger(page) || page < 1 || page > 10_000) {
     throw new RangeError("Page must be between 1 and 10000.");
   }
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     throw new RangeError("Limit must be between 1 and 100.");
+  }
+}
+
+function assertReliableMutationScope(
+  input: PersistPublicationDraftInput,
+): void {
+  if (
+    input.reliableOperation.claim.organizationId !== input.organizationId ||
+    input.reliableOperation.claim.actorMembershipId !==
+      input.createdByMembershipId
+  ) {
+    throw new Error(
+      "La operación idempotente no coincide con el alcance del borrador.",
+    );
+  }
+}
+
+async function completeDraftMutation(
+  transaction: Prisma.TransactionClient,
+  input: PersistPublicationDraftInput,
+  recordId: string,
+  detail: PublicationDraftDetailRecord,
+  action: "created" | "updated",
+): Promise<void> {
+  const revision = detail.latestRevision;
+  const completed = await commitReliableOperation(transaction, {
+    audit: {
+      actorMembershipId: input.createdByMembershipId,
+      entityId: input.publicationId,
+      entityType: "publication",
+      eventId: input.reliableOperation.auditEventId,
+      metadata: Object.freeze({
+        action,
+        publicationId: input.publicationId,
+        revisionId: revision.id,
+        revisionNumber: revision.revisionNumber,
+        version: detail.publication.version,
+      }),
+      occurredAt: input.reliableOperation.occurredAt,
+      operation: input.reliableOperation.claim.operation,
+      organizationId: input.organizationId,
+      outcome: "success",
+    },
+    idempotency: {
+      actorMembershipId: input.createdByMembershipId,
+      expiresAt: input.reliableOperation.completedExpiresAt,
+      keyHash: input.reliableOperation.claim.keyHash,
+      operation: input.reliableOperation.claim.operation,
+      organizationId: input.organizationId,
+      recordId,
+      responseBody: detailResponseBody(detail),
+      responseStatus: action === "created" ? 201 : 200,
+    },
+    outbox: [
+      {
+        aggregateId: input.publicationId,
+        aggregateType: "publication",
+        availableAt: input.reliableOperation.occurredAt,
+        eventId: input.reliableOperation.outboxEventId,
+        organizationId: input.organizationId,
+        payload: Object.freeze({
+          action,
+          publicationId: input.publicationId,
+          revisionId: revision.id,
+          revisionNumber: revision.revisionNumber,
+          version: detail.publication.version,
+        }),
+        topic: `content.publication.${action}:v1`,
+      },
+    ],
+  });
+  if (!completed) {
+    throw new Error(
+      "No se pudo completar la operación idempotente del borrador.",
+    );
   }
 }
 
@@ -329,7 +677,30 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
     input: PersistPublicationDraftInput,
   ): Promise<PublicationDraftCreateResult> {
     return this.#database.$transaction(async (transaction) => {
+      assertReliableMutationScope(input);
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "replayed":
+          return Object.freeze({
+            detail: replayDetail(claim.responseBody),
+            replayed: true,
+            status: "created",
+          });
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "claimed":
+          break;
+      }
       if (!(await writeReferencesAreValid(transaction, input))) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "invalid-reference" });
       }
       const existing = await transaction.publication.findFirst({
@@ -340,6 +711,7 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
         },
       });
       if (existing !== null) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "not-found" });
       }
 
@@ -357,12 +729,20 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
       });
       await createRevisionMedia(transaction, input);
 
+      const detail = await findDetail(
+        transaction,
+        input.organizationId,
+        input.publicationId,
+      );
+      await completeDraftMutation(
+        transaction,
+        input,
+        claim.recordId,
+        detail,
+        "created",
+      );
       return Object.freeze({
-        detail: await findDetail(
-          transaction,
-          input.organizationId,
-          input.publicationId,
-        ),
+        detail,
         status: "created",
       });
     });
@@ -463,6 +843,28 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
     input: PersistPublicationDraftUpdateInput,
   ): Promise<PublicationDraftUpdateResult> {
     return this.#database.$transaction(async (transaction) => {
+      assertReliableMutationScope(input);
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "replayed":
+          return Object.freeze({
+            detail: replayDetail(claim.responseBody),
+            replayed: true,
+            status: "updated",
+          });
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "claimed":
+          break;
+      }
       const lockedPublications = await transaction.$queryRaw<
         { status: string; version: number }[]
       >`
@@ -474,15 +876,19 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
       `;
       const current = lockedPublications[0];
       if (current === undefined) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "not-found" });
       }
       if (current.version !== input.expectedVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "conflict" });
       }
       if (current.status !== "draft") {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "invalid-state" });
       }
       if (!(await writeReferencesAreValid(transaction, input))) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "invalid-reference" });
       }
 
@@ -518,12 +924,20 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
         throw new Error("La publicación bloqueada perdió su versión.");
       }
 
+      const detail = await findDetail(
+        transaction,
+        input.organizationId,
+        input.publicationId,
+      );
+      await completeDraftMutation(
+        transaction,
+        input,
+        claim.recordId,
+        detail,
+        "updated",
+      );
       return Object.freeze({
-        detail: await findDetail(
-          transaction,
-          input.organizationId,
-          input.publicationId,
-        ),
+        detail,
         status: "updated",
       });
     });

@@ -9,6 +9,7 @@ import {
   PrismaPublicationDraftRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
+  PrismaReliableOperationRepository,
 } from "@aramayo/database";
 import type {
   ApprovalSnapshotRepository,
@@ -18,6 +19,7 @@ import type {
   PublicationDraftRepository,
   PublicationRepository,
   PublicationStateRepository,
+  ReliableOperationRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
@@ -31,6 +33,7 @@ import {
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
+  RELIABLE_OPERATION_REPOSITORY,
 } from "./database.tokens.ts";
 
 @Module({})
@@ -45,6 +48,7 @@ export class DatabaseModule {
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
+        RELIABLE_OPERATION_REPOSITORY,
       ],
       global: true,
       module: DatabaseModule,
@@ -59,6 +63,12 @@ export class DatabaseModule {
           provide: PUBLICATION_DRAFT_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationDraftRepository =>
             new PrismaPublicationDraftRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: RELIABLE_OPERATION_REPOSITORY,
+          useFactory: (database: DatabaseClient): ReliableOperationRepository =>
+            new PrismaReliableOperationRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

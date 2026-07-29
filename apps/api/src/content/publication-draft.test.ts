@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { after, before, test } from "node:test";
 
 import { DESIGN_SCHEMA_VERSION } from "@aramayo/design-engine";
@@ -23,6 +24,7 @@ import type {
   PublicationRevisionListFilter,
   PublicationRevisionMediaRecord,
   PublicationRevisionRecord,
+  ReliableMutationContext,
 } from "@aramayo/domain";
 import {
   ConflictException,
@@ -38,6 +40,7 @@ import {
   MEDIA_ASSET_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
 } from "../database/database.tokens.ts";
+import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
 import type { AuthenticatedRequest } from "../identity/identity.decorators.ts";
 import { PublicationDraftController } from "./publication-draft.controller.ts";
 import {
@@ -50,6 +53,7 @@ const membershipId = "10000000-0000-4000-8000-000000000002";
 const mediaAssetId = "10000000-0000-4000-8000-000000000003";
 const controlledUrl =
   "https://res.cloudinary.com/aramayo/image/upload/v1/producto.png";
+const idempotencyKey = "publication-test-key-0001";
 
 const actor: AuthenticatedActor = Object.freeze({
   displayName: "Editora Aramayo",
@@ -347,6 +351,29 @@ class InMemoryMediaAssetRepository implements MediaAssetRepository {
   }
 }
 
+const reliableOperationService = {
+  prepare(
+    preparedActor: AuthenticatedActor,
+    operation: string,
+  ): ReliableMutationContext {
+    const occurredAt = new Date().toISOString();
+    return {
+      auditEventId: randomUUID(),
+      claim: {
+        actorMembershipId: preparedActor.membershipId,
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+        keyHash: "a".repeat(64),
+        operation,
+        organizationId: preparedActor.organizationId,
+        requestHash: "b".repeat(64),
+      },
+      completedExpiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      occurredAt,
+      outboxEventId: randomUUID(),
+    };
+  },
+} satisfies Pick<ReliableOperationService, "prepare">;
+
 async function serviceFor(
   repository: PublicationDraftRepository,
   media: MediaAssetRepository,
@@ -356,6 +383,10 @@ async function serviceFor(
       PublicationDraftService,
       { provide: PUBLICATION_DRAFT_REPOSITORY, useValue: repository },
       { provide: MEDIA_ASSET_REPOSITORY, useValue: media },
+      {
+        provide: ReliableOperationService,
+        useValue: reliableOperationService,
+      },
     ],
   }).compile();
   return testingModule.get(PublicationDraftService);
@@ -368,7 +399,7 @@ test("el servicio normaliza el borrador y sólo persiste URLs controladas", asyn
     new InMemoryMediaAssetRepository(),
   );
 
-  const created = await service.create(actor, submission());
+  const created = await service.create(actor, submission(), idempotencyKey);
   const persisted = repository.lastCreateInput;
 
   if (persisted === undefined) {
@@ -396,7 +427,10 @@ test("el servicio rechaza medios fuera del scope antes de persistir", async () =
   media.availableAssets = Object.freeze([]);
   const service = await serviceFor(repository, media);
 
-  await assert.rejects(service.create(actor, submission()), NotFoundException);
+  await assert.rejects(
+    service.create(actor, submission(), idempotencyKey),
+    NotFoundException,
+  );
   assert.equal(repository.lastCreateInput, undefined);
 });
 
@@ -406,13 +440,18 @@ test("el servicio representa una edición con versión vencida como conflicto", 
     repository,
     new InMemoryMediaAssetRepository(),
   );
-  const created = await service.create(actor, submission());
+  const created = await service.create(actor, submission(), idempotencyKey);
 
   await assert.rejects(
-    service.update(actor, created.id, {
-      ...submission("Título actualizado"),
-      expectedVersion: 99,
-    }),
+    service.update(
+      actor,
+      created.id,
+      {
+        ...submission("Título actualizado"),
+        expectedVersion: 99,
+      },
+      "publication-update-key-0001",
+    ),
     ConflictException,
   );
 });
@@ -455,6 +494,10 @@ before(async () => {
         provide: MEDIA_ASSET_REPOSITORY,
         useValue: new InMemoryMediaAssetRepository(),
       },
+      {
+        provide: ReliableOperationService,
+        useValue: reliableOperationService,
+      },
     ],
   }).compile();
 
@@ -485,13 +528,20 @@ after(async () => {
 });
 
 test("el flujo HTTP crea, edita, versiona, filtra y consulta el borrador", async () => {
+  const missingIdempotencyKey = await supertest(baseUrl)
+    .post("/publications")
+    .send(submission());
+  assert.equal(missingIdempotencyKey.status, 400);
+
   const invalid = await supertest(baseUrl)
     .post("/publications")
+    .set("Idempotency-Key", "http-invalid-key-0001")
     .send({ ...submission(), unexpected: true });
   assert.equal(invalid.status, 400);
 
   const created = await supertest(baseUrl)
     .post("/publications")
+    .set("Idempotency-Key", "http-create-key-0001")
     .send(submission());
   assert.equal(created.status, 201);
   const createdPayload: unknown = created.body;
@@ -504,6 +554,7 @@ test("el flujo HTTP crea, edita, versiona, filtra y consulta el borrador", async
 
   const updated = await supertest(baseUrl)
     .patch(`/publications/${createdId}`)
+    .set("Idempotency-Key", "http-update-key-0001")
     .send({
       ...submission("Taladros actualizados"),
       expectedVersion: 1,
@@ -516,6 +567,7 @@ test("el flujo HTTP crea, edita, versiona, filtra y consulta el borrador", async
 
   const staleUpdate = await supertest(baseUrl)
     .patch(`/publications/${createdId}`)
+    .set("Idempotency-Key", "http-stale-key-0001")
     .send({
       ...submission("Edición vencida"),
       expectedVersion: 1,

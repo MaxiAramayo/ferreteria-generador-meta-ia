@@ -3,6 +3,7 @@ import { Module, type DynamicModule } from "@nestjs/common";
 
 import { DatabaseModule } from "./database/database.module.ts";
 import { MediaModule } from "./media/media.module.ts";
+import { OutboxModule } from "./outbox/outbox.module.ts";
 import { RenderingModule } from "./rendering/rendering.module.ts";
 import { StatusModule } from "./status/status.module.ts";
 
@@ -13,6 +14,7 @@ export class WorkerModule {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
         MediaModule.forConfiguration(configuration.cloudinary),
+        OutboxModule,
         StatusModule.forConfiguration(configuration),
         RenderingModule.forConfiguration(configuration),
       ],

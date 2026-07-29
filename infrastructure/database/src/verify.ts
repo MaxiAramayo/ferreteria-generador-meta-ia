@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260728050000_publication_drafts";
+const latestMigrationName = "20260728060000_reliable_operations";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -145,14 +145,20 @@ async function verifyDatabase(): Promise<void> {
       await testPool.query(downSql);
       const rollbackState = await testPool.query<{
         alt_column_exists: boolean;
+        audit_table: string | null;
         configuration_table: string | null;
         core_table: string | null;
         failure_column_exists: boolean;
+        idempotency_table: string | null;
+        outbox_table: string | null;
       }>(
         `
           SELECT
             to_regclass('public.organizations')::text AS "core_table",
             to_regclass('public.organization_configuration_events')::text AS "configuration_table",
+            to_regclass('public.audit_events')::text AS "audit_table",
+            to_regclass('public.idempotency_records')::text AS "idempotency_table",
+            to_regclass('public.outbox_messages')::text AS "outbox_table",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -179,7 +185,10 @@ async function verifyDatabase(): Promise<void> {
         "organization_configuration_events",
       );
       assert.equal(rollbackEvidence.failure_column_exists, true);
-      assert.equal(rollbackEvidence.alt_column_exists, false);
+      assert.equal(rollbackEvidence.alt_column_exists, true);
+      assert.equal(rollbackEvidence.audit_table, null);
+      assert.equal(rollbackEvidence.idempotency_table, null);
+      assert.equal(rollbackEvidence.outbox_table, null);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

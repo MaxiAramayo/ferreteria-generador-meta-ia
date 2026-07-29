@@ -45,6 +45,7 @@ import {
   MEDIA_ASSET_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
 } from "../database/database.tokens.ts";
+import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
 
 export interface DraftProductSubmission {
   readonly label: string;
@@ -256,6 +257,7 @@ function paginatedResponse<Input, Output>(
 @Injectable()
 export class PublicationDraftService {
   readonly #media: MediaAssetRepository;
+  readonly #reliableOperations: ReliableOperationService;
   readonly #repository: PublicationDraftRepository;
 
   constructor(
@@ -263,25 +265,43 @@ export class PublicationDraftService {
     repository: PublicationDraftRepository,
     @Inject(MEDIA_ASSET_REPOSITORY)
     media: MediaAssetRepository,
+    reliableOperations: ReliableOperationService,
   ) {
     this.#repository = repository;
     this.#media = media;
+    this.#reliableOperations = reliableOperations;
   }
 
   async create(
     actor: AuthenticatedActor,
     submission: PublicationDraftSubmission,
+    idempotencyKey?: string,
   ): Promise<PublicationDraftResponse> {
     this.#require(actor, "content:edit");
     const prepared = await this.#prepare(actor, submission);
     const result = await this.#repository.create({
       ...prepared,
       publicationId: randomUUID(),
+      reliableOperation: this.#prepareReliableOperation(
+        actor,
+        "content.publication:create",
+        idempotencyKey,
+        submission,
+      ),
       revisionId: randomUUID(),
     });
     switch (result.status) {
       case "created":
         return detailResponse(result.detail);
+      case "idempotency-conflict":
+        throw new ConflictException(
+          "La clave idempotente ya fue usada con otra solicitud.",
+        );
+      case "in-progress":
+        throw new ConflictException({
+          message: "La misma operación todavía está en curso.",
+          retryAfter: result.retryAfter,
+        });
       case "invalid-reference":
       case "not-found":
         throw new NotFoundException(
@@ -354,6 +374,7 @@ export class PublicationDraftService {
     actor: AuthenticatedActor,
     publicationId: string,
     submission: UpdatePublicationDraftSubmission,
+    idempotencyKey?: string,
   ): Promise<PublicationDraftResponse> {
     this.#require(actor, "content:edit");
     const prepared = await this.#prepare(actor, submission);
@@ -361,6 +382,12 @@ export class PublicationDraftService {
       ...prepared,
       expectedVersion: submission.expectedVersion,
       publicationId,
+      reliableOperation: this.#prepareReliableOperation(
+        actor,
+        "content.publication:update",
+        idempotencyKey,
+        { publicationId, submission },
+      ),
       revisionId: randomUUID(),
     });
     switch (result.status) {
@@ -370,6 +397,15 @@ export class PublicationDraftService {
         throw new ConflictException(
           "El borrador cambió en otra sesión. Recargá antes de guardar.",
         );
+      case "idempotency-conflict":
+        throw new ConflictException(
+          "La clave idempotente ya fue usada con otra solicitud.",
+        );
+      case "in-progress":
+        throw new ConflictException({
+          message: "La misma operación todavía está en curso.",
+          retryAfter: result.retryAfter,
+        });
       case "invalid-state":
         throw new ConflictException(
           "La publicación ya no admite edición como borrador.",
@@ -382,13 +418,42 @@ export class PublicationDraftService {
     }
   }
 
+  #prepareReliableOperation(
+    actor: AuthenticatedActor,
+    operation: string,
+    idempotencyKey: string | undefined,
+    requestPayload: unknown,
+  ): Parameters<PublicationDraftRepository["create"]>[0]["reliableOperation"] {
+    if (idempotencyKey === undefined) {
+      throw new BadRequestException(
+        "El encabezado Idempotency-Key es obligatorio.",
+      );
+    }
+    try {
+      return this.#reliableOperations.prepare(
+        actor,
+        operation,
+        idempotencyKey,
+        requestPayload,
+        new Date(),
+      );
+    } catch (cause: unknown) {
+      if (cause instanceof RangeError || cause instanceof TypeError) {
+        throw new BadRequestException(
+          "El encabezado Idempotency-Key o la solicitud no son válidos.",
+        );
+      }
+      throw cause;
+    }
+  }
+
   async #prepare(
     actor: AuthenticatedActor,
     submission: PublicationDraftSubmission,
   ): Promise<
     Omit<
       Parameters<PublicationDraftRepository["create"]>[0],
-      "publicationId" | "revisionId"
+      "publicationId" | "reliableOperation" | "revisionId"
     >
   > {
     let content: PublicationDraftContent;
