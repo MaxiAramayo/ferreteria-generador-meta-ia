@@ -63,6 +63,7 @@ No asumir comandos no listados en `package.json`.
 | RAG y sistema comercial | [`docs/integrations/RAG_AND_COMMERCIAL_DATA.md`](docs/integrations/RAG_AND_COMMERCIAL_DATA.md) |
 | Meta, OAuth y publicación | [`docs/integrations/META.md`](docs/integrations/META.md) |
 | Configuración por proceso | [`docs/operations/CONFIGURATION.md`](docs/operations/CONFIGURATION.md) |
+| Acceso y operación del VPS | [`docs/operations/VPS_OPERATIONS.md`](docs/operations/VPS_OPERATIONS.md) |
 | Seguridad | [`docs/operations/SECURITY.md`](docs/operations/SECURITY.md) |
 | Secretos y rotación | [`docs/operations/SECRETS.md`](docs/operations/SECRETS.md) |
 | Estrategia de pruebas | [`docs/operations/TESTING.md`](docs/operations/TESTING.md) |

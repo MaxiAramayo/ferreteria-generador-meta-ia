@@ -18,6 +18,9 @@ la aplicación, bases, volúmenes de aplicación ni secretos de proveedores. El
 manifiesto del commit `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` quedó
 preparado en el host, pero ningún servicio fue iniciado.
 
+El acceso, inventario, mantenimiento y procedimiento seguro están en
+[`VPS_OPERATIONS.md`](../../docs/operations/VPS_OPERATIONS.md).
+
 ## Topología
 
 ```mermaid

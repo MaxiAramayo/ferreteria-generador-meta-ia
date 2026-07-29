@@ -55,7 +55,9 @@ automáticas permanecen activos. No hay contenedores activos y sólo SSH escucha
 hasta completar el entorno. La release declarativa
 `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` está seleccionada en
 `/opt/aramayo-content/current`, con Compose y Caddy validados pero sin servicios
-iniciados.
+iniciados. El entorno productivo existe como archivo `0600 root:root`: contiene
+correo ACME y secretos internos generados en el host, mientras OpenAI,
+Cloudinary y Meta siguen deshabilitados.
 
 ## Matriz de URLs
 

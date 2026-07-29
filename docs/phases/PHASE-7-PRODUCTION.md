@@ -354,6 +354,13 @@ rollback de aplicación y migraciones compatibles.
   `/opt/aramayo-content/releases/` y el symlink `current` quedó apuntando a
   ella. Compose y Caddy pasaron validación en el host sin crear volúmenes ni
   iniciar contenedores.
+- Se creó `/etc/aramayo-content/production.env` con modo `0600 root:root`,
+  correo ACME confirmado y secretos de PostgreSQL, Redis y cifrado generados
+  dentro del VPS. El archivo pasó `docker compose config --quiet`; los grupos
+  OpenAI, Cloudinary y Meta permanecen vacíos.
+- `docs/operations/VPS_OPERATIONS.md` registra huella SSH, inventario,
+  directorios, inspección, actualizaciones, despliegue condicionado, rollback,
+  backup, incidentes y acciones destructivas prohibidas.
 
 ### Evidencia de cierre
 

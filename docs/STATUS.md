@@ -55,6 +55,9 @@ de cerrar Fase 1.
   `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`; su visibilidad o credencial de
   lectura para el VPS sigue pendiente. Backup externo tampoco está confirmado.
   El scaffolding no autoriza omitir las puertas de Fase 7.
+- El entorno remoto `production.env` existe con modo `0600 root:root`, correo
+  ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
+  permanecen vacíos; Compose validó el archivo sin exponer sus valores.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue

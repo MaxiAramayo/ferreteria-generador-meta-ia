@@ -41,6 +41,8 @@
   entorno y matriz por proceso.
 - [`operations/ENVIRONMENTS.md`](operations/ENVIRONMENTS.md): topología,
   callbacks, recursos, propietarios y ciclo de acceso por ambiente.
+- [`operations/VPS_OPERATIONS.md`](operations/VPS_OPERATIONS.md): acceso SSH,
+  estado verificado, mantenimiento, despliegue, rollback y acciones prohibidas.
 - [`operations/SECURITY.md`](operations/SECURITY.md)
 - [`operations/SECRETS.md`](operations/SECRETS.md): almacenamiento, cifrado y
   rotación.
