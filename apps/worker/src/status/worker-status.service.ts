@@ -19,9 +19,9 @@ const heartbeatIntervalMs = 30_000;
 /**
  * Reporta el estado real del worker sin ejecutar trabajo simulado.
  *
- * El worker todavía no consume colas: eso pertenece a fases posteriores. Aquí
- * solamente se confirma que la configuración es válida, se informa qué
- * integraciones están habilitadas y se publica el estado de las dependencias.
+ * El consumo durable se registra en el módulo outbox. Este servicio confirma
+ * configuración, integraciones y estado de dependencias sin ejecutar trabajos
+ * de prueba.
  */
 @Injectable()
 export class WorkerStatusService

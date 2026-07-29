@@ -13,6 +13,9 @@ export type PublicationComposerAction =
 
 export interface PublicationComposerState {
   readonly caption: string;
+  readonly format: "historia";
+  readonly layout: "historia-tip";
+  readonly mediaMode: "none";
   readonly notice?: string;
   readonly status: "editing" | "error" | "saved" | "saving";
   readonly title: string;
@@ -23,6 +26,9 @@ export interface PublicationComposerActions {
   readonly chooseVariant: (variant: PublicationComposerVariant) => void;
   readonly saveTemplateDraft: () => void;
   readonly updateCaption: (caption: string) => void;
+  readonly updateFormat: (format: "historia") => void;
+  readonly updateLayout: (layout: "historia-tip") => void;
+  readonly updateMediaMode: (mediaMode: "none") => void;
   readonly updateTitle: (title: string) => void;
 }
 

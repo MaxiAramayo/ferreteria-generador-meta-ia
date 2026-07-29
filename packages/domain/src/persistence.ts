@@ -13,6 +13,12 @@ export interface PublicationListFilter extends OrganizationScope {
 
 export interface PublicationRecord {
   readonly createdAt: string;
+  readonly failure?: Readonly<{
+    readonly code: string;
+    readonly occurredAt: string;
+    readonly retryable: boolean;
+    readonly safeMessage: string;
+  }>;
   readonly id: string;
   readonly locationId?: string;
   readonly organizationId: string;

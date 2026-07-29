@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
 import {
+  approvePublication,
+  loadPublicationPreview,
   loadPublicationWorkspace,
+  requestPublicationRender,
   saveTemplatePublicationDraft,
 } from "./publication-workspace-api.ts";
 
@@ -102,6 +105,33 @@ test("admin no recibe edición de contenido sin el rol editor", async () => {
   const result = await loadPublicationWorkspace("http://api.example.test/");
   assert.equal(result.kind, "empty");
   assert.equal(result.canEdit, false);
+  assert.equal(result.canApprove, false);
+});
+
+test("approver obtiene aprobación sin edición de contenido", async () => {
+  globalThis.fetch = (input) => {
+    const url = requestUrl(input);
+    return Promise.resolve(
+      url.pathname.endsWith("/auth/session")
+        ? jsonResponse({
+            actor: {
+              displayName: "Aprobadora",
+              email: "approver@example.invalid",
+              membershipId: "membership-3",
+              organizationId: "organization-1",
+              roles: ["approver"],
+              sessionId: "session-3",
+              userId: "user-3",
+            },
+          })
+        : jsonResponse({ items: [], limit: 20, page: 1, total: 0 }),
+    );
+  };
+
+  const result = await loadPublicationWorkspace("http://api.example.test/");
+  assert.equal(result.kind, "empty");
+  assert.equal(result.canEdit, false);
+  assert.equal(result.canApprove, true);
 });
 
 test("un contrato de listado inválido se representa como error explícito", async () => {
@@ -171,4 +201,83 @@ test("guardar conserva idempotencia y no confunde caption con texto visual", asy
   const design = unknownRecord(requestRecord?.["design"]);
   const designContent = unknownRecord(design?.["content"]);
   assert.equal(designContent?.["subtitle"], undefined);
+});
+
+test("render y aprobación envían CSRF, versión e idempotencia", async () => {
+  const commands: RequestInit[] = [];
+  globalThis.fetch = (input, init) => {
+    const url = requestUrl(input);
+    if (url.pathname.endsWith("/auth/csrf")) {
+      return Promise.resolve(jsonResponse({ csrfToken: "csrf-safe" }));
+    }
+    if (init !== undefined) {
+      commands.push(init);
+    }
+    return Promise.resolve(jsonResponse({ status: "ok" }));
+  };
+
+  assert.equal(
+    (
+      await requestPublicationRender(
+        "http://api.example.test/",
+        "publication-1",
+        2,
+        "render-idempotency-0001",
+      )
+    ).kind,
+    "completed",
+  );
+  assert.equal(
+    (
+      await approvePublication(
+        "http://api.example.test/",
+        "publication-1",
+        3,
+        "approve-idempotency-0001",
+      )
+    ).kind,
+    "completed",
+  );
+  assert.equal(commands.length, 2);
+  assert.deepEqual(
+    commands.map((command) => ({
+      body: command.body,
+      csrf: new Headers(command.headers).get("x-csrf-token"),
+      idempotency: new Headers(command.headers).get("idempotency-key"),
+    })),
+    [
+      {
+        body: JSON.stringify({ expectedVersion: 2 }),
+        csrf: "csrf-safe",
+        idempotency: "render-idempotency-0001",
+      },
+      {
+        body: JSON.stringify({ expectedVersion: 3 }),
+        csrf: "csrf-safe",
+        idempotency: "approve-idempotency-0001",
+      },
+    ],
+  );
+});
+
+test("preview acepta sólo un PNG confirmado por el contrato", async () => {
+  globalThis.fetch = () =>
+    Promise.resolve(
+      jsonResponse({
+        latestRevision: {
+          renderedMedia: {
+            checksumSha256: "c".repeat(64),
+            secureUrl: "https://media.example.invalid/render.png",
+          },
+        },
+        title: "Consejo del taller",
+      }),
+    );
+
+  const result = await loadPublicationPreview(
+    "http://api.example.test/",
+    "publication-1",
+  );
+  assert.equal(result.kind, "ready");
+  assert.equal(result.preview.checksumSha256, "c".repeat(64));
 });

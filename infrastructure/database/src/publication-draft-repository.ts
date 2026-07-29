@@ -27,6 +27,10 @@ import {
 
 const publicationFields = {
   createdAt: true,
+  failureCode: true,
+  failureMessage: true,
+  failureOccurredAt: true,
+  failureRetryable: true,
   id: true,
   locationId: true,
   organizationId: true,
@@ -70,6 +74,19 @@ const revisionFields = {
   },
   organizationId: true,
   publicationId: true,
+  renderedAt: true,
+  renderedMedia: {
+    select: {
+      byteSize: true,
+      checksumSha256: true,
+      height: true,
+      id: true,
+      mimeType: true,
+      secureUrl: true,
+      storageVersion: true,
+      width: true,
+    },
+  },
   revisionNumber: true,
   schemaVersion: true,
   status: true,
@@ -95,8 +112,21 @@ type PublicationDetailRow = Prisma.PublicationGetPayload<{
 }>;
 
 function mapPublication(row: PublicationRow): PublicationRecord {
+  const failure =
+    row.failureCode === null ||
+    row.failureMessage === null ||
+    row.failureOccurredAt === null ||
+    row.failureRetryable === null
+      ? undefined
+      : Object.freeze({
+          code: row.failureCode,
+          occurredAt: row.failureOccurredAt.toISOString(),
+          retryable: row.failureRetryable,
+          safeMessage: row.failureMessage,
+        });
   return Object.freeze({
     createdAt: row.createdAt.toISOString(),
+    ...(failure === undefined ? {} : { failure }),
     id: row.id,
     ...(row.locationId === null ? {} : { locationId: row.locationId }),
     organizationId: row.organizationId,
@@ -140,8 +170,42 @@ function mapRevisionMedia(
   });
 }
 
+function mapRenderedMedia(
+  rendered: RevisionRow["renderedMedia"],
+  renderedAt: RevisionRow["renderedAt"],
+): PublicationRevisionRecord["renderedMedia"] {
+  if (rendered === null && renderedAt === null) {
+    return undefined;
+  }
+  if (
+    rendered === null ||
+    renderedAt === null ||
+    rendered.byteSize === null ||
+    rendered.checksumSha256 === null ||
+    rendered.height === null ||
+    rendered.mimeType === null ||
+    rendered.secureUrl === null ||
+    rendered.storageVersion === null ||
+    rendered.width === null
+  ) {
+    throw new Error("La revisión conserva un render incompleto.");
+  }
+  return Object.freeze({
+    byteSize: rendered.byteSize.toString(),
+    checksumSha256: rendered.checksumSha256,
+    height: rendered.height,
+    mediaAssetId: rendered.id,
+    mimeType: rendered.mimeType,
+    renderedAt: renderedAt.toISOString(),
+    secureUrl: rendered.secureUrl,
+    storageVersion: rendered.storageVersion,
+    width: rendered.width,
+  });
+}
+
 function mapRevision(row: RevisionRow): PublicationRevisionRecord {
   const approval = row.approvalSnapshot;
+  const renderedMedia = mapRenderedMedia(row.renderedMedia, row.renderedAt);
   return Object.freeze({
     ...(approval === null
       ? {}
@@ -156,6 +220,7 @@ function mapRevision(row: RevisionRow): PublicationRevisionRecord {
     designDocument: row.designDocument,
     id: row.id,
     media: Object.freeze(row.media.map(mapRevisionMedia)),
+    ...(renderedMedia === undefined ? {} : { renderedMedia }),
     organizationId: row.organizationId,
     publicationId: row.publicationId,
     revisionNumber: row.revisionNumber,

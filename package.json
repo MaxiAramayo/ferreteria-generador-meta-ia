@@ -28,7 +28,7 @@
     "db:migrate:deploy": "node tools/run-with-env.mjs pnpm exec prisma migrate deploy",
     "db:migrate:dev": "node tools/run-with-env.mjs pnpm exec prisma migrate dev",
     "db:seed": "pnpm --filter @aramayo/database build && node tools/run-with-env.mjs pnpm exec prisma db seed",
-    "db:test": "pnpm --filter @aramayo/database build && node tools/run-with-env.mjs node infrastructure/database/dist/verify.js",
+    "db:test": "pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && node tools/run-with-env.mjs node infrastructure/database/dist/verify.js",
     "design:review": "node tools/design-review/cli.ts",
     "design:typecheck": "tsc --project tools/design-review/tsconfig.json",
     "dev": "pnpm --recursive --filter \"./packages/*\" build && pnpm --recursive --parallel --filter \"./apps/*\" dev",

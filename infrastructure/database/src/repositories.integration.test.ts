@@ -20,6 +20,7 @@ import {
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
+import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,
@@ -64,6 +65,217 @@ function reliableMutation(
 
 after(async () => {
   await database.$disconnect();
+});
+
+test("render y aprobación confirman una sola salida y un snapshot inmutable", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const approverUserId = randomUUID();
+  const editorMembershipId = randomUUID();
+  const approverMembershipId = randomUUID();
+  const publicationId = randomUUID();
+  const revisionId = randomUUID();
+  const renderedMediaAssetId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización de vertical",
+      id: organizationId,
+      legalName: "Organización de vertical",
+      slug: `vertical-${organizationId}`,
+    },
+  });
+  await database.user.createMany({
+    data: [
+      {
+        displayName: "Editora de vertical",
+        email: `${userId}@vertical.invalid`,
+        id: userId,
+      },
+      {
+        displayName: "Aprobadora de vertical",
+        email: `${approverUserId}@vertical.invalid`,
+        id: approverUserId,
+      },
+    ],
+  });
+  await database.organizationMembership.createMany({
+    data: [
+      {
+        id: editorMembershipId,
+        organizationId,
+        roles: ["editor"],
+        userId,
+      },
+      {
+        id: approverMembershipId,
+        organizationId,
+        roles: ["approver"],
+        userId: approverUserId,
+      },
+    ],
+  });
+  await database.publication.create({
+    data: {
+      createdByMembershipId: editorMembershipId,
+      id: publicationId,
+      organizationId,
+      title: "Consejo determinista",
+    },
+  });
+  await database.publicationRevision.create({
+    data: {
+      content: { caption: "Consultanos", products: [] },
+      contentHash: "a".repeat(64),
+      createdByMembershipId: editorMembershipId,
+      designDocument: {
+        content: {
+          callToAction: "Consultanos por WhatsApp",
+          title: "Consejo determinista",
+        },
+        format: "historia",
+        layout: "historia-tip",
+        media: [],
+        schemaVersion: 1,
+        slug: "consejo-determinista",
+        theme: "taller",
+      },
+      id: revisionId,
+      organizationId,
+      publicationId,
+      revisionNumber: 1,
+      schemaVersion: 1,
+    },
+  });
+  const repository = new PrismaPublicationProductionRepository(database);
+  const renderRequest = await repository.requestRender({
+    actorMembershipId: editorMembershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      editorMembershipId,
+      "content.publication:request-render",
+    ),
+  });
+  assert.equal(renderRequest.status, "accepted");
+  const job = await repository.findRenderJob(
+    organizationId,
+    publicationId,
+    revisionId,
+  );
+  assert.notEqual(job, null);
+  if (job === null) {
+    assert.fail("La intención debía ser recuperable por el worker.");
+  }
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 128n,
+      checksumSha256: "b".repeat(64),
+      height: 1920,
+      id: renderedMediaAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: `${revisionId}.png`,
+      ownerMembershipId: editorMembershipId,
+      secureUrl: "https://media.example.invalid/render.png",
+      status: "available",
+      storageKey: `render/${renderedMediaAssetId}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+  const output = {
+    byteSize: "128",
+    checksumSha256: "b".repeat(64),
+    height: 1920,
+    mediaAssetId: renderedMediaAssetId,
+    mimeType: "image/png" as const,
+    renderedAt: new Date().toISOString(),
+    secureUrl: "https://media.example.invalid/render.png",
+    storageVersion: 1,
+    width: 1080,
+  };
+  assert.deepEqual(await repository.completeRender(job, output), {
+    status: "completed",
+    version: 3,
+  });
+  assert.deepEqual(await repository.completeRender(job, output), {
+    status: "already-completed",
+    version: 3,
+  });
+  assert.equal(
+    (await repository.findRenderJob(organizationId, publicationId, revisionId))
+      ?.alreadyCompleted,
+    true,
+  );
+  const approval = await repository.approve({
+    actorMembershipId: approverMembershipId,
+    expectedVersion: 3,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      approverMembershipId,
+      "content.publication:approve",
+    ),
+  });
+  assert.equal(approval.status, "approved");
+  const snapshot = await database.approvalSnapshot.findUniqueOrThrow({
+    where: { id: approval.snapshotId },
+  });
+  assert.equal(snapshot.revisionId, revisionId);
+  if (
+    typeof snapshot.snapshot !== "object" ||
+    snapshot.snapshot === null ||
+    Array.isArray(snapshot.snapshot)
+  ) {
+    assert.fail("El snapshot debía conservar un documento restaurable.");
+  }
+  const renderedSnapshot = snapshot.snapshot["renderedMedia"];
+  if (
+    typeof renderedSnapshot !== "object" ||
+    renderedSnapshot === null ||
+    Array.isArray(renderedSnapshot)
+  ) {
+    assert.fail("El snapshot debía conservar el PNG aprobado.");
+  }
+  assert.equal(
+    renderedSnapshot["checksumSha256"],
+    output.checksumSha256,
+    "restaurar el snapshot debe identificar exactamente el PNG aprobado",
+  );
+  await assert.rejects(
+    database.approvalSnapshot.update({
+      data: { snapshot: { tampered: true } },
+      where: { id: snapshot.id },
+    }),
+  );
+  assert.equal(
+    await database.mediaAsset.count({
+      where: { id: renderedMediaAssetId, organizationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.publicationRevision.count({
+      where: { organizationId, publicationId },
+    }),
+    1,
+    "renderizar y reintentar no deben crear revisiones",
+  );
+  const auditOperations = await database.auditEvent.findMany({
+    orderBy: { occurredAt: "asc" },
+    select: { operation: true },
+    where: { entityId: publicationId, organizationId },
+  });
+  assert.deepEqual(auditOperations.map((event) => event.operation).sort(), [
+    "content.publication:approve",
+    "content.publication:render-complete",
+    "content.publication:request-render",
+  ]);
 });
 
 test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias", async () => {

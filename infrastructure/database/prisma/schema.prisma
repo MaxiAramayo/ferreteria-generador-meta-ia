@@ -365,6 +365,8 @@ model PublicationRevision {
   content               Json
   designDocument        Json                      @map("design_document")
   contentHash           String                    @map("content_hash") @db.Char(64)
+  renderedMediaAssetId  String?                   @map("rendered_media_asset_id") @db.Uuid
+  renderedAt            DateTime?                 @map("rendered_at") @db.Timestamptz(3)
   createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -373,6 +375,7 @@ model PublicationRevision {
   createdBy        OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   approvalSnapshot ApprovalSnapshot?
   media            PublicationRevisionMedia[]
+  renderedMedia    MediaAsset?                  @relation("PublicationRenderedMedia", fields: [organizationId, renderedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   stateTransitions PublicationStateTransition[] @relation("TransitionNewRevision")
 
   @@unique([organizationId, id], map: "revisions_organization_id_key")
@@ -428,9 +431,10 @@ model MediaAsset {
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  owner        OrganizationMembership     @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  revisions    PublicationRevisionMedia[]
+  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  owner             OrganizationMembership     @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  revisions         PublicationRevisionMedia[]
+  renderedRevisions PublicationRevision[]      @relation("PublicationRenderedMedia")
 
   @@unique([organizationId, id], map: "media_assets_organization_id_key")
   @@unique([organizationId, storageProvider, storageKey, storageVersion], map: "media_assets_storage_version_key")

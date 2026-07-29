@@ -16,11 +16,13 @@ export type PublicationWorkspaceLoadResult =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{
       actor: WorkspaceActor;
+      canApprove: boolean;
       canEdit: boolean;
       kind: "empty";
     }>
   | Readonly<{
       actor: WorkspaceActor;
+      canApprove: boolean;
       canEdit: boolean;
       kind: "ready";
       publications: PublicationListResponse;
@@ -32,6 +34,22 @@ export type TemplateDraftSaveResult =
       publication: Readonly<{ id: string; title: string }>;
     }>
   | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>;
+
+export type PublicationCommandResult =
+  | Readonly<{ kind: "completed"; message: string }>
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>;
+
+export type PublicationPreviewResult =
+  | Readonly<{
+      kind: "ready";
+      preview: Readonly<{
+        alt: string;
+        checksumSha256: string;
+        secureUrl: string;
+      }>;
+    }>
   | Readonly<{ kind: "error"; message: string }>;
 
 const publicationStatuses: ReadonlySet<string> = new Set([
@@ -106,6 +124,20 @@ function isDateText(value: unknown): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
+function isPublicationFailure(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  const failure = record(value);
+  return (
+    failure !== null &&
+    typeof failure["code"] === "string" &&
+    isDateText(failure["occurredAt"]) &&
+    typeof failure["retryable"] === "boolean" &&
+    typeof failure["safeMessage"] === "string"
+  );
+}
+
 function isPublicationList(value: unknown): value is PublicationListResponse {
   const page = record(value);
   return (
@@ -116,6 +148,7 @@ function isPublicationList(value: unknown): value is PublicationListResponse {
       return (
         publication !== null &&
         isDateText(publication["createdAt"]) &&
+        isPublicationFailure(publication["failure"]) &&
         typeof publication["id"] === "string" &&
         typeof publication["latestContentHash"] === "string" &&
         typeof publication["latestRevisionId"] === "string" &&
@@ -194,13 +227,143 @@ export async function loadPublicationWorkspace(
       "content:edit",
       actor.organizationId,
     ).allowed;
+    const canApprove = authorizeActor(
+      actor,
+      "content:approve",
+      actor.organizationId,
+    ).allowed;
     return publications.total === 0
-      ? { actor, canEdit, kind: "empty" }
-      : { actor, canEdit, kind: "ready", publications };
+      ? { actor, canApprove, canEdit, kind: "empty" }
+      : { actor, canApprove, canEdit, kind: "ready", publications };
   } catch {
     return {
       kind: "error",
       message: "No se pudo conectar con la API para cargar publicaciones.",
+    };
+  }
+}
+
+async function publicationCommand(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  command: "approve" | "render",
+  idempotencyKey: string,
+): Promise<PublicationCommandResult> {
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) {
+      return { kind: "forbidden" };
+    }
+    const response = await fetch(
+      new URL(`publications/${publicationId}/${command}`, apiBaseUrl),
+      {
+        body: JSON.stringify({ expectedVersion }),
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+          "x-csrf-token": csrf,
+        },
+        method: "POST",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    return response.ok
+      ? {
+          kind: "completed",
+          message:
+            command === "render"
+              ? "Render solicitado. El worker actualizará el estado."
+              : "Snapshot aprobado y conservado.",
+        }
+      : {
+          kind: "error",
+          message:
+            command === "render"
+              ? "No se pudo solicitar el render. Recargá el estado."
+              : "No se pudo aprobar. Recargá el estado.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "La API no respondió y la acción no fue confirmada.",
+    };
+  }
+}
+
+export function requestPublicationRender(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+): Promise<PublicationCommandResult> {
+  return publicationCommand(
+    apiBaseUrl,
+    publicationId,
+    expectedVersion,
+    "render",
+    idempotencyKey,
+  );
+}
+
+export function approvePublication(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+): Promise<PublicationCommandResult> {
+  return publicationCommand(
+    apiBaseUrl,
+    publicationId,
+    expectedVersion,
+    "approve",
+    idempotencyKey,
+  );
+}
+
+export async function loadPublicationPreview(
+  apiBaseUrl: string,
+  publicationId: string,
+): Promise<PublicationPreviewResult> {
+  try {
+    const response = await fetch(
+      new URL(`publications/${publicationId}`, apiBaseUrl),
+      {
+        cache: "no-store",
+        credentials: "include",
+        headers: { accept: "application/json" },
+      },
+    );
+    const body = record(await payload(response));
+    const revision = record(body?.["latestRevision"]);
+    const rendered = record(revision?.["renderedMedia"]);
+    const secureUrl = rendered?.["secureUrl"];
+    const checksumSha256 = rendered?.["checksumSha256"];
+    const title = body?.["title"];
+    return response.ok &&
+      typeof secureUrl === "string" &&
+      typeof checksumSha256 === "string" &&
+      typeof title === "string"
+      ? {
+          kind: "ready",
+          preview: {
+            alt: `PNG renderizado de ${title}`,
+            checksumSha256,
+            secureUrl,
+          },
+        }
+      : {
+          kind: "error",
+          message: "La publicación todavía no conserva un PNG verificable.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "No se pudo cargar el PNG de la publicación.",
     };
   }
 }

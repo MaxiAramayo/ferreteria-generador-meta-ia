@@ -28,13 +28,18 @@ function PublicationComposerProvider({
   apiBaseUrl,
   canEdit,
   children,
+  onDraftSaved,
 }: {
   readonly apiBaseUrl: string;
   readonly canEdit: boolean;
   readonly children: ReactNode;
+  readonly onDraftSaved: (title: string) => void;
 }) {
   const [state, setState] = useState<PublicationComposerState>({
     caption: "",
+    format: "historia",
+    layout: "historia-tip",
+    mediaMode: "none",
     status: "editing",
     title: "",
     variant: "template",
@@ -49,6 +54,9 @@ function PublicationComposerProvider({
     idempotencyKey.current = null;
     setState((current) => ({
       caption: current.caption,
+      format: current.format,
+      layout: current.layout,
+      mediaMode: current.mediaMode,
       status: "editing",
       title: current.title,
       variant,
@@ -61,6 +69,15 @@ function PublicationComposerProvider({
   const updateTitle = useCallback((title: string) => {
     idempotencyKey.current = null;
     setState((current) => ({ ...current, status: "editing", title }));
+  }, []);
+  const updateFormat = useCallback((format: "historia") => {
+    setState((current) => ({ ...current, format }));
+  }, []);
+  const updateLayout = useCallback((layout: "historia-tip") => {
+    setState((current) => ({ ...current, layout }));
+  }, []);
+  const updateMediaMode = useCallback((mediaMode: "none") => {
+    setState((current) => ({ ...current, mediaMode }));
   }, []);
   const saveTemplateDraft = useCallback(() => {
     const currentState = stateReference.current;
@@ -108,6 +125,7 @@ function PublicationComposerProvider({
         switch (result.kind) {
           case "saved":
             idempotencyKey.current = null;
+            onDraftSaved(result.publication.title);
             setState((current) => ({
               ...current,
               notice: `Borrador guardado como “${result.publication.title}”.`,
@@ -130,15 +148,26 @@ function PublicationComposerProvider({
         }
       });
     });
-  }, [apiBaseUrl, canEdit]);
+  }, [apiBaseUrl, canEdit, onDraftSaved]);
   const actions = useMemo(
     () => ({
       chooseVariant,
       saveTemplateDraft,
       updateCaption,
+      updateFormat,
+      updateLayout,
+      updateMediaMode,
       updateTitle,
     }),
-    [chooseVariant, saveTemplateDraft, updateCaption, updateTitle],
+    [
+      chooseVariant,
+      saveTemplateDraft,
+      updateCaption,
+      updateFormat,
+      updateLayout,
+      updateMediaMode,
+      updateTitle,
+    ],
   );
   const meta = useMemo(
     () => ({
@@ -283,6 +312,41 @@ function TemplateForm() {
           value={state.caption}
         />
       </label>
+      <div className="composer-selection-grid">
+        <label>
+          Layout
+          <select
+            onChange={() => {
+              actions.updateLayout("historia-tip");
+            }}
+            value={state.layout}
+          >
+            <option value="historia-tip">Consejo breve</option>
+          </select>
+        </label>
+        <label>
+          Formato
+          <select
+            onChange={() => {
+              actions.updateFormat("historia");
+            }}
+            value={state.format}
+          >
+            <option value="historia">Historia 1080 × 1920</option>
+          </select>
+        </label>
+        <label>
+          Medio permitido
+          <select
+            onChange={() => {
+              actions.updateMediaMode("none");
+            }}
+            value={state.mediaMode}
+          >
+            <option value="none">Sin foto · layout tipográfico</option>
+          </select>
+        </label>
+      </div>
       <div className="composer-form-actions">
         <span>Se usará el formato Historia y el tema Taller.</span>
         <button

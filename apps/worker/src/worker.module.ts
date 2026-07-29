@@ -14,9 +14,9 @@ export class WorkerModule {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
         MediaModule.forConfiguration(configuration.cloudinary),
+        RenderingModule.forConfiguration(configuration),
         OutboxModule,
         StatusModule.forConfiguration(configuration),
-        RenderingModule.forConfiguration(configuration),
       ],
       module: WorkerModule,
     };

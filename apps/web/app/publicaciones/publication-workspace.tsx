@@ -5,10 +5,15 @@ import type {
   PublicationSummaryResponse,
 } from "@aramayo/contracts";
 import Link from "next/link";
+import Image from "next/image";
 import { startTransition, useCallback, useEffect, useState } from "react";
 
 import {
+  approvePublication,
   loadPublicationWorkspace,
+  loadPublicationPreview,
+  requestPublicationRender,
+  type PublicationPreviewResult,
   type PublicationWorkspaceLoadResult,
 } from "../../lib/publication-workspace-api";
 import { PublicationComposer } from "./publication-composer";
@@ -45,8 +50,18 @@ function statusLabel(status: PublicationStatusResponse): string {
 }
 
 function PublicationRow({
+  canApprove,
+  canEdit,
+  onApprove,
+  onPreview,
+  onRender,
   publication,
 }: {
+  readonly canApprove: boolean;
+  readonly canEdit: boolean;
+  readonly onApprove: (publication: PublicationSummaryResponse) => void;
+  readonly onPreview: (publication: PublicationSummaryResponse) => void;
+  readonly onRender: (publication: PublicationSummaryResponse) => void;
   readonly publication: PublicationSummaryResponse;
 }) {
   return (
@@ -60,6 +75,12 @@ function PublicationRow({
           Revisión {publication.latestRevisionNumber} · versión{" "}
           {publication.version}
         </span>
+        {publication.failure === undefined ? null : (
+          <span className="publication-failure">
+            {publication.failure.safeMessage}
+            {publication.failure.retryable ? " Se puede reintentar." : ""}
+          </span>
+        )}
       </div>
       <time dateTime={publication.updatedAt}>
         {new Intl.DateTimeFormat("es-AR", {
@@ -68,6 +89,43 @@ function PublicationRow({
           year: "numeric",
         }).format(new Date(publication.updatedAt))}
       </time>
+      <div className="publication-row-actions">
+        {(publication.status === "draft" ||
+          publication.status === "generation_failed") &&
+        canEdit ? (
+          <button
+            onClick={() => {
+              onRender(publication);
+            }}
+            type="button"
+          >
+            {publication.status === "generation_failed"
+              ? "Reintentar render"
+              : "Generar PNG"}
+          </button>
+        ) : null}
+        {(publication.status === "ready_for_review" ||
+          publication.status === "approved") && (
+          <button
+            onClick={() => {
+              onPreview(publication);
+            }}
+            type="button"
+          >
+            Ver PNG
+          </button>
+        )}
+        {publication.status === "ready_for_review" && canApprove ? (
+          <button
+            onClick={() => {
+              onApprove(publication);
+            }}
+            type="button"
+          >
+            Aprobar snapshot
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -118,10 +176,62 @@ export function PublicationWorkspace({
   const [initial, setInitial] = useState<
     PublicationWorkspaceLoadResult | Readonly<{ kind: "loading" }>
   >({ kind: "loading" });
+  const [commandNotice, setCommandNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PublicationPreviewResult | null>(null);
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
     setReloadToken((token) => token + 1);
   }, []);
+  const draftSaved = useCallback(
+    (title: string) => {
+      setCommandNotice(`Borrador guardado como “${title}”.`);
+      reload();
+    },
+    [reload],
+  );
+  const runCommand = useCallback(
+    async (
+      publication: PublicationSummaryResponse,
+      command: "approve" | "render",
+    ): Promise<void> => {
+      setCommandNotice(
+        command === "render" ? "Solicitando render…" : "Aprobando snapshot…",
+      );
+      const result =
+        command === "render"
+          ? await requestPublicationRender(
+              apiBaseUrl,
+              publication.id,
+              publication.version,
+              crypto.randomUUID(),
+            )
+          : await approvePublication(
+              apiBaseUrl,
+              publication.id,
+              publication.version,
+              crypto.randomUUID(),
+            );
+      setCommandNotice(
+        result.kind === "completed"
+          ? result.message
+          : result.kind === "forbidden"
+            ? "La sesión no permite esta acción."
+            : result.message,
+      );
+      if (result.kind === "completed") {
+        reload();
+      }
+    },
+    [apiBaseUrl, reload],
+  );
+  const showPreview = useCallback(
+    async (publication: PublicationSummaryResponse): Promise<void> => {
+      setPreview(null);
+      const result = await loadPublicationPreview(apiBaseUrl, publication.id);
+      setPreview(result);
+    },
+    [apiBaseUrl],
+  );
 
   useEffect(() => {
     let active = true;
@@ -136,6 +246,22 @@ export function PublicationWorkspace({
       active = false;
     };
   }, [apiBaseUrl, reloadToken]);
+  useEffect(() => {
+    if (
+      initial.kind !== "ready" ||
+      !initial.publications.items.some(
+        (publication) => publication.status === "generating_assets",
+      )
+    ) {
+      return;
+    }
+    const refresh = setTimeout(() => {
+      setReloadToken((token) => token + 1);
+    }, 1_500);
+    return () => {
+      clearTimeout(refresh);
+    };
+  }, [initial]);
 
   if (initial.kind === "loading") {
     return (
@@ -215,15 +341,52 @@ export function PublicationWorkspace({
         ) : (
           <ul className="publication-list">
             {publications.map((publication) => (
-              <PublicationRow key={publication.id} publication={publication} />
+              <PublicationRow
+                canApprove={initial.canApprove}
+                canEdit={initial.canEdit}
+                key={publication.id}
+                onApprove={(selected) => {
+                  void runCommand(selected, "approve");
+                }}
+                onPreview={(selected) => {
+                  void showPreview(selected);
+                }}
+                onRender={(selected) => {
+                  void runCommand(selected, "render");
+                }}
+                publication={publication}
+              />
             ))}
           </ul>
+        )}
+        {commandNotice === null ? null : (
+          <p aria-live="polite" className="publication-command-notice">
+            {commandNotice}
+          </p>
+        )}
+        {preview === null ? null : preview.kind === "error" ? (
+          <p role="alert">{preview.message}</p>
+        ) : (
+          <figure className="publication-render-preview">
+            <Image
+              alt={preview.preview.alt}
+              height={540}
+              src={preview.preview.secureUrl}
+              unoptimized
+              width={432}
+            />
+            <figcaption>
+              PNG confirmado · SHA-256{" "}
+              <code>{preview.preview.checksumSha256.slice(0, 12)}…</code>
+            </figcaption>
+          </figure>
         )}
       </section>
 
       <PublicationComposer.Provider
         apiBaseUrl={apiBaseUrl}
         canEdit={initial.canEdit}
+        onDraftSaved={draftSaved}
       >
         <section className="composer-section">
           <div className="workspace-section-heading">

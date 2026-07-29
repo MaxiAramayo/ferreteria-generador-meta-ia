@@ -62,10 +62,15 @@ El módulo `content` expone la vertical síncrona de borradores:
 - `GET /publications/:publicationId/revisions` consulta historial paginado;
 - `PATCH /publications/:publicationId` agrega una revisión con
   `expectedVersion`.
+- `POST /publications/:publicationId/render` confirma intención y transición a
+  `generating_assets` junto con auditoría, idempotencia y outbox;
+- `POST /publications/:publicationId/approve` crea el snapshot inmutable y
+  confirma la transición a `approved` en una sola transacción.
 
 Las rutas reciben únicamente identificadores de medios; el caso de uso resuelve
 URLs y metadatos controlados dentro del tenant. Ninguna ruta de borradores
-encola, programa ni publica contenido.
+programa ni publica contenido. Solicitar render es una acción separada y
+explícita; sólo esa ruta crea la intención que consume el worker.
 
 ## Arranque y salud de los procesos
 
@@ -85,7 +90,9 @@ La API expone dos endpoints con responsabilidades distintas:
   alguna no está disponible.
 
 El worker no expone HTTP: reporta el mismo estado en su log al arrancar y en
-cada latido, sin ejecutar trabajo simulado. Ambos comparten las sondas de
+cada latido. Su consumidor reclama mensajes outbox con lease; actualmente sólo
+el tópico de render tiene un transporte configurado y los demás fallan de forma
+explícita. Ambos procesos comparten las sondas de
 `packages/process-health` ([ADR-010](decisions/ADR-010-PROCESS-HEALTH-BOUNDARY.md))
 y cierran de forma ordenada mediante los hooks de apagado de NestJS.
 
@@ -103,6 +110,12 @@ IA, render y publicación se modelan como trabajos:
 
 La cola puede reconstruirse desde PostgreSQL. Un trabajo desaparecido de Redis
 no puede perder una publicación programada.
+
+El render usa un `mediaAssetId` UUID determinista derivado de la revisión. Si el
+PNG se confirmó pero el worker perdió el lease, el mismo evento reconoce esa
+salida y termina sin renderizar ni cargar otra vez. Éxito y fallo actualizan la
+máquina de estados y su auditoría; una imagen que no decodifica nunca produce un
+fallback.
 
 ## Ciclo de medios
 

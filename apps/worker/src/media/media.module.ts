@@ -25,6 +25,7 @@ export class MediaModule {
   ): DynamicModule {
     return {
       exports: [MediaLifecycleService],
+      global: true,
       module: MediaModule,
       providers: [
         {

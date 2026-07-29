@@ -170,7 +170,9 @@ obligatorio según lo que se toca:
 
 La verificación reproducible del núcleo persistente es `pnpm db:test`. Usa una
 base efímera, nunca la base configurada como destino de datos de desarrollo, y
-la elimina al terminar.
+la elimina al terminar. También ejecuta la vertical de render con outbox y
+almacenamiento doble, restaura el snapshot, compara su SHA-256 con los bytes del
+PNG y repite la integración después de revertir y reaplicar la última migración.
 
 ### Integración continua
 

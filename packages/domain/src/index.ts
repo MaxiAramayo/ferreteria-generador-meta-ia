@@ -140,4 +140,16 @@ export {
   type PublicationTransitionResult,
   type PublicationWorkflowState,
 } from "./publication-workflow.ts";
+export {
+  publicationRenderTopic,
+  type ApprovePublicationInput,
+  type ApprovePublicationResult,
+  type PublicationProductionRepository,
+  type PublicationRenderCompletionResult,
+  type PublicationRenderFailureInput,
+  type PublicationRenderJob,
+  type PublicationRenderOutput,
+  type PublicationRenderRequestInput,
+  type PublicationRenderRequestResult,
+} from "./publication-production.ts";
 export * from "./publication.ts";

@@ -39,6 +39,18 @@ export interface PublicationRevisionMediaResponse {
   readonly width: number;
 }
 
+export interface PublicationRenderedMediaResponse {
+  readonly byteSize: string;
+  readonly checksumSha256: string;
+  readonly height: number;
+  readonly mediaAssetId: string;
+  readonly mimeType: string;
+  readonly renderedAt: string;
+  readonly secureUrl: string;
+  readonly storageVersion: number;
+  readonly width: number;
+}
+
 export interface PublicationRevisionResponse {
   readonly approvalSnapshotId?: string;
   readonly approvedAt?: string;
@@ -49,12 +61,19 @@ export interface PublicationRevisionResponse {
   readonly designDocument: DesignDocument;
   readonly id: string;
   readonly media: readonly PublicationRevisionMediaResponse[];
+  readonly renderedMedia?: PublicationRenderedMediaResponse;
   readonly revisionNumber: number;
   readonly status: "approved" | "draft" | "in_review" | "superseded";
 }
 
 export interface PublicationSummaryResponse {
   readonly createdAt: string;
+  readonly failure?: Readonly<{
+    readonly code: string;
+    readonly occurredAt: string;
+    readonly retryable: boolean;
+    readonly safeMessage: string;
+  }>;
   readonly id: string;
   readonly latestContentHash: string;
   readonly latestRevisionId: string;
@@ -68,6 +87,7 @@ export interface PublicationSummaryResponse {
 
 export interface PublicationDraftResponse {
   readonly createdAt: string;
+  readonly failure?: PublicationSummaryResponse["failure"];
   readonly id: string;
   readonly latestRevision: PublicationRevisionResponse;
   readonly locationId?: string;
@@ -89,3 +109,17 @@ export type PublicationListResponse =
 
 export type PublicationRevisionListResponse =
   PaginatedResponse<PublicationRevisionResponse>;
+
+export interface PublicationRenderRequestResponse {
+  readonly publicationId: string;
+  readonly revisionId: string;
+  readonly status: "generating_assets";
+  readonly version: number;
+}
+
+export interface PublicationApprovalResponse {
+  readonly publicationId: string;
+  readonly snapshotId: string;
+  readonly status: "approved";
+  readonly version: number;
+}

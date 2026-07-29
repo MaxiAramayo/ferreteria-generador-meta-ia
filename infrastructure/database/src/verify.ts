@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260728060000_reliable_operations";
+const latestMigrationName = "20260729000000_publication_render_output";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -131,8 +131,16 @@ async function verifyDatabase(): Promise<void> {
       ],
       testDatabaseUrl,
     );
+    await runCommand(
+      process.execPath,
+      [
+        "--test",
+        "apps/worker/src/rendering/publication-render.integration.test.ts",
+      ],
+      testDatabaseUrl,
+    );
     process.stdout.write(
-      "Aislamiento, snapshots, referencias e índices verificados.\n",
+      "Aislamiento, render, snapshots, referencias e índices verificados.\n",
     );
 
     const testPool = new Pool({
@@ -151,6 +159,8 @@ async function verifyDatabase(): Promise<void> {
         failure_column_exists: boolean;
         idempotency_table: string | null;
         outbox_table: string | null;
+        rendered_at_exists: boolean;
+        rendered_media_exists: boolean;
       }>(
         `
           SELECT
@@ -172,7 +182,21 @@ async function verifyDatabase(): Promise<void> {
               WHERE table_schema = 'public'
                 AND table_name = 'publication_revision_media'
                 AND column_name = 'alt'
-            ) AS "alt_column_exists"
+            ) AS "alt_column_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_revisions'
+                AND column_name = 'rendered_at'
+            ) AS "rendered_at_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_revisions'
+                AND column_name = 'rendered_media_asset_id'
+            ) AS "rendered_media_exists"
         `,
       );
       const rollbackEvidence = rollbackState.rows[0];
@@ -186,9 +210,11 @@ async function verifyDatabase(): Promise<void> {
       );
       assert.equal(rollbackEvidence.failure_column_exists, true);
       assert.equal(rollbackEvidence.alt_column_exists, true);
-      assert.equal(rollbackEvidence.audit_table, null);
-      assert.equal(rollbackEvidence.idempotency_table, null);
-      assert.equal(rollbackEvidence.outbox_table, null);
+      assert.equal(rollbackEvidence.audit_table, "audit_events");
+      assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
+      assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
+      assert.equal(rollbackEvidence.rendered_at_exists, false);
+      assert.equal(rollbackEvidence.rendered_media_exists, false);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],
@@ -208,6 +234,14 @@ async function verifyDatabase(): Promise<void> {
       [
         "--test",
         "infrastructure/database/dist/repositories.integration.test.js",
+      ],
+      testDatabaseUrl,
+    );
+    await runCommand(
+      process.execPath,
+      [
+        "--test",
+        "apps/worker/src/rendering/publication-render.integration.test.ts",
       ],
       testDatabaseUrl,
     );

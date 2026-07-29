@@ -130,6 +130,18 @@ export interface PublicationRevisionMediaRecord {
   readonly width: number;
 }
 
+export interface PublicationRenderedMediaRecord {
+  readonly byteSize: string;
+  readonly checksumSha256: string;
+  readonly height: number;
+  readonly mediaAssetId: string;
+  readonly mimeType: string;
+  readonly renderedAt: string;
+  readonly secureUrl: string;
+  readonly storageVersion: number;
+  readonly width: number;
+}
+
 export interface PublicationRevisionRecord {
   readonly approvalSnapshotId?: string;
   readonly approvedAt?: string;
@@ -140,6 +152,7 @@ export interface PublicationRevisionRecord {
   readonly designDocument: unknown;
   readonly id: string;
   readonly media: readonly PublicationRevisionMediaRecord[];
+  readonly renderedMedia?: PublicationRenderedMediaRecord;
   readonly organizationId: string;
   readonly publicationId: string;
   readonly revisionNumber: number;

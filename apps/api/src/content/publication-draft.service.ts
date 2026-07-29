@@ -203,6 +203,9 @@ function revisionResponse(
     designDocument: designDocument(revision.designDocument),
     id: revision.id,
     media: revision.media,
+    ...(revision.renderedMedia === undefined
+      ? {}
+      : { renderedMedia: revision.renderedMedia }),
     revisionNumber: revision.revisionNumber,
     status: revision.status,
   });
@@ -213,6 +216,9 @@ function detailResponse(
 ): PublicationDraftResponse {
   return Object.freeze({
     createdAt: detail.publication.createdAt,
+    ...(detail.publication.failure === undefined
+      ? {}
+      : { failure: detail.publication.failure }),
     id: detail.publication.id,
     latestRevision: revisionResponse(detail.latestRevision),
     ...(detail.publication.locationId === undefined
@@ -230,6 +236,7 @@ function listItemResponse(
 ): PublicationListResponse["items"][number] {
   return Object.freeze({
     createdAt: item.createdAt,
+    ...(item.failure === undefined ? {} : { failure: item.failure }),
     id: item.id,
     latestContentHash: item.latestContentHash,
     latestRevisionId: item.latestRevisionId,

@@ -75,6 +75,18 @@ anterior. El historial paginado expone `approvalSnapshotId` y `approvedAt`
 cuando una revisión fue aprobada, aunque una edición posterior pase a ser la
 vigente.
 
+Solicitar render conserva la revisión vigente y mueve la publicación a
+`generating_assets`. El worker genera un único `MediaAsset` derivado por
+revisión; al confirmarlo, enlaza `renderedMediaAssetId`, marca la revisión
+`in_review` y mueve la publicación a `ready_for_review`. Un reintento usa la
+misma identidad y no agrega revisión ni medio.
+
+Aprobar exige `content:approve`, la versión vigente y un render confirmado. La
+misma transacción crea `ApprovalSnapshot`, marca la revisión `approved`, mueve
+la publicación a `approved`, agrega la transición, auditoría y respuesta
+idempotente. El snapshot autocontenido conserva contenido, hash, documento y
+versión de diseño, medios de entrada y metadatos exactos del PNG derivado.
+
 ### PublicationTarget
 
 Representa la entrega a un destino concreto. Cada destino tiene su propio

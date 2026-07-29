@@ -50,6 +50,7 @@ export class RenderingModule {
 
     return {
       exports: [DESIGN_RENDERER],
+      global: true,
       module: RenderingModule,
       providers: [
         RendererLifecycleService,

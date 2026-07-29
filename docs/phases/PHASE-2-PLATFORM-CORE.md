@@ -549,7 +549,7 @@ para plantilla, IA, historia recurrente y promoción de productos.
 ## P2-T08 — Completar vertical determinista de borrador y aprobación
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P1-T06`, `P2-T06`, `P2-T07`
 - Riesgo: Alto
 
@@ -586,7 +586,31 @@ revisarla, aprobarla y conservar su snapshot.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: iniciada después de cerrar y publicar `P2-T07` en `main`.
+- Responsabilidades: la API valida intención, versión y permiso; persistencia
+  confirma transición, auditoría y outbox o snapshot en una transacción; el
+  worker renderiza y almacena; la UI refleja el estado persistido.
+- Invariantes: solicitar render no crea otra revisión; la salida usa identidad
+  determinista por revisión; reintentar no duplica medios; aprobar sólo opera
+  sobre la revisión vigente ya renderizada y congela contenido, documento,
+  formato, versión de diseño, entradas de medios y PNG derivado.
+- Permisos: `editor` solicita o reintenta render; sólo `approver` aprueba. La UI
+  orienta, pero el backend vuelve a autorizar cada comando dentro del tenant.
+- Estados principales: `draft -> generating_assets -> ready_for_review ->
+  approved`; un fallo de decodificación, activo o navegador produce
+  `generation_failed` explícito y puede reintentarse desde esa versión.
+- Fallos parciales: una carga remota confirmada con pérdida de lease se
+  reconcilia por la identidad determinista; nunca se inventa un PNG ni se marca
+  éxito sin metadatos persistidos.
+- Límites previstos: contratos públicos de render/aprobación; caso de uso y
+  controlador en `apps/api/src/content`; puerto puro en `packages/domain`;
+  adaptador Prisma y migración en `infrastructure/database`; consumidor de
+  outbox en `apps/worker/src/rendering`; preview y acciones en
+  `apps/web/app/publicaciones`.
+- Verificación prevista: unitarias de permisos, transiciones, reintentos y
+  fallos; `pnpm db:test` con PostgreSQL efímero y migración reversible; E2E con
+  almacenamiento doble desde sesión nueva hasta snapshot; comparación exacta
+  del PNG restaurado; `pnpm verify` y revisión visual/accesible.
 
 ### Evidencia de cierre
 

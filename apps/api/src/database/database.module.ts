@@ -7,6 +7,7 @@ import {
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
+  PrismaPublicationProductionRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
   PrismaReliableOperationRepository,
@@ -17,6 +18,7 @@ import type {
   MediaAssetRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
+  PublicationProductionRepository,
   PublicationRepository,
   PublicationStateRepository,
   ReliableOperationRepository,
@@ -31,6 +33,7 @@ import {
   MEDIA_ASSET_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
+  PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
   RELIABLE_OPERATION_REPOSITORY,
@@ -46,6 +49,7 @@ export class DatabaseModule {
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
+        PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
         RELIABLE_OPERATION_REPOSITORY,
@@ -63,6 +67,14 @@ export class DatabaseModule {
           provide: PUBLICATION_DRAFT_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationDraftRepository =>
             new PrismaPublicationDraftRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_PRODUCTION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationProductionRepository =>
+            new PrismaPublicationProductionRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

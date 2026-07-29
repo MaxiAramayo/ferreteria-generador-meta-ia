@@ -3,21 +3,33 @@ import {
   createDatabaseClient,
   type DatabaseClient,
   PrismaOutboxRepository,
+  PrismaPublicationProductionRepository,
   PrismaMediaAssetRepository,
 } from "@aramayo/database";
-import type { MediaAssetRepository, OutboxRepository } from "@aramayo/domain";
+import type {
+  MediaAssetRepository,
+  OutboxRepository,
+  PublicationProductionRepository,
+} from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
 import { MEDIA_ASSET_REPOSITORY } from "../media/media.tokens.ts";
 import { OUTBOX_REPOSITORY } from "../outbox/outbox.tokens.ts";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
-import { WORKER_DATABASE_CLIENT } from "./database.tokens.ts";
+import {
+  PUBLICATION_PRODUCTION_REPOSITORY,
+  WORKER_DATABASE_CLIENT,
+} from "./database.tokens.ts";
 
 @Module({})
 export class DatabaseModule {
   static forConfiguration(databaseUrl: SecretValue): DynamicModule {
     return {
-      exports: [MEDIA_ASSET_REPOSITORY, OUTBOX_REPOSITORY],
+      exports: [
+        MEDIA_ASSET_REPOSITORY,
+        OUTBOX_REPOSITORY,
+        PUBLICATION_PRODUCTION_REPOSITORY,
+      ],
       global: true,
       module: DatabaseModule,
       providers: [
@@ -25,6 +37,14 @@ export class DatabaseModule {
           provide: WORKER_DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_PRODUCTION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationProductionRepository =>
+            new PrismaPublicationProductionRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

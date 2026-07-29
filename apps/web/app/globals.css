@@ -360,6 +360,12 @@ a {
   margin-bottom: 0.25rem;
 }
 
+.publication-row-main .publication-failure {
+  color: #a02a16;
+  font-weight: 700;
+  max-width: 52rem;
+}
+
 .publication-list time {
   align-self: center;
   padding: 0 1rem;
@@ -474,6 +480,27 @@ a {
   display: flex;
   gap: 1rem;
   justify-content: space-between;
+}
+
+.composer-selection-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.composer-selection-grid select {
+  background: var(--workspace-paper);
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  min-height: 2.75rem;
+  padding: 0.55rem;
+  width: 100%;
+}
+
+@media (max-width: 48rem) {
+  .composer-selection-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .composer-form-actions > span {
@@ -651,6 +678,57 @@ a {
     scroll-behavior: auto;
     transition-duration: 0.01ms !important;
   }
+}
+
+.publication-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  grid-column: 1 / -1;
+  padding-left: 0.9rem;
+}
+
+.publication-row-actions button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    700 0.78rem/1 "Archivo",
+    sans-serif;
+  padding: 0.55rem 0.7rem;
+}
+
+.publication-row-actions button:hover {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.publication-command-notice {
+  border-left: 4px solid var(--workspace-orange);
+  margin: 1rem 0 0;
+  padding: 0.65rem 0.8rem;
+}
+
+.publication-render-preview {
+  align-items: flex-start;
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0;
+  max-width: 28rem;
+  padding: 0.75rem;
+}
+
+.publication-render-preview img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.publication-render-preview figcaption {
+  font-size: 0.78rem;
 }
 
 /* Harness de primitivas del motor de diseño (P1-T03). */
