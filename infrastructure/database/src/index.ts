@@ -6,3 +6,4 @@ export {
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
+export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";

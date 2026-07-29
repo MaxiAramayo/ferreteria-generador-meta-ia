@@ -5,10 +5,14 @@ import { parseApiEnvironment } from "@aramayo/configuration/api";
 import type {
   AuthenticatedSessionRecord,
   AuthenticationEventInput,
+  ConfigurationMutationResult,
   CreateAuthenticationSessionInput,
   IdentityRepository,
   LoginIdentityRecord,
+  OrganizationConfiguration,
+  OrganizationConfigurationRepository,
   OrganizationRole,
+  PersistBrandConfigurationInput,
   RevokeAllSessionsInput,
   RevokeSessionInput,
   ScopedMutationResult,
@@ -26,6 +30,8 @@ import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 
 import { IDENTITY_REPOSITORY } from "../database/database.tokens.ts";
+import { ORGANIZATION_CONFIGURATION_REPOSITORY } from "../database/database.tokens.ts";
+import { OrganizationsModule } from "../organizations/organizations.module.ts";
 import { RequirePermission } from "./identity.decorators.ts";
 import { IdentityModule } from "./identity.module.ts";
 import { PASSWORD_HASHER } from "./identity.tokens.ts";
@@ -128,6 +134,23 @@ class InMemoryIdentityRepository implements IdentityRepository {
     return Promise.resolve();
   }
 
+  replaceSessionCsrfHash(
+    sessionId: string,
+    userId: string,
+    csrfTokenHash: string,
+  ): Promise<boolean> {
+    for (const [tokenHash, session] of this.sessions) {
+      if (
+        session.actor.sessionId === sessionId &&
+        session.actor.userId === userId
+      ) {
+        this.sessions.set(tokenHash, { ...session, csrfTokenHash });
+        return Promise.resolve(true);
+      }
+    }
+    return Promise.resolve(false);
+  }
+
   revokeAllSessions(input: RevokeAllSessionsInput): Promise<number> {
     let revoked = 0;
     for (const [tokenHash, session] of this.sessions) {
@@ -174,15 +197,74 @@ class InMemoryIdentityRepository implements IdentityRepository {
   }
 }
 
+const organizationConfiguration: OrganizationConfiguration = {
+  brand: {
+    claim: "Ferretería, hogar y automotor",
+    handle: "@LubricentroAramayo",
+    id: "10000000-0000-4000-8000-000000000003",
+    name: "Aramayo",
+    shortName: "Aramayo",
+    themeId: "taller",
+    version: 1,
+  },
+  displayName: "Ferretería y Lubricentro Aramayo",
+  id: "organization-1",
+  legalName: "Ferretería y Lubricentro Aramayo",
+  locations: [],
+  version: 1,
+};
+
+class InMemoryOrganizationConfigurationRepository implements OrganizationConfigurationRepository {
+  findByOrganizationId(
+    organizationId: string,
+  ): Promise<OrganizationConfiguration | null> {
+    return Promise.resolve(
+      organizationId === organizationConfiguration.id
+        ? organizationConfiguration
+        : null,
+    );
+  }
+
+  updateBrand(
+    input: PersistBrandConfigurationInput,
+  ): Promise<ConfigurationMutationResult> {
+    return Promise.resolve({
+      configuration: {
+        ...organizationConfiguration,
+        brand: {
+          ...organizationConfiguration.brand,
+          claim: input.update.claim,
+          version: input.update.brandVersion + 1,
+        },
+        version: input.update.organizationVersion + 1,
+      },
+      status: "updated" as const,
+    });
+  }
+
+  updateLocation(): Promise<ConfigurationMutationResult> {
+    return Promise.resolve({ status: "not-found" as const });
+  }
+}
+
 @Global()
 @Module({})
 class TestPersistenceModule {
-  static register(repository: IdentityRepository): DynamicModule {
+  static register(
+    identityRepository: IdentityRepository,
+    configurationRepository: OrganizationConfigurationRepository,
+  ): DynamicModule {
     return {
-      exports: [IDENTITY_REPOSITORY],
+      exports: [IDENTITY_REPOSITORY, ORGANIZATION_CONFIGURATION_REPOSITORY],
       global: true,
       module: TestPersistenceModule,
-      providers: [{ provide: IDENTITY_REPOSITORY, useValue: repository }],
+      providers: [
+        { provide: IDENTITY_REPOSITORY, useValue: identityRepository },
+        {
+          provide: ORGANIZATION_CONFIGURATION_REPOSITORY,
+          useValue: configurationRepository,
+        },
+      ],
     };
   }
 }
@@ -216,6 +298,8 @@ function requiredString(
 }
 
 const repository = new InMemoryIdentityRepository();
+const configurationRepository =
+  new InMemoryOrganizationConfigurationRepository();
 let application: INestApplication;
 let baseUrl: string;
 
@@ -223,8 +307,9 @@ before(async () => {
   const testingModule = await Test.createTestingModule({
     controllers: [PermissionProbeController],
     imports: [
-      TestPersistenceModule.register(repository),
+      TestPersistenceModule.register(repository, configurationRepository),
       IdentityModule.forConfiguration(configuration),
+      OrganizationsModule,
     ],
   })
     .overrideProvider(PASSWORD_HASHER)
@@ -283,25 +368,70 @@ test("el flujo HTTP aplica sesión, CSRF, permisos, validación y revocación", 
   const sessionCookie = cookies.find((cookie) =>
     cookie.startsWith("aramayo_session="),
   );
-  const csrfCookie = cookies.find((cookie) =>
-    cookie.startsWith("aramayo_csrf="),
-  );
-  if (sessionCookie === undefined || csrfCookie === undefined) {
+  if (sessionCookie === undefined) {
     throw new Error("Login did not return a session cookie.");
   }
   assert.match(sessionCookie, /HttpOnly/u);
-  assert.doesNotMatch(csrfCookie, /HttpOnly/u);
   assert.match(sessionCookie, /SameSite=Lax/u);
-  assert.match(csrfCookie, /SameSite=Lax/u);
   assert.doesNotMatch(cookies.join(";"), /correct-password/u);
   const loginBody = readJsonObject(login.text);
-  const csrfToken = requiredString(loginBody, "csrfToken");
-  assert.match(csrfCookie, new RegExp(`aramayo_csrf=${csrfToken}`, "u"));
+  assert.match(requiredString(loginBody, "csrfToken"), /^[A-Za-z0-9_-]{43}$/u);
 
   const activeSession = await supertest(baseUrl)
     .get("/auth/session")
     .set("Cookie", sessionCookie);
   assert.equal(activeSession.status, 200);
+
+  const rotatedCsrf = await supertest(baseUrl)
+    .get("/auth/csrf")
+    .set("Cookie", sessionCookie);
+  assert.equal(rotatedCsrf.status, 200);
+  const csrfToken = requiredString(
+    readJsonObject(rotatedCsrf.text),
+    "csrfToken",
+  );
+
+  const readableConfiguration = await supertest(baseUrl)
+    .get("/organization/configuration")
+    .set("Cookie", sessionCookie);
+  assert.equal(readableConfiguration.status, 200);
+
+  const forbiddenUpdate = await supertest(baseUrl)
+    .patch("/organization/configuration/brand")
+    .set("Cookie", sessionCookie)
+    .set("Origin", configuration.webOrigin)
+    .set("X-CSRF-Token", csrfToken)
+    .send({
+      brandVersion: 1,
+      claim: "Nuevo claim",
+      displayName: "Aramayo",
+      handle: "@Aramayo",
+      legalName: "Aramayo",
+      name: "Aramayo",
+      organizationVersion: 1,
+      shortName: "Aramayo",
+      themeId: "taller",
+    });
+  assert.equal(forbiddenUpdate.status, 403);
+
+  repository.setRoles(["admin"]);
+  const authorizedUpdate = await supertest(baseUrl)
+    .patch("/organization/configuration/brand")
+    .set("Cookie", sessionCookie)
+    .set("Origin", configuration.webOrigin)
+    .set("X-CSRF-Token", csrfToken)
+    .send({
+      brandVersion: 1,
+      claim: "Nuevo claim",
+      displayName: "Aramayo",
+      handle: "@Aramayo",
+      legalName: "Aramayo",
+      name: "Aramayo",
+      organizationVersion: 1,
+      shortName: "Aramayo",
+      themeId: "taller",
+    });
+  assert.equal(authorizedUpdate.status, 200);
 
   const missingCsrf = await supertest(baseUrl)
     .post("/auth/logout")

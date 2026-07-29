@@ -139,9 +139,10 @@ aprobación, configuración y futura publicación.
   logout individual/global y guards globales de origen, sesión, CSRF y permiso.
   Sólo login, health y readiness declaran excepción pública.
 - 2026-07-28: las contraseñas usan Argon2id versionado. Cookie, sesión y CSRF
-  siguen contratos separados; la cookie CSRF permite recuperarlo después de
-  recargar la web. PostgreSQL conserva sólo hashes de los tokens y vuelve a
-  consultar usuario, membresía y roles en cada request.
+  siguen contratos separados; el endpoint autenticado `GET /auth/csrf` rota el
+  hash y permite al panel recuperar un token aunque web y API usen hosts
+  distintos. PostgreSQL conserva sólo hashes de los tokens y vuelve a consultar
+  usuario, membresía y roles en cada request.
 - 2026-07-28: cinco fallos por sujeto y huella dentro de quince minutos bloquean
   el ingreso. Los rechazos no distinguen email, contraseña, organización,
   usuario deshabilitado o membresía revocada.
@@ -174,8 +175,8 @@ aprobación, configuración y futura publicación.
 
 ## P2-T03 — Gestionar organización, marca y ubicaciones
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T01`, `P2-T02`
 - Riesgo: Medio
 
@@ -192,18 +193,18 @@ contexto obligatorio para generar contenido.
 
 ### Criterios de aceptación
 
-- [ ] Una publicación pertenece a una organización y puede apuntar a una ubicación.
-- [ ] Teléfonos, horarios y direcciones se validan y normalizan.
-- [ ] Cambios de marca no alteran snapshots ya aprobados.
-- [ ] Solo administradores pueden editar configuración sensible.
-- [ ] Cada modificación registra autor, antes y después.
-- [ ] La UI maneja carga, vacío, error, éxito y permisos insuficientes.
+- [x] Una publicación pertenece a una organización y puede apuntar a una ubicación.
+- [x] Teléfonos, horarios y direcciones se validan y normalizan.
+- [x] Cambios de marca no alteran snapshots ya aprobados.
+- [x] Solo administradores pueden editar configuración sensible.
+- [x] Cada modificación registra autor, antes y después.
+- [x] La UI maneja carga, vacío, error, éxito y permisos insuficientes.
 
 ### Verificación obligatoria
 
-- [ ] Tests de casos de uso y validadores.
-- [ ] Flujo E2E de edición autorizada y rechazada.
-- [ ] Comprobar inmutabilidad de una publicación aprobada anterior.
+- [x] Tests de casos de uso y validadores.
+- [x] Flujo E2E de edición autorizada y rechazada.
+- [x] Comprobar inmutabilidad de una publicación aprobada anterior.
 
 ### Fuera de alcance
 
@@ -211,11 +212,43 @@ contexto obligatorio para generar contenido.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-28: dominio normaliza identidad, teléfonos argentinos, horarios,
+  direcciones y zonas IANA. El catálogo de temas del motor limita el default de
+  marca.
+- 2026-07-28: organización, marca y ubicación tienen versiones. El repositorio
+  Prisma usa ownership y compare-and-swap; identidad comercial cambia
+  organización y marca dentro de la misma transacción y conserva claves del
+  perfil que esta pantalla no administra.
+- 2026-07-28: cada mutación agrega un evento append-only con autor, objetivo,
+  `before` y `after`. Un conflicto revierte cambios y auditoría.
+- 2026-07-28: `OrganizationsModule` mantiene autorización dentro del caso de
+  uso y expone lectura más dos mutaciones tipadas. El tenant y actor provienen
+  exclusivamente de la sesión.
+- 2026-07-28: `/configuracion` separa `state`, `actions` y `meta`, representa
+  carga, vacío, error, éxito y permiso insuficiente, y rota CSRF antes de
+  guardar. Editores leen; sólo administradores habilitan los formularios.
+- 2026-07-28: la cookie mantiene `SameSite=Lax` localmente y usa
+  `SameSite=None; Secure` en ambientes remotos; así el contrato funciona con
+  hosts separados sin volver la sesión legible desde JavaScript.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: árbol de trabajo de cierre de `P2-T03`.
+- `pnpm --filter @aramayo/domain test`: validadores de marca y ubicación,
+  teléfonos, horarios y zonas horarias.
+- `pnpm --filter @aramayo/api test`: 17 pruebas; permisos, normalización,
+  conflictos, errores, rotación CSRF y flujo HTTP autorizado/rechazado.
+- `pnpm db:test`: migración desde cero, seed canónico, ownership entre dos
+  organizaciones, compare-and-swap, auditoría inmutable, snapshot aprobado
+  intacto, rollback y reaplicación.
+- `pnpm verify`: stack, plan, formato, build, lint, typecheck, pruebas, línea
+  base y smoke completos.
+- Playwright: revisión real en desktop y 390 px, guardado exitoso, etiquetas y
+  cero errores de consola. Evidencia local ignorada por Git:
+  `output/playwright/p2-t03-desktop.png` y `p2-t03-mobile.png`.
+- Desviaciones: crear o borrar marcas y sucursales queda fuera de esta pantalla;
+  la tarea administra la configuración mínima existente. No se ingieren
+  documentos RAG ni se modifican snapshots aprobados.
 
 ## P2-T04 — Implementar máquina de estados de publicación
 

@@ -8,7 +8,7 @@ Actualizado: 2026-07-28
 
 La Fase 0 quedó cerrada. La Fase 1 conserva `P1-T07` bloqueada por credenciales
 de Cloudinary. En Fase 2 están completas `P2-T01`, `P2-T02` y `P2-T04`;
-`P2-T03` queda habilitada.
+`P2-T03` también quedó completa.
 
 ## Resumen
 
@@ -24,11 +24,12 @@ de Cloudinary. En Fase 2 están completas `P2-T01`, `P2-T02` y `P2-T04`;
 
 ## Próxima tarea
 
-`P2-T03` — gestionar organización, marca y ubicaciones con validación,
-auditoría, permisos y estados explícitos en el panel.
+Iniciar `P1-T07` — ciclo de vida de medios. Sus dependencias locales están
+completas; el adaptador, validación, metadatos y dobles pueden implementarse
+localmente. La carga y render remoto finales requieren credenciales de
+Cloudinary.
 
-`P1-T07` requiere credenciales de Cloudinary; al cerrarla junto con `P2-T03`,
-se habilita `P2-T05`.
+Al cerrar `P1-T07` se habilita `P2-T05`.
 
 ## Bloqueos externos conocidos
 

@@ -14,7 +14,7 @@ import {
 } from "./authentication.service.ts";
 import { CurrentSession, PublicRoute } from "./identity.decorators.ts";
 import { clientFingerprintHash } from "./identity-http.ts";
-import { csrfCookieName, sessionCookieName } from "./identity.guards.ts";
+import { sessionCookieName } from "./identity.guards.ts";
 import { LoginDto } from "./dto/login.dto.ts";
 
 interface SessionResponse {
@@ -25,6 +25,17 @@ interface SessionResponse {
 
 interface LogoutAllResponse {
   readonly revokedSessions: number;
+}
+
+interface CsrfResponse {
+  readonly csrfToken: string;
+}
+
+function usesSecureSessionCookie(configuration: ApiConfiguration): boolean {
+  return (
+    configuration.environment !== "development" &&
+    configuration.environment !== "test"
+  );
 }
 
 function publicLoginResult(result: LoginResult): SessionResponse {
@@ -64,30 +75,18 @@ export class AuthenticationController {
         : { organizationSlug: input.organizationSlug }),
       password: input.password,
     });
-    response.setHeader("Set-Cookie", [
+    response.setHeader(
+      "Set-Cookie",
       stringifySetCookie({
         name: sessionCookieName(this.#configuration),
         value: result.sessionToken,
         httpOnly: true,
         maxAge: this.#configuration.authenticationSessionTtlSeconds,
         path: "/",
-        sameSite: "lax",
-        secure:
-          this.#configuration.environment !== "development" &&
-          this.#configuration.environment !== "test",
+        sameSite: usesSecureSessionCookie(this.#configuration) ? "none" : "lax",
+        secure: usesSecureSessionCookie(this.#configuration),
       }),
-      stringifySetCookie({
-        name: csrfCookieName(this.#configuration),
-        value: result.csrfToken,
-        httpOnly: false,
-        maxAge: this.#configuration.authenticationSessionTtlSeconds,
-        path: "/",
-        sameSite: "lax",
-        secure:
-          this.#configuration.environment !== "development" &&
-          this.#configuration.environment !== "test",
-      }),
-    ]);
+    );
     return publicLoginResult(result);
   }
 
@@ -98,6 +97,15 @@ export class AuthenticationController {
     return Object.freeze({
       actor: session.actor,
       expiresAt: session.expiresAt,
+    });
+  }
+
+  @Get("csrf")
+  async issueCsrf(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+  ): Promise<CsrfResponse> {
+    return Object.freeze({
+      csrfToken: await this.#authentication.issueCsrfToken(session),
     });
   }
 
@@ -121,29 +129,17 @@ export class AuthenticationController {
   }
 
   #clearSessionCookie(response: Response): void {
-    response.setHeader("Set-Cookie", [
+    response.setHeader(
+      "Set-Cookie",
       stringifySetCookie({
         name: sessionCookieName(this.#configuration),
         value: "",
         httpOnly: true,
         maxAge: 0,
         path: "/",
-        sameSite: "lax",
-        secure:
-          this.#configuration.environment !== "development" &&
-          this.#configuration.environment !== "test",
+        sameSite: usesSecureSessionCookie(this.#configuration) ? "none" : "lax",
+        secure: usesSecureSessionCookie(this.#configuration),
       }),
-      stringifySetCookie({
-        name: csrfCookieName(this.#configuration),
-        value: "",
-        httpOnly: false,
-        maxAge: 0,
-        path: "/",
-        sameSite: "lax",
-        secure:
-          this.#configuration.environment !== "development" &&
-          this.#configuration.environment !== "test",
-      }),
-    ]);
+    );
   }
 }

@@ -214,6 +214,19 @@ export class AuthenticationService {
     );
   }
 
+  async issueCsrfToken(session: AuthenticatedSessionRecord): Promise<string> {
+    const csrfToken = randomBytes(32).toString("base64url");
+    const replaced = await this.#repository.replaceSessionCsrfHash(
+      session.actor.sessionId,
+      session.actor.userId,
+      sha256(csrfToken),
+    );
+    if (!replaced) {
+      throw new UnauthorizedException("La sesión no es válida.");
+    }
+    return csrfToken;
+  }
+
   async logout(session: AuthenticatedSessionRecord): Promise<void> {
     const revokedAt = new Date().toISOString();
     await this.#repository.revokeSession({

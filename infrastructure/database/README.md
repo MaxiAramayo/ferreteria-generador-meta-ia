@@ -16,6 +16,8 @@ erDiagram
   ORGANIZATION ||--o{ AUTHENTICATION_EVENT : audits
   ORGANIZATION ||--o{ BRAND : owns
   BRAND ||--o{ LOCATION : configures
+  ORGANIZATION ||--o{ ORGANIZATION_CONFIGURATION_EVENT : audits
+  ORGANIZATION_MEMBERSHIP ||--o{ ORGANIZATION_CONFIGURATION_EVENT : authors
   ORGANIZATION_MEMBERSHIP ||--o{ PUBLICATION : creates
   LOCATION o|--o{ PUBLICATION : scopes
   PUBLICATION ||--o{ PUBLICATION_REVISION : versions
@@ -49,6 +51,12 @@ válido de otra organización no alcanza para relacionarlo ni recuperarlo.
   una fila append-only a `publication_state_transitions` dentro de la misma
   transacción. Fallos actuales conservan código, mensaje seguro, reintento y
   timestamp.
+- Organización, marca y ubicación conservan versiones para compare-and-swap.
+  Una actualización de identidad comercial cambia organización y marca dentro
+  de una única transacción; una carrera revierte ambas escrituras.
+- `organization_configuration_events` conserva actor, objetivo y documentos
+  `before`/`after` dentro de la misma transacción que la mutación. Un trigger
+  impide actualizar o eliminar su historial.
 - Las credenciales locales son opcionales y consistentes: hash, versión y fecha
   de cambio existen juntas o son nulas juntas. El seed no crea una contraseña.
 - Una sesión referencia usuario, membresía y organización mediante ownership

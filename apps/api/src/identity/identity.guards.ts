@@ -40,13 +40,6 @@ export function sessionCookieName(configuration: ApiConfiguration): string {
     : "__Host-aramayo_session";
 }
 
-export function csrfCookieName(configuration: ApiConfiguration): string {
-  return configuration.environment === "development" ||
-    configuration.environment === "test"
-    ? "aramayo_csrf"
-    : "__Host-aramayo_csrf";
-}
-
 @Injectable()
 export class TrustedOriginGuard implements CanActivate {
   readonly #configuration: ApiConfiguration;

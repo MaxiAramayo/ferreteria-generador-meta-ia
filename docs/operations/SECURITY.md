@@ -30,11 +30,15 @@ es un límite de seguridad.
   iteraciones, paralelismo uno y salida de 32 bytes.
 - El identificador de sesión y el token CSRF tienen 32 bytes aleatorios. La
   base conserva únicamente sus hashes SHA-256.
-- La cookie de sesión es `HttpOnly`, `SameSite=Lax`, `Path=/` y `Secure` fuera
-  de desarrollo y test. Una segunda cookie CSRF, legible por el panel, permite
-  reconstruir el header después de una recarga; su hash sigue siendo la única
-  copia persistida por el servidor. En ambientes remotos ambas usan el prefijo
-  `__Host-`.
+- La cookie de sesión es `HttpOnly` y `Path=/`. En desarrollo y test usa
+  `SameSite=Lax`; en ambientes remotos usa `SameSite=None`, `Secure` y el
+  prefijo `__Host-` para que el panel pueda llamar a la API desde otro sitio sin
+  exponer la cookie a JavaScript.
+- El login entrega un token CSRF en el cuerpo autenticado. Antes de una
+  mutación, el panel puede rotarlo con `GET /auth/csrf`: el endpoint exige la
+  cookie de sesión, reemplaza atómicamente el hash anterior y devuelve la única
+  copia legible. Esto evita depender de una cookie compartida cuando web y API
+  usan hosts diferentes.
 - Las mutaciones autenticadas por cookie exigen `X-CSRF-Token`; además, un
   `Origin` presente debe coincidir exactamente con `WEB_ORIGIN`.
 - El ingreso responde con el mismo rechazo ante email, contraseña,

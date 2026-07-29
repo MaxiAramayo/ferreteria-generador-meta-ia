@@ -70,24 +70,24 @@ async function seed(): Promise<void> {
           id: developmentIds.brand,
           name: ARAMAYO_BRAND_PROFILE.shortName,
           organizationId: developmentIds.organization,
-          profile: { ...ARAMAYO_BRAND_PROFILE },
+          profile: { ...ARAMAYO_BRAND_PROFILE, themeId: "taller" },
         },
         update: {
-          profile: { ...ARAMAYO_BRAND_PROFILE },
+          profile: { ...ARAMAYO_BRAND_PROFILE, themeId: "taller" },
         },
         where: { id: developmentIds.brand },
       });
 
       const sharedLocation = {
         brandId: developmentIds.brand,
-        city: ARAMAYO_BRAND_PROFILE.city,
+        city: "Frías",
         openingHours: {
           display: ARAMAYO_BRAND_PROFILE.opening,
         },
         organizationId: developmentIds.organization,
-        phone: ARAMAYO_BRAND_PROFILE.phone,
+        phone: "+543854403534",
         province: "Santiago del Estero",
-        whatsapp: ARAMAYO_BRAND_PROFILE.phone,
+        whatsapp: "+543854403534",
       };
 
       await transaction.location.upsert({

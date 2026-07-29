@@ -115,6 +115,10 @@ export default async function HomePage() {
           El sistema visual migrado puede revisarse en{" "}
           <a href="/diseno/primitivas">primitivas del motor de diseño</a>.
         </p>
+        <p className="hint">
+          La identidad comercial y las sucursales se administran desde{" "}
+          <a href="/configuracion">configuración operativa</a>.
+        </p>
       </section>
     </main>
   );

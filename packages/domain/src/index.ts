@@ -31,6 +31,24 @@ export {
   type ScopedMutationResult,
 } from "./identity.ts";
 export {
+  brandThemeIds,
+  ConfigurationValidationError,
+  normalizeBrandConfigurationUpdate,
+  normalizeLocationConfigurationUpdate,
+  type BrandConfiguration,
+  type BrandThemeId,
+  type ConfigurationMutationResult,
+  type LocationConfiguration,
+  type NormalizedBrandConfigurationUpdate,
+  type NormalizedLocationConfigurationUpdate,
+  type OrganizationConfiguration,
+  type OrganizationConfigurationRepository,
+  type PersistBrandConfigurationInput,
+  type PersistLocationConfigurationInput,
+  type UpdateBrandConfigurationCommand,
+  type UpdateLocationConfigurationCommand,
+} from "./organization-configuration.ts";
+export {
   isPublicationTransitionAllowed,
   PUBLICATION_TRANSITIONS,
   transitionPublication,

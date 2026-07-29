@@ -3,7 +3,11 @@ import { after, test } from "node:test";
 import { randomUUID } from "node:crypto";
 
 import { Pool } from "pg";
-import { transitionPublication } from "@aramayo/domain";
+import {
+  normalizeBrandConfigurationUpdate,
+  normalizeLocationConfigurationUpdate,
+  transitionPublication,
+} from "@aramayo/domain";
 
 import { createDatabaseClient } from "./client.ts";
 import {
@@ -13,6 +17,7 @@ import {
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
+import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 
 function requiredDatabaseUrl(): string {
   const databaseUrl = process.env["DATABASE_URL"];
@@ -25,8 +30,271 @@ function requiredDatabaseUrl(): string {
 const databaseUrl = requiredDatabaseUrl();
 const database = createDatabaseClient(databaseUrl);
 
+function randomHash(): string {
+  return randomUUID().replaceAll("-", "").repeat(2);
+}
+
 after(async () => {
   await database.$disconnect();
+});
+
+test("configuración usa ownership, versiones, auditoría y no muta snapshots", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  const publicationId = randomUUID();
+  const revisionId = randomUUID();
+  const snapshotId = randomUUID();
+  const snapshot = {
+    brand: { claim: "Snapshot histórico" },
+    content: { title: "Pieza aprobada" },
+  };
+  const actor = {
+    displayName: "Administradora",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Aramayo",
+        id: organizationId,
+        legalName: "Aramayo",
+        slug: `configuration-${organizationId}`,
+      },
+      {
+        displayName: "Otra organización",
+        id: otherOrganizationId,
+        legalName: "Otra organización",
+        slug: `configuration-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: actor.displayName,
+      email: actor.email,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: {
+        catalogSource: "approved",
+        claim: "Claim anterior",
+        handle: "@Aramayo",
+        shortName: "Aramayo",
+        themeId: "taller",
+      },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Sucursal",
+      openingHours: { display: "Lun · 08:30 a 13:00" },
+      organizationId,
+      phone: "+543854403534",
+      province: "Santiago del Estero",
+      whatsapp: "+543854403534",
+    },
+  });
+  await database.publication.create({
+    data: {
+      createdByMembershipId: membershipId,
+      id: publicationId,
+      locationId,
+      organizationId,
+      status: "approved",
+      title: "Pieza histórica",
+    },
+  });
+  await database.publicationRevision.create({
+    data: {
+      content: { title: "Pieza histórica" },
+      contentHash: "a".repeat(64),
+      createdByMembershipId: membershipId,
+      designDocument: { layout: "producto-destacado" },
+      id: revisionId,
+      organizationId,
+      publicationId,
+      revisionNumber: 1,
+      schemaVersion: 1,
+      status: "approved",
+    },
+  });
+  await database.approvalSnapshot.create({
+    data: {
+      approvedAt: new Date(),
+      approvedByMembershipId: membershipId,
+      contentHash: "a".repeat(64),
+      id: snapshotId,
+      organizationId,
+      publicationId,
+      revisionId,
+      snapshot,
+    },
+  });
+
+  const repository = new PrismaOrganizationConfigurationRepository(database);
+  const initial = await repository.findByOrganizationId(organizationId);
+  assert.notEqual(initial, null);
+  if (initial === null) {
+    throw new Error("Expected organization configuration.");
+  }
+  const initialLocation = initial.locations[0];
+  assert.notEqual(initialLocation, undefined);
+  if (initialLocation === undefined) {
+    throw new Error("Expected initial location configuration.");
+  }
+
+  assert.deepEqual(
+    await repository.updateLocation({
+      actorMembershipId: membershipId,
+      changedAt: new Date().toISOString(),
+      locationId,
+      organizationId: otherOrganizationId,
+      update: normalizeLocationConfigurationUpdate({
+        actor,
+        ...initialLocation,
+        locationId,
+      }),
+    }),
+    { status: "not-found" },
+  );
+
+  const brandResult = await repository.updateBrand({
+    actorMembershipId: membershipId,
+    changedAt: new Date().toISOString(),
+    organizationId,
+    update: normalizeBrandConfigurationUpdate({
+      actor,
+      brandVersion: initial.brand.version,
+      claim: "Nuevo claim operativo",
+      displayName: "Ferretería Aramayo",
+      handle: "@LubricentroAramayo",
+      legalName: "Ferretería y Lubricentro Aramayo",
+      name: "Aramayo",
+      organizationVersion: initial.version,
+      shortName: "Aramayo",
+      themeId: "promo",
+    }),
+  });
+  assert.equal(brandResult.status, "updated");
+  assert.deepEqual(
+    (
+      await database.brand.findUniqueOrThrow({
+        where: { id: brandId },
+      })
+    ).profile,
+    {
+      catalogSource: "approved",
+      claim: "Nuevo claim operativo",
+      handle: "@LubricentroAramayo",
+      shortName: "Aramayo",
+      themeId: "promo",
+    },
+  );
+  assert.deepEqual(
+    (
+      await database.approvalSnapshot.findUniqueOrThrow({
+        where: { id: snapshotId },
+      })
+    ).snapshot,
+    snapshot,
+  );
+  assert.equal(
+    await database.organizationConfigurationEvent.count({
+      where: { organizationId },
+    }),
+    2,
+  );
+
+  const staleResult = await repository.updateBrand({
+    actorMembershipId: membershipId,
+    changedAt: new Date().toISOString(),
+    organizationId,
+    update: normalizeBrandConfigurationUpdate({
+      actor,
+      brandVersion: initial.brand.version,
+      claim: "Cambio vencido",
+      displayName: "Cambio vencido",
+      handle: "@Aramayo",
+      legalName: "Cambio vencido",
+      name: "Cambio vencido",
+      organizationVersion: initial.version,
+      shortName: "Cambio vencido",
+      themeId: "taller",
+    }),
+  });
+  assert.deepEqual(staleResult, { status: "conflict" });
+  assert.equal(
+    await database.organizationConfigurationEvent.count({
+      where: { organizationId },
+    }),
+    2,
+  );
+
+  const afterBrand = brandResult.configuration;
+  const currentLocation = afterBrand.locations[0];
+  assert.notEqual(currentLocation, undefined);
+  if (currentLocation === undefined) {
+    throw new Error("Expected location configuration.");
+  }
+  const locationResult = await repository.updateLocation({
+    actorMembershipId: membershipId,
+    changedAt: new Date().toISOString(),
+    locationId,
+    organizationId,
+    update: normalizeLocationConfigurationUpdate({
+      actor,
+      ...currentLocation,
+      addressLine: "  Rivadavia   675 ",
+      locationId,
+      openingHours: "Lun a sáb·09:00 a 13:00",
+      phone: "3854 403534",
+    }),
+  });
+  assert.equal(locationResult.status, "updated");
+  assert.equal(
+    await database.organizationConfigurationEvent.count({
+      where: { organizationId },
+    }),
+    3,
+  );
+  const locationEvent =
+    await database.organizationConfigurationEvent.findFirstOrThrow({
+      orderBy: { occurredAt: "desc" },
+      where: { organizationId, targetType: "location" },
+    });
+  await assert.rejects(
+    database.organizationConfigurationEvent.update({
+      data: { after: { tampered: true } },
+      where: { id: locationEvent.id },
+    }),
+  );
 });
 
 test("identidad persiste sesiones revocables, roles vivos y auditoría aislada", async () => {
@@ -36,10 +304,10 @@ test("identidad persiste sesiones revocables, roles vivos y auditoría aislada",
   const userB = randomUUID();
   const membershipA = randomUUID();
   const membershipB = randomUUID();
-  const tokenHash = "c".repeat(64);
-  const csrfTokenHash = "d".repeat(64);
-  const subjectHash = "e".repeat(64);
-  const clientFingerprintHash = "f".repeat(64);
+  const tokenHash = randomHash();
+  const csrfTokenHash = randomHash();
+  const subjectHash = randomHash();
+  const clientFingerprintHash = randomHash();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 60 * 60 * 1_000);
 

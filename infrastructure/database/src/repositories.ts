@@ -462,6 +462,25 @@ export class PrismaIdentityRepository implements IdentityRepository {
     });
   }
 
+  async replaceSessionCsrfHash(
+    sessionId: string,
+    userId: string,
+    csrfTokenHash: string,
+  ): Promise<boolean> {
+    const updated = await this.#database.authenticationSession.updateMany({
+      data: {
+        csrfTokenHash,
+        lastSeenAt: new Date(),
+      },
+      where: {
+        id: sessionId,
+        revokedAt: null,
+        userId,
+      },
+    });
+    return updated.count === 1;
+  }
+
   async revokeSession(input: RevokeSessionInput): Promise<boolean> {
     return this.#database.$transaction(async (transaction) => {
       const revoked = await transaction.authenticationSession.updateMany({

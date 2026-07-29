@@ -57,9 +57,17 @@ class FakePasswordHasher implements PasswordHasher {
 
 class FakeIdentityRepository implements IdentityRepository {
   createSessionInput: CreateAuthenticationSessionInput | undefined;
+  csrfReplacement:
+    | Readonly<{
+        csrfTokenHash: string;
+        sessionId: string;
+        userId: string;
+      }>
+    | undefined;
   events: AuthenticationEventInput[] = [];
   identity: LoginIdentityRecord | null = activeIdentity;
   recentFailures = 0;
+  replaceCsrfResult = true;
 
   changeMembershipRoles(): Promise<ScopedMutationResult> {
     return Promise.resolve({ status: "updated" });
@@ -99,6 +107,15 @@ class FakeIdentityRepository implements IdentityRepository {
   recordAuthenticationEvent(event: AuthenticationEventInput): Promise<void> {
     this.events.push(event);
     return Promise.resolve();
+  }
+
+  replaceSessionCsrfHash(
+    sessionId: string,
+    userId: string,
+    csrfTokenHash: string,
+  ): Promise<boolean> {
+    this.csrfReplacement = { csrfTokenHash, sessionId, userId };
+    return Promise.resolve(this.replaceCsrfResult);
   }
 
   revokeAllSessions(): Promise<number> {
@@ -237,4 +254,63 @@ test("la comparación CSRF acepta sólo el token de la sesión", () => {
 
   assert.equal(service.verifyCsrf(session, token), true);
   assert.equal(service.verifyCsrf(session, "otro-token"), false);
+});
+
+test("la rotación CSRF invalida el hash anterior sin exponerlo", async () => {
+  const repository = new FakeIdentityRepository();
+  const service = new AuthenticationService(
+    repository,
+    new FakePasswordHasher(),
+    configuration,
+  );
+  const session: AuthenticatedSessionRecord = {
+    actor: {
+      displayName: "Editora Aramayo",
+      email: "editora@aramayo.invalid",
+      membershipId: "membership-1",
+      organizationId: "organization-1",
+      roles: ["editor"],
+      sessionId: "session-1",
+      userId: "user-1",
+    },
+    csrfTokenHash: "a".repeat(64),
+    expiresAt: "2030-01-01T00:00:00.000Z",
+  };
+
+  const token = await service.issueCsrfToken(session);
+
+  assert.match(token, /^[A-Za-z0-9_-]{43}$/u);
+  assert.deepEqual(repository.csrfReplacement, {
+    csrfTokenHash: createHash("sha256").update(token).digest("hex"),
+    sessionId: session.actor.sessionId,
+    userId: session.actor.userId,
+  });
+  assert.notEqual(repository.csrfReplacement.csrfTokenHash, token);
+});
+
+test("la rotación CSRF rechaza una sesión que desapareció", async () => {
+  const repository = new FakeIdentityRepository();
+  repository.replaceCsrfResult = false;
+  const service = new AuthenticationService(
+    repository,
+    new FakePasswordHasher(),
+    configuration,
+  );
+
+  await assert.rejects(
+    service.issueCsrfToken({
+      actor: {
+        displayName: "Editora Aramayo",
+        email: "editora@aramayo.invalid",
+        membershipId: "membership-1",
+        organizationId: "organization-1",
+        roles: ["editor"],
+        sessionId: "session-1",
+        userId: "user-1",
+      },
+      csrfTokenHash: "a".repeat(64),
+      expiresAt: "2030-01-01T00:00:00.000Z",
+    }),
+    UnauthorizedException,
+  );
 });

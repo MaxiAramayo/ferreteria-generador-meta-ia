@@ -186,6 +186,11 @@ export interface IdentityRepository {
     at: string,
   ): Promise<AuthenticatedSessionRecord | null>;
   recordAuthenticationEvent(event: AuthenticationEventInput): Promise<void>;
+  replaceSessionCsrfHash(
+    sessionId: string,
+    userId: string,
+    csrfTokenHash: string,
+  ): Promise<boolean>;
   revokeAllSessions(input: RevokeAllSessionsInput): Promise<number>;
   revokeMembership(input: RevokeMembershipInput): Promise<ScopedMutationResult>;
   revokeSession(input: RevokeSessionInput): Promise<boolean>;

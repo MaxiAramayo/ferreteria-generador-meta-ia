@@ -19,8 +19,10 @@ Con repositorios y proveedores mock:
 
 - casos de uso;
 - permisos;
+- configuración de organización normalizada, conflictos de versión y mapping
+  de errores;
 - login con rechazo uniforme y rate limiting;
-- cookie de sesión, origen confiable y CSRF;
+- cookie de sesión, origen confiable, rotación y validación CSRF;
 - sesión ausente, vencida, revocada y usuario deshabilitado;
 - mapping de errores;
 - transacciones;
@@ -47,6 +49,8 @@ Las pruebas unitarias nunca llaman APIs reales.
 - migraciones hacia arriba y abajo;
 - sesiones revocables, roles vigentes, cambio de contraseña y auditoría
   append-only;
+- cambios de organización, marca y ubicaciones con compare-and-swap, ownership,
+  auditoría antes/después e inmutabilidad de snapshots aprobados;
 - aislamiento de membresías entre organizaciones;
 - concurrencia de dispatcher;
 - locks e idempotencia;

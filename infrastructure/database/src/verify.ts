@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260728020000_identity_sessions_authorization";
+const latestMigrationName = "20260728030000_organization_configuration_audit";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -144,13 +144,13 @@ async function verifyDatabase(): Promise<void> {
       const downSql = await readFile(downMigrationPath, "utf8");
       await testPool.query(downSql);
       const removedTables = await testPool.query<{
-        authentication_table: string | null;
+        configuration_table: string | null;
         core_table: string | null;
       }>(
         `
           SELECT
             to_regclass('public.organizations')::text AS "core_table",
-            to_regclass('public.authentication_sessions')::text AS "authentication_table"
+            to_regclass('public.organization_configuration_events')::text AS "configuration_table"
         `,
       );
       const rollbackEvidence = removedTables.rows[0];
@@ -158,7 +158,7 @@ async function verifyDatabase(): Promise<void> {
         assert.fail("Rollback verification did not return evidence.");
       }
       assert.equal(rollbackEvidence.core_table, "organizations");
-      assert.equal(rollbackEvidence.authentication_table, null);
+      assert.equal(rollbackEvidence.configuration_table, null);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

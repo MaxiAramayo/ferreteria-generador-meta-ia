@@ -5,6 +5,7 @@ import {
   PrismaApprovalSnapshotRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
+  PrismaOrganizationConfigurationRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
 } from "@aramayo/database";
@@ -12,6 +13,7 @@ import type {
   ApprovalSnapshotRepository,
   IdentityRepository,
   MediaAssetRepository,
+  OrganizationConfigurationRepository,
   PublicationRepository,
   PublicationStateRepository,
 } from "@aramayo/domain";
@@ -23,6 +25,7 @@ import {
   DATABASE_CLIENT,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
+  ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
 } from "./database.tokens.ts";
@@ -35,6 +38,7 @@ export class DatabaseModule {
         APPROVAL_SNAPSHOT_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
+        ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
       ],
@@ -57,6 +61,14 @@ export class DatabaseModule {
           provide: PUBLICATION_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationRepository =>
             new PrismaPublicationRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: ORGANIZATION_CONFIGURATION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): OrganizationConfigurationRepository =>
+            new PrismaOrganizationConfigurationRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],
