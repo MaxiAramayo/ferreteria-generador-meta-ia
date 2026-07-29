@@ -1,0 +1,58 @@
+name: Publicar imágenes de producción
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-production-images
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build y publicación por SHA
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ACME_EMAIL: operator@example.invalid
+      API_DOMAIN: api.content.ferreteriaaramayo.com.ar
+      APP_TIMEZONE: America/Argentina/Cordoba
+      AUTH_SESSION_TTL_SECONDS: "43200"
+      COMPOSE_PROJECT_NAME: aramayo-content-production-publish
+      DOCKER_DEFAULT_PLATFORM: linux/amd64
+      IMAGE_REGISTRY: ghcr.io/maxiaramayo
+      IMAGE_TAG: ${{ github.sha }}
+      NODE_ENV: production
+      POSTGRES_DB: aramayo_content
+      POSTGRES_PASSWORD: build-only-postgres-password
+      POSTGRES_USER: aramayo
+      REDIS_PASSWORD: build-only-redis-password
+      TOKEN_ENCRYPTION_KEYS: v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      WEB_DOMAIN: content.ferreteriaaramayo.com.ar
+      WORKER_CONCURRENCY: "1"
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+
+      - name: Fijar fecha reproducible del artefacto
+        run: echo "BUILD_DATE=$(git show -s --format=%cI HEAD)" >> "$GITHUB_ENV"
+
+      - name: Autenticar en GHCR
+        run: printf '%s' "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Validar Compose
+        run: docker compose --env-file infrastructure/production/.env.example --file infrastructure/production/compose.yaml --file infrastructure/production/compose.build.yaml config --quiet
+
+      - name: Construir imágenes linux/amd64
+        run: docker compose --env-file infrastructure/production/.env.example --file infrastructure/production/compose.yaml --file infrastructure/production/compose.build.yaml build --pull web api worker migrate
+
+      - name: Publicar imágenes por SHA
+        run: docker compose --env-file infrastructure/production/.env.example --file infrastructure/production/compose.yaml --file infrastructure/production/compose.build.yaml push web api worker migrate
+
+      - name: Cerrar sesión de GHCR
+        if: always()
+        run: docker logout ghcr.io

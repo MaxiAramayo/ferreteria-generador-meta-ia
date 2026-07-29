@@ -45,17 +45,19 @@ flowchart LR
 
 Los registros DNS que se preparan en Donweb son:
 
-| Tipo | Nombre en la zona | Destino | TTL inicial |
+| Tipo | Nombre en la zona | Destino | TTL observado |
 |---|---|---|---:|
-| `A` | `content` | `144.217.91.115` | 300 |
-| `AAAA` | `content` | `2607:5300:205:200::9f41` | 300 |
-| `A` | `api.content` | `144.217.91.115` | 300 |
-| `AAAA` | `api.content` | `2607:5300:205:200::9f41` | 300 |
+| `A` | `content` | `144.217.91.115` | 900 |
+| `AAAA` | `content` | `2607:5300:205:200::9f41` | 900 |
+| `A` | `api.content` | `144.217.91.115` | 900 |
+| `AAAA` | `api.content` | `2607:5300:205:200::9f41` | 900 |
 
 Donweb completa `ferreteriaaramayo.com.ar`; no se crean CNAME ni se modifican
 `@`, `www`, correo u Odoo. Los registros pueden propagarse antes del despliegue,
 pero Caddy no se inicia hasta que API y panel estén listos para la verificación
-remota.
+remota. El 2026-07-29 los cuatro valores quedaron confirmados en los dos
+nameservers autoritativos de Donweb; los resolvers públicos todavía conservaban
+respuestas negativas parciales durante la ventana de propagación.
 
 Caddy obtiene y renueva certificados automáticamente cuando ambos registros A
 resuelven al VPS y los puertos 80/443 están accesibles. `ACME_EMAIL` debe ser
@@ -121,6 +123,24 @@ Docker Compose expande las contraseñas URL-safe dentro de `DATABASE_URL` y
 administrativo a Docker puede inspeccionar el entorno de los contenedores, por
 lo que el acceso al daemon equivale a acceso a secretos.
 
+## Publicación de imágenes
+
+El workflow manual
+[`publish-production-images.yml`](../../.github/workflows/publish-production-images.yml)
+construye `linux/amd64`, autentica con el `GITHUB_TOKEN` del repositorio y
+publica únicamente:
+
+- `ghcr.io/maxiaramayo/aramayo-content-web:<commit>`;
+- `ghcr.io/maxiaramayo/aramayo-content-api:<commit>`;
+- `ghcr.io/maxiaramayo/aramayo-content-worker:<commit>`;
+- `ghcr.io/maxiaramayo/aramayo-content-migration:<commit>`.
+
+No existe tag `latest` ni trigger por push. La ejecución se habilita sólo desde
+`main` y requiere acción humana. La primera publicación crea paquetes privados
+vinculados al repositorio; antes de hacer pull desde el VPS se elige
+explícitamente entre visibilidad pública o una credencial exclusiva con
+`read:packages`.
+
 ## Datos y recuperación
 
 Los volúmenes `postgres_data`, `redis_data`, `caddy_data` y `caddy_config`
@@ -157,11 +177,12 @@ puertos; PostgreSQL y Redis nunca declaran `ports`.
 
 ## Pendientes antes del despliegue
 
-- decidir registry y publicar imágenes por SHA;
+- ejecutar manualmente la primera publicación en GHCR y definir visibilidad;
 - confirmar el email operativo de ACME;
 - confirmar destino de backup externo;
 - cargar secretos sin copiarlos a terminales, issues o logs;
-- verificar la propagación de los cuatro registros Donweb;
+- esperar que los resolvers públicos respondan consistentemente los cuatro
+  registros Donweb;
 - ejecutar staging/rollback según `P7-T07` antes del piloto.
 
 ## Fuentes

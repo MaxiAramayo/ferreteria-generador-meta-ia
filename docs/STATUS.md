@@ -48,8 +48,12 @@ de cerrar Fase 1.
   `144.217.91.115` y `2607:5300:205:200::9f41`. Su baseline de Ubuntu, SSH por
   clave, UFW, swap, Docker y directorios protegidos quedó verificado. No hay
   aplicación, base ni secretos desplegados.
-- Registry de imágenes y backup externo todavía no confirmados. El scaffolding
-  local no autoriza un despliegue antes de las puertas de Fase 7.
+- Donweb ya sirve autoritativamente los registros `A` y `AAAA` de `content` y
+  `api.content`; la caché negativa de los resolvers públicos todavía producía
+  respuestas parciales al verificar la propagación.
+- GHCR quedó elegido con publicación manual por SHA, pero la primera ejecución
+  y la visibilidad de los paquetes siguen pendientes. Backup externo tampoco
+  está confirmado. El scaffolding no autoriza omitir las puertas de Fase 7.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue
