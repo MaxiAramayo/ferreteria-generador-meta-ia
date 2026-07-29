@@ -16,8 +16,8 @@ consultas comerciales seguras, con citas, trazabilidad y evaluación de fidelida
 
 ## P3-T01 — Inventariar fuentes y reglas de conocimiento
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T03`
 - Riesgo: Alto
 
@@ -43,9 +43,9 @@ qué afirmaciones requieren aprobación humana.
 
 ### Verificación obligatoria
 
-- [ ] Revisión de fuentes con responsable de la ferretería.
-- [ ] Ejecutar escenarios de contradicción y ausencia de información.
-- [ ] Registrar aprobación de la política.
+- [x] Revisión de fuentes con responsable de la ferretería.
+- [x] Ejecutar escenarios de contradicción y ausencia de información.
+- [x] Registrar aprobación de la política.
 
 ### Fuera de alcance
 
@@ -113,11 +113,35 @@ qué afirmaciones requieren aprobación humana.
 - Próximo paso exacto: ejecutar los escenarios con el responsable de negocio,
   volcar el resultado en el registro de ejecución y designar al custodio técnico
   del acceso a Odoo, que es requisito de `P3-T05`.
+- 2026-07-29: la función `Responsable de negocio` confirmó el inventario y
+  aprobó sin desvíos `S-01` a `S-19`. Se fijó frescura máxima de 15 minutos para
+  precio y 5 minutos para stock, con revalidación de ambos antes de publicar.
+- Garantías, cambios y devoluciones se resuelven caso por caso y quedan
+  bloqueadas sin una fuente aprobada. Las promociones requieren aprobación
+  humana por pieza, condiciones materiales y fechas de vigencia.
+- Custodio técnico designado: `Administrador de Odoo`. El método exacto de
+  acceso continúa pendiente porque la aprobación recibida conservó el
+  placeholder “API/XML-RPC/JSON-RPC u otro”; no se atribuyó una selección que el
+  negocio no realizó.
+- Revisión final: la fuente `KN-007` puede permanecer `missing` porque la
+  política aprobada bloquea la afirmación por defecto; `KC-004` dejó de estar
+  sin gobierno y exige una autorización humana versionada por pieza. Aprobar el
+  catálogo no activa fuentes ni conecta proveedores.
 
 ### Evidencia de cierre
 
-- Avance local documentado; revisión de fuentes, ejecución de escenarios y
-  aprobación del responsable de negocio pendientes.
+- Commit: commit de cierre de `P3-T01`.
+- Revisión del inventario: aprobada por la función `Responsable de negocio` el
+  2026-07-29.
+- Escenarios: `S-01` a `S-19` aprobados sin desvíos; registro versionado en
+  `docs/integrations/KNOWLEDGE-POLICY-SCENARIOS.md`.
+- Política: precio 15 minutos, stock 5 minutos y revalidación antes de publicar;
+  garantías por caso; promociones con aprobación humana por pieza y vigencia.
+- Custodia: `Administrador de Odoo`; método de acceso no seleccionado y
+  conservado como decisión pendiente de `P3-T05`.
+- Verificación: `pnpm verify:plan` y `pnpm format:check`.
+- Desviaciones: ninguna. La fuente concreta de una garantía puede faltar sin
+  volver insegura la política porque su ausencia bloquea la afirmación.
 
 ## P3-T02 — Implementar gateway de OpenAI
 

@@ -31,10 +31,10 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P3-T01` — revisar el catálogo y ejecutar sus escenarios con un
-responsable de la ferretería, sin ingerir fuentes ni conectar OpenAI. El
-inventario técnico y la política borrador ya están documentados, pero su cierre
-requiere confirmación de fuentes, vigencia y disclaimers.
+Iniciar `P3-T02` — implementar el gateway de OpenAI detrás de un puerto de
+aplicación, con configuración validada, errores normalizados, telemetría y
+reintentos acotados. `P3-T05` también queda habilitada y puede avanzarse sin
+conectar Odoo.
 
 La excepción de continuidad queda limitada al smoke remoto pendiente de
 `P1-T07`; no autoriza publicar ni conectar proveedores reales.
@@ -58,7 +58,9 @@ de cerrar Fase 1.
 - El entorno remoto `production.env` existe con modo `0600 root:root`, correo
   ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
   permanecen vacíos; Compose validó el archivo sin exponer sus valores.
-- Sistema comercial y método de acceso todavía no identificados.
+- Sistema comercial identificado como Odoo 18 Community y custodio técnico
+  designado por función como `Administrador de Odoo`; método exacto de acceso de
+  solo lectura todavía no seleccionado.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue
   actualizado por el usuario, pero el ambiente staging aún debe confirmarse
@@ -66,9 +68,9 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-Estos bloqueos no impiden preparar el inventario y la política local de
-`P3-T01`, pero el sistema comercial sin identificar y la aprobación nominal sí
-limitan su evidencia de cierre.
+La ausencia de credenciales OpenAI staging impide cerrar los smoke reales de
+`P3-T02` y tareas dependientes. El método de Odoo pendiente no impide definir el
+puerto ni validar fixtures de `P3-T05`, pero sí impide conectar el sistema real.
 
 ## Registro de decisiones pendientes
 
