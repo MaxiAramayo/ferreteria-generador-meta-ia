@@ -112,6 +112,10 @@ export default async function HomePage() {
           y aprobación se habilitan en la Fase 2 del plan.
         </p>
         <p className="hint">
+          La mesa autenticada de borradores está disponible en{" "}
+          <a href="/publicaciones">publicaciones</a>.
+        </p>
+        <p className="hint">
           El sistema visual migrado puede revisarse en{" "}
           <a href="/diseno/primitivas">primitivas del motor de diseño</a>.
         </p>

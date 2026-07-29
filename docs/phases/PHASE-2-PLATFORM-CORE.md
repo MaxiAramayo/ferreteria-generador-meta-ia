@@ -469,7 +469,7 @@ distribuidas ni duplicación accidental.
 ## P2-T07 — Construir shell del panel y compositores explícitos
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P2-T02`, `P2-T05`
 - Riesgo: Medio
 
@@ -507,7 +507,26 @@ para plantilla, IA, historia recurrente y promoción de productos.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: iniciada después de publicar `P2-T06` en `main`; el smoke remoto
+  de `P1-T07` continúa en espera y no se amplían efectos externos.
+- Responsabilidades: carga autenticada paralela de sesión y listado en cliente;
+  estados de lectura explícitos; provider de compositor con contratos `state`,
+  `actions` y `meta`; cuatro variantes concretas sin flags de modo.
+- Invariantes: guardar un borrador no aprueba, programa ni publica; sólo el
+  compositor por plantilla implementa persistencia en esta fase; las otras
+  variantes exponen límites de UI sin simular IA, recurrencias ni catálogo.
+- Casos previstos: sesión ausente, forbidden, API/error de contrato, vacío,
+  listado disponible, validación accesible y guardado exitoso.
+- Dirección visual: “mesa de trabajo” Aramayo con paleta y tipografías
+  canónicas; un riel vertical representa el estado real de la pieza. Se evita
+  el dashboard genérico de tarjetas y métricas decorativas.
+- Desviación verificada del plan inicial: staging y producción usan hostnames
+  distintos y la cookie `__Host-aramayo_session` queda ligada al hostname de la
+  API. El servidor de Next no puede recibirla; por eso sesión y listado se
+  cargan en paralelo desde el cliente con credenciales, sin un fallback
+  server-side que sólo funcionaría en localhost.
+- La capacidad de edición se resuelve con `authorizeActor` del dominio. El rol
+  `admin` por sí solo no recibe `content:edit`.
 
 ### Evidencia de cierre
 

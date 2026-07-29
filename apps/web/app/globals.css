@@ -153,6 +153,506 @@ a {
   outline-offset: 2px;
 }
 
+/* Mesa de contenido (P2-T07). */
+
+.workspace-shell {
+  --workspace-ink: #1c1a19;
+  --workspace-muted: #6e6a66;
+  --workspace-paper: #f6f1ea;
+  --workspace-cream: #e7e2db;
+  --workspace-rust: #e63b1e;
+  --workspace-safety: #ffb200;
+  background:
+    linear-gradient(90deg, var(--workspace-rust) 0 0.4rem, transparent 0),
+    var(--workspace-paper);
+  color: var(--workspace-ink);
+  font-family: "Archivo", system-ui, sans-serif;
+  max-width: none;
+  min-height: 100vh;
+  padding: 0 max(1.25rem, calc((100vw - 76rem) / 2)) 5rem;
+}
+
+.workspace-shell :focus-visible {
+  outline-color: var(--workspace-rust);
+}
+
+.workspace-header {
+  align-items: center;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr auto 1fr;
+  min-height: 5.5rem;
+}
+
+.workspace-header > div,
+.workspace-header > p {
+  align-items: baseline;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.workspace-header > p {
+  align-items: end;
+  flex-direction: column;
+  gap: 0.1rem;
+  justify-self: end;
+}
+
+.workspace-header > p span,
+.workspace-header > div > span {
+  color: var(--workspace-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.workspace-brand {
+  color: var(--workspace-ink);
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.workspace-header nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.workspace-header nav a {
+  color: var(--workspace-ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.5rem 0;
+  text-decoration: none;
+}
+
+.workspace-header nav a[aria-current="page"] {
+  border-bottom: 0.2rem solid var(--workspace-rust);
+}
+
+.workspace-intro {
+  align-items: end;
+  border-bottom: 0.25rem solid var(--workspace-ink);
+  display: grid;
+  gap: clamp(2rem, 8vw, 8rem);
+  grid-template-columns: minmax(0, 1.35fr) minmax(17rem, 0.65fr);
+  padding: clamp(3rem, 8vw, 6.5rem) 0 2rem;
+}
+
+.workspace-intro h1,
+.workspace-status h1 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(3.6rem, 8vw, 7.5rem);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.78;
+  margin: 0;
+  max-width: 10ch;
+  text-transform: uppercase;
+}
+
+.workspace-intro > p {
+  font-size: 1.05rem;
+  margin: 0;
+  max-width: 30rem;
+}
+
+.workspace-eyebrow {
+  color: var(--workspace-rust);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+}
+
+.publication-board,
+.composer-section {
+  padding-top: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.workspace-section-heading {
+  align-items: end;
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.workspace-section-heading h2,
+.composer-form h2,
+.composer-boundary h2 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(2.2rem, 4vw, 3.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 0.9;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.workspace-section-heading > span {
+  border: 1px solid var(--workspace-ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.45rem 0.65rem;
+  text-transform: uppercase;
+}
+
+.publication-list {
+  border-top: 1px solid var(--workspace-ink);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.publication-list li {
+  align-items: stretch;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr) auto;
+  min-height: 5.25rem;
+}
+
+.publication-state-rail {
+  align-items: center;
+  border-left: 0.55rem solid var(--workspace-safety);
+  display: flex;
+  padding: 0 1rem;
+}
+
+.publication-state-rail[data-status="draft"] {
+  border-left-color: var(--workspace-rust);
+}
+
+.publication-state-rail[data-status="approved"],
+.publication-state-rail[data-status="published"] {
+  border-left-color: #1f8a4c;
+}
+
+.publication-state-rail span,
+.publication-row-main span,
+.publication-list time {
+  color: var(--workspace-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.publication-row-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.9rem 1rem;
+}
+
+.publication-row-main strong {
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+}
+
+.publication-list time {
+  align-self: center;
+  padding: 0 1rem;
+}
+
+.publication-empty,
+.workspace-status {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.6rem 0.6rem 0 var(--workspace-ink);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.publication-empty p {
+  color: var(--workspace-muted);
+  margin: 0.35rem 0 0;
+}
+
+.workspace-status {
+  margin: clamp(4rem, 14vh, 9rem) auto;
+  max-width: 52rem;
+}
+
+.workspace-status h1 {
+  margin-bottom: 1.5rem;
+}
+
+.workspace-status a {
+  color: var(--workspace-ink);
+  display: inline-block;
+  font-weight: 800;
+  margin-top: 1rem;
+}
+
+.composer-variants {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 0.75rem;
+}
+
+.composer-variants button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  min-height: 3rem;
+  padding: 0.6rem;
+  text-transform: uppercase;
+}
+
+.composer-variants button[aria-pressed="true"] {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.composer-workbench {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+  min-height: 30rem;
+}
+
+.composer-form,
+.composer-boundary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  justify-content: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.composer-form > div:first-child > p:not(.workspace-eyebrow),
+.composer-boundary > p:not(.workspace-eyebrow, .composer-boundary-note) {
+  color: var(--workspace-muted);
+  margin: 0.75rem 0 0;
+  max-width: 38rem;
+}
+
+.composer-form label {
+  display: grid;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  text-transform: uppercase;
+}
+
+.composer-form input,
+.composer-form textarea {
+  background: var(--workspace-paper);
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 45%, transparent);
+  border-radius: 0;
+  color: var(--workspace-ink);
+  font:
+    500 1rem/1.45 "Archivo",
+    system-ui,
+    sans-serif;
+  padding: 0.8rem 0.9rem;
+  text-transform: none;
+}
+
+.composer-form textarea {
+  resize: vertical;
+}
+
+.composer-form-actions {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.composer-form-actions > span {
+  color: var(--workspace-muted);
+  font-size: 0.78rem;
+}
+
+.workspace-primary-action {
+  background: var(--workspace-rust);
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.28rem 0.28rem 0 var(--workspace-ink);
+  color: #ffffff;
+  cursor: pointer;
+  font:
+    800 0.8rem/1 "Archivo",
+    system-ui,
+    sans-serif;
+  padding: 0.9rem 1.1rem;
+  text-transform: uppercase;
+}
+
+.workspace-primary-action:disabled {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.composer-preview {
+  align-items: flex-start;
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 30rem;
+  overflow-wrap: anywhere;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+}
+
+.composer-preview::before {
+  background: var(--workspace-safety);
+  content: "";
+  height: 0.6rem;
+  margin-bottom: 2rem;
+  width: 4.5rem;
+}
+
+.composer-preview-kicker {
+  color: var(--workspace-safety);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.composer-preview strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(2.8rem, 5vw, 5.5rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 0.82;
+  margin: 1rem 0;
+  text-transform: uppercase;
+}
+
+.composer-preview p {
+  color: var(--workspace-cream);
+}
+
+.composer-preview-cta {
+  border: 1px solid var(--workspace-safety);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-top: 1rem;
+  padding: 0.55rem 0.7rem;
+  text-transform: uppercase;
+}
+
+.composer-boundary {
+  grid-column: 1 / -1;
+  max-width: 52rem;
+}
+
+.composer-boundary-note {
+  border-left: 0.35rem solid var(--workspace-safety);
+  font-size: 0.9rem;
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.composer-notice {
+  border-bottom: 1px solid var(--workspace-ink);
+  border-left: 1px solid var(--workspace-ink);
+  border-right: 1px solid var(--workspace-ink);
+  color: var(--workspace-muted);
+  margin: 0;
+  padding: 0.75rem 1rem;
+}
+
+.composer-notice[data-status="error"] {
+  color: #96201d;
+}
+
+.composer-notice[data-status="saved"] {
+  color: #1f6f43;
+}
+
+@media (max-width: 52rem) {
+  .workspace-header {
+    grid-template-columns: 1fr auto;
+    padding: 1rem 0;
+  }
+
+  .workspace-header nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .workspace-header > p {
+    display: none;
+  }
+
+  .workspace-intro,
+  .composer-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-intro {
+    gap: 1.5rem;
+  }
+
+  .composer-variants {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .publication-list li {
+    grid-template-columns: 7.5rem 1fr;
+  }
+
+  .publication-list time {
+    display: none;
+  }
+}
+
+@media (max-width: 34rem) {
+  .workspace-section-heading,
+  .composer-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workspace-section-heading > span {
+    align-self: flex-start;
+  }
+
+  .composer-variants {
+    grid-template-columns: 1fr;
+  }
+
+  .publication-list li {
+    grid-template-columns: 1fr;
+  }
+
+  .publication-state-rail {
+    border-bottom: 1px solid
+      color-mix(in srgb, var(--workspace-ink) 20%, transparent);
+    min-height: 2.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell *,
+  .workspace-shell *::before,
+  .workspace-shell *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Harness de primitivas del motor de diseño (P1-T03). */
 
 .previews {

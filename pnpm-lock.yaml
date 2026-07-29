@@ -267,6 +267,9 @@ importers:
       '@aramayo/design-engine':
         specifier: workspace:*
         version: link:../../packages/design-engine
+      '@aramayo/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@fontsource/archivo':
         specifier: 'catalog:'
         version: 5.2.8

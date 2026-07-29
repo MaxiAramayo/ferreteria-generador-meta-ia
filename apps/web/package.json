@@ -2,10 +2,12 @@
   "name": "@aramayo/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "next build",
     "dev": "node ../../tools/run-with-env.mjs node ./node_modules/next/dist/bin/next dev --port 3000",
     "start": "node ../../tools/run-with-env.mjs node ./node_modules/next/dist/bin/next start --port 3000",
+    "test": "node --test lib/*.test.ts",
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
@@ -13,6 +15,7 @@
     "@aramayo/configuration": "workspace:*",
     "@aramayo/contracts": "workspace:*",
     "@aramayo/design-engine": "workspace:*",
+    "@aramayo/domain": "workspace:*",
     "@fontsource/archivo": "catalog:",
     "@fontsource/saira-condensed": "catalog:",
     "next": "catalog:",
