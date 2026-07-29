@@ -34,12 +34,12 @@ qué afirmaciones requieren aprobación humana.
 
 ### Criterios de aceptación
 
-- [ ] Cada fuente tiene propietario y fecha de revisión.
-- [ ] Se distinguen hechos estables de datos de alta volatilidad.
-- [ ] Precio y stock no se incorporan desde documentos estáticos.
-- [ ] Se excluyen datos personales y comerciales innecesarios.
-- [ ] Se define qué hacer cuando dos fuentes se contradicen.
-- [ ] Documentos obsoletos pueden retirarse y dejan de recuperarse.
+- [x] Cada fuente tiene propietario y fecha de revisión.
+- [x] Se distinguen hechos estables de datos de alta volatilidad.
+- [x] Precio y stock no se incorporan desde documentos estáticos.
+- [x] Se excluyen datos personales y comerciales innecesarios.
+- [x] Se define qué hacer cuando dos fuentes se contradicen.
+- [x] Documentos obsoletos pueden retirarse y dejan de recuperarse.
 
 ### Verificación obligatoria
 
@@ -79,6 +79,40 @@ qué afirmaciones requieren aprobación humana.
   sistema comercial, precio, stock y promociones carecen de una fuente
   aprobada identificada. No se inventaron fixtures comerciales para ocultar
   esas ausencias.
+- 2026-07-29: el negocio aportó los datos que faltaban y el catálogo se
+  completó con ellos. El sistema comercial quedó identificado como Odoo 18
+  Community, en producción desde junio de 2026 en reemplazo de ADM Global, con
+  cerca de 10.000 productos —unos 9.600 activos— y una taxonomía de 18 rubros de
+  primer nivel y unas 244 categorías. `KC-001`, `KC-002`, `KC-003` y `KC-005`
+  pasaron de `missing` a `candidate`.
+- Decisión de política del negocio: precio y disponibilidad no requieren
+  aprobación humana por pieza porque provienen del sistema; lo que los habilita
+  es una lectura con timestamp vigente. Descuentos y plazos sí requieren
+  autorización explícita porque ningún sistema los respalda. Se corrigió la
+  redacción anterior, que exigía aprobación humana para precio y stock, y se
+  separó en dos secciones para que la diferencia no dependa de interpretación.
+- Identificar Odoo no lo vuelve consultable: sin el puerto de `P3-T05` toda
+  afirmación de precio o stock queda bloqueada por falta de lectura, no
+  aprobada por otra vía. El escenario `S-19` fija ese comportamiento.
+- La taxonomía de Odoo se registró como estructura operativa, no como autoridad
+  sobre el surtido: que exista una categoría no prueba que el rubro se venda.
+  Lo declara `KN-004` y el escenario `S-16` lo verifica.
+- Se incorporó el informe de contexto del negocio como `KN-006`, con su extracto
+  publicable delimitado. Queda `interna`: rubros, servicios, medios de pago y
+  alcance son publicables; nombres del personal, facturación, comparación entre
+  locales, competidores y diagnóstico interno no entran al índice.
+- Se registró el sitio web para clientes como proyecto no publicado. No es un
+  canal vigente y no se afirma su existencia hasta que el negocio lo confirme.
+- Fuentes `missing` restantes: `KN-007` garantías y devoluciones, y `KC-004`
+  gobierno de promociones.
+- Escenarios ampliados de `S-14` a `S-19`: rubro excluido, taxonomía contra
+  surtido, sitio web no publicado, plazo sin autorización y precio sin puerto.
+- Verificaciones ejecutadas: `pnpm verify:plan` y `pnpm format:check`.
+- Verificaciones pendientes: las tres son humanas. Confirmar fila por fila el
+  inventario, recorrer `S-01` a `S-19` y registrar la aprobación.
+- Próximo paso exacto: ejecutar los escenarios con el responsable de negocio,
+  volcar el resultado en el registro de ejecución y designar al custodio técnico
+  del acceso a Odoo, que es requisito de `P3-T05`.
 
 ### Evidencia de cierre
 

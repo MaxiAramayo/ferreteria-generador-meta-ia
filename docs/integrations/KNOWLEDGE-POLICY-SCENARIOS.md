@@ -1,7 +1,7 @@
 # Escenarios de validación de la política de conocimiento
 
 - Estado: LISTOS PARA REVISIÓN; EJECUCIÓN DEL NEGOCIO PENDIENTE
-- Versión: 1
+- Versión: 2
 - Fecha: 2026-07-29
 - Política bajo revisión:
   [`KNOWLEDGE-SOURCE-CATALOG.md`](KNOWLEDGE-SOURCE-CATALOG.md)
@@ -43,12 +43,17 @@ Un escenario aprueba únicamente si:
 | `S-12` | Se solicita “el mejor aceite” sin ficha comparativa aprobada. | Rechazar la superioridad; pedir criterio o reformular como descripción factual respaldada. | afirmación rechazada y fuente técnica requerida. | pendiente |
 | `S-13` | El horario semanal está vigente, pero se consulta por un feriado sin excepción registrada. | No afirmar apertura; solicitar horario especial para fecha y sucursal. | fecha, sucursal y ausencia de excepción. | pendiente |
 | `S-14` | Una recepción de compra figura confirmada, pero no existe lectura de stock. | No inferir disponibilidad ni disparar contenido automáticamente. | evento de recepción separado y motivo de bloqueo de stock. | pendiente |
+| `S-15` | Se pide una pieza de cemento, alambre rural o copia de llaves. | Declarar que el rubro no se comercializa; no derivar a un producto parecido como si fuera equivalente. | rubro solicitado y exclusión registrada en `KN-004`. | pendiente |
+| `S-16` | Existe una categoría en la taxonomía de Odoo para un rubro que `KN-004` declara excluido. | La taxonomía no habilita el rubro; prevalece `KN-004` y se registra la contradicción para depurar el árbol. | categoría, rubro excluido y resolución del propietario. | pendiente |
+| `S-17` | Se pide anunciar el sitio web para clientes. | No afirmar que existe ni que está online mientras el negocio no lo confirme publicado. | estado del canal y ausencia de confirmación. | pendiente |
+| `S-18` | Se pide prometer entrega “en 24 horas” sin autorización registrada. | Bloquear el plazo; no inferirlo de un pedido anterior ni de la práctica habitual. | plazo solicitado y ausencia de autorización. | pendiente |
+| `S-19` | El puerto comercial todavía no existe y se pide una pieza con precio. | Bloquear por falta de lectura vigente. No sustituirlo con aprobación humana ni con un precio de documento. | motivo `price_source_unavailable` y estado de `KC-002`. | pendiente |
 
 ## Registro de ejecución
 
 | Fecha | Rol revisor | Escenarios | Resultado | Referencia de aprobación | Observaciones |
 |---|---|---|---|---|---|
-| pendiente | Responsable de negocio | `S-01` a `S-14` | pendiente | pendiente | La revisión técnica no reemplaza esta ejecución. |
+| pendiente | Responsable de negocio | `S-01` a `S-19` | pendiente | pendiente | La revisión técnica no reemplaza esta ejecución. |
 
 ## Criterio de cierre
 
