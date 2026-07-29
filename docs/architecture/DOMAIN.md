@@ -131,6 +131,33 @@ serializa contra la decisión de borrado mediante locks de fila.
 Conexión cifrada con OpenAI, Meta, Cloudinary o sistema comercial. Expone estado
 y capacidades, nunca el secreto.
 
+### KnowledgeDocument
+
+Fuente documental aprobada e identificada por
+`organizationId + sourceKey`. Cada contenido distinto crea una
+`KnowledgeDocumentVersion` inmutable con SHA-256, versión, vigencia, ámbito de
+sucursales, aprobación y referencias remotas de File Search.
+
+El ciclo persistente es:
+
+```text
+pending_upload -> uploaded -> indexing -> active
+                         \-> sync_failed -> reconciliar
+active anterior -> superseded
+active -> retiring -> retired
+```
+
+Repetir el mismo hash dentro de la fuente devuelve la versión existente. Una
+versión sólo puede quedar activa cuando OpenAI informa `completed` y sus
+atributos remotos se actualizaron a `approved`. El reemplazo cambia
+atómicamente el puntero activo y marca la versión anterior `superseded`.
+
+El retiro primero elimina el puntero activo en PostgreSQL y marca
+`retiring`; después contacta al proveedor. Así una fuente deja de ser elegible
+para consultas nuevas aunque la eliminación remota sea eventualmente
+consistente o requiera reintento. `sync_failed` y `retiring` conservan
+diagnóstico seguro y referencias suficientes para reconciliar el estado.
+
 ### RecurringRule
 
 Regla que materializa publicaciones futuras. No publica directamente.

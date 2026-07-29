@@ -3,6 +3,7 @@ import { Module, type DynamicModule } from "@nestjs/common";
 
 import { DatabaseModule } from "./database/database.module.ts";
 import { GenerationModule } from "./generation/generation.module.ts";
+import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
 import { MediaModule } from "./media/media.module.ts";
 import { OutboxModule } from "./outbox/outbox.module.ts";
 import { RenderingModule } from "./rendering/rendering.module.ts";
@@ -15,6 +16,7 @@ export class WorkerModule {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
         GenerationModule.forConfiguration(configuration.openAi),
+        KnowledgeModule.forConfiguration(configuration.openAi),
         MediaModule.forConfiguration(configuration.cloudinary),
         RenderingModule.forConfiguration(configuration),
         OutboxModule,

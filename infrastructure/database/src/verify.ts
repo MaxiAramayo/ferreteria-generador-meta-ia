@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260729000000_publication_render_output";
+const latestMigrationName = "20260729010000_knowledge_document_lifecycle";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -158,6 +158,8 @@ async function verifyDatabase(): Promise<void> {
         core_table: string | null;
         failure_column_exists: boolean;
         idempotency_table: string | null;
+        knowledge_documents_table: string | null;
+        knowledge_versions_table: string | null;
         outbox_table: string | null;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
@@ -169,6 +171,8 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.audit_events')::text AS "audit_table",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
             to_regclass('public.outbox_messages')::text AS "outbox_table",
+            to_regclass('public.knowledge_documents')::text AS "knowledge_documents_table",
+            to_regclass('public.knowledge_document_versions')::text AS "knowledge_versions_table",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -213,8 +217,10 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      assert.equal(rollbackEvidence.rendered_at_exists, false);
-      assert.equal(rollbackEvidence.rendered_media_exists, false);
+      assert.equal(rollbackEvidence.knowledge_documents_table, null);
+      assert.equal(rollbackEvidence.knowledge_versions_table, null);
+      assert.equal(rollbackEvidence.rendered_at_exists, true);
+      assert.equal(rollbackEvidence.rendered_media_exists, true);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

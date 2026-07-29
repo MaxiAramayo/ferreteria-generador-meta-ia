@@ -2,11 +2,13 @@ import type { SecretValue } from "@aramayo/configuration";
 import {
   createDatabaseClient,
   type DatabaseClient,
+  PrismaKnowledgeDocumentRepository,
+  PrismaMediaAssetRepository,
   PrismaOutboxRepository,
   PrismaPublicationProductionRepository,
-  PrismaMediaAssetRepository,
 } from "@aramayo/database";
 import type {
+  KnowledgeDocumentRepository,
   MediaAssetRepository,
   OutboxRepository,
   PublicationProductionRepository,
@@ -17,6 +19,7 @@ import { MEDIA_ASSET_REPOSITORY } from "../media/media.tokens.ts";
 import { OUTBOX_REPOSITORY } from "../outbox/outbox.tokens.ts";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
+  KNOWLEDGE_DOCUMENT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
@@ -26,6 +29,7 @@ export class DatabaseModule {
   static forConfiguration(databaseUrl: SecretValue): DynamicModule {
     return {
       exports: [
+        KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         OUTBOX_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
@@ -37,6 +41,12 @@ export class DatabaseModule {
           provide: WORKER_DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: KNOWLEDGE_DOCUMENT_REPOSITORY,
+          useFactory: (database: DatabaseClient): KnowledgeDocumentRepository =>
+            new PrismaKnowledgeDocumentRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

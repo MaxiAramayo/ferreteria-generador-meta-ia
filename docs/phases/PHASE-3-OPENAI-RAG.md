@@ -217,8 +217,8 @@ telemetría y costos detrás de un puerto de aplicación.
 
 ## P3-T03 — Ingerir documentos aprobados en File Search
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P3-T01`, `P3-T02`
 - Riesgo: Medio
 
@@ -235,18 +235,18 @@ OpenAI File Search.
 
 ### Criterios de aceptación
 
-- [ ] Solo documentos aprobados y formatos permitidos se suben.
-- [ ] Reingresar el mismo hash no crea duplicados lógicos.
-- [ ] Una nueva versión no se activa hasta finalizar correctamente.
-- [ ] Retirar una fuente impide que se use en consultas nuevas.
-- [ ] Estado local y remoto pueden reconciliarse.
-- [ ] Fallos parciales quedan visibles y reintentables.
+- [x] Solo documentos aprobados y formatos permitidos se suben.
+- [x] Reingresar el mismo hash no crea duplicados lógicos.
+- [x] Una nueva versión no se activa hasta finalizar correctamente.
+- [x] Retirar una fuente impide que se use en consultas nuevas.
+- [x] Estado local y remoto pueden reconciliarse.
+- [x] Fallos parciales quedan visibles y reintentables.
 
 ### Verificación obligatoria
 
-- [ ] Ingerir, consultar, reemplazar y retirar un documento de prueba.
-- [ ] Interrumpir una sincronización y confirmar recuperación.
-- [ ] Verificar hash, versión y estado remoto.
+- [x] Ingerir, consultar, reemplazar y retirar un documento de prueba.
+- [x] Interrumpir una sincronización y confirmar recuperación.
+- [x] Verificar hash, versión y estado remoto.
 
 ### Fuera de alcance
 
@@ -254,11 +254,35 @@ OpenAI File Search.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: se implementó el agregado documental con fuente lógica, versiones
+  inmutables, SHA-256, aprobación, vigencia, ámbito, vector store, archivo remoto
+  y estados de sincronización.
+- La ingestión valida Markdown/texto UTF-8, PDF y DOCX antes de subir y limita
+  cada documento a 10 MiB. El proveedor recibe metadatos `candidate`; la versión
+  local sólo queda activa después de indexación `completed` y promoción remota a
+  `approved`.
+- Repetir el hash devuelve la versión existente. Reemplazar cambia el puntero
+  activo en transacción y marca la anterior `superseded`.
+- El retiro elimina primero el puntero local activo. Esto bloquea consultas
+  nuevas aunque el retiro remoto sea eventualmente consistente.
+- `sync_failed` y `retiring` conservan referencias y diagnóstico seguro. La
+  reconciliación reanuda una asociación ya creada, completa la activación o
+  repite el retiro sin duplicar la fuente.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P3-T03`.
+- Comandos y resultados:
+  - `pnpm --filter @aramayo/domain test`: 27/27;
+  - `pnpm --filter @aramayo/worker test`: 43/43, 1 integración omitida según su
+    puerta explícita;
+  - `pnpm db:test`: migración desde cero, ciclo documental aislado, rollback y
+    reaplicación completos;
+  - `NODE_ENV=staging pnpm knowledge:smoke`: vector store creado, versiones 1 y
+    2 ingeridas y consultadas, reemplazo confirmado y estado final `retired`.
+- Evidencia remota: el vector store de staging quedó registrado únicamente en
+  `.env`; el documento sintético retirado dejó de aparecer en nuevas búsquedas.
+- Desviaciones aprobadas: ninguna.
 
 ## P3-T04 — Recuperar contexto documental con citas
 

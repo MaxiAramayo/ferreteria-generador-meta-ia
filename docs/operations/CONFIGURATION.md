@@ -55,7 +55,7 @@ proveedor y no de archivos versionados.
 | `TOKEN_ENCRYPTION_KEYS` | No | Sí | Sí | Siempre; privada |
 | `OPENAI_API_KEY` | No | No | Sí | Grupo OpenAI habilitado |
 | `OPENAI_PROJECT_ID` | No | No | Sí | Grupo OpenAI habilitado |
-| `OPENAI_VECTOR_STORE_ID` | No | No | Sí | Opcional aun con OpenAI habilitado |
+| `OPENAI_VECTOR_STORE_ID` | No | No | Sí | Opcional para Responses; requerido para ingestión y recuperación documental |
 | `OPENAI_MODEL_ROUTINE` | No | No | Sí | Default `gpt-5.6-luna` |
 | `OPENAI_MODEL_BRIEF` | No | No | Sí | Default `gpt-5.6-terra` |
 | `OPENAI_MODEL_COMPLEX` | No | No | Sí | Default `gpt-5.6-sol` |
@@ -130,6 +130,7 @@ pnpm config:typecheck
 pnpm config:test
 pnpm build && pnpm smoke
 NODE_ENV=staging pnpm openai:smoke
+NODE_ENV=staging pnpm knowledge:smoke
 ```
 
 Las pruebas cubren configuración válida, faltantes, formatos inválidos,

@@ -133,6 +133,20 @@ Requiere el proyecto y credencial exclusivos de staging, conserva request ID,
 modelo, latencia, tokens y costo estimado, y nunca imprime clave, prompt ni
 output. Tampoco forma parte de `pnpm verify` porque consume una API facturable.
 
+El smoke de conocimiento crea el vector store de staging si falta, ingiere una
+fuente sintética, consulta su primera versión, la reemplaza, consulta la segunda
+y la retira:
+
+```bash
+NODE_ENV=staging pnpm knowledge:smoke
+```
+
+Requiere PostgreSQL local migrado y con el seed de Aramayo. Si crea el vector
+store, su identificador se copia a `OPENAI_VECTOR_STORE_ID` en el entorno no
+versionado. Los documentos no contienen información comercial ni personal. El
+smoke confirma hash, versión y estados local/remoto; no forma parte de CI porque
+escribe activos facturables en el proyecto de staging.
+
 ## Puertas de calidad
 
 Antes de merge:
@@ -184,7 +198,8 @@ La verificación reproducible del núcleo persistente es `pnpm db:test`. Usa una
 base efímera, nunca la base configurada como destino de datos de desarrollo, y
 la elimina al terminar. También ejecuta la vertical de render con outbox y
 almacenamiento doble, restaura el snapshot, compara su SHA-256 con los bytes del
-PNG y repite la integración después de revertir y reaplicar la última migración.
+PNG, verifica el ciclo documental y repite la integración después de revertir y
+reaplicar la última migración.
 
 ### Integración continua
 

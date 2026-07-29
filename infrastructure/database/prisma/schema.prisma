@@ -133,6 +133,30 @@ enum OutboxMessageStatus {
   @@map("outbox_message_status")
 }
 
+enum KnowledgeDocumentVersionStatus {
+  pending_upload @map("pending_upload")
+  uploaded       @map("uploaded")
+  indexing       @map("indexing")
+  active         @map("active")
+  superseded     @map("superseded")
+  retiring       @map("retiring")
+  retired        @map("retired")
+  sync_failed    @map("sync_failed")
+
+  @@map("knowledge_document_version_status")
+}
+
+enum KnowledgeRemoteStatus {
+  not_uploaded @map("not_uploaded")
+  uploaded     @map("uploaded")
+  in_progress  @map("in_progress")
+  completed    @map("completed")
+  failed       @map("failed")
+  detached     @map("detached")
+
+  @@map("knowledge_remote_status")
+}
+
 model Organization {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug        String   @unique(map: "organizations_slug_key") @db.VarChar(80)
@@ -152,6 +176,8 @@ model Organization {
   mediaAssets            MediaAsset[]
   memberships            OrganizationMembership[]
   idempotencyRecords     IdempotencyRecord[]
+  knowledgeDocuments     KnowledgeDocument[]
+  knowledgeVersions      KnowledgeDocumentVersion[]
   outboxMessages         OutboxMessage[]
   publications           Publication[]
   revisionMedia          PublicationRevisionMedia[]
@@ -159,6 +185,69 @@ model Organization {
   stateTransitions       PublicationStateTransition[]
 
   @@map("organizations")
+}
+
+model KnowledgeDocument {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  sourceKey       String   @map("source_key") @db.VarChar(160)
+  title           String   @db.VarChar(180)
+  activeVersionId String?  @map("active_version_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions      KnowledgeDocumentVersion[] @relation("KnowledgeDocumentVersions")
+  activeVersion KnowledgeDocumentVersion?  @relation("ActiveKnowledgeDocumentVersion", fields: [organizationId, id, activeVersionId], references: [organizationId, documentId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, sourceKey], map: "knowledge_documents_organization_source_key")
+  @@unique([organizationId, id], map: "knowledge_documents_organization_id_key")
+  @@unique([organizationId, id, activeVersionId], map: "knowledge_documents_active_version_key")
+  @@index([organizationId, activeVersionId], map: "knowledge_documents_organization_active_idx")
+  @@map("knowledge_documents")
+}
+
+model KnowledgeDocumentVersion {
+  id                    String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                         @map("organization_id") @db.Uuid
+  documentId            String                         @map("document_id") @db.Uuid
+  version               Int
+  contentHash           String                         @map("content_hash") @db.Char(64)
+  filename              String                         @db.VarChar(255)
+  mimeType              String                         @map("mime_type") @db.VarChar(120)
+  byteSize              BigInt                         @map("byte_size")
+  documentType          String                         @map("document_type") @db.VarChar(80)
+  brand                 String                         @db.VarChar(120)
+  locationIds           Json                           @map("location_ids")
+  sourceOwner           String                         @map("source_owner") @db.VarChar(120)
+  sensitivity           String                         @db.VarChar(20)
+  approvalReference     String                         @map("approval_reference") @db.VarChar(160)
+  approvedAt            DateTime                       @map("approved_at") @db.Timestamptz(3)
+  effectiveFrom         DateTime                       @map("effective_from") @db.Timestamptz(3)
+  effectiveUntil        DateTime?                      @map("effective_until") @db.Timestamptz(3)
+  status                KnowledgeDocumentVersionStatus @default(pending_upload)
+  providerVectorStoreId String                         @map("provider_vector_store_id") @db.VarChar(120)
+  providerFileId        String?                        @map("provider_file_id") @db.VarChar(120)
+  remoteStatus          KnowledgeRemoteStatus          @default(not_uploaded) @map("remote_status")
+  failureCode           String?                        @map("failure_code") @db.VarChar(80)
+  failureMessage        String?                        @map("failure_message") @db.VarChar(300)
+  failureRetryable      Boolean?                       @map("failure_retryable")
+  activatedAt           DateTime?                      @map("activated_at") @db.Timestamptz(3)
+  retiredAt             DateTime?                      @map("retired_at") @db.Timestamptz(3)
+  createdAt             DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  document     KnowledgeDocument  @relation("KnowledgeDocumentVersions", fields: [organizationId, documentId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  activeFor    KnowledgeDocument? @relation("ActiveKnowledgeDocumentVersion")
+
+  @@unique([organizationId, id], map: "knowledge_document_versions_organization_id_key")
+  @@unique([organizationId, documentId, id], map: "knowledge_document_versions_document_id_key")
+  @@unique([documentId, contentHash], map: "knowledge_document_versions_document_hash_key")
+  @@unique([organizationId, documentId, version], map: "knowledge_document_versions_document_version_key")
+  @@index([organizationId, status, updatedAt, id], map: "knowledge_document_versions_recovery_idx")
+  @@index([organizationId, providerVectorStoreId, providerFileId], map: "knowledge_document_versions_remote_idx")
+  @@map("knowledge_document_versions")
 }
 
 model User {

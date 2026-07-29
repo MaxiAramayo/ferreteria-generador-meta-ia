@@ -7,6 +7,7 @@ import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
   transitionPublication,
+  type ReserveKnowledgeDocumentVersionInput,
   type ReliableMutationContext,
 } from "@aramayo/domain";
 
@@ -19,6 +20,7 @@ import {
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
+import { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -65,6 +67,112 @@ function reliableMutation(
 
 after(async () => {
   await database.$disconnect();
+});
+
+test("versiona, activa, reemplaza y retira conocimiento por organización", async () => {
+  const organizationId = randomUUID();
+  const foreignOrganizationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización documental",
+        id: organizationId,
+        legalName: "Organización documental",
+        slug: `knowledge-${organizationId}`,
+      },
+      {
+        displayName: "Organización ajena documental",
+        id: foreignOrganizationId,
+        legalName: "Organización ajena documental",
+        slug: `knowledge-${foreignOrganizationId}`,
+      },
+    ],
+  });
+  const repository = new PrismaKnowledgeDocumentRepository(database);
+  const baseInput: Omit<ReserveKnowledgeDocumentVersionInput, "contentHash"> = {
+    approvalReference: "approval-2026-07-29",
+    approvedAt: "2026-07-29T12:00:00.000Z",
+    brand: "Aramayo",
+    byteSize: 128,
+    documentType: "faq",
+    effectiveFrom: "2026-07-29T12:00:00.000Z",
+    effectiveUntil: null,
+    filename: "faq.md",
+    locationIds: [randomUUID()],
+    mimeType: "text/markdown",
+    organizationId,
+    providerVectorStoreId: "vs_integration",
+    sensitivity: "internal",
+    sourceKey: "marca.faq",
+    sourceOwner: "Responsable de negocio",
+    title: "Preguntas frecuentes",
+  };
+  const first = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "a".repeat(64),
+  });
+  assert.equal(first.status, "reserved");
+  const duplicate = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "a".repeat(64),
+  });
+  assert.equal(duplicate.status, "duplicate");
+  assert.equal(duplicate.record.id, first.record.id);
+
+  await repository.markUploaded(organizationId, first.record.id, "file-first");
+  await repository.markIndexing(organizationId, first.record.id, "completed");
+  const firstActivation = await repository.activateVersion(
+    organizationId,
+    first.record.id,
+    "2026-07-29T13:00:00.000Z",
+  );
+  assert.equal(firstActivation.active.status, "active");
+  assert.equal(firstActivation.superseded, null);
+
+  const second = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "b".repeat(64),
+  });
+  assert.equal(second.record.version, 2);
+  const beforeReplacement = await database.knowledgeDocument.findUniqueOrThrow({
+    where: { id: first.record.documentId },
+  });
+  assert.equal(beforeReplacement.activeVersionId, first.record.id);
+  await repository.markUploaded(
+    organizationId,
+    second.record.id,
+    "file-second",
+  );
+  await repository.markIndexing(organizationId, second.record.id, "completed");
+  const replacement = await repository.activateVersion(
+    organizationId,
+    second.record.id,
+    "2026-07-29T14:00:00.000Z",
+  );
+  assert.equal(replacement.active.status, "active");
+  assert.equal(replacement.superseded?.id, first.record.id);
+  assert.equal(replacement.superseded.status, "superseded");
+  assert.equal(
+    await repository.findVersion(foreignOrganizationId, second.record.id),
+    null,
+  );
+
+  const retiring = await repository.beginRetirement(
+    organizationId,
+    second.record.documentId,
+  );
+  assert.equal(retiring?.status, "retiring");
+  const excluded = await database.knowledgeDocument.findUniqueOrThrow({
+    where: { id: second.record.documentId },
+  });
+  assert.equal(excluded.activeVersionId, null);
+  const retired = await repository.completeRetirement(
+    organizationId,
+    second.record.id,
+    "2026-07-29T15:00:00.000Z",
+  );
+  assert.equal(retired.status, "retired");
+  assert.equal(retired.remoteStatus, "detached");
 });
 
 test("render y aprobación confirman una sola salida y un snapshot inmutable", async () => {

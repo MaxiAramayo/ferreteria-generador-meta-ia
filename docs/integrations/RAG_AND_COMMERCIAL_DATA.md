@@ -58,6 +58,23 @@ Solo `status=approved` y documentos vigentes entran en recuperación publicable.
 
 La eliminación de un documento debe retirar o invalidar su versión del índice.
 
+### Implementación inicial
+
+El worker acepta Markdown, texto plano, PDF y DOCX aprobados, con un máximo
+local de 10 MiB. `KnowledgeDocument` identifica la fuente lógica y
+`KnowledgeDocumentVersion` conserva versión, SHA-256, aprobación, vigencia,
+ámbito y referencias de OpenAI. El mismo hash no crea otra versión.
+
+La indexación usa `candidate` hasta que OpenAI informa `completed`; sólo
+entonces cambia los atributos remotos a `approved` y activa la versión en una
+transacción local. Una consulta futura deberá usar los hashes activos de
+PostgreSQL además de los atributos remotos. Esta defensa es obligatoria porque
+el retiro de un archivo del vector store es eventualmente consistente.
+
+Los estados `sync_failed` y `retiring` conservan diagnóstico seguro y permiten
+reanudar una subida ya asociada, completar la activación o repetir el retiro.
+La fuente queda fuera de consultas desde que comienza el retiro local.
+
 ## Capa comercial
 
 Precio, stock, SKU, disponibilidad y recepción se consultan mediante

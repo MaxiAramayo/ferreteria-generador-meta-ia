@@ -163,6 +163,47 @@ Fuentes:
 - [Precios de API](https://developers.openai.com/api/docs/pricing)
 - [SDK oficial de JavaScript](https://github.com/openai/openai-node)
 
+## Ingestión en File Search
+
+`P3-T03` implementa el ciclo documental detrás de
+`KnowledgeVectorStorePort`. El SDK oficial permanece en el worker y
+PostgreSQL conserva la fuente lógica, versión, SHA-256, aprobación, vigencia,
+ámbito, vector store, archivo remoto y estado de sincronización.
+
+Formatos locales permitidos inicialmente:
+
+- Markdown UTF-8;
+- texto plano UTF-8;
+- PDF con firma válida;
+- DOCX con extensión, MIME y cabecera ZIP coherentes.
+
+El límite local es 10 MiB por documento, aunque el proveedor admita un límite
+mayor. Nombre, extensión, MIME, contenido, metadatos y aprobación se validan
+antes de cualquier escritura remota.
+
+La subida adjunta primero atributos con `status=candidate`. La versión sólo se
+activa después de que el archivo remoto queda `completed` y sus atributos pasan
+a `approved`. Reemplazar una fuente marca la versión anterior `superseded`.
+Las consultas deben combinar el filtro remoto con la lista local de hashes
+activos; ese control local evita usar candidatos, versiones reemplazadas o una
+fuente retirada durante la ventana de consistencia eventual del proveedor.
+
+Los atributos remotos son
+`organization_id`, `document_type`, `brand`, `location_ids`, `status`,
+`effective_from`, `effective_until`, `source_owner`, `sensitivity`,
+`content_hash` y `version`. Las fechas se guardan como epoch y el ámbito de
+sucursales como una cadena delimitada, que el caso de uso vuelve a filtrar
+localmente.
+
+Una interrupción conserva el archivo y estado remoto en la versión local. La
+reconciliación consulta OpenAI, continúa la indexación o completa un retiro sin
+duplicar el documento lógico. Un fallo parcial nunca se presenta como activo.
+
+Fuentes:
+
+- [File Search](https://developers.openai.com/api/docs/guides/tools-file-search)
+- [Retrieval y vector stores](https://developers.openai.com/api/docs/guides/retrieval)
+
 ## Evals mínimas
 
 - extracción correcta del producto;

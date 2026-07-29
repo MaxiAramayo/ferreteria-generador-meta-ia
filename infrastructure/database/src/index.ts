@@ -13,3 +13,4 @@ export {
   PrismaReliableOperationRepository,
 } from "./reliable-operation-repository.ts";
 export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
+export { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
