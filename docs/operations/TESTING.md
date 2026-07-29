@@ -164,6 +164,7 @@ obligatorio según lo que se toca:
 | Panel web | Smoke de `apps/web`; revisión de estados vacío, carga, error y accesibilidad |
 | Persistencia y migraciones | Integración con PostgreSQL real efímero; migración aplicada y revertida |
 | Infraestructura local | `pnpm infra:test` y ciclo real `infra:up`, `infra:health`, `infra:down` |
+| Infraestructura de producción | `pnpm production:verify`, `pnpm production:build` y `pnpm production:smoke`; el smoke debe usar únicamente el proyecto efímero de validación |
 | Motor visual | Fixtures por layout y regresión visual con comparación de dimensiones |
 | OpenAI, Meta o sistema comercial | Fixtures de contrato y dobles; las llamadas reales van en suites separadas y nunca en CI |
 | Documentación o plan | `pnpm verify:plan` y actualización de `docs/STATUS.md` cuando cambia la tarea activa |

@@ -17,10 +17,12 @@ import {
   parseCommonConfiguration,
   parseEncryptionKeyRing,
   parseInteger,
+  parseOptionalAbsolutePath,
   parsePrivateServiceUrl,
 } from "./validation.ts";
 
 export interface WorkerConfiguration extends CommonConfiguration {
+  readonly chromiumExecutablePath?: string;
   readonly cloudinary: OptionalIntegration<CloudinaryCredentials>;
   readonly concurrency: number;
   readonly databaseUrl: SecretValue;
@@ -37,9 +39,15 @@ export function parseWorkerEnvironment(
     rawEnvironment,
     "worker",
   );
+  const chromiumExecutablePath = parseOptionalAbsolutePath(
+    rawEnvironment,
+    "worker",
+    "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
+  );
 
   return Object.freeze({
     ...commonConfiguration,
+    ...(chromiumExecutablePath === undefined ? {} : { chromiumExecutablePath }),
     cloudinary: parseCloudinaryIntegration(rawEnvironment, "worker"),
     concurrency: parseInteger(rawEnvironment, "worker", "WORKER_CONCURRENCY", {
       maximum: 64,

@@ -1,3 +1,5 @@
+import { isAbsolute } from "node:path";
+
 import {
   ConfigurationError,
   type ConfigurationIssue,
@@ -48,6 +50,21 @@ export function readOptional(
 
   const normalizedValue = rawValue.trim();
   return normalizedValue.length === 0 ? undefined : normalizedValue;
+}
+
+export function parseOptionalAbsolutePath(
+  rawEnvironment: RawEnvironment,
+  processName: string,
+  variable: string,
+): string | undefined {
+  const path = readOptional(rawEnvironment, variable);
+  if (path === undefined) {
+    return undefined;
+  }
+  if (!isAbsolute(path)) {
+    failConfiguration(processName, variable, "invalid");
+  }
+  return path;
 }
 
 export function isIntegrationConfigured(

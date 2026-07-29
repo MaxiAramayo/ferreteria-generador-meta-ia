@@ -16,6 +16,22 @@
 | TypeScript | `5.9.3` | Supera el mínimo de Next.js y Prisma sin adoptar una transición mayor durante el bootstrap | [TypeScript 5.9](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html), [paquete](https://www.npmjs.com/package/typescript/v/5.9.3) |
 | Prisma ORM | `7.9.0` | Soporta Node 24 y TypeScript 5.4 o superior | [requisitos](https://www.prisma.io/docs/orm/reference/system-requirements), [paquete](https://www.npmjs.com/package/prisma/v/7.9.0) |
 
+## Imágenes operativas
+
+El scaffolding del VPS fija tag y digest multi-arquitectura:
+
+| Uso | Imagen |
+|---|---|
+| Runtime web/API/build | `node:24.18.0-bookworm-slim` |
+| Worker y Chromium | `mcr.microsoft.com/playwright:v1.62.0-noble` |
+| Reverse proxy | `caddy:2.11.4-alpine` |
+| Base de datos | `postgres:17.9-alpine3.23` |
+| Cola | `redis:8.2.7-alpine3.22` |
+
+Playwright mantiene la misma versión que `playwright-core`; la imagen incluye
+Node `24.18.0` y el navegador compatible. Cambiar tag o digest exige construir
+los cuatro targets y ejecutar la verificación de Caddy/Compose.
+
 Los peers mínimos asociados quedan fijados en el catálogo: `pg@8.22.0`,
 `reflect-metadata@0.2.2` y `rxjs@7.8.2`. Next.js y React se actualizan siempre
 como una unidad compatible. Los paquetes `@nestjs/*` se mantienen en la misma

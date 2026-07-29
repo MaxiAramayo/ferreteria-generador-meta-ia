@@ -33,6 +33,7 @@ test("builds separate immutable configurations for every process", () => {
   const apiConfiguration = parseApiEnvironment({
     ...privateServiceEnvironment,
     PORT: "3001",
+    TRUST_PROXY_HOPS: "0",
     WEB_ORIGIN: "http://localhost:3000",
   });
   const workerConfiguration = parseWorkerEnvironment({
@@ -45,7 +46,9 @@ test("builds separate immutable configurations for every process", () => {
   assert.equal(apiConfiguration.port, 3_001);
   assert.equal(apiConfiguration.authenticationSessionTtlSeconds, 43_200);
   assert.equal(apiConfiguration.meta.enabled, false);
+  assert.equal(apiConfiguration.trustProxyHops, 0);
   assert.equal(workerConfiguration.concurrency, 4);
+  assert.equal(workerConfiguration.chromiumExecutablePath, undefined);
   assert.equal(workerConfiguration.openAi.enabled, false);
   assert.equal(Object.isFrozen(workerConfiguration), true);
   assert.equal(
@@ -60,6 +63,7 @@ test("rejects a missing required variable by name", () => {
       parseApiEnvironment({
         ...privateServiceEnvironment,
         PORT: "3001",
+        TRUST_PROXY_HOPS: "0",
       }),
     (cause: unknown) =>
       cause instanceof ConfigurationError &&
@@ -77,6 +81,7 @@ test("rejects an invalid format without echoing its content", () => {
         ...privateServiceEnvironment,
         DATABASE_URL: invalidDatabaseUrl,
         PORT: "3001",
+        TRUST_PROXY_HOPS: "0",
         WEB_ORIGIN: "http://localhost:3000",
       }),
     (cause: unknown) =>
@@ -98,6 +103,32 @@ test("rejects an empty required secret", () => {
       cause instanceof ConfigurationError &&
       cause.issues[0]?.variable === "TOKEN_ENCRYPTION_KEYS" &&
       cause.issues[0].code === "empty",
+  );
+});
+
+test("accepts only an absolute optional Chromium executable path", () => {
+  const workerConfiguration = parseWorkerEnvironment({
+    ...privateServiceEnvironment,
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:
+      "/ms-playwright/chromium/chrome-linux/chrome",
+    WORKER_CONCURRENCY: "1",
+  });
+
+  assert.equal(
+    workerConfiguration.chromiumExecutablePath,
+    "/ms-playwright/chromium/chrome-linux/chrome",
+  );
+  assert.throws(
+    () =>
+      parseWorkerEnvironment({
+        ...privateServiceEnvironment,
+        PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: "chromium/chrome",
+        WORKER_CONCURRENCY: "1",
+      }),
+    (cause: unknown) =>
+      cause instanceof ConfigurationError &&
+      cause.issues[0]?.variable === "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH" &&
+      cause.issues[0].code === "invalid",
   );
 });
 
@@ -207,6 +238,7 @@ test(".env.example documents the complete contract without secret values", async
     "OPENAI_API_KEY",
     "OPENAI_PROJECT_ID",
     "OPENAI_VECTOR_STORE_ID",
+    "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
     "PORT",
     "POSTGRES_DB",
     "POSTGRES_PASSWORD",
@@ -216,6 +248,7 @@ test(".env.example documents the complete contract without secret values", async
     "REDIS_PORT",
     "REDIS_URL",
     "TOKEN_ENCRYPTION_KEYS",
+    "TRUST_PROXY_HOPS",
     "WEB_ORIGIN",
     "WORKER_CONCURRENCY",
   ];

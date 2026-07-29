@@ -12,7 +12,7 @@ Meta. No autoriza cargar credenciales reales ni implementar OAuth.
 |---|---|---|
 | Pública | URL pública de API | Contrato web `NEXT_PUBLIC_*` |
 | Privada operativa | IDs de proyecto, versión Graph | Configuración del servicio que la consume |
-| Secreta de servicio | API keys, passwords, app secret | `.env` ignorado o secretos de Render |
+| Secreta de servicio | API keys, passwords, app secret | `.env` ignorado o archivo remoto `0600` |
 | Secreta persistida | access/refresh tokens de Meta | PostgreSQL, cifrada por la aplicación |
 | Llave maestra | `TOKEN_ENCRYPTION_KEYS` | Secret store del ambiente, nunca PostgreSQL |
 
@@ -62,7 +62,8 @@ conserva ambas llaves y se reanuda desde los registros pendientes.
 ## Rotación de credenciales de proveedor
 
 1. Crear la credencial nueva con mínimo privilegio.
-2. Cargarla en el secret store del ambiente sin eliminar la vigente.
+2. Cargarla en el archivo de entorno protegido del ambiente sin eliminar la
+   vigente.
 3. Desplegar y ejecutar un smoke test no destructivo.
 4. Revocar la anterior sólo después de confirmar todos los consumidores.
 5. Registrar proveedor, ambiente, responsable, fecha y próxima revisión sin
@@ -102,4 +103,4 @@ Consultadas el 2026-07-24:
 - [OWASP Secrets Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)
 - [OWASP Cryptographic Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
 - [Node.js Crypto: autenticación en GCM](https://nodejs.org/api/crypto.html#deciphersetauthtagbuffer-encoding)
-- [Variables y secretos en Render](https://render.com/docs/configure-environment-variables)
+- [Secrets Management en Docker](https://docs.docker.com/engine/swarm/secrets/)

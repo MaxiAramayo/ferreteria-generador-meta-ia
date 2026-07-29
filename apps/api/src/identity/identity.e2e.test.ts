@@ -45,6 +45,7 @@ const configuration = parseApiEnvironment({
   PORT: "3001",
   REDIS_URL: "redis://test:test@127.0.0.1:6379",
   TOKEN_ENCRYPTION_KEYS: "v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  TRUST_PROXY_HOPS: "0",
   WEB_ORIGIN: "http://localhost:3000",
 });
 

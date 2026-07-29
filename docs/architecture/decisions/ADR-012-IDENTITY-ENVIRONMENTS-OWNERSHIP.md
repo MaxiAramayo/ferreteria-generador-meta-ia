@@ -3,6 +3,10 @@
 - Estado: aceptado
 - Fecha: 2026-07-28
 
+> La identidad, RBAC y ownership de este ADR siguen vigentes. Los hostnames,
+> proveedor y costo de despliegue fueron reemplazados el 2026-07-29 por
+> [ADR-013](ADR-013-DEDICATED-VPS-DEPLOYMENT.md).
+
 ## Contexto
 
 `P0-T07` debe cerrar las decisiones que condicionan sesiones, autorización,

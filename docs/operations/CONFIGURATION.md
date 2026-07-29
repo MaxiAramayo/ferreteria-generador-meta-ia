@@ -44,10 +44,12 @@ proveedor y no de archivos versionados.
 | `NODE_ENV` | Sí | Sí | Sí | Siempre |
 | `APP_TIMEZONE` | Sí | Sí | Sí | Siempre; zona IANA |
 | `NEXT_PUBLIC_API_BASE_URL` | Sí, pública | No | No | Siempre |
-| `PORT` | No | Sí | No | Siempre; Render puede inyectarla |
+| `PORT` | No | Sí | No | Siempre; Compose fija `3001` en producción |
 | `WEB_ORIGIN` | No | Sí | No | Siempre; origen sin path |
 | `AUTH_SESSION_TTL_SECONDS` | No | Sí | No | Siempre; entre 15 minutos y 30 días |
+| `TRUST_PROXY_HOPS` | No | Sí | No | Siempre; `0` local, `1` detrás de Caddy |
 | `WORKER_CONCURRENCY` | No | No | Sí | Siempre; entero entre 1 y 64 |
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | No | No | Sí | Opcional; ruta absoluta fijada en contenedor |
 | `DATABASE_URL` | No | Sí | Sí | Siempre; privada |
 | `REDIS_URL` | No | Sí | Sí | Siempre; privada |
 | `TOKEN_ENCRYPTION_KEYS` | No | Sí | Sí | Siempre; privada |
@@ -79,12 +81,13 @@ ownership y auditoría.
 |---|---|---|
 | Desarrollo | `.env` local ignorado por Git | Credenciales exclusivas de desarrollo; proveedores ausentes por defecto |
 | Test | Variables inyectadas por el runner | Placeholders deterministas; nunca credenciales remotas |
-| Staging | Variables/secretos de Render | Proyecto, recursos y credenciales exclusivos de staging |
-| Producción | Variables/secretos de Render | Proyecto protegido; mínimo privilegio; sin reutilizar staging |
+| Staging | Entorno inyectado por proceso | Recursos y credenciales exclusivos; host remoto pendiente |
+| Producción | Archivo remoto `0600` inyectado por Compose | VPS dedicado; mínimo privilegio; sin reutilizar staging |
 
-En Render, los valores secretos se cargan desde el dashboard o grupos de
-entorno acotados al ambiente. El futuro `render.yaml` sólo declarará referencias
-sin valor (`sync: false`) o valores generados por la plataforma.
+En el VPS, el archivo real vive fuera de Git y sólo puede leerlo el usuario de
+despliegue. Docker Compose entrega a cada contenedor únicamente su subconjunto.
+Quien administra el daemon Docker puede inspeccionar esos valores y por eso se
+considera administrador de secretos.
 
 ## Formatos importantes
 
@@ -96,6 +99,10 @@ sin valor (`sync: false`) o valores generados por la plataforma.
 - `META_GRAPH_API_VERSION`: `v<mayor>.<menor>`.
 - `OPENAI_PROJECT_ID`: prefijo `proj_`.
 - `OPENAI_VECTOR_STORE_ID`: prefijo `vs_`.
+- `TRUST_PROXY_HOPS`: `0` cuando la API recibe tráfico directo; `1` en la
+  topología donde sólo Caddy comparte la red `edge`.
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`: ruta absoluta. La imagen productiva la
+  fija a su Chromium compatible con `playwright-core`.
 
 Para crear material local de cifrado:
 
@@ -125,8 +132,8 @@ las respuestas HTTP.
 
 ## Fuentes verificadas
 
-Consultadas el 2026-07-24:
+Consultadas el 2026-07-29:
 
-- [Variables y secretos en Render](https://render.com/docs/configure-environment-variables)
-- [Variables predeterminadas de Render](https://render.com/docs/environment-variables)
+- [Variables en Docker Compose](https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/)
+- [Orden y healthchecks en Docker Compose](https://docs.docker.com/compose/how-tos/startup-order/)
 - [Secrets Management Cheat Sheet de OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html)

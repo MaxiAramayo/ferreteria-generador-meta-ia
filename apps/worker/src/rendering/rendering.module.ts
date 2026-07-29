@@ -46,6 +46,9 @@ export class RenderingModule {
     const renderer = createPlaywrightRenderer({
       concurrency: configuration.concurrency,
       context: renderContextFor(ARAMAYO_BRAND_PROFILE),
+      ...(configuration.chromiumExecutablePath === undefined
+        ? {}
+        : { executablePath: configuration.chromiumExecutablePath }),
     });
 
     return {

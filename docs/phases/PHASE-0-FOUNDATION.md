@@ -487,6 +487,11 @@ secretos y separación entre staging y producción.
 - 2026-07-28: el usuario indicó continuar después de recibir la topología y un
   orden de magnitud de USD 82 mensuales para dos ambientes mínimos pagos. La
   aprobación no autoriza provisionamiento ni cargos.
+- 2026-07-29: la decisión de Render fue reemplazada después de observar un
+  costo cercano a USD 32 mensuales y adquirir un VPS dedicado de 4 núcleos,
+  8 GB de RAM y 75 GB de disco. [ADR-013](../architecture/decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md)
+  conserva el aislamiento del VPS productivo de Odoo, adopta Docker Compose y
+  Caddy, y mantiene el despliegue real bloqueado hasta Fase 7.
 
 ### Evidencia de cierre
 

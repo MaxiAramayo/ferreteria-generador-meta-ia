@@ -50,6 +50,7 @@ export function apiEnvironment(port: number): SmokeEnvironment {
     PORT: String(port),
     REDIS_URL: unreachableRedisUrl(),
     TOKEN_ENCRYPTION_KEYS: `v1:${fakeSecrets.tokenEncryptionKey}`,
+    TRUST_PROXY_HOPS: "0",
     WEB_ORIGIN: "http://localhost:3000",
   });
 }

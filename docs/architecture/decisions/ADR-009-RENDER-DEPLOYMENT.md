@@ -1,6 +1,7 @@
 # ADR-009: despliegue inicial en Render
 
-- Estado: aceptado
+- Estado: reemplazado por
+  [ADR-013](ADR-013-DEDICATED-VPS-DEPLOYMENT.md)
 - Fecha: 2026-07-24
 
 ## Contexto
@@ -9,6 +10,10 @@ El monorepo necesita ejecutar una web Next.js, una API NestJS y un worker
 continuo, además de PostgreSQL y un transporte Redis-compatible. La etapa
 inicial privilegia trazabilidad y simplicidad operativa sobre portabilidad
 perfecta o escalado prematuro.
+
+> Actualización 2026-07-29: Render fue descartado después de observar el costo
+> real de los servicios y adquirir un VPS dedicado. Este ADR conserva el
+> contexto histórico; la decisión vigente es ADR-013.
 
 ## Decisión
 

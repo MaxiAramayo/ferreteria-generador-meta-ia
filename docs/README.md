@@ -35,6 +35,8 @@
 
 - [`../infrastructure/local/README.md`](../infrastructure/local/README.md):
   PostgreSQL y Redis reproducibles para desarrollo.
+- [`../infrastructure/production/README.md`](../infrastructure/production/README.md):
+  scaffolding no desplegado para el VPS dedicado, Caddy y contenedores.
 - [`operations/CONFIGURATION.md`](operations/CONFIGURATION.md): contratos de
   entorno y matriz por proceso.
 - [`operations/ENVIRONMENTS.md`](operations/ENVIRONMENTS.md): topología,

@@ -323,7 +323,17 @@ rollback de aplicación y migraciones compatibles.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: por autorización explícita se preparó anticipadamente el
+  scaffolding local para el VPS dedicado, sin iniciar la tarea ni omitir sus
+  dependencias. Incluye imágenes separadas por proceso, Caddy como único punto
+  público, redes privadas, migración one-shot, healthchecks y límites acordes
+  al VPS de 4 vCPU/8 GB.
+- La validación local construyó los cuatro targets y el smoke efímero aplicó las
+  ocho migraciones, inició API/web/worker, comprobó `/ready` y ejecutó Chromium.
+  El proyecto de prueba y sus volúmenes fueron eliminados al terminar.
+- Continúan pendientes y no simulados: acceso al VPS, publicación de imágenes
+  inmutables, credenciales separadas, staging remoto, backup/restauración y
+  rollback. La tarea permanece `PENDIENTE` hasta completar sus dependencias.
 
 ### Evidencia de cierre
 

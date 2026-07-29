@@ -1,0 +1,248 @@
+name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
+
+x-application-security: &application-security
+  init: true
+  read_only: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+
+x-application-logging: &application-logging
+  driver: json-file
+  options:
+    max-file: "3"
+    max-size: 10m
+
+x-private-service-environment: &private-service-environment
+  APP_TIMEZONE: ${APP_TIMEZONE:?APP_TIMEZONE is required}
+  DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+  NODE_ENV: ${NODE_ENV:?NODE_ENV is required}
+  REDIS_URL: redis://default:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379
+  TOKEN_ENCRYPTION_KEYS: ${TOKEN_ENCRYPTION_KEYS:?TOKEN_ENCRYPTION_KEYS is required}
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required}
+      WEB_DOMAIN: ${WEB_DOMAIN:?WEB_DOMAIN is required}
+    ports:
+      - name: http
+        target: 80
+        published: "80"
+        protocol: tcp
+      - name: https
+        target: 443
+        published: "443"
+        protocol: tcp
+      - name: http3
+        target: 443
+        published: "443"
+        protocol: udp
+    volumes:
+      - type: bind
+        source: ./Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - caddy
+        - validate
+        - --config
+        - /etc/caddy/Caddyfile
+        - --adapter
+        - caddyfile
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging: *application-logging
+
+  web:
+    <<: *application-security
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/aramayo-content-web:${IMAGE_TAG:?IMAGE_TAG is required}
+    environment:
+      APP_TIMEZONE: ${APP_TIMEZONE:?APP_TIMEZONE is required}
+      NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+      NODE_ENV: ${NODE_ENV:?NODE_ENV is required}
+    networks:
+      - edge
+    tmpfs:
+      - /app/.next/cache:rw,noexec,nosuid,size=128m
+      - /tmp:rw,noexec,nosuid,size=128m
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/').then(response=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    stop_grace_period: 30s
+    mem_limit: 1g
+    logging: *application-logging
+
+  api:
+    <<: *application-security
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/aramayo-content-api:${IMAGE_TAG:?IMAGE_TAG is required}
+    environment:
+      <<: *private-service-environment
+      AUTH_SESSION_TTL_SECONDS: ${AUTH_SESSION_TTL_SECONDS:?AUTH_SESSION_TTL_SECONDS is required}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-}
+      META_REDIRECT_URI: ${META_REDIRECT_URI:-}
+      PORT: "3001"
+      TRUST_PROXY_HOPS: "1"
+      WEB_ORIGIN: https://${WEB_DOMAIN:?WEB_DOMAIN is required}
+    networks:
+      - backend
+      - edge
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3001/ready').then(response=>{if(!response.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    stop_grace_period: 30s
+    mem_limit: 1g
+    logging: *application-logging
+
+  worker:
+    <<: *application-security
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/aramayo-content-worker:${IMAGE_TAG:?IMAGE_TAG is required}
+    environment:
+      <<: *private-service-environment
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-}
+      META_REDIRECT_URI: ${META_REDIRECT_URI:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_PROJECT_ID: ${OPENAI_PROJECT_ID:-}
+      OPENAI_VECTOR_STORE_ID: ${OPENAI_VECTOR_STORE_ID:-}
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /ms-playwright/chromium-1234/chrome-linux/chrome
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+    networks:
+      - backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    shm_size: 1g
+    stop_grace_period: 60s
+    mem_limit: 2500m
+    logging: *application-logging
+
+  migrate:
+    image: ${IMAGE_REGISTRY:?IMAGE_REGISTRY is required}/aramayo-content-migration:${IMAGE_TAG:?IMAGE_TAG is required}
+    read_only: true
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    logging: *application-logging
+
+  postgres:
+    image: postgres:17.9-alpine3.23@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    mem_limit: 2g
+    logging: *application-logging
+
+  redis:
+    image: redis:8.2.7-alpine3.22@sha256:223b183cbc49f5ff48728e1fc52ccf101f05072decad2bd9867281a3c9bf75fd
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --maxmemory 384mb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli --no-auth-warning ping | grep -qx PONG
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 30s
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: *application-logging
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+volumes:
+  caddy_config:
+  caddy_data:
+  postgres_data:
+  redis_data:

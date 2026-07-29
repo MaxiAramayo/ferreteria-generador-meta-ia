@@ -1,0 +1,36 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+(security_headers) {
+	encode zstd gzip
+
+	header {
+		-Server
+		Permissions-Policy "camera=(), geolocation=(), microphone=()"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
+}
+
+{$WEB_DOMAIN} {
+	import security_headers
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	import security_headers
+	reverse_proxy api:3001 {
+		health_uri /ready
+		health_interval 30s
+		health_timeout 5s
+	}
+}

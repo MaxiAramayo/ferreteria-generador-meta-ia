@@ -28,11 +28,11 @@
     "react-dom": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
-    "sharp": "catalog:"
+    "sharp": "catalog:",
+    "@fontsource/archivo": "catalog:",
+    "@fontsource/saira-condensed": "catalog:"
   },
   "devDependencies": {
-    "@fontsource/archivo": "catalog:",
-    "@fontsource/saira-condensed": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

@@ -1,0 +1,41 @@
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/production/Dockerfile
+      target: web
+      args:
+        APP_TIMEZONE: ${APP_TIMEZONE:?APP_TIMEZONE is required}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+        VCS_REF: ${IMAGE_TAG:?IMAGE_TAG is required}
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/production/Dockerfile
+      target: api
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+        VCS_REF: ${IMAGE_TAG:?IMAGE_TAG is required}
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/production/Dockerfile
+      target: worker
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+        VCS_REF: ${IMAGE_TAG:?IMAGE_TAG is required}
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infrastructure/production/Dockerfile
+      target: migration
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        NEXT_PUBLIC_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN is required}
+        VCS_REF: ${IMAGE_TAG:?IMAGE_TAG is required}

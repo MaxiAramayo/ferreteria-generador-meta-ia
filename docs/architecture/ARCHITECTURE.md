@@ -31,6 +31,12 @@ Monorepo TypeScript con:
 - Redis/BullMQ: transporte de trabajos;
 - Cloudinary: media pública y derivaciones.
 
+El piloto productivo se empaqueta para un VPS dedicado con Docker Compose.
+Caddy termina TLS y es el único servicio con puertos publicados; API, worker,
+PostgreSQL y Redis comparten una red interna. La decisión, límites y
+consecuencias operativas están en
+[ADR-013](decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md).
+
 ## Módulos del backend
 
 - `identity`: autenticación y roles.

@@ -7,6 +7,7 @@ import {
 } from "@aramayo/configuration/api";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 
 import { AppModule } from "./app.module.ts";
 
@@ -32,10 +33,11 @@ function readConfiguration(): ApiConfiguration {
 
 async function bootstrap(): Promise<void> {
   const configuration = readConfiguration();
-  const application = await NestFactory.create(
+  const application = await NestFactory.create<NestExpressApplication>(
     AppModule.forConfiguration(configuration),
   );
 
+  application.set("trust proxy", configuration.trustProxyHops);
   application.enableCors({
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],

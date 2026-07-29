@@ -21,6 +21,7 @@ export interface ApiConfiguration extends CommonConfiguration {
   readonly port: number;
   readonly redisUrl: SecretValue;
   readonly tokenEncryption: EncryptionKeyRing;
+  readonly trustProxyHops: number;
   readonly webOrigin: string;
 }
 
@@ -52,6 +53,10 @@ export function parseApiEnvironment(
     }),
     redisUrl: parsePrivateServiceUrl(rawEnvironment, "api", "REDIS_URL"),
     tokenEncryption: parseEncryptionKeyRing(rawEnvironment, "api"),
+    trustProxyHops: parseInteger(rawEnvironment, "api", "TRUST_PROXY_HOPS", {
+      maximum: 4,
+      minimum: 0,
+    }),
     webOrigin: parseHttpUrl(
       rawEnvironment,
       "api",

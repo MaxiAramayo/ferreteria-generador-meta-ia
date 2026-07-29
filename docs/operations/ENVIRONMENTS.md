@@ -2,16 +2,21 @@
 
 ## Topología
 
-Staging y producción repiten la misma forma con recursos independientes:
+La producción piloto usa el VPS dedicado decidido en
+[ADR-013](../architecture/decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md).
+Staging conserva recursos y credenciales independientes; su host remoto no se
+provisiona en el mismo VPS hasta demostrar que existe margen operativo.
 
 ```mermaid
 flowchart LR
-  browser["Navegador autorizado"] -->|HTTPS| web["Web Next.js pública"]
-  web -->|HTTPS + cookie + CSRF| api["API NestJS pública"]
+  browser["Navegador autorizado"] -->|HTTPS| caddy["Caddy"]
+  caddy --> web["Web Next.js"]
+  caddy --> api["API NestJS"]
+  web -->|HTTPS + cookie + CSRF| caddy
   meta["Meta"] -->|OAuth / webhook firmado| api
   cloudinary["Cloudinary"] -.->|webhook futuro firmado| api
   api -->|red privada| postgres[("PostgreSQL")]
-  api -->|red privada| queue[("Render Key Value")]
+  api -->|red privada| queue[("Redis")]
   worker["Worker sin entrada de red"] -->|red privada| postgres
   worker -->|red privada| queue
   worker -->|HTTPS saliente| openai["OpenAI"]
@@ -19,15 +24,21 @@ flowchart LR
   worker -->|HTTPS saliente| meta
 ```
 
-No existe conectividad entre los recursos de staging y producción. Los
-servicios de un ambiente comparten región y red privada.
+Sólo Caddy publica puertos. PostgreSQL, Redis y worker viven en una red Docker
+`internal`; la API comparte otra red únicamente con Caddy. El host productivo
+no contiene Odoo ni la web comercial.
+
+No existe conectividad de aplicación entre recursos de staging y producción.
+Sus bases, volúmenes, credenciales, proyectos externos y llaves son
+independientes aunque en el futuro puedan compartir proveedor físico. Un fallo
+total del VPS productivo sigue siendo un único dominio de falla.
 
 ## Matriz de URLs
 
 | Uso | Staging | Piloto de producción | Propietario |
 |---|---|---|---|
-| Web | `https://aramayo-content-staging.onrender.com` | `https://aramayo-content.onrender.com` | Administrador de plataforma |
-| API | `https://aramayo-content-api-staging.onrender.com` | `https://aramayo-content-api.onrender.com` | Administrador de plataforma |
+| Web | hostname remoto pendiente | `https://content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
+| API | hostname remoto pendiente | `https://api.content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
 | Meta OAuth redirect | `<api>/integrations/meta/oauth/callback` | `<api>/integrations/meta/oauth/callback` | Administrador de Meta Business |
 | Meta eliminación de datos | `<api>/integrations/meta/data-deletion` | `<api>/integrations/meta/data-deletion` | Administrador de Meta Business |
 | Meta desautorización | `<api>/integrations/meta/deauthorize` | `<api>/integrations/meta/deauthorize` | Administrador de Meta Business |
@@ -35,20 +46,22 @@ servicios de un ambiente comparten región y red privada.
 | Cloudinary delivery | `https://res.cloudinary.com/<cloud-staging>/...` | `https://res.cloudinary.com/<cloud-production>/...` | Administrador de medios |
 | Cloudinary webhook futuro | `<api>/webhooks/cloudinary` | `<api>/webhooks/cloudinary` | Administrador de medios |
 
-`<api>` y `<web>` se sustituyen sólo después de que Render confirme el
-hostname. Cloudinary opera síncronamente en la primera vertical, por lo que el
-webhook no se configura hasta introducir una operación asíncrona que lo
-necesite. Todos los webhooks futuros verifican firma y replay antes de procesar.
+`<api>` y `<web>` se sustituyen sólo después de que DNS resuelva al VPS, Caddy
+obtenga certificados y los smoke tests remotos aprueben. Cloudinary opera
+síncronamente en la primera vertical, por lo que el webhook no se configura
+hasta introducir una operación asíncrona que lo necesite. Todos los webhooks
+futuros verifican firma y replay antes de procesar.
 
 ## Recursos separados
 
 | Recurso | Staging | Producción | Entrada pública |
 |---|---|---|---|
-| Web service | `aramayo-content-staging` | `aramayo-content` | Sí |
-| API service | `aramayo-content-api-staging` | `aramayo-content-api` | Sí, rutas necesarias |
-| Background worker | `aramayo-content-worker-staging` | `aramayo-content-worker` | No |
-| PostgreSQL | instancia exclusiva | instancia exclusiva | No |
-| Key Value | instancia exclusiva, `noeviction` | instancia exclusiva, `noeviction` | No |
+| Caddy | pendiente | contenedor exclusivo | Sí, 80/443 |
+| Web | proceso/imagen independiente | contenedor Next.js | Sólo mediante Caddy |
+| API | proceso/imagen independiente | contenedor NestJS | Sólo mediante Caddy |
+| Worker | proceso/imagen independiente | contenedor Playwright | No |
+| PostgreSQL | base y credencial exclusivas | volumen y credencial exclusivos | No |
+| Redis | instancia exclusiva, `noeviction` | volumen exclusivo, `noeviction` | No |
 | Cloudinary | product environment exclusivo | product environment exclusivo | CDN solamente |
 | OpenAI | proyecto y presupuesto exclusivos | proyecto y presupuesto exclusivos | No aplica |
 | Meta | app y activos de prueba | app y activos aprobados | Callbacks exactos |
@@ -57,12 +70,12 @@ necesite. Todos los webhooks futuros verifican firma y replay antes de procesar.
 
 | Secreto | Consumidor | Ubicación | Propietario funcional | Rotación |
 |---|---|---|---|---|
-| `DATABASE_URL` | API, worker | Render, valor interno | Administrador de plataforma | al cambiar credencial o ante incidente |
-| `REDIS_URL` | API, worker | Render, valor interno autenticado | Administrador de plataforma | al cambiar credencial o ante incidente |
-| `TOKEN_ENCRYPTION_KEYS` | API, worker | secret store de Render | Administrador de plataforma | keyring y reencriptado según `SECRETS.md` |
-| `OPENAI_API_KEY` | worker | secret store de Render | Administrador de OpenAI | trimestral o ante incidente |
-| `CLOUDINARY_API_SECRET` | worker | secret store de Render | Administrador de medios | trimestral o ante incidente |
-| `META_APP_SECRET` | API, worker | secret store de Render | Administrador de Meta Business | trimestral o ante incidente |
+| `DATABASE_URL` | API, worker | entorno de contenedor derivado en Compose | Administrador de plataforma | al cambiar credencial o ante incidente |
+| `REDIS_URL` | API, worker | entorno de contenedor derivado en Compose | Administrador de plataforma | al cambiar credencial o ante incidente |
+| `TOKEN_ENCRYPTION_KEYS` | API, worker | archivo de entorno remoto `0600` | Administrador de plataforma | keyring y reencriptado según `SECRETS.md` |
+| `OPENAI_API_KEY` | worker | archivo de entorno remoto `0600` | Administrador de OpenAI | trimestral o ante incidente |
+| `CLOUDINARY_API_SECRET` | worker | archivo de entorno remoto `0600` | Administrador de medios | trimestral o ante incidente |
+| `META_APP_SECRET` | API, worker | archivo de entorno remoto `0600` | Administrador de Meta Business | trimestral o ante incidente |
 | Tokens OAuth Meta | worker | PostgreSQL cifrado | Administrador de Meta Business | expiración, revocación o incidente |
 | Credenciales de sesión | navegador/API | cookie opaca + hash PostgreSQL | Administrador de identidad | login, elevación, baja o cambio de contraseña |
 
@@ -93,7 +106,7 @@ no se comparten entre ambientes. El procedimiento detallado está en
 
 1. Se revoca la membresía.
 2. Se revocan en la misma operación sus sesiones del ambiente y organización.
-3. Se retira el acceso individual a Render y proveedores.
+3. Se retira el acceso individual al VPS, registry y proveedores.
 4. Una credencial compartida se rota únicamente si existió o pudo existir
    exposición.
 5. Se conserva la auditoría sin copiar secretos.

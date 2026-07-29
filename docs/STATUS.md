@@ -24,6 +24,11 @@ explícitamente mientras el smoke remoto queda en espera.
 - [ ] Fase 6 — Programación y automatizaciones.
 - [ ] Fase 7 — Endurecimiento y salida a producción.
 
+La base local del despliegue en VPS quedó preparada y verificada el 2026-07-29:
+Compose mantiene PostgreSQL/Redis privados, Caddy es el único ingreso público y
+el smoke efímero validó migraciones, API, web, worker y Chromium. Esto no inicia
+ni cierra tareas de Fase 7 y no representa un despliegue remoto.
+
 ## Próxima tarea
 
 Continuar `P3-T01` — revisar el catálogo y ejecutar sus escenarios con un
@@ -39,11 +44,16 @@ de cerrar Fase 1.
 
 ## Bloqueos externos conocidos
 
-- Dominio propio no definido; no bloquea el piloto con hostnames de Render y se
-  reevalúa en Fase 7.
+- El dominio y los hostnames productivos ya están definidos, y el VPS dedicado
+  fue adquirido. Faltan IP, sistema operativo y credenciales de acceso para
+  cualquier verificación remota.
+- Registry de imágenes y backup externo todavía no confirmados. El scaffolding
+  local no autoriza un despliegue antes de las puertas de Fase 7.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
-- Credenciales de OpenAI, Meta y Cloudinary no configuradas.
+- Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue
+  actualizado por el usuario, pero el ambiente staging aún debe confirmarse
+  antes del smoke externo.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
