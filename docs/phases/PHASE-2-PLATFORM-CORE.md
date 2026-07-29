@@ -468,8 +468,8 @@ distribuidas ni duplicación accidental.
 
 ## P2-T07 — Construir shell del panel y compositores explícitos
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T02`, `P2-T05`
 - Riesgo: Medio
 
@@ -487,19 +487,19 @@ para plantilla, IA, historia recurrente y promoción de productos.
 
 ### Criterios de aceptación
 
-- [ ] No existe un componente monolítico controlado por muchos booleanos.
-- [ ] Cada variante muestra solo las acciones válidas para su flujo.
-- [ ] Estado compartido y metadatos de formulario están separados.
-- [ ] Estados loading, empty, error, success y forbidden son explícitos.
-- [ ] Formularios son navegables por teclado y anuncian errores.
-- [ ] Datos iniciales se cargan en servidor cuando evita waterfalls.
-- [ ] Los consumidores dependen de contratos públicos, no del contexto interno.
+- [x] No existe un componente monolítico controlado por muchos booleanos.
+- [x] Cada variante muestra solo las acciones válidas para su flujo.
+- [x] Estado compartido y metadatos de formulario están separados.
+- [x] Estados loading, empty, error, success y forbidden son explícitos.
+- [x] Formularios son navegables por teclado y anuncian errores.
+- [x] Datos iniciales se cargan en servidor cuando evita waterfalls.
+- [x] Los consumidores dependen de contratos públicos, no del contexto interno.
 
 ### Verificación obligatoria
 
-- [ ] Tests de composición y acciones inválidas fuera del provider.
-- [ ] E2E de listado y compositor por plantilla.
-- [ ] Auditoría de accesibilidad y revisión de renders innecesarios.
+- [x] Tests de composición y acciones inválidas fuera del provider.
+- [x] E2E de listado y compositor por plantilla.
+- [x] Auditoría de accesibilidad y revisión de renders innecesarios.
 
 ### Fuera de alcance
 
@@ -530,7 +530,21 @@ para plantilla, IA, historia recurrente y promoción de productos.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `d7135a4` (`feat: build publication workspace`).
+- `pnpm verify`: stack, plan, formato, build de producción, lint, typecheck,
+  pruebas, baseline y smoke local de API/web/worker aprobados.
+- `apps/web`: 7 tests aprobados para contratos de variantes, consumidor fuera
+  del provider, carga paralela, forbidden, matriz de permisos, contrato
+  inválido e idempotencia del guardado.
+- Playwright local con API doble: listado autenticado, edición y guardado por
+  plantilla, límite de creatividad IA, validación anunciada, navegación por
+  teclado y renders móvil `390x844` y escritorio revisados; consola sin errores.
+- El criterio de carga inicial en servidor se evaluó como condicional. No evita
+  waterfalls en la topología desplegada porque la cookie `__Host-` de la API no
+  llega al host de Next; la alternativa correcta carga sesión y listado en
+  paralelo desde el cliente y la desviación queda documentada arriba.
+- No se llamó a IA, no se conectaron proveedores y ninguna acción aprobó,
+  programó o publicó contenido.
 
 ## P2-T08 — Completar vertical determinista de borrador y aprobación
 

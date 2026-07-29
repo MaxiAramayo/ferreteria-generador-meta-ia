@@ -8,9 +8,9 @@ Actualizado: 2026-07-29
 
 La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
 bloqueada únicamente por las credenciales de Cloudinary staging necesarias
-para su verificación remota. En Fase 2 están completas `P2-T01` a `P2-T06` y
-`P2-T07` está en progreso; la continuidad local fue autorizada explícitamente
-mientras el smoke remoto queda en espera.
+para su verificación remota. En Fase 2 están completas `P2-T01` a `P2-T07`; la
+continuidad local fue autorizada explícitamente mientras el smoke remoto queda
+en espera.
 
 ## Resumen
 
@@ -26,9 +26,10 @@ mientras el smoke remoto queda en espera.
 
 ## Próxima tarea
 
-Continuar `P2-T07` — construir el shell autenticado del panel y los compositores
-explícitos. La excepción de dependencia queda limitada al smoke remoto
-pendiente de `P1-T07`; no autoriza publicar ni conectar proveedores reales.
+Iniciar `P2-T08` — completar la vertical determinista de borrador, render,
+revisión y aprobación. La excepción de dependencia queda limitada al smoke
+remoto pendiente de `P1-T07`; no autoriza publicar ni conectar proveedores
+reales.
 
 El smoke `pnpm media:smoke:cloudinary` sigue pendiente y debe ejecutarse antes
 de cerrar Fase 1.
