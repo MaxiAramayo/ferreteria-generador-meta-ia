@@ -388,8 +388,8 @@ manteniendo versiones revisables.
 
 ## P2-T06 — Implementar auditoría, idempotencia y outbox
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P2-T04`, `P2-T05`
 - Riesgo: Alto
 
@@ -406,18 +406,18 @@ distribuidas ni duplicación accidental.
 
 ### Criterios de aceptación
 
-- [ ] Mutación y evento outbox se confirman en la misma transacción.
-- [ ] Repetir una clave devuelve el resultado anterior o conflicto coherente.
-- [ ] Claves se limitan por organización, operación y actor.
-- [ ] Payloads de auditoría omiten secretos y datos innecesarios.
-- [ ] El publicador tolera reinicio y entrega repetida.
-- [ ] Existe retención y limpieza segura documentada.
+- [x] Mutación y evento outbox se confirman en la misma transacción.
+- [x] Repetir una clave devuelve el resultado anterior o conflicto coherente.
+- [x] Claves se limitan por organización, operación y actor.
+- [x] Payloads de auditoría omiten secretos y datos innecesarios.
+- [x] El publicador tolera reinicio y entrega repetida.
+- [x] Existe retención y limpieza segura documentada.
 
 ### Verificación obligatoria
 
-- [ ] Repetir requests concurrentes con la misma clave.
-- [ ] Detener el proceso entre commit y entrega y confirmar recuperación.
-- [ ] Inspeccionar auditoría de un flujo completo.
+- [x] Repetir requests concurrentes con la misma clave.
+- [x] Detener el proceso entre commit y entrega y confirmar recuperación.
+- [x] Inspeccionar auditoría de un flujo completo.
 
 ### Fuera de alcance
 
@@ -446,12 +446,25 @@ distribuidas ni duplicación accidental.
   payload, rollback atómico, auditoría append-only y recuperación de lease.
 - `pnpm verify` completo aprobado: stack, plan, formato, build, lint,
   typecheck, pruebas, baseline y smoke local de API/web/worker.
-- Pendiente antes de cerrar: registrar el commit de implementación y completar
-  la evidencia documental.
+- Implementación registrada y revisión final completada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Implementación: commit `7279364`.
+- `pnpm db:test`: migración aplicada desde cero, seed verificado, requests
+  concurrentes con una sola mutación, replay exacto, conflicto de payload,
+  rollback conjunto de publicación/idempotencia/auditoría/outbox, lease
+  recuperado, auditoría append-only y rollback/reaplicación de migración
+  aprobados.
+- `pnpm verify`: stack, plan, formato, build, lint, typecheck, pruebas,
+  baseline y smoke local de API/web/worker aprobados.
+- API: `Idempotency-Key` obligatorio y acotado; scope por organización,
+  operación y actor; request y clave persistidos sólo como SHA-256.
+- Worker: entrega at-least-once con `eventId`, lease, backoff, dead letter y
+  resultado explícito ante pérdida de ownership.
+- Retención y recuperación documentadas en
+  `docs/operations/RELIABLE_OPERATIONS.md`. No se conectó ningún proveedor ni
+  se ejecutó un efecto externo.
 
 ## P2-T07 — Construir shell del panel y compositores explícitos
 
