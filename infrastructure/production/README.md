@@ -4,7 +4,8 @@
 
 Este directorio prepara el piloto de Aramayo Content Platform para un VPS
 dedicado de 4 vCPU, 8 GB de RAM y 75 GB de disco. Es scaffolding verificable:
-no provisiona el servidor, no publica imágenes y no habilita producción.
+no contiene un comando de despliegue remoto ni habilita producción. La
+publicación de imágenes es una acción manual y separada del despliegue.
 
 El despliegue remoto sigue condicionado por las puertas de Fase 7, backup
 externo probado, credenciales separadas y acceso al VPS. Ningún comando
@@ -13,7 +14,9 @@ Docker local con nombre fijo y credenciales falsas; no usa el `.env` del
 desarrollador ni una base persistente real.
 
 El host base fue provisionado y verificado el 2026-07-29. Todavía no contiene
-la aplicación, bases, volúmenes de aplicación ni secretos de proveedores.
+la aplicación, bases, volúmenes de aplicación ni secretos de proveedores. El
+manifiesto del commit `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` quedó
+preparado en el host, pero ningún servicio fue iniciado.
 
 ## Topología
 
@@ -136,10 +139,12 @@ publica únicamente:
 - `ghcr.io/maxiaramayo/aramayo-content-migration:<commit>`.
 
 No existe tag `latest` ni trigger por push. La ejecución se habilita sólo desde
-`main` y requiere acción humana. La primera publicación crea paquetes privados
-vinculados al repositorio; antes de hacer pull desde el VPS se elige
-explícitamente entre visibilidad pública o una credencial exclusiva con
-`read:packages`.
+`main` y requiere acción humana. La
+[primera publicación](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/30476757409)
+terminó correctamente el 2026-07-29 para el commit
+`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`. Los cuatro paquetes permanecen
+privados; antes de hacer pull desde el VPS se elige explícitamente entre
+visibilidad pública o una credencial exclusiva con `read:packages`.
 
 ## Datos y recuperación
 
@@ -169,7 +174,11 @@ pendientes. No se habilitará el piloto como producción hasta cerrar
 - `/opt/aramayo-content` con modo `0750`; entorno y backups locales con modo
   `0700`;
 - Caddy `2.11.4` descargado por el digest fijado y ejecutado sin error;
-- ningún contenedor activo y sólo SSH escuchando al cerrar la preparación.
+- release declarativa `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`
+  seleccionada mediante `/opt/aramayo-content/current`;
+- Compose y Caddy validados otra vez desde esa release;
+- ningún contenedor de aplicación activo y sólo SSH escuchando al cerrar la
+  preparación.
 
 Docker desvía los puertos publicados antes de las reglas de UFW. La garantía de
 exposición depende también del validador de Compose: sólo Caddy puede publicar
@@ -177,7 +186,8 @@ puertos; PostgreSQL y Redis nunca declaran `ports`.
 
 ## Pendientes antes del despliegue
 
-- ejecutar manualmente la primera publicación en GHCR y definir visibilidad;
+- definir si los paquetes GHCR serán públicos o si el VPS usará una credencial
+  exclusiva de lectura;
 - confirmar el email operativo de ACME;
 - confirmar destino de backup externo;
 - cargar secretos sin copiarlos a terminales, issues o logs;

@@ -331,9 +331,9 @@ rollback de aplicación y migraciones compatibles.
 - La validación local construyó los cuatro targets y el smoke efímero aplicó las
   ocho migraciones, inició API/web/worker, comprobó `/ready` y ejecutó Chromium.
   El proyecto de prueba y sus volúmenes fueron eliminados al terminar.
-- Continúan pendientes y no simulados: publicación de imágenes inmutables,
-  credenciales separadas, staging remoto, backup/restauración y rollback. La
-  tarea permanece `PENDIENTE` hasta completar sus dependencias.
+- Continúan pendientes y no simulados: credenciales separadas, staging remoto,
+  backup/restauración y rollback. La tarea permanece `PENDIENTE` hasta completar
+  sus dependencias.
 - 2026-07-29: después de autorizar la clave se actualizó y reinició Ubuntu
   `26.04`, se instaló Docker desde su repositorio oficial, se agregaron 2 GiB de
   swap y se prepararon directorios protegidos. SSH quedó limitado a clave sin
@@ -341,12 +341,19 @@ rollback de aplicación y migraciones compatibles.
   IPv4/IPv6. Caddy fijado por digest ejecutó correctamente. No se desplegaron
   aplicación, bases ni secretos y la tarea continúa `PENDIENTE`.
 - Se eligió GHCR y se preparó un workflow manual que construye `linux/amd64` y
-  publica las cuatro imágenes sólo con el SHA de `main`. No se ejecutó todavía
-  ni se creó un tag mutable.
+  publica las cuatro imágenes sólo con el SHA de `main`. La ejecución
+  `30476757409` terminó correctamente para
+  `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`; no se creó un tag mutable. Los
+  paquetes permanecen privados hasta resolver acceso de sólo lectura o
+  visibilidad pública.
 - Donweb sirve autoritativamente los registros `A` y `AAAA` de
   `content.ferreteriaaramayo.com.ar` y `api.content.ferreteriaaramayo.com.ar`.
   La propagación pública todavía era parcial por caché negativa; Caddy permanece
   detenido.
+- La release declarativa del mismo commit se copió a
+  `/opt/aramayo-content/releases/` y el symlink `current` quedó apuntando a
+  ella. Compose y Caddy pasaron validación en el host sin crear volúmenes ni
+  iniciar contenedores.
 
 ### Evidencia de cierre
 

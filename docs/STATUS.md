@@ -51,9 +51,10 @@ de cerrar Fase 1.
 - Donweb ya sirve autoritativamente los registros `A` y `AAAA` de `content` y
   `api.content`; la caché negativa de los resolvers públicos todavía producía
   respuestas parciales al verificar la propagación.
-- GHCR quedó elegido con publicación manual por SHA, pero la primera ejecución
-  y la visibilidad de los paquetes siguen pendientes. Backup externo tampoco
-  está confirmado. El scaffolding no autoriza omitir las puertas de Fase 7.
+- GHCR contiene las cuatro imágenes `linux/amd64` del commit
+  `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`; su visibilidad o credencial de
+  lectura para el VPS sigue pendiente. Backup externo tampoco está confirmado.
+  El scaffolding no autoriza omitir las puertas de Fase 7.
 - Sistema comercial y método de acceso todavía no identificados.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue

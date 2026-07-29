@@ -51,8 +51,11 @@ El 2026-07-29 ambas direcciones resolvieron desde el hostname y el servidor
 fue actualizado, reiniciado y validado por IPv4 e IPv6. SSH acepta sólo la clave
 ED25519 autorizada; contraseña, login de root y X11 están deshabilitados. UFW
 permite únicamente SSH, HTTP, HTTPS y HTTP/3; AppArmor y actualizaciones
-automáticas permanecen activos. Docker está vacío y sólo SSH escucha hasta
-publicar una release identificada y completar su entorno.
+automáticas permanecen activos. No hay contenedores activos y sólo SSH escucha
+hasta completar el entorno. La release declarativa
+`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` está seleccionada en
+`/opt/aramayo-content/current`, con Compose y Caddy validados pero sin servicios
+iniciados.
 
 ## Matriz de URLs
 
