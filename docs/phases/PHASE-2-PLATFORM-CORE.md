@@ -548,8 +548,8 @@ para plantilla, IA, historia recurrente y promoción de productos.
 
 ## P2-T08 — Completar vertical determinista de borrador y aprobación
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T06`, `P2-T06`, `P2-T07`
 - Riesgo: Alto
 
@@ -566,18 +566,18 @@ revisarla, aprobarla y conservar su snapshot.
 
 ### Criterios de aceptación
 
-- [ ] El usuario selecciona layout, formato y medios permitidos.
-- [ ] El worker produce PNG y el panel refleja éxito o fallo real.
-- [ ] Aprobar fija contenido, activo, formato y versión de diseño.
-- [ ] Reintentar render no duplica revisiones ni medios.
-- [ ] Un editor no puede aprobar; un approver sí.
-- [ ] Cada paso aparece en auditoría y estado.
+- [x] El usuario selecciona layout, formato y medios permitidos.
+- [x] El worker produce PNG y el panel refleja éxito o fallo real.
+- [x] Aprobar fija contenido, activo, formato y versión de diseño.
+- [x] Reintentar render no duplica revisiones ni medios.
+- [x] Un editor no puede aprobar; un approver sí.
+- [x] Cada paso aparece en auditoría y estado.
 
 ### Verificación obligatoria
 
-- [ ] E2E desde sesión nueva hasta snapshot aprobado.
-- [ ] Repetir el flujo con imagen corrupta y confirmar fallo explícito.
-- [ ] Restaurar el snapshot y comparar con el PNG aprobado.
+- [x] E2E desde sesión nueva hasta snapshot aprobado.
+- [x] Repetir el flujo con imagen corrupta y confirmar fallo explícito.
+- [x] Restaurar el snapshot y comparar con el PNG aprobado.
 
 ### Fuera de alcance
 
@@ -611,15 +611,43 @@ revisarla, aprobarla y conservar su snapshot.
   fallos; `pnpm db:test` con PostgreSQL efímero y migración reversible; E2E con
   almacenamiento doble desde sesión nueva hasta snapshot; comparación exacta
   del PNG restaurado; `pnpm verify` y revisión visual/accesible.
+- 2026-07-29: el flujo quedó completo. API, worker y repositorio separan
+  solicitar render, confirmar PNG y aprobar; el consumidor reconcilia un evento
+  repetido después de una confirmación sin renderizar ni subir otra vez.
+- 2026-07-29: el panel carga sesión y listado en paralelo, permite elegir la
+  configuración admitida por la plantilla, consulta el estado del worker,
+  muestra el PNG con checksum y reserva la aprobación para `approver`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `a9920ca` (`feat: complete deterministic approval vertical`).
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck, suites
+  unitarias, baseline visual y smoke de API, web y worker aprobados.
+- `pnpm db:test`: base efímera migrada desde cero; render, auditoría,
+  idempotencia, unicidad de revisión/medio y snapshot verificados; última
+  migración revertida con `down.sql`, reaplicada y probada nuevamente.
+- Integración PostgreSQL: el outbox conserva exactamente los bytes y SHA-256
+  entregados al almacenamiento doble; el snapshot restaurado referencia ese
+  mismo PNG. Una segunda publicación con imagen corrupta termina en
+  `generation_failed`, no sube ningún archivo y no produce fallback.
+- Permisos: 27 tests de API y 10 de web confirman que `editor` puede solicitar
+  render sin aprobar, `approver` puede aprobar sin editar y `admin` no recibe
+  permisos de contenido implícitos.
+- Worker: 24 tests locales aprobados y una integración controlada ejecutada por
+  `pnpm db:test`; cubren PNG exacto, corrupción, timeout, concurrencia y replay
+  sin segundo render ni segunda carga.
+- Playwright con API y almacenamiento controlados: sesión autenticada nueva,
+  vacío inicial, creación de borrador, selección de layout/formato/medio,
+  render, polling, preview, checksum y aprobación; revisión desktop y `390 px`
+  sin errores de consola.
+- Desviaciones: no se llamó a OpenAI ni a proveedores externos. Cloudinary real
+  sigue deshabilitado y su smoke remoto continúa en espera según la autorización
+  registrada para `P1-T07`.
 
 ## Criterios de salida de Fase 2
 
-- [ ] `P2-T01` a `P2-T08` están completas.
-- [ ] Aislamiento, autorización e idempotencia tienen pruebas.
-- [ ] Existe un flujo determinista aprobado de punta a punta.
-- [ ] Ninguna acción del panel publica o llama a IA de forma implícita.
-- [ ] El snapshot aprobado puede reconstruirse y auditarse.
+- [x] `P2-T01` a `P2-T08` están completas.
+- [x] Aislamiento, autorización e idempotencia tienen pruebas.
+- [x] Existe un flujo determinista aprobado de punta a punta.
+- [x] Ninguna acción del panel publica o llama a IA de forma implícita.
+- [x] El snapshot aprobado puede reconstruirse y auditarse.

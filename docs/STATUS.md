@@ -4,20 +4,20 @@ Actualizado: 2026-07-29
 
 ## Fase activa
 
-**Fase 2 — Dominio, persistencia y panel base**
+**Fase 3 — OpenAI, RAG y datos comerciales**
 
 La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
 bloqueada únicamente por las credenciales de Cloudinary staging necesarias
-para su verificación remota. En Fase 2 están completas `P2-T01` a `P2-T07` y
-`P2-T08` está en progreso; la continuidad local fue autorizada explícitamente
-mientras el smoke remoto queda en espera.
+para su verificación remota. La Fase 2 quedó cerrada con un flujo determinista
+desde borrador hasta snapshot aprobado. La continuidad local fue autorizada
+explícitamente mientras el smoke remoto queda en espera.
 
 ## Resumen
 
 - [x] Fase documental inicial creada.
 - [x] Fase 0 — Fundación y bootstrap.
 - [ ] Fase 1 — Migración del motor visual.
-- [ ] Fase 2 — Dominio, persistencia y panel base.
+- [x] Fase 2 — Dominio, persistencia y panel base.
 - [ ] Fase 3 — OpenAI, RAG y datos comerciales.
 - [ ] Fase 4 — Generación personalizada de imágenes.
 - [ ] Fase 5 — Publicación mediante Meta.
@@ -26,10 +26,11 @@ mientras el smoke remoto queda en espera.
 
 ## Próxima tarea
 
-Continuar `P2-T08` — completar y verificar la vertical determinista de borrador,
-render, revisión y aprobación. La excepción de dependencia queda limitada al
-smoke remoto pendiente de `P1-T07`; no autoriza publicar ni conectar
-proveedores reales.
+Iniciar `P3-T01` — inventariar fuentes y reglas de conocimiento, sin ingerirlas
+ni conectar OpenAI. La tarea puede preparar el catálogo y los escenarios, pero
+su cierre requiere revisión y aprobación de un responsable de la ferretería.
+La excepción de continuidad queda limitada al smoke remoto pendiente de
+`P1-T07`; no autoriza publicar ni conectar proveedores reales.
 
 El smoke `pnpm media:smoke:cloudinary` sigue pendiente y debe ejecutarse antes
 de cerrar Fase 1.
@@ -44,7 +45,9 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-Estos bloqueos no impiden completar la parte local de Fase 0 ni Fase 1.
+Estos bloqueos no impiden preparar el inventario y la política local de
+`P3-T01`, pero el sistema comercial sin identificar y la aprobación nominal sí
+limitan su evidencia de cierre.
 
 ## Registro de decisiones pendientes
 
