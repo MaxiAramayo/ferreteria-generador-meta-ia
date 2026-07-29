@@ -79,7 +79,7 @@ la ausencia fue comprobada. No reemplaza la revisión del negocio.
 | Taxonomía | Árbol `Catálogo Aramayo`: 18 rubros de primer nivel y unas 244 categorías con productos |
 | Datos disponibles | Producto, SKU, categoría, precio vigente, stock por local, fecha de actualización |
 | Custodio técnico | `Administrador de Odoo` |
-| Método de acceso | **Pendiente de selección.** La aprobación recibida conservó el placeholder entre API, XML-RPC, JSON-RPC u otro método. `P3-T05` puede definir el puerto y los fixtures, pero una conexión real requiere registrar el método exacto, la credencial de solo lectura, los campos permitidos, el límite de filas y el timeout |
+| Método de acceso | **Propuesta técnica: XML-RPC sobre HTTPS**, con API key de un usuario técnico de solo lectura y operaciones `execute_kw` encerradas por el adaptador. Requiere revisión del `Administrador de Odoo` antes de conectar; ver [`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md) |
 
 La escala decide el canal: un maestro de ese tamaño, que cambia sin versión, no
 puede copiarse a un documento. El catálogo se consulta; no se indexa.
@@ -94,9 +94,10 @@ para una prueba no habilita ninguna afirmación.
 > producción es Odoo 18 y el informe se corrigió en julio de 2026. Este catálogo
 > toma Odoo 18 como fuente vigente.
 
-Identificar el sistema no lo vuelve consultable: `KC-001` a `KC-005` siguen sin
-puerto tipado. Hasta que `P3-T05` lo defina, toda afirmación de precio o stock
-queda bloqueada por falta de lectura, no aprobada por otra vía.
+Identificar el sistema y definir un puerto no lo vuelve consultable: `KC-001` a
+`KC-005` siguen sin un adaptador real revisado y habilitado. Hasta que exista esa
+lectura, toda afirmación de precio o stock queda bloqueada, no aprobada por otra
+vía.
 
 ## Canal web para clientes
 
@@ -282,7 +283,8 @@ Resuelto el 2026-07-29 por el negocio:
 La aprobación de esta política no activa por sí sola ninguna fuente ni autoriza
 una conexión real. Continúan pendientes:
 
-1. seleccionar y documentar el método exacto de acceso de solo lectura a Odoo;
+1. revisar con el `Administrador de Odoo` la propuesta XML-RPC, el mapping y los
+   permisos exactos de solo lectura;
 2. activar documentos únicamente después del ciclo de ingestión de `P3-T03`;
 3. aportar la fuente aprobada de cada garantía, cambio o devolución cuando un
    caso concreto la requiera.

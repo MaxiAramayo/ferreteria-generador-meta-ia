@@ -63,6 +63,10 @@ La eliminación de un documento debe retirar o invalidar su versión del índice
 Precio, stock, SKU, disponibilidad y recepción se consultan mediante
 `CommercialCatalogPort`.
 
+El contrato y la propuesta de acceso XML-RPC de solo lectura para Odoo 18 se
+detallan en [`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md). La selección sigue
+pendiente de revisión por el `Administrador de Odoo`; no habilita una conexión.
+
 Capacidades iniciales:
 
 - buscar productos;
@@ -85,10 +89,12 @@ Capacidades iniciales:
 
 ## Frescura
 
-La política inicial se definirá con responsables comerciales. Hasta entonces:
+Política aprobada por el negocio el 2026-07-29:
 
 - un dato sin timestamp no es publicable;
-- un dato vencido bloquea aprobación;
+- precio tiene vigencia máxima de 15 minutos;
+- stock tiene vigencia máxima de 5 minutos;
+- un dato vencido bloquea aprobación o publicación;
 - precio y stock se vuelven a consultar antes de publicar;
 - una discrepancia posterior a aprobación vuelve la pieza a revisión.
 

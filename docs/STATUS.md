@@ -31,10 +31,11 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P3-T02` — implementar el gateway de OpenAI detrás de un puerto de
-aplicación, con configuración validada, errores normalizados, telemetría y
-reintentos acotados. `P3-T05` también queda habilitada y puede avanzarse sin
-conectar Odoo.
+Continuar `P3-T05` — completar la revisión técnica con la función
+`Administrador de Odoo` usando `docs/integrations/ODOO-READ-ACCESS.md`. En
+paralelo, provisionar una clave OpenAI de staging para iniciar `P3-T02` con su
+smoke real disponible; sin esa puerta no se inicia el gateway ni sus tareas
+dependientes.
 
 La excepción de continuidad queda limitada al smoke remoto pendiente de
 `P1-T07`; no autoriza publicar ni conectar proveedores reales.
@@ -59,8 +60,9 @@ de cerrar Fase 1.
   ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
   permanecen vacíos; Compose validó el archivo sin exponer sus valores.
 - Sistema comercial identificado como Odoo 18 Community y custodio técnico
-  designado por función como `Administrador de Odoo`; método exacto de acceso de
-  solo lectura todavía no seleccionado.
+  designado como `Administrador de Odoo`. Se propuso XML-RPC sobre HTTPS con API
+  key de usuario técnico de solo lectura; falta revisar endpoints, ACL, modelos,
+  campos y mapping de sucursales con esa función.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - Credenciales de OpenAI y Meta no configuradas. Cloudinary local fue
   actualizado por el usuario, pero el ambiente staging aún debe confirmarse
@@ -68,13 +70,14 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-La ausencia de credenciales OpenAI staging impide cerrar los smoke reales de
-`P3-T02` y tareas dependientes. El método de Odoo pendiente no impide definir el
-puerto ni validar fixtures de `P3-T05`, pero sí impide conectar el sistema real.
+La ausencia de credenciales OpenAI staging impide iniciar la implementación
+respaldada por API y cerrar los smoke reales de `P3-T02` y tareas dependientes.
+`P3-T05` tiene contratos, fixtures y tests locales completos, pero su revisión
+obligatoria con el `Administrador de Odoo` impide cerrarla y conectar el sistema.
 
 ## Registro de decisiones pendientes
 
-- Método de acceso al sistema comercial.
+- Validación del acceso XML-RPC, permisos y mapping con `Administrador de Odoo`.
 - Política inicial de publicaciones que pueden autoaprobarse.
 
 ## Cómo actualizar este archivo

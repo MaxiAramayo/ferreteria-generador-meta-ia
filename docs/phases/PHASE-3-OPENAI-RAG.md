@@ -282,14 +282,14 @@ citas presentables al revisor.
 ## P3-T05 — Definir puerto de lectura comercial y fixtures
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P3-T01`
 - Riesgo: Alto
 
 ### Objetivo
 
 Definir consultas mínimas de productos, stock, precios, compras y promociones sin
-acoplar el dominio al sistema comercial aún desconocido.
+acoplar el dominio a Odoo ni a su protocolo remoto.
 
 ### Entregables
 
@@ -299,18 +299,19 @@ acoplar el dominio al sistema comercial aún desconocido.
 
 ### Criterios de aceptación
 
-- [ ] Las interfaces expresan `searchProducts`, `getStock`, `getPrice` y consultas aprobadas.
-- [ ] Toda respuesta incluye fecha, moneda/unidad y ámbito de sucursal.
-- [ ] Stock desconocido se diferencia de cero.
-- [ ] Fixtures cubren SKU duplicado, producto discontinuado y precio ausente.
-- [ ] No existe interfaz para SQL arbitrario.
-- [ ] La implementación puede reemplazarse sin cambiar casos de uso.
+- [x] Las interfaces expresan `searchProducts`, `getStock`, `getPrice` y consultas aprobadas.
+- [x] Toda respuesta incluye fuente y fecha; precio y stock agregan
+  moneda/unidad y ámbito de sucursal según corresponde.
+- [x] Stock desconocido se diferencia de cero.
+- [x] Fixtures cubren SKU duplicado, producto discontinuado y precio ausente.
+- [x] No existe interfaz para SQL arbitrario.
+- [x] La implementación puede reemplazarse sin cambiar casos de uso.
 
 ### Verificación obligatoria
 
-- [ ] Tests de contrato del adaptador de fixtures.
+- [x] Tests de contrato del adaptador de fixtures.
 - [ ] Revisión con responsable del sistema comercial.
-- [ ] Simular errores, latencia y datos incompletos.
+- [x] Simular errores, latencia y datos incompletos.
 
 ### Fuera de alcance
 
@@ -318,11 +319,39 @@ acoplar el dominio al sistema comercial aún desconocido.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: iniciada después de cerrar `P3-T01`. Objetivo: definir un límite
+  reemplazable para productos, precio, stock, recepciones y aprobaciones de
+  promoción sin conectar Odoo ni aceptar consultas arbitrarias.
+- Invariantes: organización y sucursal forman parte del scope; todas las
+  observaciones conservan fuente y timestamp; precio incluye moneda/unidad;
+  stock cero es `known` y nunca equivale a `unknown`; una recepción no implica
+  disponibilidad; promociones viven en un puerto humano separado.
+- Casos y bordes: búsqueda ambigua, SKU duplicado, discontinuado, precio
+  ausente, stock cero, stock no informado, ubicación inexistente, recepción no
+  confirmada, aprobación de promoción ausente/vencida, dato de otro tenant,
+  input inválido, timeout e indisponibilidad.
+- Responsabilidades: `packages/domain` contiene contratos puros y errores;
+  `apps/worker/src/catalog` implementa fixtures deterministas; el futuro
+  adaptador Odoo traduce una lista fija de operaciones sin filtrar RPC al caso
+  de uso.
+- Propuesta de acceso: XML-RPC sobre HTTPS con API key de usuario técnico de
+  solo lectura. Se verificó contra la External API oficial de Odoo 18 y se
+  documentó en `docs/integrations/ODOO-READ-ACCESS.md`.
+- Archivos modificados: contratos y exports de dominio, adaptador y fixtures del
+  worker, tests de contrato y documentación de integración.
+- Verificaciones ejecutadas: build de dominio, typecheck del worker y 30 tests
+  del worker aprobados (29 pass, 1 integración preexistente omitida).
+- `pnpm verify`: pipeline completo aprobado, incluidos build, lint, typecheck,
+  tests, baseline y smoke de procesos.
+- Verificación pendiente: revisión de endpoints, permisos, modelos, campos y
+  mapping de sucursales con la función `Administrador de Odoo`.
+- Próximo paso exacto: completar la lista de revisión de
+  `ODOO-READ-ACCESS.md`; después ejecutar `pnpm verify`, registrar evidencia y
+  cerrar la tarea.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Implementación local completa; cierre pendiente de revisión humana obligatoria.
 
 ## P3-T06 — Exponer herramientas comerciales seguras al modelo
 
