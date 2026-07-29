@@ -344,8 +344,7 @@ rollback de aplicación y migraciones compatibles.
   publica las cuatro imágenes sólo con el SHA de `main`. La ejecución
   `30476757409` terminó correctamente para
   `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`; no se creó un tag mutable. Los
-  paquetes permanecen privados hasta resolver acceso de sólo lectura o
-  visibilidad pública.
+  paquetes quedaron públicos por autorización explícita.
 - Donweb sirve autoritativamente los registros `A` y `AAAA` de
   `content.ferreteriaaramayo.com.ar` y `api.content.ferreteriaaramayo.com.ar`.
   La propagación pública todavía era parcial por caché negativa; Caddy permanece
@@ -361,6 +360,12 @@ rollback de aplicación y migraciones compatibles.
 - `docs/operations/VPS_OPERATIONS.md` registra huella SSH, inventario,
   directorios, inspección, actualizaciones, despliegue condicionado, rollback,
   backup, incidentes y acciones destructivas prohibidas.
+- El VPS descargó anónimamente las cuatro imágenes `linux/amd64` y las tres
+  imágenes de infraestructura fijadas. Todas las imágenes de aplicación
+  reportaron el SHA esperado; quedaron 60 GB libres y no se crearon
+  contenedores ni volúmenes.
+- Los cuatro registros DNS ya responden en 1.1.1.1 y 8.8.8.8. Caddy permanece
+  detenido hasta autorizar el despliegue.
 
 ### Evidencia de cierre
 

@@ -13,10 +13,11 @@ versionado despliega remotamente. El smoke crea y elimina sólo un proyecto
 Docker local con nombre fijo y credenciales falsas; no usa el `.env` del
 desarrollador ni una base persistente real.
 
-El host base fue provisionado y verificado el 2026-07-29. Todavía no contiene
-la aplicación, bases, volúmenes de aplicación ni secretos de proveedores. El
-manifiesto del commit `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` quedó
-preparado en el host, pero ningún servicio fue iniciado.
+El host base fue provisionado y verificado el 2026-07-29. Las imágenes están
+precargadas, pero no existen contenedores, bases ni volúmenes de aplicación y
+los proveedores permanecen deshabilitados. El manifiesto del commit
+`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` quedó preparado en el host, sin
+iniciar servicios.
 
 El acceso, inventario, mantenimiento y procedimiento seguro están en
 [`VPS_OPERATIONS.md`](../../docs/operations/VPS_OPERATIONS.md).
@@ -145,9 +146,9 @@ No existe tag `latest` ni trigger por push. La ejecución se habilita sólo desd
 `main` y requiere acción humana. La
 [primera publicación](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/30476757409)
 terminó correctamente el 2026-07-29 para el commit
-`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`. Los cuatro paquetes permanecen
-privados; antes de hacer pull desde el VPS se elige explícitamente entre
-visibilidad pública o una credencial exclusiva con `read:packages`.
+`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`. Los cuatro paquetes quedaron
+públicos por autorización explícita. El VPS descargó las imágenes sin
+credenciales de GHCR y comprobó arquitectura y label de revisión.
 
 ## Datos y recuperación
 
@@ -189,13 +190,9 @@ puertos; PostgreSQL y Redis nunca declaran `ports`.
 
 ## Pendientes antes del despliegue
 
-- definir si los paquetes GHCR serán públicos o si el VPS usará una credencial
-  exclusiva de lectura;
-- confirmar el email operativo de ACME;
 - confirmar destino de backup externo;
-- cargar secretos sin copiarlos a terminales, issues o logs;
-- esperar que los resolvers públicos respondan consistentemente los cuatro
-  registros Donweb;
+- cargar credenciales productivas de proveedores sólo cuando sus tareas lo
+  habiliten;
 - ejecutar staging/rollback según `P7-T07` antes del piloto.
 
 ## Fuentes

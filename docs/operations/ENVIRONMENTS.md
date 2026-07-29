@@ -57,7 +57,9 @@ hasta completar el entorno. La release declarativa
 `/opt/aramayo-content/current`, con Compose y Caddy validados pero sin servicios
 iniciados. El entorno productivo existe como archivo `0600 root:root`: contiene
 correo ACME y secretos internos generados en el host, mientras OpenAI,
-Cloudinary y Meta siguen deshabilitados.
+Cloudinary y Meta siguen deshabilitados. Las imágenes públicas de la release
+fueron descargadas anónimamente desde GHCR y verificadas como `linux/amd64`, sin
+crear contenedores ni volúmenes.
 
 ## Matriz de URLs
 

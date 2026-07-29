@@ -46,15 +46,15 @@ de cerrar Fase 1.
 
 - El VPS dedicado responde como `vps-f94a1dd2.vps.ovh.ca` en
   `144.217.91.115` y `2607:5300:205:200::9f41`. Su baseline de Ubuntu, SSH por
-  clave, UFW, swap, Docker y directorios protegidos quedó verificado. No hay
-  aplicación, base ni secretos desplegados.
+  clave, UFW, swap, Docker y directorios protegidos quedó verificado. Hay
+  imágenes precargadas, pero no contenedores, base ni volúmenes iniciados.
 - Donweb ya sirve autoritativamente los registros `A` y `AAAA` de `content` y
-  `api.content`; la caché negativa de los resolvers públicos todavía producía
-  respuestas parciales al verificar la propagación.
+  `api.content`; 1.1.1.1 y 8.8.8.8 ya responden consistentemente los cuatro.
 - GHCR contiene las cuatro imágenes `linux/amd64` del commit
-  `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`; su visibilidad o credencial de
-  lectura para el VPS sigue pendiente. Backup externo tampoco está confirmado.
-  El scaffolding no autoriza omitir las puertas de Fase 7.
+  `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1`. Los paquetes son públicos y el
+  VPS descargó la topología completa sin credencial GHCR; no se iniciaron
+  contenedores ni volúmenes. Backup externo todavía no está confirmado. El
+  scaffolding no autoriza omitir las puertas de Fase 7.
 - El entorno remoto `production.env` existe con modo `0600 root:root`, correo
   ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
   permanecen vacíos; Compose validó el archivo sin exponer sus valores.

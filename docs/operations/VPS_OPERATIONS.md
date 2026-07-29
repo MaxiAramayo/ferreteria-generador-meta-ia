@@ -28,11 +28,12 @@ Inventario comprobado el 2026-07-29:
 | Hora del host | UTC sincronizada por NTP |
 | Hora de aplicación | `America/Argentina/Cordoba` |
 | Release preparada | `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` |
-| Estado de aplicación | Sin contenedores ni volúmenes iniciados |
+| Estado de aplicación | Imágenes precargadas; sin contenedores ni volúmenes |
 
-Al cerrar la preparación había 67 GB libres, 7,1 GiB de memoria disponible y
-ningún uso de swap. AppArmor, UFW, Docker, actualizaciones automáticas y
-sincronización horaria estaban activos.
+Después de precargar las siete imágenes fijadas había 60 GB libres. Antes de la
+carga, el host tenía 7,1 GiB de memoria disponible y ningún uso de swap.
+AppArmor, UFW, Docker, actualizaciones automáticas y sincronización horaria
+estaban activos.
 
 ## DNS e ingreso público
 
@@ -50,6 +51,8 @@ Caddy será el único ingreso público y publicará `80/tcp`, `443/tcp` y
 correo ACME está configurado únicamente en el archivo remoto protegido.
 
 No modificar los registros `@`, `www`, correo u Odoo desde este procedimiento.
+Los cuatro valores fueron comprobados en los nameservers autoritativos y en los
+resolvers públicos 1.1.1.1 y 8.8.8.8.
 
 ## Acceso SSH
 
@@ -228,7 +231,10 @@ Las imágenes se construyen exclusivamente mediante el workflow manual
 
 Las imágenes públicas de GHCR no requieren credencial en el VPS. El repositorio
 mantiene permiso administrativo para publicar nuevas versiones mediante
-`GITHUB_TOKEN`; el VPS sólo descarga artefactos.
+`GITHUB_TOKEN`; el VPS sólo descarga artefactos. El pull anónimo del commit
+`3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` quedó verificado para las cuatro
+imágenes de aplicación y para Caddy, PostgreSQL y Redis, sin archivo
+`~/.docker/config.json`.
 
 ## Despliegue de una release
 
