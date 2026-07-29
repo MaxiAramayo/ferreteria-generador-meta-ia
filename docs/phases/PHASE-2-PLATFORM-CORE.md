@@ -323,8 +323,8 @@ cancelación, dejando estados de publicación externa para fases posteriores.
 
 ## P2-T05 — Construir borradores, medios y revisiones
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T07`, `P2-T03`, `P2-T04`
 - Riesgo: Alto
 
@@ -341,19 +341,19 @@ manteniendo versiones revisables.
 
 ### Criterios de aceptación
 
-- [ ] Crear o actualizar no puede disparar una publicación externa.
-- [ ] Inputs se validan antes del caso de uso.
-- [ ] Medios pertenecen a la misma organización.
-- [ ] Una actualización requiere versión esperada.
-- [ ] El historial permite identificar qué versión fue aprobada.
-- [ ] Errores parciales no dejan referencias huérfanas.
-- [ ] Listados están paginados y filtrados en servidor.
+- [x] Crear o actualizar no puede disparar una publicación externa.
+- [x] Inputs se validan antes del caso de uso.
+- [x] Medios pertenecen a la misma organización.
+- [x] Una actualización requiere versión esperada.
+- [x] El historial permite identificar qué versión fue aprobada.
+- [x] Errores parciales no dejan referencias huérfanas.
+- [x] Listados están paginados y filtrados en servidor.
 
 ### Verificación obligatoria
 
-- [ ] Tests de repositorio, servicio y endpoint.
-- [ ] Pruebas de ownership, concurrencia y rollback.
-- [ ] Flujo E2E crear–editar–versionar–consultar.
+- [x] Tests de repositorio, servicio y endpoint.
+- [x] Pruebas de ownership, concurrencia y rollback.
+- [x] Flujo E2E crear–editar–versionar–consultar.
 
 ### Fuera de alcance
 
@@ -374,7 +374,17 @@ manteniendo versiones revisables.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Implementación: commit `f0c1a3c`.
+- `pnpm db:test`: migración aplicada desde cero; seed verificado; ownership,
+  concurrencia, rollback, historial aprobado e inmutabilidad aprobados; última
+  migración revertida y reaplicada.
+- `pnpm verify`: stack, plan, formato, build, lint, typecheck, 157 tests,
+  baseline y smoke de API/web/worker aprobados.
+- HTTP E2E: payload desconocido rechazado; crear, editar con
+  `expectedVersion`, rechazar edición vencida, listar por estado y paginar
+  revisiones aprobados.
+- No se incorporaron colas, adaptadores de publicación ni llamadas externas.
+  El smoke remoto de `P1-T07` conserva su bloqueo independiente.
 
 ## P2-T06 — Implementar auditoría, idempotencia y outbox
 
