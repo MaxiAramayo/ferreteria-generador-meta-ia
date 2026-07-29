@@ -31,12 +31,10 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P3-T04` — recuperar contexto documental con fragmentos, aislamiento,
-límites y citas presentables. `P3-T03` quedó cerrado con pruebas de ciclo de
-vida, persistencia y un smoke real de File Search en staging.
-
-En paralelo continúa `P3-T05`: completar la revisión técnica con la función
+Continuar `P3-T05` — realizar la revisión técnica con la función
 `Administrador de Odoo` usando `docs/integrations/ODOO-READ-ACCESS.md`.
+`P3-T04` quedó cerrado con aislamiento local y remoto, citas versionadas,
+límites de contexto, UI de evidencia y un smoke real de recuperación.
 
 La excepción de continuidad queda limitada al smoke remoto pendiente de
 `P1-T07`; no autoriza publicar ni conectar proveedores reales.

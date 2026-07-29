@@ -286,8 +286,8 @@ OpenAI File Search.
 
 ## P3-T04 — Recuperar contexto documental con citas
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P3-T03`
 - Riesgo: Alto
 
@@ -304,18 +304,18 @@ citas presentables al revisor.
 
 ### Criterios de aceptación
 
-- [ ] Cada afirmación recuperada conserva documento, versión y fragmento.
-- [ ] El filtro aplica organización, estado aprobado y ámbito de ubicación.
-- [ ] Ausencia de evidencia produce `missing_information`.
-- [ ] La UI distingue texto generado de fuente recuperada.
-- [ ] No se muestran documentos de otra organización.
-- [ ] Se limita cantidad y tamaño de contexto enviado.
+- [x] Cada afirmación recuperada conserva documento, versión y fragmento.
+- [x] El filtro aplica organización, estado aprobado y ámbito de ubicación.
+- [x] Ausencia de evidencia produce `missing_information`.
+- [x] La UI distingue texto generado de fuente recuperada.
+- [x] No se muestran documentos de otra organización.
+- [x] Se limita cantidad y tamaño de contexto enviado.
 
 ### Verificación obligatoria
 
-- [ ] Dataset de preguntas con respuesta, sin respuesta y fuente conflictiva.
-- [ ] Tests de aislamiento y filtros.
-- [ ] Revisión manual de precisión de citas.
+- [x] Dataset de preguntas con respuesta, sin respuesta y fuente conflictiva.
+- [x] Tests de aislamiento y filtros.
+- [x] Revisión manual de precisión de citas.
 
 ### Fuera de alcance
 
@@ -323,11 +323,32 @@ citas presentables al revisor.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: se implementó el caso de uso de recuperación con elegibilidad
+  local por organización, estado, vigencia y sucursal, más revalidación de cada
+  coincidencia remota contra hash, archivo y versión persistidos.
+- El contexto queda limitado a 6 evidencias, 900 caracteres por fragmento y
+  4.800 caracteres totales. La ausencia devuelve `missing_information`; un
+  conflicto conserva citas para revisión y no produce contexto utilizable.
+- El compositor de creatividad asistida separa explícitamente el texto
+  propuesto de las fuentes verificadas y representa estados vacío, sustentado y
+  con información faltante.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P3-T04`.
+- Comandos y resultados:
+  - `pnpm --filter @aramayo/worker test`: 49/49, 1 integración omitida según su
+    puerta explícita;
+  - `pnpm --filter @aramayo/web test`: 12/12;
+  - `pnpm db:test`: selección documental aislada por organización y sucursal,
+    migración desde cero, rollback y reaplicación completos;
+  - `NODE_ENV=staging pnpm knowledge:smoke`: recuperación de las versiones 1 y
+    2 con sus citas y `missing_information` después del retiro;
+  - `pnpm verify`: secuencia completa aprobada.
+- Evidencia visual:
+  `output/playwright/p3-t04-evidence-panel.png` y
+  `output/playwright/p3-t04-evidence-panel-mobile.png`.
+- Desviaciones aprobadas: ninguna.
 
 ## P3-T05 — Definir puerto de lectura comercial y fixtures
 

@@ -199,6 +199,26 @@ Una interrupción conserva el archivo y estado remoto en la versión local. La
 reconciliación consulta OpenAI, continúa la indexación o completa un retiro sin
 duplicar el documento lógico. Un fallo parcial nunca se presenta como activo.
 
+## Recuperación con citas
+
+`P3-T04` aplica elegibilidad local antes de consultar File Search. PostgreSQL
+devuelve como máximo 50 fuentes activas, aprobadas y vigentes para la
+organización y sucursal derivadas de la sesión. La búsqueda remota filtra por
+`organization_id`, `status=approved` y por los hashes activos permitidos.
+
+Cada coincidencia se vuelve a validar contra documento, versión, hash, archivo
+remoto y nombre persistidos. Los resultados con otra organización, versión
+reemplazada, hash inesperado o score menor a `0.20` se descartan. El contexto
+incluye como máximo 6 evidencias, 900 caracteres por fragmento y 4.800
+caracteres en total; la pregunta admite entre 3 y 500 caracteres.
+
+Cada cita conserva identificador presentable, documento, título, tipo, versión,
+fragmento exacto, propietario, hash y score. Sin evidencia suficiente se
+devuelve `missing_information`. Dos fuentes vigentes del mismo tipo con
+fragmentos distintos se presentan como conflicto y no generan contexto para el
+modelo. Los errores de OpenAI se propagan como fallos operativos y nunca se
+convierten en una respuesta factual vacía.
+
 Fuentes:
 
 - [File Search](https://developers.openai.com/api/docs/guides/tools-file-search)

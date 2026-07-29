@@ -4,6 +4,8 @@ import type {
 } from "@aramayo/configuration";
 import type {
   KnowledgeFileAttributes,
+  KnowledgeSearchMatch,
+  KnowledgeSearchPort,
   KnowledgeVectorStoreFile,
   KnowledgeVectorStorePort,
   UploadKnowledgeFileInput,
@@ -87,17 +89,9 @@ function providerAttributes(
   };
 }
 
-export interface OpenAIKnowledgeSearchResult {
-  readonly attributes: Readonly<
-    Record<string, boolean | number | string>
-  > | null;
-  readonly content: readonly string[];
-  readonly fileId: string;
-  readonly filename: string;
-  readonly score: number;
-}
-
-export class OfficialOpenAIFileSearchAdapter implements KnowledgeVectorStorePort {
+export class OfficialOpenAIFileSearchAdapter
+  implements KnowledgeSearchPort, KnowledgeVectorStorePort
+{
   readonly #client: OpenAI;
 
   constructor(credentials: OpenAICredentials, policy: OpenAIRuntimePolicy) {
@@ -198,31 +192,45 @@ export class OfficialOpenAIFileSearchAdapter implements KnowledgeVectorStorePort
   }
 
   async search(
-    vectorStoreId: string,
-    query: string,
-    contentHash: string,
-  ): Promise<readonly OpenAIKnowledgeSearchResult[]> {
+    input: Parameters<KnowledgeSearchPort["search"]>[0],
+  ): Promise<readonly KnowledgeSearchMatch[]> {
     try {
-      const result = await this.#client.vectorStores.search(vectorStoreId, {
-        filters: {
-          filters: [
-            {
+      const contentHashFilter =
+        input.contentHashes.length === 1
+          ? {
               key: "content_hash",
-              type: "eq",
-              value: contentHash,
-            },
-            {
-              key: "status",
-              type: "eq",
-              value: "approved",
-            },
-          ],
-          type: "and",
+              type: "eq" as const,
+              value: input.contentHashes[0] ?? "",
+            }
+          : {
+              key: "content_hash",
+              type: "in" as const,
+              value: [...input.contentHashes],
+            };
+      const result = await this.#client.vectorStores.search(
+        input.vectorStoreId,
+        {
+          filters: {
+            filters: [
+              {
+                key: "organization_id",
+                type: "eq",
+                value: input.organizationId,
+              },
+              {
+                key: "status",
+                type: "eq",
+                value: "approved",
+              },
+              contentHashFilter,
+            ],
+            type: "and",
+          },
+          max_num_results: input.maximumResults,
+          query: input.query,
+          rewrite_query: false,
         },
-        max_num_results: 5,
-        query,
-        rewrite_query: false,
-      });
+      );
       return Object.freeze(
         result.data.map((entry) =>
           Object.freeze({

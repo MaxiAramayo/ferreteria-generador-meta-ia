@@ -23,6 +23,14 @@ import {
   usePublicationComposerMeta,
   usePublicationComposerState,
 } from "./publication-composer-context";
+import {
+  KnowledgeEvidencePanel,
+  type KnowledgeEvidencePanelState,
+} from "./knowledge-evidence-panel";
+
+const idleKnowledgeEvidenceState: KnowledgeEvidencePanelState = Object.freeze({
+  status: "idle",
+});
 
 function PublicationComposerProvider({
   apiBaseUrl,
@@ -395,11 +403,20 @@ export function TemplatePublicationComposer() {
 export function AICreativeComposer() {
   return (
     <ComposerFrame>
-      <CapabilityBoundary
-        description="Acá se definirán el objetivo y las fuentes verificadas antes de generar una propuesta."
-        eyebrow="Fase 3"
-        title="Creatividad con contexto comprobable"
-      />
+      <section className="composer-ai-request">
+        <p className="workspace-eyebrow">Fase 3</p>
+        <h2>Creatividad con contexto comprobable</h2>
+        <p>
+          La consulta usará únicamente documentos aprobados para la organización
+          y la sucursal elegida. Recuperar evidencia no guarda, aprueba ni
+          publica una pieza.
+        </p>
+        <p className="composer-boundary-note">
+          La conexión del pedido al brief estructurado se habilitará después de
+          completar las herramientas comerciales y la evaluación de fidelidad.
+        </p>
+      </section>
+      <KnowledgeEvidencePanel state={idleKnowledgeEvidenceState} />
     </ComposerFrame>
   );
 }

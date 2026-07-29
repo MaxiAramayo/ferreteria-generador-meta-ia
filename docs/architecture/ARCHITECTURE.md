@@ -143,6 +143,21 @@ referencias y retención dentro de una transacción, elimina en Cloudinary y só
 entonces confirma `deleted`. Una respuesta remota ambigua conserva el estado
 reintentable.
 
+## Recuperación de conocimiento
+
+La recuperación documental combina dos controles independientes. PostgreSQL
+selecciona primero las versiones activas, aprobadas, vigentes y permitidas para
+la organización y sucursal derivadas de la sesión. File Search busca únicamente
+entre sus hashes y el worker vuelve a validar cada resultado contra esa lista
+local antes de construir contexto.
+
+`KnowledgeRetrievalRepository` resuelve elegibilidad y
+`KnowledgeSearchPort` aísla la búsqueda remota. El caso de uso limita fuentes,
+fragmentos y tamaño total, conserva documento, versión y fragmento exacto, y
+devuelve `missing_information` cuando no existe evidencia suficiente o hay
+fuentes conflictivas. Un fallo del proveedor es un error operativo explícito,
+no ausencia de información.
+
 ## Frontend
 
 El compositor se diseña por composición:
@@ -165,6 +180,9 @@ Variantes explícitas:
 
 El provider es el único que conoce persistencia y sincronización. Los
 subcomponentes consumen una interfaz con `state`, `actions` y `meta`.
+La variante de creatividad asistida presenta el texto propuesto y las fuentes
+verificadas en regiones separadas; una cita nunca se renderiza como parte del
+texto generado.
 
 ## Fuente de verdad
 

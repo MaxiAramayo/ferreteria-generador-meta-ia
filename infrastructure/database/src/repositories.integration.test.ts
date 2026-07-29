@@ -89,6 +89,7 @@ test("versiona, activa, reemplaza y retira conocimiento por organización", asyn
     ],
   });
   const repository = new PrismaKnowledgeDocumentRepository(database);
+  const knowledgeLocationId = randomUUID();
   const baseInput: Omit<ReserveKnowledgeDocumentVersionInput, "contentHash"> = {
     approvalReference: "approval-2026-07-29",
     approvedAt: "2026-07-29T12:00:00.000Z",
@@ -98,7 +99,7 @@ test("versiona, activa, reemplaza y retira conocimiento por organización", asyn
     effectiveFrom: "2026-07-29T12:00:00.000Z",
     effectiveUntil: null,
     filename: "faq.md",
-    locationIds: [randomUUID()],
+    locationIds: [knowledgeLocationId],
     mimeType: "text/markdown",
     organizationId,
     providerVectorStoreId: "vs_integration",
@@ -152,6 +153,34 @@ test("versiona, activa, reemplaza y retira conocimiento por organización", asyn
   assert.equal(replacement.active.status, "active");
   assert.equal(replacement.superseded?.id, first.record.id);
   assert.equal(replacement.superseded.status, "superseded");
+  const activeForLocation = await repository.findActiveSources({
+    at: "2026-07-29T14:30:00.000Z",
+    limit: 10,
+    locationId: knowledgeLocationId,
+    organizationId,
+  });
+  assert.deepEqual(
+    activeForLocation.map((record) => record.id),
+    [second.record.id],
+  );
+  assert.deepEqual(
+    await repository.findActiveSources({
+      at: "2026-07-29T14:30:00.000Z",
+      limit: 10,
+      locationId: randomUUID(),
+      organizationId,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    await repository.findActiveSources({
+      at: "2026-07-29T14:30:00.000Z",
+      limit: 10,
+      locationId: null,
+      organizationId,
+    }),
+    [],
+  );
   assert.equal(
     await repository.findVersion(foreignOrganizationId, second.record.id),
     null,

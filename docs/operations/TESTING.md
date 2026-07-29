@@ -134,8 +134,8 @@ modelo, latencia, tokens y costo estimado, y nunca imprime clave, prompt ni
 output. Tampoco forma parte de `pnpm verify` porque consume una API facturable.
 
 El smoke de conocimiento crea el vector store de staging si falta, ingiere una
-fuente sintética, consulta su primera versión, la reemplaza, consulta la segunda
-y la retira:
+fuente sintética, recupera su primera versión mediante el caso de uso completo,
+la reemplaza, recupera la segunda y la retira:
 
 ```bash
 NODE_ENV=staging pnpm knowledge:smoke
@@ -144,7 +144,8 @@ NODE_ENV=staging pnpm knowledge:smoke
 Requiere PostgreSQL local migrado y con el seed de Aramayo. Si crea el vector
 store, su identificador se copia a `OPENAI_VECTOR_STORE_ID` en el entorno no
 versionado. Los documentos no contienen información comercial ni personal. El
-smoke confirma hash, versión y estados local/remoto; no forma parte de CI porque
+smoke confirma hash, versión, estados local/remoto y la secuencia
+`grounded`, `grounded`, `missing_information`; no forma parte de CI porque
 escribe activos facturables en el proyecto de staging.
 
 ## Puertas de calidad

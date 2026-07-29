@@ -8,6 +8,7 @@ import {
 import type { IngestKnowledgeDocumentCommand } from "@aramayo/domain";
 
 import { KnowledgeIngestionService } from "./knowledge-ingestion.service.ts";
+import { KnowledgeRetrievalService } from "./knowledge-retrieval.service.ts";
 import {
   OfficialOpenAIFileSearchAdapter,
   OpenAIFileSearchError,
@@ -49,11 +50,13 @@ async function waitUntilRetiredIsNotSearchable(
   contentHash: string,
 ): Promise<void> {
   for (let attempt = 0; attempt < 15; attempt += 1) {
-    const results = await adapter.search(
+    const results = await adapter.search({
+      contentHashes: [contentHash],
+      maximumResults: 5,
+      organizationId: ARAMAYO_DEVELOPMENT_ORGANIZATION_ID,
+      query: "¿Cuál es el código aprobado?",
       vectorStoreId,
-      "¿Cuál es el código aprobado?",
-      contentHash,
-    );
+    });
     if (results.length === 0) {
       return;
     }
@@ -63,6 +66,32 @@ async function waitUntilRetiredIsNotSearchable(
   }
   throw new Error(
     "La fuente retirada siguió apareciendo después del margen de consistencia remota.",
+  );
+}
+
+async function waitForGroundedEvidence(
+  retrieval: KnowledgeRetrievalService,
+  marker: string,
+): Promise<"grounded"> {
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const result = await retrieval.retrieve({
+      locationId: null,
+      organizationId: ARAMAYO_DEVELOPMENT_ORGANIZATION_ID,
+      question: "¿Cuál es el código aprobado de esta versión?",
+      requestedAt: new Date().toISOString(),
+    });
+    if (
+      result.status === "grounded" &&
+      result.evidence.some((evidence) => evidence.fragment.includes(marker))
+    ) {
+      return "grounded";
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1_000);
+    });
+  }
+  throw new Error(
+    "La evidencia activa no apareció dentro del margen de consistencia remota.",
   );
 }
 
@@ -92,22 +121,16 @@ async function smoke(): Promise<void> {
     adapter,
     vectorStoreId,
   );
+  const retrieval = new KnowledgeRetrievalService(repository, adapter);
   const runId = Date.now().toString();
   const approvedAt = new Date().toISOString();
 
   try {
     const first = await service.ingest(smokeCommand(runId, approvedAt, "alfa"));
     assert.equal(first.record.status, "active");
-    const firstResults = await adapter.search(
-      vectorStoreId,
-      "¿Cuál es el código aprobado de esta versión?",
-      first.record.contentHash,
-    );
-    assert.equal(
-      firstResults.some((result) =>
-        result.content.some((fragment) => fragment.includes(`alfa-${runId}`)),
-      ),
-      true,
+    const firstRetrievalStatus = await waitForGroundedEvidence(
+      retrieval,
+      `alfa-${runId}`,
     );
 
     const replacement = await service.ingest(
@@ -120,16 +143,9 @@ async function smoke(): Promise<void> {
       first.record.id,
     );
     assert.equal(previous?.status, "superseded");
-    const replacementResults = await adapter.search(
-      vectorStoreId,
-      "¿Cuál es el código aprobado de esta versión?",
-      replacement.record.contentHash,
-    );
-    assert.equal(
-      replacementResults.some((result) =>
-        result.content.some((fragment) => fragment.includes(`beta-${runId}`)),
-      ),
-      true,
+    const replacementRetrievalStatus = await waitForGroundedEvidence(
+      retrieval,
+      `beta-${runId}`,
     );
 
     const retired = await service.retire(
@@ -137,6 +153,13 @@ async function smoke(): Promise<void> {
       replacement.record.documentId,
     );
     assert.equal(retired?.status, "retired");
+    const afterRetirement = await retrieval.retrieve({
+      locationId: null,
+      organizationId: replacement.record.organizationId,
+      question: "¿Cuál es el código aprobado de esta versión?",
+      requestedAt: new Date().toISOString(),
+    });
+    assert.equal(afterRetirement.status, "missing_information");
     await waitUntilRetiredIsNotSearchable(
       adapter,
       vectorStoreId,
@@ -150,6 +173,7 @@ async function smoke(): Promise<void> {
         `created=${String(configuredVectorStoreId === undefined)}`,
         `versions=${String(first.record.version)},${String(replacement.record.version)}`,
         `finalStatus=${retired.status}`,
+        `retrieval=${firstRetrievalStatus},${replacementRetrievalStatus},${afterRetirement.status}`,
       ].join(" "),
     );
     process.stdout.write("\n");

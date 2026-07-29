@@ -186,6 +186,19 @@ export {
   type ValidatedKnowledgeDocument,
 } from "./knowledge-document.ts";
 export {
+  knowledgeRetrievalLimits,
+  KnowledgeRetrievalValidationError,
+  type FindActiveKnowledgeSourcesInput,
+  type KnowledgeEvidence,
+  type KnowledgeRetrievalRepository,
+  type KnowledgeRetrievalResult,
+  type KnowledgeRetrievalValidationErrorCode,
+  type KnowledgeSearchMatch,
+  type KnowledgeSearchPort,
+  type MissingKnowledgeReason,
+  type SearchKnowledgeInput,
+} from "./knowledge-retrieval.ts";
+export {
   isPublicationTransitionAllowed,
   PUBLICATION_TRANSITIONS,
   transitionPublication,

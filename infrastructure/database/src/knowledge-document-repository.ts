@@ -1,6 +1,7 @@
 import type {
   KnowledgeActivationResult,
   KnowledgeDocumentRepository,
+  KnowledgeRetrievalRepository,
   KnowledgeDocumentSensitivity,
   KnowledgeDocumentVersionRecord,
   KnowledgeDocumentVersionStatus,
@@ -121,7 +122,9 @@ const versionWithDocument = {
   document: { select: { sourceKey: true, title: true } },
 } as const;
 
-export class PrismaKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
+export class PrismaKnowledgeDocumentRepository
+  implements KnowledgeDocumentRepository, KnowledgeRetrievalRepository
+{
   readonly #database: DatabaseClient;
 
   constructor(database: DatabaseClient) {
@@ -449,6 +452,46 @@ export class PrismaKnowledgeDocumentRepository implements KnowledgeDocumentRepos
         where: { id: versionId, organizationId },
       })
       .then((record) => (record === null ? null : mapRecord(record)));
+  }
+
+  async findActiveSources(
+    input: Parameters<KnowledgeRetrievalRepository["findActiveSources"]>[0],
+  ): Promise<readonly KnowledgeDocumentVersionRecord[]> {
+    const at = new Date(input.at);
+    const records = await this.#database.knowledgeDocumentVersion.findMany({
+      include: versionWithDocument,
+      orderBy: [
+        { document: { sourceKey: "asc" } },
+        { version: "desc" },
+        { id: "asc" },
+      ],
+      take: input.limit,
+      where: {
+        activeFor: { isNot: null },
+        effectiveFrom: { lte: at },
+        AND: [
+          {
+            OR: [{ effectiveUntil: null }, { effectiveUntil: { gt: at } }],
+          },
+          {
+            OR:
+              input.locationId === null
+                ? [{ locationIds: { equals: [] } }]
+                : [
+                    { locationIds: { equals: [] } },
+                    {
+                      locationIds: {
+                        array_contains: [input.locationId],
+                      },
+                    },
+                  ],
+          },
+        ],
+        organizationId: input.organizationId,
+        status: "active",
+      },
+    });
+    return Object.freeze(records.map(mapRecord));
   }
 
   async #requiredVersion(

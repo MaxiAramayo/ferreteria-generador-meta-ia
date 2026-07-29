@@ -75,6 +75,20 @@ Los estados `sync_failed` y `retiring` conservan diagnóstico seguro y permiten
 reanudar una subida ya asociada, completar la activación o repetir el retiro.
 La fuente queda fuera de consultas desde que comienza el retiro local.
 
+### Recuperación inicial
+
+La consulta comienza en PostgreSQL y sólo habilita versiones activas,
+aprobadas, vigentes y aplicables a la organización y sucursal de la sesión.
+File Search recibe ese conjunto acotado de hashes junto con el tenant y el
+estado aprobado. Cada resultado remoto se valida nuevamente contra la versión,
+hash, archivo y nombre locales antes de usarse.
+
+El contexto es determinista y acotado: hasta 6 fragmentos, 900 caracteres por
+fragmento y 4.800 caracteres totales. Cada evidencia preserva la fuente lógica,
+versión, fragmento exacto y metadatos necesarios para revisión. Sin evidencia
+se devuelve `missing_information`; ante fuentes vigentes conflictivas se
+conservan ambas citas para revisión, pero el contexto queda vacío.
+
 ## Capa comercial
 
 Precio, stock, SKU, disponibilidad y recepción se consultan mediante
