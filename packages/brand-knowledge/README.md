@@ -11,3 +11,10 @@ Solo deben ingresar documentos con:
 - clasificación de sensibilidad.
 
 No colocar exportaciones de clientes, tokens ni credenciales en esta carpeta.
+
+El inventario y la política que determinan qué fuentes podrían ingresar están
+en
+[`docs/integrations/KNOWLEDGE-SOURCE-CATALOG.md`](../../docs/integrations/KNOWLEDGE-SOURCE-CATALOG.md).
+El perfil TypeScript actual es una referencia heredada y un fixture de
+configuración; no se considera una fuente activa para IA hasta que el
+responsable de negocio lo revise y apruebe.

@@ -25,6 +25,10 @@
 
 - [`integrations/OPENAI.md`](integrations/OPENAI.md)
 - [`integrations/RAG_AND_COMMERCIAL_DATA.md`](integrations/RAG_AND_COMMERCIAL_DATA.md)
+- [`integrations/KNOWLEDGE-SOURCE-CATALOG.md`](integrations/KNOWLEDGE-SOURCE-CATALOG.md):
+  inventario, autoridad, sensibilidad, vigencia y política de afirmaciones.
+- [`integrations/KNOWLEDGE-POLICY-SCENARIOS.md`](integrations/KNOWLEDGE-POLICY-SCENARIOS.md):
+  revisión de ausencia, contradicción, retiro y aislamiento.
 - [`integrations/META.md`](integrations/META.md)
 
 ## Operación

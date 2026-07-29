@@ -26,9 +26,11 @@ explícitamente mientras el smoke remoto queda en espera.
 
 ## Próxima tarea
 
-Iniciar `P3-T01` — inventariar fuentes y reglas de conocimiento, sin ingerirlas
-ni conectar OpenAI. La tarea puede preparar el catálogo y los escenarios, pero
-su cierre requiere revisión y aprobación de un responsable de la ferretería.
+Continuar `P3-T01` — revisar el catálogo y ejecutar sus escenarios con un
+responsable de la ferretería, sin ingerir fuentes ni conectar OpenAI. El
+inventario técnico y la política borrador ya están documentados, pero su cierre
+requiere confirmación de fuentes, vigencia y disclaimers.
+
 La excepción de continuidad queda limitada al smoke remoto pendiente de
 `P1-T07`; no autoriza publicar ni conectar proveedores reales.
 

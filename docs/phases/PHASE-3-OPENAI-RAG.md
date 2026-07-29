@@ -17,7 +17,7 @@ consultas comerciales seguras, con citas, trazabilidad y evaluación de fidelida
 ## P3-T01 — Inventariar fuentes y reglas de conocimiento
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P2-T03`
 - Riesgo: Alto
 
@@ -53,11 +53,37 @@ qué afirmaciones requieren aprobación humana.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-29: iniciada después de cerrar y publicar la Fase 2. La tarea
+  clasifica fuentes y decisiones; no ingiere documentos, no consulta sistemas
+  comerciales y no habilita OpenAI.
+- Invariantes: precio, stock y promociones sólo pueden provenir de herramientas
+  estructuradas vigentes; una ausencia o contradicción bloquea la afirmación;
+  una fuente retirada no vuelve a recuperarse; datos personales, costo, margen,
+  proveedor y secretos quedan excluidos.
+- Casos principales y bordes: hecho estable, dato volátil, stock cero versus
+  desconocido, sucursales diferentes, fuente ausente, dos fuentes
+  contradictorias, documento vencido o retirado, prompt injection, dato de otra
+  organización y SKU ambiguo.
+- Responsabilidades: el catálogo define autoridad, sensibilidad, vigencia y
+  propietario funcional; los escenarios definen el resultado seguro; el
+  responsable de negocio confirma fuentes, umbrales y disclaimers. El nombre de
+  la persona y cualquier dato privado no se versionan.
+- Archivos previstos:
+  `docs/integrations/KNOWLEDGE-SOURCE-CATALOG.md`,
+  `docs/integrations/KNOWLEDGE-POLICY-SCENARIOS.md`, índices y este handoff.
+- Verificación prevista: revisión documental y de precedencia,
+  `pnpm verify:plan`, escenarios `S-01` a `S-14` con responsable del negocio y
+  registro de aprobación. La parte humana permanece pendiente.
+- 2026-07-29: inventario técnico completado. El perfil heredado y el catálogo
+  editorial existen, pero siguen como candidatos; servicios, políticas,
+  sistema comercial, precio, stock y promociones carecen de una fuente
+  aprobada identificada. No se inventaron fixtures comerciales para ocultar
+  esas ausencias.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Avance local documentado; revisión de fuentes, ejecución de escenarios y
+  aprobación del responsable de negocio pendientes.
 
 ## P3-T02 — Implementar gateway de OpenAI
 
