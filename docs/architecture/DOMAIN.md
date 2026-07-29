@@ -71,7 +71,31 @@ variantes, pero solo una versión final aprobada.
 ### MediaAsset
 
 Archivo original o derivado, con hash, formato, dimensiones, origen y política
-de eliminación.
+de eliminación. Su ciclo de vida persistente es:
+
+```text
+pending_upload -> available
+       |             |
+       v             v
+     failed    pending_deletion -> deleted
+```
+
+La reserva se identifica por `organizationId + mediaAssetId`. Reintentar la
+misma carga no crea otra fila; reutilizar ese identificador con otro propietario,
+origen, nombre o contenido es conflicto. Un reemplazo siempre recibe otro
+`mediaAssetId`: las revisiones y snapshots ya aprobados continúan apuntando a la
+versión anterior.
+
+Solo PNG y JPEG decodificables, de hasta 8 MiB, 8192 píxeles por dimensión y
+40 millones de píxeles totales pueden quedar disponibles. El tipo declarado y
+la extensión deben coincidir con el contenido detectado. `available` conserva
+propietario, origen, SHA-256, bytes, dimensiones, clave, versión y URL HTTPS.
+
+El borrado ocurre en dos fases. Antes de contactar al proveedor, la base bloquea
+activos referenciados o dentro de retención y marca los demás como
+`pending_deletion`; un reintento puede continuar esa eliminación sin volver a
+decidir sobre otro activo. Adjuntar una revisión exige estado `available` y se
+serializa contra la decisión de borrado mediante locks de fila.
 
 ### ProviderConnection
 

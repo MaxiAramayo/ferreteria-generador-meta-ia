@@ -4,11 +4,12 @@ Actualizado: 2026-07-28
 
 ## Fase activa
 
-**Fase 2 — Dominio, persistencia y panel base**
+**Fase 1 — Migración del motor visual**
 
-La Fase 0 quedó cerrada. La Fase 1 conserva `P1-T07` bloqueada por credenciales
-de Cloudinary. En Fase 2 están completas `P2-T01`, `P2-T02` y `P2-T04`;
-`P2-T03` también quedó completa.
+La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
+bloqueada únicamente por las credenciales de Cloudinary staging necesarias
+para su verificación remota. En Fase 2 están completas `P2-T01`, `P2-T02`,
+`P2-T03` y `P2-T04`.
 
 ## Resumen
 
@@ -24,10 +25,9 @@ de Cloudinary. En Fase 2 están completas `P2-T01`, `P2-T02` y `P2-T04`;
 
 ## Próxima tarea
 
-Iniciar `P1-T07` — ciclo de vida de medios. Sus dependencias locales están
-completas; el adaptador, validación, metadatos y dobles pueden implementarse
-localmente. La carga y render remoto finales requieren credenciales de
-Cloudinary.
+Continuar `P1-T07` — ejecutar `pnpm media:smoke:cloudinary` con credenciales
+separadas de staging. La implementación, migración y pruebas locales están
+completas; solo faltan carga, accesibilidad HTTPS y render remoto reales.
 
 Al cerrar `P1-T07` se habilita `P2-T05`.
 

@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260728030000_organization_configuration_audit";
+const latestMigrationName = "20260728040000_media_lifecycle";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -143,22 +143,34 @@ async function verifyDatabase(): Promise<void> {
     try {
       const downSql = await readFile(downMigrationPath, "utf8");
       await testPool.query(downSql);
-      const removedTables = await testPool.query<{
+      const rollbackState = await testPool.query<{
         configuration_table: string | null;
         core_table: string | null;
+        failure_column_exists: boolean;
       }>(
         `
           SELECT
             to_regclass('public.organizations')::text AS "core_table",
-            to_regclass('public.organization_configuration_events')::text AS "configuration_table"
+            to_regclass('public.organization_configuration_events')::text AS "configuration_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'media_assets'
+                AND column_name = 'failure_code'
+            ) AS "failure_column_exists"
         `,
       );
-      const rollbackEvidence = removedTables.rows[0];
+      const rollbackEvidence = rollbackState.rows[0];
       if (rollbackEvidence === undefined) {
         assert.fail("Rollback verification did not return evidence.");
       }
       assert.equal(rollbackEvidence.core_table, "organizations");
-      assert.equal(rollbackEvidence.configuration_table, null);
+      assert.equal(
+        rollbackEvidence.configuration_table,
+        "organization_configuration_events",
+      );
+      assert.equal(rollbackEvidence.failure_column_exists, false);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

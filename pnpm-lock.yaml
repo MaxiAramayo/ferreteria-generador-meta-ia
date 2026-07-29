@@ -63,6 +63,9 @@ catalogs:
     class-validator:
       specifier: 0.15.1
       version: 0.15.1
+    cloudinary:
+      specifier: 2.10.0
+      version: 2.10.0
     cookie:
       specifier: 2.0.1
       version: 2.0.1
@@ -108,6 +111,9 @@ catalogs:
     rxjs:
       specifier: 7.8.2
       version: 7.8.2
+    sharp:
+      specifier: 0.34.5
+      version: 0.34.5
     supertest:
       specifier: 7.2.2
       version: 7.2.2
@@ -298,9 +304,15 @@ importers:
       '@aramayo/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@aramayo/database':
+        specifier: workspace:*
+        version: link:../../infrastructure/database
       '@aramayo/design-engine':
         specifier: workspace:*
         version: link:../../packages/design-engine
+      '@aramayo/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@aramayo/process-health':
         specifier: workspace:*
         version: link:../../packages/process-health
@@ -310,6 +322,9 @@ importers:
       '@nestjs/core':
         specifier: 'catalog:'
         version: 11.1.28(@nestjs/common@11.1.28(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.28)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cloudinary:
+        specifier: 'catalog:'
+        version: 2.10.0
       playwright-core:
         specifier: 'catalog:'
         version: 1.62.0
@@ -325,6 +340,9 @@ importers:
       rxjs:
         specifier: 'catalog:'
         version: 7.8.2
+      sharp:
+        specifier: 'catalog:'
+        version: 0.34.5
     devDependencies:
       '@fontsource/archivo':
         specifier: 'catalog:'
@@ -1421,6 +1439,10 @@ packages:
 
   client-only@0.0.1:
     resolution: {integrity: sha512-IV3Ou0jSMzZrd3pZ48nLkT9DA7Ag1pnPzaiQhpW7c3RbcqqzvzzVu+L8gfqMp/8IM2MQtSiqaCxrrcfu8I8rMA==}
+
+  cloudinary@2.10.0:
+    resolution: {integrity: sha512-sY09kYg7wprkndAOjZBAYqFZqwL+SxnEGcAvksOvFA+5upnFn949UjkEkHKNSwkBtW/xRDd0p6NgbSXZcxkI3w==}
+    engines: {node: '>=9'}
 
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
@@ -2883,8 +2905,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.34.5':
     optionalDependencies:
@@ -3704,6 +3725,10 @@ snapshots:
 
   client-only@0.0.1: {}
 
+  cloudinary@2.10.0:
+    dependencies:
+      lodash: 4.18.1
+
   cluster-key-slot@1.1.2: {}
 
   combined-stream@1.0.8:
@@ -3823,8 +3848,7 @@ snapshots:
 
   destr@2.0.5: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   dezalgo@1.0.4:
     dependencies:
@@ -4647,7 +4671,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

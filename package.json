@@ -44,6 +44,7 @@
     "infra:up": "node tools/local-infrastructure/cli.ts up",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "media:smoke:cloudinary": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker smoke:cloudinary",
     "smoke": "node tools/smoke/cli.ts",
     "smoke:typecheck": "tsc --project tools/smoke/tsconfig.json",
     "test": "pnpm --recursive test && pnpm run infra:test && node --test tools/smoke/*.test.ts tools/design-baseline/*.test.ts",

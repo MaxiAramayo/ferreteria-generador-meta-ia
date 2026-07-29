@@ -582,7 +582,7 @@ previsualizarla son accesibles.
 ## P1-T07 — Integrar ciclo de vida de medios
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: BLOQUEADA
 - Dependencias: `P0-T07`, `P1-T05`
 - Riesgo: Alto
 
@@ -599,18 +599,18 @@ aptas para render y futura publicación en Meta.
 
 ### Criterios de aceptación
 
-- [ ] Solo se aceptan tipos y tamaños permitidos.
-- [ ] Se verifica el contenido real, no solo la extensión.
-- [ ] Cada activo conserva origen, hash, dimensiones y propietario.
+- [x] Solo se aceptan tipos y tamaños permitidos.
+- [x] Se verifica el contenido real, no solo la extensión.
+- [x] Cada activo conserva origen, hash, dimensiones y propietario.
 - [ ] Las URLs requeridas por Meta son HTTPS y accesibles durante la publicación.
-- [ ] Reemplazar un activo no muta retrospectivamente una publicación aprobada.
-- [ ] La eliminación respeta referencias y política de retención.
+- [x] Reemplazar un activo no muta retrospectivamente una publicación aprobada.
+- [x] La eliminación respeta referencias y política de retención.
 
 ### Verificación obligatoria
 
-- [ ] Probar carga válida, archivo corrupto, tipo engañoso y tamaño excesivo.
+- [x] Probar carga válida, archivo corrupto, tipo engañoso y tamaño excesivo.
 - [ ] Renderizar desde la URL remota.
-- [ ] Confirmar que un activo referenciado no puede borrarse accidentalmente.
+- [x] Confirmar que un activo referenciado no puede borrarse accidentalmente.
 
 ### Fuera de alcance
 
@@ -619,7 +619,34 @@ aptas para render y futura publicación en Meta.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-07-28.
+- Estado real: implementación local completa. El dominio valida nombre, tamaño,
+  MIME detectado, dimensiones, píxeles y SHA-256; el worker inspecciona con
+  Sharp, aplica el ciclo idempotente y usa un adaptador Cloudinary inyectable;
+  Prisma conserva estados, errores, metadatos, ownership y borrado en dos fases.
+- Decisiones tomadas: uploads idempotentes con `public_id` determinista y
+  `overwrite: false`; PNG/JPEG detectados por contenido hasta 8 MiB; reemplazar
+  crea otro activo; borrado en dos fases y bloqueado por referencias o
+  retención; el worker es el único proceso con credenciales Cloudinary.
+- Fuentes oficiales verificadas el 2026-07-28:
+  [Node SDK](https://cloudinary.com/documentation/node_integration),
+  [Upload API](https://cloudinary.com/documentation/image_upload_api_reference)
+  y [versiones npm](https://www.npmjs.com/package/cloudinary?activeTab=versions);
+  la versión vigente del paquete `cloudinary` es `2.10.0`.
+- Archivos modificados: `packages/domain/src/media.ts`,
+  `apps/worker/src/media/`, `apps/worker/src/database/`,
+  `infrastructure/database/prisma/` y repositorios asociados.
+- Verificaciones ejecutadas: 16 pruebas de dominio, 16 pruebas de worker,
+  `pnpm db:test` y `pnpm verify`; la integración aplica desde cero, revierte,
+  migra datos históricos, reaplica y valida aislamiento, reemplazo inmutable,
+  retención, referencias y la carrera adjuntar/eliminar.
+- Verificaciones pendientes: `pnpm media:smoke:cloudinary` contra staging.
+- Bloqueo, si existe: las cuatro variables de Cloudinary staging no están
+  configuradas. La suite remota rechaza producción, sube un PNG sintético,
+  valida la variante HTTPS, renderiza y elimina el activo en `finally`.
+- Próximo paso exacto: configurar las credenciales separadas de staging y
+  ejecutar `pnpm media:smoke:cloudinary`; si pasa, completar los dos criterios
+  remotos y cerrar la tarea.
 
 ### Evidencia de cierre
 

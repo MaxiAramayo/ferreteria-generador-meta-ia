@@ -91,6 +91,26 @@ IA, render y publicación se modelan como trabajos:
 La cola puede reconstruirse desde PostgreSQL. Un trabajo desaparecido de Redis
 no puede perder una publicación programada.
 
+## Ciclo de medios
+
+El worker es el único proceso que recibe credenciales Cloudinary. La inspección
+con Sharp deriva tipo, dimensiones y SHA-256 desde bytes decodificados antes de
+reservar almacenamiento. El caso de uso separa los efectos para hacer visibles
+los fallos parciales:
+
+1. validar bytes, nombre, tipo y límites;
+2. reservar `MediaAsset` dentro del tenant;
+3. subir con `public_id` determinista y `overwrite: false`;
+4. comprobar clave, versión, URL HTTPS y metadatos devueltos;
+5. confirmar `available` en PostgreSQL.
+
+Las variantes de entrega se construyen con clave y versión persistidas; el
+documento de diseño admite la URL HTTPS remota, pero nunca credenciales ni una
+ruta local arbitraria. El borrado marca primero `pending_deletion`, comprueba
+referencias y retención dentro de una transacción, elimina en Cloudinary y sólo
+entonces confirma `deleted`. Una respuesta remota ambigua conserva el estado
+reintentable.
+
 ## Frontend
 
 El compositor se diseña por composición:

@@ -43,6 +43,18 @@ válido de otra organización no alcanza para relacionarlo ni recuperarlo.
   cascada que borre historial o medios de manera implícita.
 - Una revisión numera sus versiones dentro de una publicación.
 - Un medio `available` exige hash, MIME, tamaño, versión, clave y URL HTTPS.
+- El ciclo de medios conserva errores como par código/mensaje únicamente en
+  `failed`, dimensiones en todo activo `available` y fecha de borrado únicamente
+  en `deleted`. La migración retroactiva deriva esa fecha de `updated_at` para
+  filas históricas ya eliminadas.
+- Reservar y confirmar medios usa filtros por organización y estado. La
+  eliminación se bloquea si existe cualquier `publication_revision_media` o si
+  `retention_until` sigue vigente; luego progresa
+  `available -> pending_deletion -> deleted`.
+- La decisión de borrar bloquea la fila del activo. El trigger
+  `publication_revision_media_requires_available` toma un lock compatible y
+  rechaza adjuntar medios fuera de `available`; una carrera entre adjuntar y
+  borrar queda serializada sin ventana de referencia huérfana.
 - Una fila de `approval_snapshots` es append-only mediante trigger y guarda el
   documento completo —contenido, diseño, marca y metadatos de medios—. Sus
   claves foráneas conservan linaje, pero no hacen falta para reconstruir la

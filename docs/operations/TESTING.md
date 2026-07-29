@@ -99,7 +99,8 @@ arranque.
 
 ## Pruebas reales controladas
 
-OpenAI y Meta requieren suites separadas, manuales o programadas con presupuesto:
+OpenAI, Cloudinary y Meta requieren suites separadas, manuales o programadas
+con presupuesto:
 
 - usan proyecto/cuenta de staging;
 - nunca corren en cada commit;
@@ -107,6 +108,19 @@ OpenAI y Meta requieren suites separadas, manuales o programadas con presupuesto
 - no usan información sensible;
 - limpian activos de prueba;
 - guardan evidencia anonimizada.
+
+El smoke remoto de medios se ejecuta exclusivamente con credenciales y carpeta
+de staging:
+
+```bash
+pnpm media:smoke:cloudinary
+```
+
+Genera una imagen sintética, la sube con una clave temporal, comprueba la
+variante HTTPS para Meta, la renderiza con el navegador real y elimina el
+recurso en `finally`. Rechaza `NODE_ENV` distinto de `staging` o una
+`CLOUDINARY_FOLDER` que no identifique explícitamente staging. No forma parte de
+`pnpm verify` porque realiza escrituras externas.
 
 ## Puertas de calidad
 

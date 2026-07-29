@@ -401,6 +401,9 @@ model MediaAsset {
   height            Int?
   secureUrl         String?              @map("secure_url") @db.Text
   retentionUntil    DateTime?            @map("retention_until") @db.Timestamptz(3)
+  failureCode       String?              @map("failure_code") @db.VarChar(80)
+  failureMessage    String?              @map("failure_message") @db.VarChar(300)
+  deletedAt         DateTime?            @map("deleted_at") @db.Timestamptz(3)
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -412,6 +415,7 @@ model MediaAsset {
   @@unique([organizationId, storageProvider, storageKey, storageVersion], map: "media_assets_storage_version_key")
   @@index([organizationId, status, createdAt(sort: Desc)], map: "media_assets_org_status_created_idx")
   @@index([organizationId, checksumSha256], map: "media_assets_org_checksum_idx")
+  @@index([status, retentionUntil], map: "media_assets_status_retention_idx")
   @@map("media_assets")
 }
 

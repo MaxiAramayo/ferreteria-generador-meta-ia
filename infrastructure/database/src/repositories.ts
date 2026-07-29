@@ -3,13 +3,20 @@ import type {
   ApprovalSnapshotRepository,
   AuthenticatedSessionRecord,
   AuthenticationEventInput,
+  BeginMediaDeletionInput,
+  BeginMediaDeletionResult,
   ChangeMembershipRolesInput,
+  CompleteMediaDeletionInput,
+  CompleteMediaUploadInput,
   CreateAuthenticationSessionInput,
+  FailMediaUploadInput,
   IdentityRepository,
   LoginFailureFilter,
   LoginIdentityRecord,
   MediaAssetRecord,
   MediaAssetRepository,
+  MediaStateMutationResult,
+  MediaUploadReservation,
   OrganizationScope,
   PublicationListFilter,
   PublicationRecord,
@@ -21,6 +28,7 @@ import type {
   RevokeAllSessionsInput,
   RevokeMembershipInput,
   RevokeSessionInput,
+  ReserveMediaUploadInput,
   ScopedMutationResult,
 } from "@aramayo/domain";
 
@@ -54,12 +62,22 @@ const mediaAssetSelection = {
   byteSize: true,
   checksumSha256: true,
   createdAt: true,
+  deletedAt: true,
+  failureCode: true,
+  failureMessage: true,
   height: true,
   id: true,
   mimeType: true,
   organizationId: true,
+  origin: true,
+  originalFileName: true,
+  ownerMembershipId: true,
+  retentionUntil: true,
   secureUrl: true,
   status: true,
+  storageKey: true,
+  storageProvider: true,
+  storageVersion: true,
   updatedAt: true,
   width: true,
 } satisfies Prisma.MediaAssetSelect;
@@ -244,12 +262,30 @@ function mapMediaAsset(row: MediaAssetRow): MediaAssetRecord {
       ? {}
       : { checksumSha256: row.checksumSha256 }),
     createdAt: row.createdAt.toISOString(),
+    ...(row.deletedAt === null
+      ? {}
+      : { deletedAt: row.deletedAt.toISOString() }),
+    ...(row.failureCode === null ? {} : { failureCode: row.failureCode }),
+    ...(row.failureMessage === null
+      ? {}
+      : { failureMessage: row.failureMessage }),
     ...(row.height === null ? {} : { height: row.height }),
     id: row.id,
     ...(row.mimeType === null ? {} : { mimeType: row.mimeType }),
     organizationId: row.organizationId,
+    origin: row.origin,
+    originalFileName: row.originalFileName,
+    ownerMembershipId: row.ownerMembershipId,
+    ...(row.retentionUntil === null
+      ? {}
+      : { retentionUntil: row.retentionUntil.toISOString() }),
     ...(row.secureUrl === null ? {} : { secureUrl: row.secureUrl }),
     status: row.status,
+    ...(row.storageKey === null ? {} : { storageKey: row.storageKey }),
+    storageProvider: row.storageProvider,
+    ...(row.storageVersion === null
+      ? {}
+      : { storageVersion: row.storageVersion }),
     updatedAt: row.updatedAt.toISOString(),
     ...(row.width === null ? {} : { width: row.width }),
   });
@@ -661,6 +697,248 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
     });
 
     return mediaAsset === null ? null : mapMediaAsset(mediaAsset);
+  }
+
+  async reserveUpload(
+    input: ReserveMediaUploadInput,
+  ): Promise<MediaUploadReservation> {
+    return this.#database.$transaction(async (transaction) => {
+      const owner = await transaction.organizationMembership.findFirst({
+        select: { id: true },
+        where: {
+          id: input.ownerMembershipId,
+          organizationId: input.organizationId,
+          status: "active",
+        },
+      });
+      if (owner === null) {
+        return Object.freeze({ status: "not-found" });
+      }
+
+      const created = await transaction.mediaAsset.createMany({
+        data: {
+          id: input.id,
+          organizationId: input.organizationId,
+          origin: input.origin,
+          originalFileName: input.originalFileName,
+          ownerMembershipId: input.ownerMembershipId,
+          storageProvider: input.storageProvider,
+        },
+        skipDuplicates: true,
+      });
+      let asset = await transaction.mediaAsset.findFirst({
+        select: mediaAssetSelection,
+        where: {
+          id: input.id,
+          organizationId: input.organizationId,
+        },
+      });
+      if (asset === null) {
+        return Object.freeze({ status: "not-found" });
+      }
+      if (
+        created.count === 0 &&
+        asset.status === "failed" &&
+        asset.origin === input.origin &&
+        asset.originalFileName === input.originalFileName &&
+        asset.ownerMembershipId === input.ownerMembershipId &&
+        asset.storageProvider === input.storageProvider
+      ) {
+        const reset = await transaction.mediaAsset.updateMany({
+          data: {
+            failureCode: null,
+            failureMessage: null,
+            status: "pending_upload",
+          },
+          where: {
+            id: input.id,
+            organizationId: input.organizationId,
+            status: "failed",
+          },
+        });
+        if (reset.count === 1) {
+          asset = await transaction.mediaAsset.findFirstOrThrow({
+            select: mediaAssetSelection,
+            where: {
+              id: input.id,
+              organizationId: input.organizationId,
+            },
+          });
+          return Object.freeze({
+            asset: mapMediaAsset(asset),
+            status: "reserved",
+          });
+        }
+      }
+      return Object.freeze({
+        asset: mapMediaAsset(asset),
+        status: created.count === 1 ? "reserved" : "existing",
+      });
+    });
+  }
+
+  async completeUpload(
+    input: CompleteMediaUploadInput,
+  ): Promise<MediaStateMutationResult> {
+    const updated = await this.#database.mediaAsset.updateMany({
+      data: {
+        byteSize: BigInt(input.byteSize),
+        checksumSha256: input.checksumSha256,
+        failureCode: null,
+        failureMessage: null,
+        height: input.height,
+        mimeType: input.mimeType,
+        secureUrl: input.secureUrl,
+        status: "available",
+        storageKey: input.storageKey,
+        storageVersion: input.storageVersion,
+        width: input.width,
+      },
+      where: {
+        id: input.mediaAssetId,
+        organizationId: input.organizationId,
+        status: "pending_upload",
+      },
+    });
+    return this.#mediaMutationResult(
+      input.organizationId,
+      input.mediaAssetId,
+      updated.count,
+    );
+  }
+
+  async failUpload(
+    input: FailMediaUploadInput,
+  ): Promise<MediaStateMutationResult> {
+    const updated = await this.#database.mediaAsset.updateMany({
+      data: {
+        failureCode: input.failureCode,
+        failureMessage: input.failureMessage,
+        status: "failed",
+      },
+      where: {
+        id: input.mediaAssetId,
+        organizationId: input.organizationId,
+        status: "pending_upload",
+      },
+    });
+    return this.#mediaMutationResult(
+      input.organizationId,
+      input.mediaAssetId,
+      updated.count,
+    );
+  }
+
+  async beginDeletion(
+    input: BeginMediaDeletionInput,
+  ): Promise<BeginMediaDeletionResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const lockedAssets = await transaction.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "media_assets"
+        WHERE "organization_id" = ${input.organizationId}::uuid
+          AND "id" = ${input.mediaAssetId}::uuid
+        FOR UPDATE
+      `;
+      if (lockedAssets.length === 0) {
+        return Object.freeze({ status: "not-found" });
+      }
+
+      const current = await transaction.mediaAsset.findFirst({
+        select: {
+          ...mediaAssetSelection,
+          _count: { select: { revisions: true } },
+        },
+        where: {
+          id: input.mediaAssetId,
+          organizationId: input.organizationId,
+        },
+      });
+      if (current === null) {
+        throw new Error("El activo bloqueado dejó de existir.");
+      }
+      const asset = mapMediaAsset(current);
+      if (current.status === "deleted") {
+        return Object.freeze({ asset, status: "already-deleted" });
+      }
+      if (current.status === "pending_deletion") {
+        return Object.freeze({ asset, status: "ready" });
+      }
+      if (current.status !== "available" || current.storageKey === null) {
+        return Object.freeze({ status: "invalid-state" });
+      }
+      if (current._count.revisions > 0) {
+        return Object.freeze({ status: "in-use" });
+      }
+      const requestedAt = new Date(input.requestedAt);
+      if (
+        current.retentionUntil !== null &&
+        current.retentionUntil > requestedAt
+      ) {
+        return Object.freeze({
+          retentionUntil: current.retentionUntil.toISOString(),
+          status: "retained",
+        });
+      }
+
+      const marked = await transaction.mediaAsset.updateMany({
+        data: { status: "pending_deletion" },
+        where: {
+          id: input.mediaAssetId,
+          organizationId: input.organizationId,
+          status: "available",
+        },
+      });
+      if (marked.count !== 1) {
+        return Object.freeze({ status: "invalid-state" });
+      }
+      const pending = await transaction.mediaAsset.findFirstOrThrow({
+        select: mediaAssetSelection,
+        where: {
+          id: input.mediaAssetId,
+          organizationId: input.organizationId,
+        },
+      });
+      return Object.freeze({
+        asset: mapMediaAsset(pending),
+        status: "ready",
+      });
+    });
+  }
+
+  async completeDeletion(
+    input: CompleteMediaDeletionInput,
+  ): Promise<MediaStateMutationResult> {
+    const updated = await this.#database.mediaAsset.updateMany({
+      data: {
+        deletedAt: new Date(input.deletedAt),
+        status: "deleted",
+      },
+      where: {
+        id: input.mediaAssetId,
+        organizationId: input.organizationId,
+        status: "pending_deletion",
+      },
+    });
+    return this.#mediaMutationResult(
+      input.organizationId,
+      input.mediaAssetId,
+      updated.count,
+    );
+  }
+
+  async #mediaMutationResult(
+    organizationId: string,
+    mediaAssetId: string,
+    updatedCount: number,
+  ): Promise<MediaStateMutationResult> {
+    const asset = await this.findById({ organizationId }, mediaAssetId);
+    if (asset === null) {
+      return Object.freeze({ status: "not-found" });
+    }
+    return updatedCount === 1
+      ? Object.freeze({ asset, status: "updated" })
+      : Object.freeze({ status: "conflict" });
   }
 }
 

@@ -1,0 +1,3 @@
+export const MEDIA_ASSET_REPOSITORY = Symbol("MEDIA_ASSET_REPOSITORY");
+export const MEDIA_INSPECTOR = Symbol("MEDIA_INSPECTOR");
+export const MEDIA_STORAGE = Symbol("MEDIA_STORAGE");

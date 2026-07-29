@@ -38,6 +38,297 @@ after(async () => {
   await database.$disconnect();
 });
 
+test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const mediaAssetId = randomUUID();
+  const replacementMediaAssetId = randomUUID();
+  const deletableMediaAssetId = randomUUID();
+  const failedMediaAssetId = randomUUID();
+  const publicationId = randomUUID();
+  const revisionId = randomUUID();
+  const approvalSnapshotId = randomUUID();
+
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización de medios",
+        id: organizationId,
+        legalName: "Organización de medios",
+        slug: `media-${organizationId}`,
+      },
+      {
+        displayName: "Otra organización de medios",
+        id: otherOrganizationId,
+        legalName: "Otra organización de medios",
+        slug: `media-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Propietaria de medios",
+      email: `${userId}@media.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["editor"],
+      userId,
+    },
+  });
+
+  const repository = new PrismaMediaAssetRepository(database);
+  assert.deepEqual(
+    await repository.reserveUpload({
+      id: randomUUID(),
+      organizationId: otherOrganizationId,
+      origin: "uploaded",
+      originalFileName: "cruce.png",
+      ownerMembershipId: membershipId,
+      storageProvider: "cloudinary",
+    }),
+    { status: "not-found" },
+  );
+
+  const reservation = await repository.reserveUpload({
+    id: mediaAssetId,
+    organizationId,
+    origin: "uploaded",
+    originalFileName: "producto.png",
+    ownerMembershipId: membershipId,
+    storageProvider: "cloudinary",
+  });
+  assert.equal(reservation.status, "reserved");
+  assert.equal(
+    (
+      await repository.reserveUpload({
+        id: mediaAssetId,
+        organizationId,
+        origin: "uploaded",
+        originalFileName: "producto.png",
+        ownerMembershipId: membershipId,
+        storageProvider: "cloudinary",
+      })
+    ).status,
+    "existing",
+  );
+
+  const available = await repository.completeUpload({
+    byteSize: "2048",
+    checksumSha256: "c".repeat(64),
+    height: 1080,
+    mediaAssetId,
+    mimeType: "image/png",
+    organizationId,
+    secureUrl:
+      "https://res.cloudinary.com/demo/image/upload/v1/media/producto.png",
+    storageKey: "media/producto",
+    storageVersion: 1,
+    width: 1080,
+  });
+  assert.equal(available.status, "updated");
+  assert.equal(available.asset.status, "available");
+  assert.equal(available.asset.ownerMembershipId, membershipId);
+
+  await database.publication.create({
+    data: {
+      createdByMembershipId: membershipId,
+      id: publicationId,
+      organizationId,
+      title: "Publicación con medio",
+    },
+  });
+  await database.publicationRevision.create({
+    data: {
+      content: { title: "Publicación con medio" },
+      createdByMembershipId: membershipId,
+      designDocument: { layout: "producto-destacado" },
+      id: revisionId,
+      organizationId,
+      publicationId,
+      revisionNumber: 1,
+      schemaVersion: 1,
+    },
+  });
+  await database.publicationRevisionMedia.create({
+    data: {
+      mediaAssetId,
+      organizationId,
+      revisionId,
+      slot: "primary",
+    },
+  });
+  const approvedSnapshot = {
+    media: [{ mediaAssetId, storageVersion: 1 }],
+    title: "Publicación con medio",
+  };
+  await database.approvalSnapshot.create({
+    data: {
+      approvedAt: new Date(Date.now() - 1_000),
+      approvedByMembershipId: membershipId,
+      contentHash: "c".repeat(64),
+      id: approvalSnapshotId,
+      organizationId,
+      publicationId,
+      revisionId,
+      snapshot: approvedSnapshot,
+    },
+  });
+  assert.deepEqual(
+    await repository.beginDeletion({
+      mediaAssetId,
+      organizationId,
+      requestedAt: new Date().toISOString(),
+    }),
+    { status: "in-use" },
+  );
+
+  await repository.reserveUpload({
+    id: replacementMediaAssetId,
+    organizationId,
+    origin: "uploaded",
+    originalFileName: "producto-reemplazo.png",
+    ownerMembershipId: membershipId,
+    storageProvider: "cloudinary",
+  });
+  assert.equal(
+    (
+      await repository.completeUpload({
+        byteSize: "4096",
+        checksumSha256: "e".repeat(64),
+        height: 1080,
+        mediaAssetId: replacementMediaAssetId,
+        mimeType: "image/png",
+        organizationId,
+        secureUrl:
+          "https://res.cloudinary.com/demo/image/upload/v2/media/producto-reemplazo.png",
+        storageKey: "media/producto-reemplazo",
+        storageVersion: 2,
+        width: 1080,
+      })
+    ).status,
+    "updated",
+  );
+  assert.equal(
+    (
+      await database.publicationRevisionMedia.findUniqueOrThrow({
+        where: {
+          organizationId_revisionId_slot: {
+            organizationId,
+            revisionId,
+            slot: "primary",
+          },
+        },
+      })
+    ).mediaAssetId,
+    mediaAssetId,
+  );
+  assert.deepEqual(
+    (
+      await database.approvalSnapshot.findUniqueOrThrow({
+        where: { id: approvalSnapshotId },
+      })
+    ).snapshot,
+    approvedSnapshot,
+  );
+
+  await repository.reserveUpload({
+    id: deletableMediaAssetId,
+    organizationId,
+    origin: "uploaded",
+    originalFileName: "descartable.jpg",
+    ownerMembershipId: membershipId,
+    storageProvider: "cloudinary",
+  });
+  await repository.completeUpload({
+    byteSize: "1024",
+    checksumSha256: "d".repeat(64),
+    height: 800,
+    mediaAssetId: deletableMediaAssetId,
+    mimeType: "image/jpeg",
+    organizationId,
+    secureUrl:
+      "https://res.cloudinary.com/demo/image/upload/v2/media/descartable.jpg",
+    storageKey: "media/descartable",
+    storageVersion: 2,
+    width: 1200,
+  });
+  await database.mediaAsset.update({
+    data: { retentionUntil: new Date("2030-01-01T00:00:00.000Z") },
+    where: { id: deletableMediaAssetId },
+  });
+  assert.deepEqual(
+    await repository.beginDeletion({
+      mediaAssetId: deletableMediaAssetId,
+      organizationId,
+      requestedAt: "2029-01-01T00:00:00.000Z",
+    }),
+    {
+      retentionUntil: "2030-01-01T00:00:00.000Z",
+      status: "retained",
+    },
+  );
+  await database.mediaAsset.update({
+    data: { retentionUntil: null },
+    where: { id: deletableMediaAssetId },
+  });
+  const pendingDeletion = await repository.beginDeletion({
+    mediaAssetId: deletableMediaAssetId,
+    organizationId,
+    requestedAt: new Date().toISOString(),
+  });
+  assert.equal(pendingDeletion.status, "ready");
+  await assert.rejects(
+    database.publicationRevisionMedia.create({
+      data: {
+        mediaAssetId: deletableMediaAssetId,
+        organizationId,
+        revisionId,
+        slot: "secondary",
+      },
+    }),
+  );
+  assert.equal(
+    (
+      await repository.completeDeletion({
+        deletedAt: new Date().toISOString(),
+        mediaAssetId: deletableMediaAssetId,
+        organizationId,
+      })
+    ).status,
+    "updated",
+  );
+  assert.equal(
+    (await repository.findById({ organizationId }, deletableMediaAssetId))
+      ?.status,
+    "deleted",
+  );
+
+  await repository.reserveUpload({
+    id: failedMediaAssetId,
+    organizationId,
+    origin: "uploaded",
+    originalFileName: "fallido.png",
+    ownerMembershipId: membershipId,
+    storageProvider: "cloudinary",
+  });
+  const failed = await repository.failUpload({
+    failureCode: "provider-unavailable",
+    failureMessage: "El proveedor no respondió.",
+    mediaAssetId: failedMediaAssetId,
+    organizationId,
+  });
+  assert.equal(failed.status, "updated");
+  assert.equal(failed.asset.status, "failed");
+  assert.equal(failed.asset.failureCode, "provider-unavailable");
+});
+
 test("configuración usa ownership, versiones, auditoría y no muta snapshots", async () => {
   const organizationId = randomUUID();
   const otherOrganizationId = randomUUID();

@@ -13,3 +13,7 @@ export {
   type OptionalIntegration,
   type RawEnvironment,
 } from "./types.ts";
+export {
+  parseCloudinaryIntegration,
+  type CloudinaryCredentials,
+} from "./providers.ts";

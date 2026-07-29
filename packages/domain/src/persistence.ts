@@ -48,25 +48,3 @@ export interface ApprovalSnapshotRepository {
     publicationId: string,
   ): Promise<ApprovalSnapshotRecord | null>;
 }
-
-export interface MediaAssetRecord {
-  readonly byteSize?: string;
-  readonly checksumSha256?: string;
-  readonly createdAt: string;
-  readonly height?: number;
-  readonly id: string;
-  readonly mimeType?: string;
-  readonly organizationId: string;
-  readonly secureUrl?: string;
-  readonly status:
-    "available" | "deleted" | "failed" | "pending_deletion" | "pending_upload";
-  readonly updatedAt: string;
-  readonly width?: number;
-}
-
-export interface MediaAssetRepository {
-  findById(
-    scope: OrganizationScope,
-    mediaAssetId: string,
-  ): Promise<MediaAssetRecord | null>;
-}
