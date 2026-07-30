@@ -352,8 +352,8 @@ citas presentables al revisor.
 
 ## P3-T05 — Definir puerto de lectura comercial y fixtures
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P3-T01`
 - Riesgo: Alto
 
@@ -381,7 +381,7 @@ acoplar el dominio a Odoo ni a su protocolo remoto.
 ### Verificación obligatoria
 
 - [x] Tests de contrato del adaptador de fixtures.
-- [ ] Revisión con responsable del sistema comercial.
+- [x] Revisión con responsable del sistema comercial.
 - [x] Simular errores, latencia y datos incompletos.
 
 ### Fuera de alcance
@@ -405,24 +405,38 @@ acoplar el dominio a Odoo ni a su protocolo remoto.
   `apps/worker/src/catalog` implementa fixtures deterministas; el futuro
   adaptador Odoo traduce una lista fija de operaciones sin filtrar RPC al caso
   de uso.
-- Propuesta de acceso: XML-RPC sobre HTTPS con API key de usuario técnico de
-  solo lectura. Se verificó contra la External API oficial de Odoo 18 y se
-  documentó en `docs/integrations/ODOO-READ-ACCESS.md`.
+- La propuesta XML-RPC se descartó durante la revisión porque una API key de
+  Odoo conserva alcance de login/RPC. Se aprobó una API HTTPS dedicada con
+  bearer token propio, cinco operaciones fijas y proyección mínima; la decisión
+  está en `docs/integrations/ODOO-READ-ACCESS.md`.
 - Archivos modificados: contratos y exports de dominio, adaptador y fixtures del
   worker, tests de contrato y documentación de integración.
 - Verificaciones ejecutadas: build de dominio, typecheck del worker y 30 tests
   del worker aprobados (29 pass, 1 integración preexistente omitida).
 - `pnpm verify`: pipeline completo aprobado, incluidos build, lint, typecheck,
   tests, baseline y smoke de procesos.
-- Verificación pendiente: revisión de endpoints, permisos, modelos, campos y
-  mapping de sucursales con la función `Administrador de Odoo`.
-- Próximo paso exacto: completar la lista de revisión de
-  `ODOO-READ-ACCESS.md`; después ejecutar `pnpm verify`, registrar evidencia y
-  cerrar la tarea.
+- 2026-07-29: revisión completada sobre el repo y VPS comercial autorizados. Se
+  verificaron modelos/campos, una compañía, almacenes `CC`/`SR`, ubicaciones,
+  exclusión de datos sensibles, límites y autenticación.
+- `ferreteria_content_api` 18.0.1.0.1 quedó disponible en producción. Pasó 8
+  tests Odoo, CI, smoke HTTPS y readiness operativo/fiscal; la evidencia
+  completa está en el repo comercial. Esto no conecta todavía la plataforma.
+- Próximo paso exacto: iniciar `P3-T06`, implementar el adaptador HTTP y
+  provisionar URL/token únicamente al worker mediante configuración tipada.
 
 ### Evidencia de cierre
 
-- Implementación local completa; cierre pendiente de revisión humana obligatoria.
+- Commit: commit de cierre de `P3-T05`.
+- Contratos y fixtures: tests de dominio/worker aprobados.
+- Revisión comercial: completada por la función `Administrador de Odoo` con
+  acceso autorizado al repo y VPS.
+- Proveedor: addon `ferreteria_content_api` 18.0.1.0.1, API HTTPS `GET`-only,
+  token independiente y sucursales `casa-central`/`rivadavia`.
+- Evidencia externa: PR `#15`, `#16` y `#17` del repo comercial; backup
+  PostgreSQL/filestore confirmado offsite; smoke y readiness aprobados.
+- Verificación local: `pnpm verify`.
+- Desviación: la propuesta XML-RPC fue reemplazada por una API dedicada de
+  menor privilegio después de revisar el alcance real de las API keys de Odoo.
 
 ## P3-T06 — Exponer herramientas comerciales seguras al modelo
 

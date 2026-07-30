@@ -31,13 +31,14 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P3-T05` — realizar la revisión técnica con la función
-`Administrador de Odoo` usando `docs/integrations/ODOO-READ-ACCESS.md`.
-`P3-T04` quedó cerrado con aislamiento local y remoto, citas versionadas,
-límites de contexto, UI de evidencia y un smoke real de recuperación.
+Iniciar `P3-T06` — implementar el adaptador HTTP y exponer herramientas
+comerciales seguras al modelo con autorización de sesión, límites,
+minimización, timeout y auditoría. `P3-T05` quedó cerrado con revisión del
+`Administrador de Odoo` y una API comercial dedicada disponible en producción.
 
-La excepción de continuidad queda limitada al smoke remoto pendiente de
-`P1-T07`; no autoriza publicar ni conectar proveedores reales.
+La autorización explícita del usuario habilitó únicamente la API comercial de
+Odoo. No autoriza publicar contenido ni configurar proveedores reales de
+OpenAI producción, Meta o Cloudinary staging.
 
 El smoke `pnpm media:smoke:cloudinary` sigue pendiente y debe ejecutarse antes
 de cerrar Fase 1.
@@ -58,10 +59,6 @@ de cerrar Fase 1.
 - El entorno remoto `production.env` existe con modo `0600 root:root`, correo
   ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
   permanecen vacíos; Compose validó el archivo sin exponer sus valores.
-- Sistema comercial identificado como Odoo 18 Community y custodio técnico
-  designado como `Administrador de Odoo`. Se propuso XML-RPC sobre HTTPS con API
-  key de usuario técnico de solo lectura; falta revisar endpoints, ACL, modelos,
-  campos y mapping de sucursales con esa función.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - La credencial y el vector store del proyecto OpenAI staging están
   configurados localmente; los smokes reales de `P3-T02` y `P3-T03` pasaron.
@@ -71,14 +68,15 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-`P3-T05` tiene contratos, fixtures y tests locales completos, pero su revisión
-obligatoria con el `Administrador de Odoo` impide cerrarla y conectar el
-sistema. El Vector Store de staging ya existe y su identificador quedó
+`P3-T05` quedó cerrado. El addon comercial `ferreteria_content_api` 18.0.1.0.1
+expone productos, PVP, stock por sucursal y estado de recepciones mediante una
+API HTTPS acotada, `GET`-only y con token independiente. La plataforma sigue
+usando fixtures hasta que `P3-T06` agregue el adaptador, los scopes y la
+auditoría. El Vector Store de staging ya existe y su identificador quedó
 registrado únicamente en el entorno local ignorado por Git.
 
 ## Registro de decisiones pendientes
 
-- Validación del acceso XML-RPC, permisos y mapping con `Administrador de Odoo`.
 - Política inicial de publicaciones que pueden autoaprobarse.
 
 ## Cómo actualizar este archivo

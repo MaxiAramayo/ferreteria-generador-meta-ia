@@ -94,9 +94,11 @@ conservan ambas citas para revisión, pero el contexto queda vacío.
 Precio, stock, SKU, disponibilidad y recepción se consultan mediante
 `CommercialCatalogPort`.
 
-El contrato y la propuesta de acceso XML-RPC de solo lectura para Odoo 18 se
-detallan en [`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md). La selección sigue
-pendiente de revisión por el `Administrador de Odoo`; no habilita una conexión.
+El contrato y la API HTTPS acotada de solo lectura para Odoo 18 se detallan en
+[`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md). La revisión del
+`Administrador de Odoo` quedó completada y el endpoint está disponible; la
+plataforma no lo consume hasta implementar autorización, límites, minimización
+y auditoría en `P3-T06`.
 
 Capacidades iniciales:
 

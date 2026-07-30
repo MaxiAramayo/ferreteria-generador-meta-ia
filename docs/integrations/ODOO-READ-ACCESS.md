@@ -1,29 +1,44 @@
 # Acceso de solo lectura a Odoo 18
 
-- Estado: PROPUESTA TÉCNICA PENDIENTE DE REVISIÓN DEL `Administrador de Odoo`
+- Estado: APROBADO Y DISPONIBLE EN PRODUCCIÓN
 - Fecha: 2026-07-29
-- Alcance: contrato y fixtures de `P3-T05`; no conecta el sistema real
+- Custodia técnica: `Administrador de Odoo`
+- Alcance: revisión y cierre de `P3-T05`; la plataforma todavía no consume la
+  API real
 
-## Decisión provisional
+## Decisión aprobada
 
-El adaptador real usará la API externa XML-RPC de Odoo 18 sobre HTTPS:
+El adaptador comercial usará una API HTTPS acotada, creada específicamente para
+Aramayo Content Platform:
 
-- autenticación en `/xmlrpc/2/common`;
-- consultas de modelos mediante `execute_kw` en `/xmlrpc/2/object`;
-- API key de un usuario técnico dedicado;
-- permisos de Odoo limitados a lectura sobre los modelos y registros
-  estrictamente necesarios.
+```text
+https://ferreteriaaramayo.com.ar/api/content/v1/
+```
 
-La [documentación oficial de Odoo 18](https://www.odoo.com/documentation/18.0/developer/reference/external_api.html)
-documenta XML-RPC como su External API, `execute_kw` como operación para modelos
-y API keys como reemplazo del password en webservices. La clave conserva poder
-equivalente a la contraseña del usuario: se trata como secreto y nunca entra al
-dominio, al cliente, a logs ni a OpenAI.
+La autenticación usa un bearer token server-to-server propio, almacenado fuera
+de Git. No se usa una API key ni un usuario técnico de Odoo: esas credenciales
+también podrían autenticar XML-RPC y ampliarían innecesariamente el alcance. El
+token aprobado sólo es válido para las rutas versionadas del addon
+`ferreteria_content_api`.
 
-Esta selección reemplaza el placeholder “API/XML-RPC/JSON-RPC u otro” como
-propuesta técnica. No se considera validada hasta que el `Administrador de Odoo`
-confirme que la instancia productiva expone esos endpoints y revise permisos,
-modelos, campos y alcance de sucursales.
+La propuesta XML-RPC inicial fue descartada durante la revisión técnica porque
+permitía invocar modelos y métodos públicos con el alcance del usuario. La API
+dedicada mantiene una lista fija de operaciones, campos y sucursales; no recibe
+nombres de modelo, campos, métodos, dominios ni SQL.
+
+## Rutas habilitadas
+
+| Intención | Ruta |
+| --- | --- |
+| Buscar productos | `GET /products?query=<texto>&limit=<1..25>` |
+| Obtener producto | `GET /products/odoo-product-<id>` |
+| Obtener precio | `GET /products/odoo-product-<id>/price?locationId=<sucursal>` |
+| Obtener stock | `GET /products/odoo-product-<id>/stock?locationId=<sucursal>` |
+| Estado de recepción | `GET /receipts/odoo-receipt-<id>` |
+
+El prefijo común es `/api/content/v1`. Nginx rechaza métodos distintos de
+`GET`, limita a 5 solicitudes por segundo por IP con ráfaga de 10 y aplica
+timeout de 15 segundos. No se habilitó CORS.
 
 ## Límite del dominio
 
@@ -41,9 +56,8 @@ de Aramayo. Una promoción sólo existe para la plataforma cuando la función
 vigencia.
 
 Ningún puerto acepta SQL, nombres de tabla, nombres de modelo, campos o métodos
-RPC. El futuro adaptador XML-RPC contiene una lista fija de operaciones y
-proyecta las respuestas a tipos del dominio. Reemplazar el proveedor no cambia
-los casos de uso.
+RPC. El adaptador de `P3-T06` traducirá exclusivamente estas cinco intenciones a
+las rutas aprobadas y proyectará las respuestas a tipos del dominio.
 
 ## Contrato observable
 
@@ -57,23 +71,53 @@ los casos de uso.
 - Precio ausente, producto discontinuado y ubicación desconocida son resultados
   explícitos, no valores por defecto.
 - Una respuesta vacía también conserva evidencia de la consulta.
-- Los fixtures no contienen clientes, costos, márgenes, proveedores ni secretos.
+- Las respuestas no contienen clientes, costos, márgenes, proveedores, datos
+  fiscales, contactos ni secretos.
 
-## Límites iniciales
+## Límites aprobados
 
 - búsqueda: entre 2 y 120 caracteres;
 - resultados: 10 por defecto y 25 como máximo;
-- identificadores: hasta 120 caracteres y sin sintaxis ejecutable;
-- latencia simulada: entre 0 y 5000 ms;
-- errores normalizados del puerto: `invalid-request`, `timeout` y `unavailable`.
+- identificadores: formato opaco `odoo-product-<id>` u
+  `odoo-receipt-<id>`;
+- sucursales: `casa-central` y `rivadavia`;
+- timeout del proxy: 15 segundos;
+- frecuencia del proxy: 5 solicitudes por segundo por IP;
+- errores HTTP normalizados: `invalid-request`, `unauthorized` y `unavailable`;
+- errores del puerto: `invalid-request`, `timeout` y `unavailable`.
 
-El timeout y los límites del adaptador real se fijarán en configuración validada
-antes de conectarlo. `P3-T06` agrega frecuencia, autorización de sesión,
-minimización para el modelo y auditoría por invocación.
+`P3-T06` agrega autorización derivada de sesión, timeout del cliente, límite por
+herramienta, minimización antes de OpenAI y auditoría por invocación.
+
+## Revisión del `Administrador de Odoo`
+
+La revisión se completó sobre el repositorio y el VPS productivo autorizados por
+el titular:
+
+1. HTTPS y dominio productivo respondieron correctamente.
+2. El token independiente se generó en el VPS con 64 caracteres, quedó sólo en
+   el `.env` productivo con modo `0600` y no se imprimió.
+3. La ruta es `GET`-only, sin CORS, con rate limit y timeout específico.
+4. La proyección fija usa únicamente:
+   - `product.product`: identidad, SKU, nombre, estado, unidad, presentación,
+     marca, categoría y PVP;
+   - `stock.quant`: suma de cantidad bajo una ubicación interna fija;
+   - `stock.picking`: estado y fecha de una recepción de entrada.
+5. El mapping aprobado es:
+   - `casa-central` → `CC/Stock República de Siria`;
+   - `rivadavia` → `SR/Stock Rivadavia`.
+6. La instancia tiene una compañía activa y dos almacenes operativos.
+7. El smoke confirmó que no se exponen costo, margen, proveedor ni datos
+   personales.
+8. El addon pasó 8 tests Odoo, CI, smoke HTTP y readiness operativo/fiscal.
+
+La evidencia completa vive en el repo comercial:
+`docs/operaciones/despliegue-api-contenido-2026-07-29.md`. El addon productivo
+es `ferreteria_content_api` 18.0.1.0.1 y el ref final documentado es `657c859`.
 
 ## Fixtures de contrato
 
-Los fixtures deterministas cubren:
+Los fixtures deterministas de la plataforma cubren:
 
 - dos registros con el mismo SKU;
 - productos con descripción ambigua y presentaciones diferentes;
@@ -87,18 +131,16 @@ Los fixtures deterministas cubren:
 
 No se registran como conocimiento activo ni pueden respaldar una publicación.
 
-## Revisión pendiente del `Administrador de Odoo`
+## Credencial y siguiente fase
 
-Antes de cerrar `P3-T05` debe confirmar:
+El valor real del token permanece en el VPS de Odoo y nunca se copia a
+documentación, logs, OpenAI ni frontend. `P3-T06` debe:
 
-1. URL HTTPS y disponibilidad de `/xmlrpc/2/common` y `/xmlrpc/2/object`;
-2. nombre de base y login técnico, guardados fuera de Git;
-3. API key rotatable y usuario sin permisos de creación, edición o eliminación;
-4. modelos y campos exactos para producto, precio, stock por local y recepción;
-5. mapping entre ubicaciones de Odoo y `locationId` de la plataforma;
-6. reglas de compañía, almacén y registros aplicables;
-7. que búsquedas de prueba no devuelvan costo, margen, proveedor ni datos
-   personales;
-8. límites y timeout aceptables para la instancia.
+1. agregar configuración tipada de URL y token sólo a worker;
+2. provisionar el token mediante el mecanismo de secretos del entorno;
+3. implementar el adaptador HTTP con timeout y límites;
+4. ejecutar el smoke de integración sin registrar payload comercial;
+5. verificar scopes cruzados, truncamiento y fallos.
 
-Hasta completar esa revisión, no se implementa ni habilita el adaptador real.
+Hasta completar `P3-T06`, la plataforma continúa usando fixtures y no consulta
+el sistema comercial real.
