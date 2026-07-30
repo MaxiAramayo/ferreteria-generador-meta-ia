@@ -21,6 +21,7 @@ import {
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 import { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
+import { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -67,6 +68,90 @@ function reliableMutation(
 
 after(async () => {
   await database.$disconnect();
+});
+
+test("audita herramientas comerciales con actor y organización aislados", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización herramienta comercial",
+        id: organizationId,
+        legalName: "Organización herramienta comercial",
+        slug: `commercial-tool-${organizationId}`,
+      },
+      {
+        displayName: "Organización comercial ajena",
+        id: otherOrganizationId,
+        legalName: "Organización comercial ajena",
+        slug: `commercial-tool-other-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Operador comercial",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["editor"],
+      userId,
+    },
+  });
+
+  const repository = new PrismaCommercialToolAuditRepository(database);
+  const eventId = randomUUID();
+  const runId = randomUUID();
+  await repository.record({
+    actorMembershipId: membershipId,
+    callId: "call_catalog_1",
+    durationMilliseconds: 12,
+    eventId,
+    occurredAt: "2026-07-29T16:00:00.000Z",
+    organizationId,
+    outcome: "success",
+    resultKind: "search-result",
+    runId,
+    safeParameters: {
+      argumentNames: ["limit", "query"],
+      limit: 5,
+      queryCharacters: 9,
+    },
+    toolName: "search_products",
+  });
+
+  const event = await database.auditEvent.findUniqueOrThrow({
+    where: { id: eventId },
+  });
+  assert.equal(event.organizationId, organizationId);
+  assert.equal(event.actorMembershipId, membershipId);
+  assert.equal(event.operation, "commercial.tool.search-products");
+  assert.equal(event.entityId, runId);
+  assert.equal(JSON.stringify(event.metadata).includes("amoladora"), false);
+
+  await assert.rejects(
+    repository.record({
+      actorMembershipId: membershipId,
+      callId: "call_cross_scope",
+      durationMilliseconds: 1,
+      eventId: randomUUID(),
+      occurredAt: "2026-07-29T16:00:01.000Z",
+      organizationId: otherOrganizationId,
+      outcome: "failure",
+      resultKind: "invalid-scope",
+      runId: randomUUID(),
+      safeParameters: {},
+      toolName: "get_product",
+    }),
+  );
 });
 
 test("versiona, activa, reemplaza y retira conocimiento por organización", async () => {

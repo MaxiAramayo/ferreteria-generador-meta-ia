@@ -106,6 +106,34 @@ Cada herramienta debe:
 Fuente:
 [Function calling](https://developers.openai.com/api/docs/guides/function-calling).
 
+### Ejecutor comercial
+
+`P3-T06` implementa cinco herramientas comerciales con `strict: true`; cada
+objeto declara todos sus campos como requeridos y
+`additionalProperties: false`:
+
+- `search_products`;
+- `get_product`;
+- `get_current_price`;
+- `get_stock_by_location`;
+- `get_receipt_status`.
+
+Los argumentos nunca incluyen organización, membresía, sucursal, URL, tabla,
+modelo, campo, método ni SQL. El servidor deriva el scope autenticado y traduce
+el UUID local de sucursal al identificador comercial aprobado. La búsqueda
+admite hasta 10 filas para el modelo, cada run hasta 8 llamadas por defecto y
+la salida completa hasta 12.000 caracteres.
+
+El adaptador valida el JSON de Odoo campo por campo, rechaza propiedades
+inesperadas, redirects, respuestas mayores a 64 KiB y scopes distintos del
+tenant configurado. Cada intento se audita en PostgreSQL con parámetros
+minimizados antes de entregar su resultado. Un fallo de auditoría bloquea la
+salida.
+
+La implementación sigue la recomendación oficial de usar modo estricto; en ese
+modo todos los campos deben ser requeridos y cada objeto debe declarar
+`additionalProperties: false`.
+
 ## Imágenes
 
 Reglas:

@@ -31,10 +31,10 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P3-T06` — implementar el adaptador HTTP y exponer herramientas
-comerciales seguras al modelo con autorización de sesión, límites,
-minimización, timeout y auditoría. `P3-T05` quedó cerrado con revisión del
-`Administrador de Odoo` y una API comercial dedicada disponible en producción.
+Iniciar `P3-T07` — generar un `ContentBrief` estructurado desde el pedido, las
+fuentes documentales y la evidencia comercial, con esquema estricto, prompt
+versionado e historial de ejecución. `P3-T06` quedó cerrado con herramientas
+comerciales autorizadas, acotadas y auditadas.
 
 La autorización explícita del usuario habilitó únicamente la API comercial de
 Odoo. No autoriza publicar contenido ni configurar proveedores reales de
@@ -68,12 +68,14 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
-`P3-T05` quedó cerrado. El addon comercial `ferreteria_content_api` 18.0.1.0.1
-expone productos, PVP, stock por sucursal y estado de recepciones mediante una
-API HTTPS acotada, `GET`-only y con token independiente. La plataforma sigue
-usando fixtures hasta que `P3-T06` agregue el adaptador, los scopes y la
-auditoría. El Vector Store de staging ya existe y su identificador quedó
-registrado únicamente en el entorno local ignorado por Git.
+`P3-T06` quedó cerrado. El worker consume el addon
+`ferreteria_content_api` 18.0.1.0.1 mediante cinco funciones estrictas y una API
+HTTPS acotada, `GET`-only y con token independiente. El scope de organización y
+sucursal se resuelve en el servidor, las respuestas se minimizan y cada llamada
+queda auditada. El smoke real confirmó búsqueda, detalle, precio, stock y cuatro
+eventos de auditoría; un `POST` controlado respondió `403`. El Vector Store de
+staging ya existe y su identificador quedó registrado únicamente en el entorno
+local ignorado por Git.
 
 ## Registro de decisiones pendientes
 

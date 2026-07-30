@@ -440,8 +440,8 @@ acoplar el dominio a Odoo ni a su protocolo remoto.
 
 ## P3-T06 — Exponer herramientas comerciales seguras al modelo
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P3-T02`, `P3-T05`
 - Riesgo: Alto
 
@@ -458,18 +458,20 @@ con límites, autorización y auditoría.
 
 ### Criterios de aceptación
 
-- [ ] Argumentos desconocidos o fuera de rango son rechazados.
-- [ ] Organización y ubicación se derivan de sesión, no del modelo.
-- [ ] El modelo no controla nombres de tablas, campos ni SQL.
-- [ ] Herramientas son de solo lectura y usan usuario de BD restringido.
-- [ ] Resultados se minimizan antes de enviarse a OpenAI.
-- [ ] Cada invocación registra herramienta, parámetros seguros, duración y resultado.
+- [x] Argumentos desconocidos o fuera de rango son rechazados.
+- [x] Organización y ubicación se derivan de sesión, no del modelo.
+- [x] El modelo no controla nombres de tablas, campos ni SQL.
+- [x] Herramientas son de solo lectura y usan una credencial dedicada
+  restringida a la API HTTPS `GET`-only.
+- [x] Resultados se minimizan antes de enviarse a OpenAI.
+- [x] Cada invocación registra herramienta, parámetros seguros, duración y
+  resultado.
 
 ### Verificación obligatoria
 
-- [ ] Pruebas de argumentos maliciosos y scopes cruzados.
-- [ ] Confirmar permisos read-only en un entorno de integración.
-- [ ] Medir truncamiento y timeout con resultados grandes.
+- [x] Pruebas de argumentos maliciosos y scopes cruzados.
+- [x] Confirmar permisos read-only en un entorno de integración.
+- [x] Medir truncamiento y timeout con resultados grandes.
 
 ### Fuera de alcance
 
@@ -477,11 +479,39 @@ con límites, autorización y auditoría.
 
 ### Notas de progreso
 
-- Sin notas.
+- Se definieron cinco funciones estrictas con propiedades requeridas,
+  `additionalProperties: false` y sin argumentos de organización ni sucursal.
+- La configuración comercial es un grupo atómico exclusivo del worker; el
+  token se representa como secreto redactado.
+- El adaptador sólo construye cinco rutas `GET` fijas, rechaza redirects,
+  contratos inesperados, scopes externos y respuestas mayores a 64 KiB.
+- El ejecutor limita búsqueda a 10 filas, salida a 12.000 caracteres y cada
+  sesión a 8 llamadas por defecto, además del timeout configurable.
+- La auditoría conserva herramienta, parámetros minimizados, duración y
+  resultado. Un fallo de auditoría impide usar incluso un resultado exitoso.
+- El esquema estricto se contrastó con la guía oficial vigente de Function
+  Calling el 2026-07-29.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm config:test`: 11 pruebas aprobadas.
+- Tests del worker: 58 aprobadas y 1 prueba remota preexistente omitida.
+- `pnpm db:test`: migraciones, auditoría e aislamiento entre organizaciones
+  aprobados contra PostgreSQL efímero.
+- `NODE_ENV=staging pnpm commercial:smoke`: búsqueda, detalle, precio y stock
+  aprobados contra la API real; precio `priced`, stock `known` y cuatro eventos
+  de auditoría.
+- Una solicitud `POST` controlada a la API real respondió `403`, confirmando el
+  límite de solo lectura junto con las rutas fijas del cliente.
+- El token se inyectó transitoriamente para el smoke y no se imprimió, persistió
+  ni envió a OpenAI.
+- `pnpm production:verify`, `pnpm production:build` y
+  `pnpm production:smoke`: topología, imágenes, migraciones, readiness, worker,
+  web y Chromium aprobados; los recursos efímeros fueron eliminados.
+- Desviación aprobada: el “usuario de BD restringido” se implementa como token
+  dedicado de menor privilegio sobre una API `GET`-only; no permite autenticar
+  Odoo ni sus RPC.
+- Verificación final: `pnpm verify`.
 
 ## P3-T07 — Generar `ContentBrief` estructurado
 

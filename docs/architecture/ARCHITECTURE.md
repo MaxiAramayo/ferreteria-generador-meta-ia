@@ -158,6 +158,26 @@ devuelve `missing_information` cuando no existe evidencia suficiente o hay
 fuentes conflictivas. Un fallo del proveedor es un error operativo explícito,
 no ausencia de información.
 
+## Herramientas comerciales
+
+El worker expone cinco definiciones estrictas y estables para buscar productos,
+obtener una ficha, consultar precio, consultar stock y verificar una recepción.
+Los esquemas no contienen organización ni sucursal: ambos valores, junto con la
+membresía del actor, provienen del contexto autenticado que crea la sesión de
+herramientas.
+
+`CommercialToolExecutionService` valida argumentos, tenant y mapping de
+sucursal antes de alcanzar `CommercialCatalogPort`. El adaptador productivo usa
+exclusivamente `GET` contra la API HTTPS dedicada de Odoo, rechaza redirects,
+campos inesperados y respuestas mayores a 64 KiB. La salida para OpenAI queda
+limitada a 10 productos y 12.000 caracteres.
+
+Cada ejecución conserva una cuota máxima por run y timeout. Éxito, rechazo y
+fallo se escriben en `audit_events` con actor, herramienta, duración, resultado
+y parámetros minimizados; ni el token, ni el texto buscado, ni el payload
+comercial completo se auditan. Si la auditoría falla, el resultado no se
+entrega.
+
 ## Frontend
 
 El compositor se diseña por composición:

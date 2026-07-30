@@ -8,6 +8,7 @@
     "dev": "pnpm run build && node ../../tools/run-with-env.mjs node --enable-source-maps --watch dist/main.js",
     "dev:types": "tsc --project tsconfig.build.json --watch",
     "smoke:cloudinary": "node ../../tools/run-with-env.mjs node src/media/cloudinary-smoke.ts",
+    "smoke:commercial": "node ../../tools/run-with-env.mjs node src/catalog/commercial-smoke.ts",
     "smoke:knowledge": "node ../../tools/run-with-env.mjs node src/knowledge/knowledge-smoke.ts",
     "smoke:openai": "node ../../tools/run-with-env.mjs node src/generation/openai-smoke.ts",
     "start": "node ../../tools/run-with-env.mjs node --enable-source-maps dist/main.js",

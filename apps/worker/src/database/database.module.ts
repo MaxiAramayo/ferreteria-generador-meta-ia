@@ -2,12 +2,14 @@ import type { SecretValue } from "@aramayo/configuration";
 import {
   createDatabaseClient,
   type DatabaseClient,
+  PrismaCommercialToolAuditRepository,
   PrismaKnowledgeDocumentRepository,
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
   PrismaPublicationProductionRepository,
 } from "@aramayo/database";
 import type {
+  CommercialToolAuditPort,
   KnowledgeDocumentRepository,
   MediaAssetRepository,
   OutboxRepository,
@@ -19,6 +21,7 @@ import { MEDIA_ASSET_REPOSITORY } from "../media/media.tokens.ts";
 import { OUTBOX_REPOSITORY } from "../outbox/outbox.tokens.ts";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
+  COMMERCIAL_TOOL_AUDIT_REPOSITORY,
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
@@ -29,6 +32,7 @@ export class DatabaseModule {
   static forConfiguration(databaseUrl: SecretValue): DynamicModule {
     return {
       exports: [
+        COMMERCIAL_TOOL_AUDIT_REPOSITORY,
         KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         OUTBOX_REPOSITORY,
@@ -41,6 +45,12 @@ export class DatabaseModule {
           provide: WORKER_DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+          useFactory: (database: DatabaseClient): CommercialToolAuditPort =>
+            new PrismaCommercialToolAuditRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

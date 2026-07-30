@@ -14,9 +14,15 @@ export {
   type RawEnvironment,
 } from "./types.ts";
 export {
+  parseCommercialCatalogIntegration,
   parseCloudinaryIntegration,
   parseOpenAiIntegration,
   type CloudinaryCredentials,
+  type CommercialCatalogCredentials,
+  type CommercialCatalogIntegration,
+  type CommercialCatalogPolicy,
+  type CommercialExternalLocationId,
+  type CommercialLocationMapping,
   type OpenAICredentials,
   type OpenAIIntegration,
   type OpenAIModelPolicy,

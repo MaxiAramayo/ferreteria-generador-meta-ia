@@ -88,6 +88,12 @@ y respuesta ante exposición están en [`SECRETS.md`](SECRETS.md).
 - No enviar margen, costo o proveedor a OpenAI salvo caso aprobado.
 - Snapshots con retención definida.
 - Datos personales excluidos de prompts por defecto.
+- La credencial comercial autoriza únicamente la API HTTPS `GET`-only
+  dedicada; no autentica Odoo, XML-RPC ni JSON-RPC.
+- Organización, actor y sucursal se derivan del contexto autorizado del
+  servidor, nunca de argumentos del modelo.
+- La auditoría comercial excluye token, consulta literal, respuestas y payloads
+  de proveedor.
 
 ## Acciones externas
 

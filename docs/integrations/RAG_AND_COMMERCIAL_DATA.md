@@ -96,9 +96,8 @@ Precio, stock, SKU, disponibilidad y recepción se consultan mediante
 
 El contrato y la API HTTPS acotada de solo lectura para Odoo 18 se detallan en
 [`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md). La revisión del
-`Administrador de Odoo` quedó completada y el endpoint está disponible; la
-plataforma no lo consume hasta implementar autorización, límites, minimización
-y auditoría en `P3-T06`.
+`Administrador de Odoo` quedó completada y XML-RPC fue descartado por su alcance
+mayor.
 
 Capacidades iniciales:
 
@@ -108,6 +107,22 @@ Capacidades iniciales:
 - obtener stock por local;
 - conocer fecha de actualización;
 - comprobar si una recepción está confirmada.
+
+### Ejecución segura
+
+El worker configura la URL, token, organización y mapping de sucursales como un
+grupo privado opcional. Cuando el grupo está incompleto, el proceso no arranca;
+cuando está ausente, las herramientas comerciales permanecen deshabilitadas.
+
+Las cinco definiciones para OpenAI son estrictas y no aceptan scope. El ejecutor
+deriva organización, membresía y sucursal del servidor, limita cada búsqueda a
+10 filas, cada run a 8 llamadas por defecto y la salida a 12.000 caracteres.
+El adaptador usa rutas `GET` fijas, timeout configurable hasta 15 segundos,
+rechazo de redirects y validación exacta de campos.
+
+La auditoría persiste herramienta, actor, run, duración, resultado y sólo
+metadata segura. El texto de búsqueda se representa por su longitud y los
+identificadores por SHA-256; token y payload comercial completo quedan fuera.
 
 ## Restricciones de datos
 

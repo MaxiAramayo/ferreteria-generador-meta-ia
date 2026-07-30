@@ -23,6 +23,18 @@ export {
   type StockLookupResult,
 } from "./commercial-catalog.ts";
 export {
+  commercialToolLimits,
+  commercialToolNames,
+  CommercialToolExecutionError,
+  type CommercialToolAuditEvent,
+  type CommercialToolAuditPort,
+  type CommercialToolCall,
+  type CommercialToolExecutionErrorCode,
+  type CommercialToolExecutionResult,
+  type CommercialToolExecutionScope,
+  type CommercialToolName,
+} from "./commercial-tools.ts";
+export {
   type ApprovalSnapshotRecord,
   type ApprovalSnapshotRepository,
   type OrganizationScope,

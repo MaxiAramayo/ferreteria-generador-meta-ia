@@ -148,6 +148,19 @@ smoke confirma hash, versión, estados local/remoto y la secuencia
 `grounded`, `grounded`, `missing_information`; no forma parte de CI porque
 escribe activos facturables en el proyecto de staging.
 
+El smoke comercial usa el ejecutor completo contra la API de solo lectura
+aprobada y registra la auditoría en PostgreSQL local:
+
+```bash
+NODE_ENV=staging pnpm commercial:smoke
+```
+
+Requiere la base local migrada y con el seed de Aramayo, además de URL, token,
+organización y mapa de sucursales en el entorno no versionado. Ejecuta búsqueda,
+detalle, precio y stock, confirma cuatro eventos de auditoría y sólo informa
+tipos de resultado; no imprime token, identificadores, consultas ni valores
+comerciales. No forma parte de CI porque consulta el proveedor real.
+
 ## Puertas de calidad
 
 Antes de merge:

@@ -131,16 +131,19 @@ Los fixtures deterministas de la plataforma cubren:
 
 No se registran como conocimiento activo ni pueden respaldar una publicación.
 
-## Credencial y siguiente fase
+## Credencial e integración de la plataforma
 
-El valor real del token permanece en el VPS de Odoo y nunca se copia a
-documentación, logs, OpenAI ni frontend. `P3-T06` debe:
+El valor real del token permanece en el VPS de Odoo y nunca se persiste en
+documentación, logs, OpenAI ni frontend. `P3-T06` agregó:
 
-1. agregar configuración tipada de URL y token sólo a worker;
-2. provisionar el token mediante el mecanismo de secretos del entorno;
-3. implementar el adaptador HTTP con timeout y límites;
-4. ejecutar el smoke de integración sin registrar payload comercial;
-5. verificar scopes cruzados, truncamiento y fallos.
+1. configuración tipada de URL, token, tenant, mapping, timeout y cuota sólo
+   para el worker;
+2. adaptador HTTP `GET`-only con rutas fijas y validación exacta de respuesta;
+3. cinco esquemas estrictos sin tenant ni sucursal controlables por el modelo;
+4. ejecutor con scopes derivados, minimización y auditoría PostgreSQL;
+5. tests de argumentos maliciosos, aislamiento, truncamiento, timeout y fallos;
+6. smoke real sin imprimir token ni payload comercial.
 
-Hasta completar `P3-T06`, la plataforma continúa usando fixtures y no consulta
-el sistema comercial real.
+La prueba real recibió precio `priced`, stock `known` y cuatro auditorías
+locales; un `POST` controlado fue rechazado con `403`. El token se inyectó sólo
+al proceso del smoke y no quedó persistido en el entorno local.
