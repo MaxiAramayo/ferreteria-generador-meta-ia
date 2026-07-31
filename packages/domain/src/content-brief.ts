@@ -12,6 +12,7 @@
 
 import type { OrganizationScope } from "./persistence.ts";
 import type { PaginatedRecords } from "./publication-draft.ts";
+import type { ReliableMutationContext } from "./reliable-operations.ts";
 import type { GenerationTokenUsage } from "./text-generation.ts";
 
 export const contentBriefLimits = Object.freeze({
@@ -725,18 +726,21 @@ export interface ContentBriefRunRejection {
  */
 export const contentBriefGenerationTopic = "content.brief.generation-requested";
 
-/** Lo que se conoce al pedir el brief, antes de ejecutarlo. */
+/**
+ * Lo que se conoce al pedir el brief, antes de ejecutarlo.
+ *
+ * No incluye prompt ni esquema a propósito: al reservar todavía no se eligió
+ * ninguno, y anotarlos acá sería adivinar cuál va a ejecutar. Se registran al
+ * cerrar, que es cuando describen lo que realmente corrió.
+ */
 export interface ContentBriefRunReservation {
   readonly actorMembershipId: string;
   readonly id: string;
   readonly locationId: string | null;
   readonly organizationId: string;
-  readonly promptHash: string;
-  readonly promptVersion: string;
   readonly request: string;
   readonly requestHash: string;
   readonly requestedAt: string;
-  readonly schemaVersion: string;
 }
 
 /** Lo que agrega la ejecución cuando termina. */
@@ -750,21 +754,38 @@ export interface ContentBriefRunCompletion {
   readonly latencyMilliseconds: number;
   readonly model: string;
   readonly organizationId: string;
+  readonly promptHash: string;
+  readonly promptVersion: string;
   readonly rejection: ContentBriefRunRejection | null;
   readonly requestId: string | null;
   readonly responseId: string | null;
+  readonly schemaVersion: string;
   readonly status: "generated" | "rejected";
   readonly toolInvocations: readonly ContentBriefRunToolInvocation[];
   readonly toolNames: readonly string[];
   readonly usage: GenerationTokenUsage;
 }
 
+/**
+ * Una ejecución en cualquier punto de su ciclo, no sólo terminada.
+ *
+ * Por eso el prompt y el esquema son opcionales acá y obligatorios en la
+ * finalización: mientras la ejecución sigue pendiente todavía no eligió
+ * ninguno, y quien lee el historial debe distinguir «no hay» de un valor
+ * inventado al reservar.
+ */
 export interface ContentBriefRunRecord
   extends
     ContentBriefRunReservation,
-    Omit<ContentBriefRunCompletion, "status"> {
+    Omit<
+      ContentBriefRunCompletion,
+      "promptHash" | "promptVersion" | "schemaVersion" | "status"
+    > {
   readonly cancelledAt: string | null;
   readonly completedAt: string | null;
+  readonly promptHash: string | null;
+  readonly promptVersion: string | null;
+  readonly schemaVersion: string | null;
   readonly status: ContentBriefRunStatus;
 }
 
@@ -792,6 +813,30 @@ export interface ContentBriefRunListFilter extends OrganizationScope {
   readonly actorMembershipId?: string;
   readonly limit: number;
   readonly page: number;
+}
+
+export interface RequestContentBriefRunInput extends ContentBriefRunReservation {
+  /** Viaja al evento para que el prompt nombre la sucursal del pedido. */
+  readonly locationName: string | null;
+  readonly reliableOperation: ReliableMutationContext;
+}
+
+export type ContentBriefRunRequestResult =
+  | Readonly<{ runId: string; status: "accepted" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>;
+
+/**
+ * Puerto de pedido, exclusivo de la API.
+ *
+ * Reservar la ejecución y encolar su evento ocurren en una sola transacción:
+ * un pedido aceptado que no llegara al outbox quedaría pendiente para siempre,
+ * y un evento sin ejecución reservada no tendría dónde escribir su resultado.
+ */
+export interface ContentBriefRequestRepository {
+  request(
+    input: RequestContentBriefRunInput,
+  ): Promise<ContentBriefRunRequestResult>;
 }
 
 export interface ContentBriefRunRepository {

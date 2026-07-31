@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 
 import { AuditModule } from "../audit/audit.module.ts";
+import { ContentBriefController } from "./content-brief.controller.ts";
+import { ContentBriefService } from "./content-brief.service.ts";
 import { PublicationDraftController } from "./publication-draft.controller.ts";
 import { PublicationDraftService } from "./publication-draft.service.ts";
 import { PublicationProductionController } from "./publication-production.controller.ts";
@@ -8,9 +10,14 @@ import { PublicationProductionService } from "./publication-production.service.t
 import { PublicationTransitionService } from "./publication-transition.service.ts";
 
 @Module({
-  controllers: [PublicationDraftController, PublicationProductionController],
+  controllers: [
+    ContentBriefController,
+    PublicationDraftController,
+    PublicationProductionController,
+  ],
   imports: [AuditModule],
   providers: [
+    ContentBriefService,
     PublicationDraftService,
     PublicationProductionService,
     PublicationTransitionService,

@@ -3,6 +3,8 @@ import {
   createDatabaseClient,
   type DatabaseClient,
   PrismaApprovalSnapshotRepository,
+  PrismaContentBriefRequestRepository,
+  PrismaContentBriefRunRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
@@ -14,6 +16,8 @@ import {
 } from "@aramayo/database";
 import type {
   ApprovalSnapshotRepository,
+  ContentBriefRequestRepository,
+  ContentBriefRunRepository,
   IdentityRepository,
   MediaAssetRepository,
   OrganizationConfigurationRepository,
@@ -28,6 +32,8 @@ import { Module, type DynamicModule } from "@nestjs/common";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
   APPROVAL_SNAPSHOT_REPOSITORY,
+  CONTENT_BRIEF_REQUEST_REPOSITORY,
+  CONTENT_BRIEF_RUN_REPOSITORY,
   DATABASE_CLIENT,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
@@ -45,6 +51,8 @@ export class DatabaseModule {
     return {
       exports: [
         APPROVAL_SNAPSHOT_REPOSITORY,
+        CONTENT_BRIEF_REQUEST_REPOSITORY,
+        CONTENT_BRIEF_RUN_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -119,6 +127,20 @@ export class DatabaseModule {
           provide: PUBLICATION_STATE_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationStateRepository =>
             new PrismaPublicationStateRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: CONTENT_BRIEF_REQUEST_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): ContentBriefRequestRepository =>
+            new PrismaContentBriefRequestRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: CONTENT_BRIEF_RUN_REPOSITORY,
+          useFactory: (database: DatabaseClient): ContentBriefRunRepository =>
+            new PrismaContentBriefRunRepository(database),
         },
         DatabaseLifecycleService,
       ],

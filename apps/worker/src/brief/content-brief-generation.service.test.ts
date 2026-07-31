@@ -265,12 +265,9 @@ async function reservedRuns(failure: Error | null = null): Promise<FakeRuns> {
     id: RUN_ID,
     locationId: LOCATION_ID,
     organizationId: ORGANIZATION_ID,
-    promptHash: "0".repeat(64),
-    promptVersion: contentBriefPromptVersion,
     request: command.request,
     requestHash: "0".repeat(64),
     requestedAt: REQUESTED_AT,
-    schemaVersion: contentBriefSchemaVersion,
   });
   return runs;
 }

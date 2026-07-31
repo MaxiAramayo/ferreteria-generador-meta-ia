@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-30
+Actualizado: 2026-07-31
 
 ## Fase activa
 
@@ -31,12 +31,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P3-T09` — el flujo conversacional avanza por cortes verticales. El
-corte 1 está cerrado y verificado: la ejecución del brief tiene ciclo de vida
-propio, la API puede reservarla y una cancelación impide que un resultado tardío
-quede vigente. Sigue el corte 2: el tópico de outbox que encola el pedido y el
-consumidor del worker que lo ejecuta. Después vienen la API, la UI
-`AICreativeComposer` y los E2E.
+Continuar `P3-T09` — el flujo conversacional avanza por cortes verticales. Los
+cortes 1 a 3 están cerrados y verificados: la ejecución tiene ciclo de vida
+propio, el outbox conecta el pedido con el worker que lo ejecuta, y la API ya
+expone pedido, consulta, historial, cancelación y aceptación. Sigue el corte 4:
+la UI `AICreativeComposer` con estado de recuperación y generación, historial de
+intentos y costos, y citas accesibles. Después vienen los E2E y la trazabilidad.
 
 La autorización explícita del usuario habilitó únicamente la API comercial de
 Odoo. No autoriza publicar contenido ni configurar proveedores reales de
@@ -95,6 +95,10 @@ local ignorado por Git.
 
 ## Registro de decisiones pendientes
 
+- Cómo registrar en la publicación de qué ejecución del brief salió. Hoy
+  aceptar crea la revisión pero no deja el vínculo, así que la trazabilidad
+  desde una revisión hasta su evidencia depende de la UI. Surgió al cerrar el
+  corte 3 de `P3-T09` y se resuelve en su corte 5.
 - Política inicial de publicaciones que pueden autoaprobarse.
 - Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
   criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una

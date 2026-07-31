@@ -43,11 +43,6 @@ import {
   ContentBriefGenerationService,
   type KnowledgeRetrievalPort,
 } from "./content-brief-generation.service.ts";
-import {
-  contentBriefPromptHash,
-  contentBriefPromptVersion,
-} from "./content-brief-prompt.ts";
-import { contentBriefSchema } from "./content-brief-schema.ts";
 import { InMemoryContentBriefRunRepository } from "./in-memory-content-brief-runs.ts";
 
 /**
@@ -227,12 +222,9 @@ async function runBriefSmoke(): Promise<void> {
       id: runId,
       locationId,
       organizationId: credentials.organizationId,
-      promptHash: contentBriefPromptHash,
-      promptVersion: contentBriefPromptVersion,
       request: requestText,
       requestHash: createHash("sha256").update(requestText).digest("hex"),
       requestedAt,
-      schemaVersion: contentBriefSchema.version,
     });
 
     const result = await service.generate({

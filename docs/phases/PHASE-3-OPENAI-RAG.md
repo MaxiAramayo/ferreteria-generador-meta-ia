@@ -862,12 +862,57 @@ faltantes, corrija el pedido y guarde un brief aceptado.
   dead-letter los eventos del otro. Un tópico sin consumidor falla explícito.
 - Cortes pendientes: (3) API y contratos, (4) UI `AICreativeComposer` e
   historial, (5) E2E y trazabilidad.
-- Próximo paso exacto: implementar el corte (3): contratos públicos y rutas de
-  pedido, consulta, historial, cancelación y aceptación.
+- 2026-07-31: corte (3) completo. `POST /content-briefs` acepta el pedido con
+  202 y deja la ejecución consultable; `GET` de detalle e historial, `cancel` y
+  `acceptance` completan la superficie. El alcance sale siempre de la sesión:
+  ningún campo del body nombra organización, membresía ni autor.
+- El prompt y el esquema dejaron de viajar en la reserva. La API no puede
+  conocerlos sin acoplarse a la versión que hoy corre en el worker, así que se
+  anotan al cerrar y son nulos mientras la ejecución sigue pendiente. La
+  migración `content_brief_run_prompt_at_completion` los hace opcionales y su
+  `down.sql` descarta las pendientes, que por definición no tienen ninguno.
+- Aceptar toma el copy del brief guardado y sólo recibe el diseño por el body.
+  Si el título, el epígrafe o los productos viajaran en la petición, aceptar
+  sería la vía para publicar afirmaciones que ninguna evidencia sustenta. El
+  contrato rechaza esos campos en lugar de ignorarlos.
+- Aceptar exige una ejecución `generated` con brief presente: el estado por sí
+  solo no alcanza, porque lo que se acepta es el brief persistido. Crea una
+  revisión en borrador y no publica ni programa nada.
+- La proyección pública deja afuera el hash del pedido y los identificadores de
+  respuesta del proveedor, y traduce el centinela `unselected` a ausencia de
+  modelo. El historial acota el tamaño de página y sólo filtra por autor si el
+  pedido lo pide.
+- La revisión del corte encontró tres defectos, corregidos antes de cerrarlo:
+  - El reintento con la misma clave idempotente devolvía el identificador que
+    ese intento acababa de sortear en lugar del guardado. El pedido no se
+    duplicaba, pero el cliente recibía una ejecución inexistente y su consulta
+    daba 404. Ahora la respuesta sale del cuerpo persistido, como ya hacían los
+    borradores, y una prueba de integración lo fija.
+  - La preparación de la clave idempotente convertía cualquier excepción en un
+    400. Un error nuestro se presentaba como culpa de quien pedía y se perdía.
+    Sólo `RangeError` y `TypeError` se traducen; el resto sube.
+  - La sucursal nunca se resolvía: el nombre viajaba siempre nulo, así que el
+    prompt no podía nombrarla, y una sucursal ajena sólo se detenía al chocar
+    con la clave foránea dentro de la transacción. La API ahora la resuelve
+    contra la configuración de la organización, con lo que el nombre llega al
+    evento y una sucursal desconocida responde 404 antes de reservar.
+- Verificaciones ejecutadas: `pnpm verify` completo, `pnpm db:test` con
+  migración desde cero, reversión y reaplicación, y 18 pruebas de la API que
+  cubren normalización del pedido, límites, ausencia de clave idempotente,
+  conflicto idempotente y pedido en curso, sucursal ajena, cancelación de
+  pendiente y de ya resuelta, aislamiento entre organizaciones, proyección sin
+  prompt y las tres negativas de aceptación. La integración cubre además el
+  pedido completo: reserva, evento encolado, reintento idempotente y conflicto.
+- Riesgo residual anotado: la publicación no guarda de qué ejecución salió, así
+  que la trazabilidad desde una revisión hasta su evidencia todavía depende de
+  la UI. Se resuelve en el corte (5).
+- Próximo paso exacto: implementar el corte (4): la UI `AICreativeComposer` con
+  estado de recuperación y generación, historial de intentos y costos, y citas
+  accesibles desde cada brief.
 
 ### Evidencia de cierre
 
-- Pendiente: faltan los cortes 2 a 5.
+- Pendiente: faltan los cortes 4 y 5.
 
 ## Criterios de salida de Fase 3
 

@@ -59,12 +59,9 @@ async function reservedRuns(): Promise<InMemoryContentBriefRunRepository> {
     id: RUN_ID,
     locationId: LOCATION_ID,
     organizationId: ORGANIZATION_ID,
-    promptHash: "0".repeat(64),
-    promptVersion: "content-brief/prueba",
     request: "Necesito una pieza para promocionar taladros percutores.",
     requestHash: "0".repeat(64),
     requestedAt: REQUESTED_AT,
-    schemaVersion: "content-brief/prueba",
   });
   return runs;
 }
@@ -126,9 +123,12 @@ test("un reintento sobre una ejecución ya resuelta no vuelve a generar", async 
       latencyMilliseconds: 10,
       model: "gpt-5.6-terra",
       organizationId: ORGANIZATION_ID,
+      promptHash: "0".repeat(64),
+      promptVersion: "content-brief/prueba",
       rejection: { code: "evidence-stale", message: "vencida" },
       requestId: null,
       responseId: null,
+      schemaVersion: "content-brief/prueba",
       status: "rejected",
       toolInvocations: [],
       toolNames: [],

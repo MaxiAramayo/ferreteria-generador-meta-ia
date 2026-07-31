@@ -1,20 +1,29 @@
-import type {
-  ContentBrief,
-  ContentBriefRunCancellationOutcome,
-  ContentBriefRunCompletion,
-  ContentBriefRunCompletionOutcome,
-  ContentBriefRunEvidence,
-  ContentBriefRunListFilter,
-  ContentBriefRunRecord,
-  ContentBriefRunRepository,
-  ContentBriefRunReservation,
-  ContentBriefRunToolInvocation,
-  OrganizationScope,
-  PaginatedRecords,
+import {
+  contentBriefGenerationTopic,
+  type ContentBrief,
+  type ContentBriefRunCancellationOutcome,
+  type ContentBriefRunCompletion,
+  type ContentBriefRunCompletionOutcome,
+  type ContentBriefRunEvidence,
+  type ContentBriefRunListFilter,
+  type ContentBriefRunRecord,
+  type ContentBriefRunRepository,
+  type ContentBriefRunReservation,
+  type ContentBriefRunToolInvocation,
+  type OrganizationScope,
+  type PaginatedRecords,
+  type RequestContentBriefRunInput,
+  type ContentBriefRequestRepository,
+  type ContentBriefRunRequestResult,
+  type SafeJsonObject,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
+import {
+  claimReliableOperation,
+  commitReliableOperation,
+} from "./reliable-operation-repository.ts";
 
 /**
  * Convierte una estructura de dominio en JSON de Prisma.
@@ -161,6 +170,126 @@ function toRecord(row: ContentBriefRunRow): ContentBriefRunRecord {
   };
 }
 
+/** Recupera de la respuesta guardada la ejecución que el pedido original creó. */
+function replayedRunId(responseBody: SafeJsonObject): string {
+  const runId = responseBody["runId"];
+  if (typeof runId !== "string") {
+    throw new TypeError("responseBody.runId no conserva texto.");
+  }
+  return runId;
+}
+
+/**
+ * Pedido de brief.
+ *
+ * Reservar la ejecución y encolar su evento van en la misma transacción: un
+ * pedido aceptado que no llegara al outbox quedaría pendiente para siempre, y
+ * un evento sin ejecución reservada no tendría dónde escribir su resultado.
+ */
+export class PrismaContentBriefRequestRepository implements ContentBriefRequestRepository {
+  readonly #database: DatabaseClient;
+
+  constructor(database: DatabaseClient) {
+    this.#database = database;
+  }
+
+  async request(
+    input: RequestContentBriefRunInput,
+  ): Promise<ContentBriefRunRequestResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed":
+          // La ejecución que devuelve el reintento es la de la respuesta
+          // guardada, no la que este intento acaba de sortear: `input.id` es
+          // otro identificador y consultarlo daría 404 sobre una fila que no
+          // existe.
+          return {
+            runId: replayedRunId(claim.responseBody),
+            status: "accepted" as const,
+          };
+        case "request-conflict":
+          return { status: "idempotency-conflict" as const };
+        case "in-progress":
+          return {
+            retryAfter: claim.retryAfter,
+            status: "in-progress" as const,
+          };
+        case "claimed":
+          break;
+      }
+
+      await transaction.contentBriefRun.create({
+        data: {
+          actorMembershipId: input.actorMembershipId,
+          attempts: 0,
+          cachedInputTokens: 0,
+          evidence: [],
+          id: input.id,
+          inputTokens: 0,
+          knowledgeStatus: "pending",
+          latencyMilliseconds: 0,
+          locationId: input.locationId,
+          model: "unselected",
+          organizationId: input.organizationId,
+          outputTokens: 0,
+          reasoningTokens: 0,
+          request: input.request,
+          requestHash: input.requestHash,
+          requestedAt: new Date(input.requestedAt),
+          status: "pending",
+          toolInvocations: [],
+          toolNames: [],
+          totalTokens: 0,
+        },
+      });
+
+      const committed = await commitReliableOperation(transaction, {
+        audit: {
+          actorMembershipId: input.actorMembershipId,
+          entityId: input.id,
+          entityType: "content-brief-run",
+          eventId: input.reliableOperation.auditEventId,
+          // La auditoría conserva el tamaño del pedido, no su texto.
+          metadata: { requestCharacters: input.request.length },
+          occurredAt: input.reliableOperation.occurredAt,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          outcome: "success",
+        },
+        idempotency: {
+          actorMembershipId: input.actorMembershipId,
+          expiresAt: input.reliableOperation.completedExpiresAt,
+          keyHash: input.reliableOperation.claim.keyHash,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          recordId: claim.recordId,
+          responseBody: { runId: input.id },
+          responseStatus: 202,
+        },
+        outbox: [
+          {
+            aggregateId: input.id,
+            aggregateType: "content-brief-run",
+            availableAt: input.reliableOperation.occurredAt,
+            eventId: input.reliableOperation.outboxEventId,
+            organizationId: input.organizationId,
+            payload: { locationName: input.locationName, runId: input.id },
+            topic: contentBriefGenerationTopic,
+          },
+        ],
+      });
+      if (!committed) {
+        throw new Error("No se pudo confirmar el pedido idempotente.");
+      }
+      return { runId: input.id, status: "accepted" as const };
+    });
+  }
+}
+
 /**
  * Historial de ejecución del brief.
  *
@@ -192,13 +321,10 @@ export class PrismaContentBriefRunRepository implements ContentBriefRunRepositor
         model: "unselected",
         organizationId: reservation.organizationId,
         outputTokens: 0,
-        promptHash: reservation.promptHash,
-        promptVersion: reservation.promptVersion,
         reasoningTokens: 0,
         request: reservation.request,
         requestHash: reservation.requestHash,
         requestedAt: new Date(reservation.requestedAt),
-        schemaVersion: reservation.schemaVersion,
         status: "pending",
         toolInvocations: [],
         toolNames: [],
@@ -232,11 +358,16 @@ export class PrismaContentBriefRunRepository implements ContentBriefRunRepositor
         latencyMilliseconds: completion.latencyMilliseconds,
         model: completion.model,
         outputTokens: completion.usage.outputTokens,
+        // El prompt y el esquema se anotan acá porque describen lo que
+        // realmente ejecutó, no lo que se había pedido.
+        promptHash: completion.promptHash,
+        promptVersion: completion.promptVersion,
         reasoningTokens: completion.usage.reasoningTokens,
         rejectionCode: completion.rejection?.code ?? null,
         rejectionMessage: completion.rejection?.message ?? null,
         requestId: completion.requestId,
         responseId: completion.responseId,
+        schemaVersion: completion.schemaVersion,
         status: completion.status,
         toolInvocations: briefJsonArray(
           completion.toolInvocations,

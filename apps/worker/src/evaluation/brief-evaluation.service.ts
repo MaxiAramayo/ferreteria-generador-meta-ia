@@ -162,12 +162,9 @@ export class BriefEvaluationService {
         id: runId,
         locationId: this.#scope.locationId,
         organizationId: this.#scope.organizationId,
-        promptHash: contentBriefPromptHash,
-        promptVersion: contentBriefPromptVersion,
         request: entry.request,
         requestHash: "0".repeat(64),
         requestedAt: new Date().toISOString(),
-        schemaVersion: contentBriefSchema.version,
       });
       const service = new ContentBriefGenerationService(
         new ScriptedKnowledge(entry.knowledge),

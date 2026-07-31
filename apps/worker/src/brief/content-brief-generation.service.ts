@@ -39,6 +39,8 @@ import type { RetrieveKnowledgeCommand } from "../knowledge/knowledge-retrieval.
 import {
   buildContentBriefInput,
   contentBriefInstructions,
+  contentBriefPromptHash,
+  contentBriefPromptVersion,
 } from "./content-brief-prompt.ts";
 import { contentBriefSchema } from "./content-brief-schema.ts";
 
@@ -320,9 +322,12 @@ export class ContentBriefGenerationService {
           latencyMilliseconds: generation.execution.latencyMilliseconds,
           model: generation.execution.model,
           organizationId: command.organizationId,
+          promptHash: contentBriefPromptHash,
+          promptVersion: contentBriefPromptVersion,
           rejection: null,
           requestId: generation.execution.requestId,
           responseId: generation.execution.responseId,
+          schemaVersion: contentBriefSchema.version,
           status: "generated",
           toolInvocations: Object.freeze([...toolInvocations]),
           toolNames: this.#toolNames(),
@@ -406,9 +411,12 @@ export class ContentBriefGenerationService {
       latencyMilliseconds: execution.latencyMilliseconds,
       model: execution.model,
       organizationId: context.command.organizationId,
+      promptHash: contentBriefPromptHash,
+      promptVersion: contentBriefPromptVersion,
       rejection: { code, message },
       requestId: execution.requestId,
       responseId: null,
+      schemaVersion: contentBriefSchema.version,
       status: "rejected",
       toolInvocations: Object.freeze([...context.toolInvocations]),
       toolNames: this.#toolNames(),

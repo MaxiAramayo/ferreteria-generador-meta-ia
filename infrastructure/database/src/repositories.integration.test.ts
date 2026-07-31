@@ -22,7 +22,10 @@ import {
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 import { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
 import { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
-import { PrismaContentBriefRunRepository } from "./content-brief-run-repository.ts";
+import {
+  PrismaContentBriefRequestRepository,
+  PrismaContentBriefRunRepository,
+} from "./content-brief-run-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -217,12 +220,9 @@ test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", 
     id,
     locationId,
     organizationId,
-    promptHash: "b".repeat(64),
-    promptVersion: "content-brief/2026-07-30.2",
     request: "Necesito una pieza para promocionar taladros percutores.",
     requestHash: "a".repeat(64),
     requestedAt: "2026-07-30T12:00:00.000Z",
-    schemaVersion: "content-brief/2026-07-30.1",
   });
   const completion = (
     id: string,
@@ -263,11 +263,14 @@ test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", 
     latencyMilliseconds: 820,
     model: "gpt-5.6-terra",
     organizationId,
+    promptHash: "b".repeat(64),
+    promptVersion: "content-brief/2026-07-30.2",
     rejection: generated
       ? null
       : { code: "evidence-stale", message: "La evidencia está vencida." },
     requestId: "req_brief",
     responseId: "resp_brief",
+    schemaVersion: "content-brief/2026-07-30.1",
     status: generated ? ("generated" as const) : ("rejected" as const),
     toolInvocations: [
       {
@@ -299,6 +302,11 @@ test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", 
   assert.equal(pending.status, "pending");
   assert.equal(pending.brief, null);
   assert.equal(pending.completedAt, null);
+  // Reservar no elige prompt ni esquema: se anotan al cerrar, cuando describen
+  // lo que realmente ejecutó.
+  assert.equal(pending.promptVersion, null);
+  assert.equal(pending.promptHash, null);
+  assert.equal(pending.schemaVersion, null);
 
   assert.deepEqual(
     await repository.complete(
@@ -315,6 +323,8 @@ test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", 
   assert.equal(generated.status, "generated");
   assert.equal(generated.brief?.title, "Taladro percutor para tu obra");
   assert.equal(generated.model, "gpt-5.6-terra");
+  assert.equal(generated.promptVersion, "content-brief/2026-07-30.2");
+  assert.equal(generated.schemaVersion, "content-brief/2026-07-30.1");
   assert.equal(generated.usage.totalTokens, 1_160);
   assert.equal(generated.evidence[0]?.citationId, "C1");
 
@@ -450,6 +460,64 @@ test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", 
       },
     }),
   );
+
+  const requests = new PrismaContentBriefRequestRepository(database);
+  const requestOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.brief:request",
+  );
+  const requestInput = {
+    actorMembershipId: membershipId,
+    id: randomUUID(),
+    locationId,
+    locationName: "Sucursal Centro",
+    organizationId,
+    reliableOperation: requestOperation,
+    request: "Necesito una pieza para promocionar amoladoras.",
+    requestHash: "c".repeat(64),
+    requestedAt: "2026-07-30T13:00:00.000Z",
+  };
+
+  const accepted = await requests.request(requestInput);
+  assert.deepEqual(accepted, {
+    runId: requestInput.id,
+    status: "accepted",
+  });
+  const queued = await database.outboxMessage.findUniqueOrThrow({
+    select: { aggregateId: true, topic: true },
+    where: { id: requestOperation.outboxEventId },
+  });
+  assert.equal(queued.topic, "content.brief.generation-requested");
+  assert.equal(queued.aggregateId, requestInput.id);
+
+  // Reintentar con la misma clave devuelve la ejecución original, no el
+  // identificador que este intento acaba de sortear: consultar ese otro daría
+  // 404 sobre una fila que nunca existió.
+  const replayedRequest = await requests.request({
+    ...requestInput,
+    id: randomUUID(),
+  });
+  assert.deepEqual(replayedRequest, {
+    runId: requestInput.id,
+    status: "accepted",
+  });
+  assert.equal(
+    await database.contentBriefRun.count({
+      where: { organizationId, request: requestInput.request },
+    }),
+    1,
+  );
+
+  const requestConflict = await requests.request({
+    ...requestInput,
+    id: randomUUID(),
+    reliableOperation: {
+      ...requestOperation,
+      claim: { ...requestOperation.claim, requestHash: randomHash() },
+    },
+  });
+  assert.deepEqual(requestConflict, { status: "idempotency-conflict" });
 });
 
 test("versiona, activa, reemplaza y retira conocimiento por organización", async () => {
