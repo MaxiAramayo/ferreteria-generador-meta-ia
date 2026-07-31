@@ -146,6 +146,15 @@ enum KnowledgeDocumentVersionStatus {
   @@map("knowledge_document_version_status")
 }
 
+enum ContentBriefRunStatus {
+  pending
+  generated
+  rejected
+  cancelled
+
+  @@map("content_brief_run_status")
+}
+
 enum KnowledgeRemoteStatus {
   not_uploaded @map("not_uploaded")
   uploaded     @map("uploaded")
@@ -172,6 +181,7 @@ model Organization {
   authenticationSessions AuthenticationSession[]
   brands                 Brand[]
   configurationEvents    OrganizationConfigurationEvent[]
+  contentBriefRuns       ContentBriefRun[]
   locations              Location[]
   mediaAssets            MediaAsset[]
   memberships            OrganizationMembership[]
@@ -284,6 +294,7 @@ model OrganizationMembership {
   actedAuthenticationEvents    AuthenticationEvent[]            @relation("AuthenticationEventActor")
   auditEvents                  AuditEvent[]
   actedConfigurationEvents     OrganizationConfigurationEvent[]
+  contentBriefRuns             ContentBriefRun[]
   createdMedia                 MediaAsset[]
   createdPublications          Publication[]
   createdRevisions             PublicationRevision[]
@@ -382,9 +393,10 @@ model Location {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  brand        Brand         @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  publications Publication[]
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  brand           Brand             @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publications    Publication[]
+  contentBriefRuns ContentBriefRun[]
 
   @@unique([organizationId, name], map: "locations_organization_name_key")
   @@unique([organizationId, id], map: "locations_organization_id_key")
@@ -601,6 +613,51 @@ model AuditEvent {
   @@index([organizationId, occurredAt(sort: Desc), id], map: "audit_events_org_occurred_idx")
   @@index([organizationId, entityType, entityId, occurredAt(sort: Desc)], map: "audit_events_entity_idx")
   @@map("audit_events")
+}
+
+model ContentBriefRun {
+  id                 String               @id @db.Uuid
+  organizationId     String               @map("organization_id") @db.Uuid
+  actorMembershipId  String               @map("actor_membership_id") @db.Uuid
+  locationId         String?              @map("location_id") @db.Uuid
+  status             ContentBriefRunStatus
+  request            String               @db.VarChar(600)
+  requestHash        String               @map("request_hash") @db.Char(64)
+  requestedAt        DateTime             @map("requested_at") @db.Timestamptz(3)
+  promptVersion      String               @map("prompt_version") @db.VarChar(80)
+  promptHash         String               @map("prompt_hash") @db.Char(64)
+  schemaVersion      String               @map("schema_version") @db.VarChar(80)
+  model              String               @db.VarChar(120)
+  knowledgeStatus    String               @map("knowledge_status") @db.VarChar(120)
+  toolNames          Json                 @map("tool_names")
+  toolInvocations    Json                 @map("tool_invocations")
+  evidence           Json
+  brief              Json?
+  rejectionCode      String?              @map("rejection_code") @db.VarChar(80)
+  rejectionMessage   String?              @map("rejection_message") @db.VarChar(300)
+  responseId         String?              @map("response_id") @db.VarChar(120)
+  requestId          String?              @map("request_id") @db.VarChar(120)
+  attempts           Int
+  latencyMilliseconds Int                 @map("latency_milliseconds")
+  inputTokens        Int                  @map("input_tokens")
+  cachedInputTokens  Int                  @map("cached_input_tokens")
+  outputTokens       Int                  @map("output_tokens")
+  reasoningTokens    Int                  @map("reasoning_tokens")
+  totalTokens        Int                  @map("total_tokens")
+  estimatedCostUsd   Decimal?             @map("estimated_cost_usd") @db.Decimal(12, 6)
+  completedAt        DateTime?            @map("completed_at") @db.Timestamptz(3)
+  cancelledAt        DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  location     Location?              @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc), id], map: "content_brief_runs_org_created_idx")
+  @@index([organizationId, actorMembershipId, createdAt(sort: Desc)], map: "content_brief_runs_org_actor_idx")
+  @@index([organizationId, promptVersion, model, createdAt(sort: Desc)], map: "content_brief_runs_prompt_idx")
+  @@index([organizationId, status, requestedAt(sort: Desc)], map: "content_brief_runs_pending_idx")
+  @@map("content_brief_runs")
 }
 
 model IdempotencyRecord {

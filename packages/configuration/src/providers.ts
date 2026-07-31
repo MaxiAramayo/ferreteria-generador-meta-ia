@@ -100,7 +100,7 @@ const commercialCatalogVariables = [
   "ODOO_CONTENT_API_LOCATION_MAP",
 ] as const;
 
-const openAiPolicyDefaults = Object.freeze({
+export const openAiPolicyDefaults = Object.freeze({
   maximumInputCharacters: 50_000,
   maximumOutputTokens: 4_096,
   maximumRetries: 2,

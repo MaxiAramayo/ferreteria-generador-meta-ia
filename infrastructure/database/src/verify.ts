@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260729010000_knowledge_document_lifecycle";
+const latestMigrationName = "20260730020000_content_brief_run_lifecycle";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -154,6 +154,8 @@ async function verifyDatabase(): Promise<void> {
       const rollbackState = await testPool.query<{
         alt_column_exists: boolean;
         audit_table: string | null;
+        brief_completed_at_exists: boolean;
+        brief_runs_table: string | null;
         configuration_table: string | null;
         core_table: string | null;
         failure_column_exists: boolean;
@@ -167,6 +169,14 @@ async function verifyDatabase(): Promise<void> {
         `
           SELECT
             to_regclass('public.organizations')::text AS "core_table",
+            to_regclass('public.content_brief_runs')::text AS "brief_runs_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'content_brief_runs'
+                AND column_name = 'completed_at'
+            ) AS "brief_completed_at_exists",
             to_regclass('public.organization_configuration_events')::text AS "configuration_table",
             to_regclass('public.audit_events')::text AS "audit_table",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
@@ -217,8 +227,18 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      assert.equal(rollbackEvidence.knowledge_documents_table, null);
-      assert.equal(rollbackEvidence.knowledge_versions_table, null);
+      // La reversión afecta sólo a la última migración: el historial de briefs
+      // conserva su tabla pero pierde las columnas del ciclo de vida.
+      assert.equal(rollbackEvidence.brief_runs_table, "content_brief_runs");
+      assert.equal(rollbackEvidence.brief_completed_at_exists, false);
+      assert.equal(
+        rollbackEvidence.knowledge_documents_table,
+        "knowledge_documents",
+      );
+      assert.equal(
+        rollbackEvidence.knowledge_versions_table,
+        "knowledge_document_versions",
+      );
       assert.equal(rollbackEvidence.rendered_at_exists, true);
       assert.equal(rollbackEvidence.rendered_media_exists, true);
       await testPool.query(

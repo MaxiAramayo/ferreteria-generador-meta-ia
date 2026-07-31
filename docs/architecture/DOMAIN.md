@@ -53,6 +53,32 @@ timestamp y documentos `before`/`after`. Una configuración nueva sólo afecta
 trabajo futuro: el snapshot de una revisión aprobada conserva la marca y los
 medios que tenía al aprobarse.
 
+### ContentBrief y ContentBriefRun
+
+El `ContentBrief` es la entrada estructurada que el motor visual y la revisión
+humana consumen sin interpretar texto libre. Separa tres cosas que no pueden
+mezclarse: hechos verificados —cada uno atado a una evidencia que recolectó el
+servidor—, propuesta creativa y información faltante.
+
+El modelo no declara evidencia propia. Antes de generar, el caso de uso arma un
+ledger con las citas documentales y las observaciones comerciales de la
+ejecución, y la validación exige que cada hecho cite una entrada existente,
+capaz de sustentar ese tipo de afirmación y vigente cuando corresponde. Precio y
+stock caducan a los 15 y 5 minutos; el resto se apoya en fuentes estables. Una
+promoción no tiene fuente habilitada y queda bloqueada hasta que exista una
+autorización humana versionada.
+
+Un brief inválido no existe: el resultado del caso de uso es una unión
+discriminada y sólo su variante generada contiene uno. Un faltante declarado o
+un objetivo de promoción obligan a aprobación humana.
+
+`ContentBriefRun` es el historial append-only de cada ejecución. Conserva
+pedido, prompt y esquema versionados, modelo efectivo, herramientas ofrecidas e
+invocadas, evidencia citada, uso y costo, y el brief cuando lo hubo. Una
+restricción de base impide el estado híbrido: generado conserva brief sin
+rechazo, rechazado conserva motivo sin brief. Si el historial no puede
+escribirse, no se entrega brief.
+
 ### Publication
 
 Representa una intención editorial completa. Contiene brief, recursos,

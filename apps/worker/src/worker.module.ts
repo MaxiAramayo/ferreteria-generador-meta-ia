@@ -1,6 +1,7 @@
 import type { WorkerConfiguration } from "@aramayo/configuration/worker";
 import { Module, type DynamicModule } from "@nestjs/common";
 
+import { BriefModule } from "./brief/brief.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { CatalogModule } from "./catalog/catalog.module.ts";
 import { GenerationModule } from "./generation/generation.module.ts";
@@ -13,12 +14,27 @@ import { StatusModule } from "./status/status.module.ts";
 @Module({})
 export class WorkerModule {
   static forConfiguration(configuration: WorkerConfiguration): DynamicModule {
+    // Catálogo y conocimiento se construyen una sola vez: el módulo de brief
+    // recibe esas mismas definiciones para compartir sus proveedores.
+    const catalogModule = CatalogModule.forConfiguration(
+      configuration.commercialCatalog,
+    );
+    const knowledgeModule = KnowledgeModule.forConfiguration(
+      configuration.openAi,
+    );
+
     return {
       imports: [
         DatabaseModule.forConfiguration(configuration.databaseUrl),
-        CatalogModule.forConfiguration(configuration.commercialCatalog),
+        catalogModule,
         GenerationModule.forConfiguration(configuration.openAi),
-        KnowledgeModule.forConfiguration(configuration.openAi),
+        knowledgeModule,
+        BriefModule.forConfiguration({
+          available:
+            configuration.openAi.enabled &&
+            configuration.openAi.credentials.vectorStoreId !== undefined,
+          imports: [catalogModule, knowledgeModule],
+        }),
         MediaModule.forConfiguration(configuration.cloudinary),
         RenderingModule.forConfiguration(configuration),
         OutboxModule,

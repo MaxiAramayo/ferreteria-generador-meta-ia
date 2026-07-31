@@ -15,3 +15,4 @@ export {
 export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 export { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
 export { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
+export { PrismaContentBriefRunRepository } from "./content-brief-run-repository.ts";

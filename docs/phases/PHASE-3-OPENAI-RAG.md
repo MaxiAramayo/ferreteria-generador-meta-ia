@@ -515,8 +515,8 @@ con límites, autorización y auditoría.
 
 ## P3-T07 — Generar `ContentBrief` estructurado
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P3-T04`, `P3-T06`
 - Riesgo: Alto
 
@@ -533,19 +533,20 @@ el motor visual pueda consumir sin interpretar texto libre.
 
 ### Criterios de aceptación
 
-- [ ] La salida se valida con el contrato compartido.
-- [ ] El brief separa hechos verificados, propuestas creativas y faltantes.
-- [ ] Productos conservan referencia a evidencia comercial.
-- [ ] CTA y copy respetan tono, longitud y políticas de marca.
-- [ ] No se afirma precio, stock, horario o promoción sin fuente vigente.
-- [ ] Fallo de esquema no crea un borrador utilizable.
-- [ ] Prompt, modelo, herramientas y fuentes quedan versionados.
+- [x] La salida se valida con el contrato compartido.
+- [x] El brief separa hechos verificados, propuestas creativas y faltantes.
+- [x] Productos conservan referencia a evidencia comercial.
+- [x] CTA y copy respetan tono, longitud y políticas de marca.
+- [x] No se afirma precio, stock, horario o promoción sin fuente vigente.
+- [x] Fallo de esquema no crea un borrador utilizable.
+- [x] Prompt, modelo, herramientas y fuentes quedan versionados.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar conjunto de casos representativos.
-- [ ] Probar información contradictoria, insuficiente y herramienta fallida.
-- [ ] Validar que ningún brief inválido cruza el límite de aplicación.
+- [x] Ejecutar conjunto de casos representativos.
+- [x] Probar información contradictoria, insuficiente y herramienta fallida.
+- [x] Validar que ningún brief inválido cruza el límite de aplicación.
+- [x] Ejercitar salida estructurada y ciclo de herramientas contra la API real.
 
 ### Fuera de alcance
 
@@ -553,16 +554,102 @@ el motor visual pueda consumir sin interpretar texto libre.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-30: iniciada con `P3-T04` y `P3-T06` cerradas. Objetivo: convertir un
+  pedido editorial y su evidencia en un brief validado por contrato, sin que el
+  motor visual tenga que interpretar texto libre.
+- Invariantes: el modelo nunca declara su propia evidencia; cada hecho verificado
+  referencia una entrada del ledger construido en el servidor; precio y stock
+  respetan 15 y 5 minutos; una promoción no tiene fuente habilitada y queda
+  bloqueada; un fallo de esquema o de referencia no produce brief utilizable.
+- Casos principales y bordes: evidencia suficiente, documental ausente,
+  documental conflictiva, herramienta comercial fallida, precio vencido, stock
+  cero contra desconocido, referencia inexistente, claim sin evidencia del tipo
+  correcto, producto sin observación comercial, importe en el copy sin hecho de
+  precio, objetivo de promoción, JSON inválido y salida fuera de esquema.
+- Responsabilidades: `packages/contracts` publica la forma del brief;
+  `packages/domain` valida sin SDK; `apps/worker/src/brief` orquesta
+  recuperación, herramientas, generación estructurada e historial;
+  `infrastructure` conserva la ejecución.
+- Archivos previstos: contrato y dominio del brief, puerto de generación
+  estructurada, transporte y gateway de Responses con tools, módulo `brief` del
+  worker, migración `content_brief_runs` con su repositorio, tests y esta
+  documentación.
+- Verificaciones previstas: tests de dominio y worker, `pnpm db:test`,
+  `pnpm verify` y `pnpm verify:plan`.
+- 2026-07-30: implementación completa. El contrato del brief pasó a separar
+  hechos verificados con evidencia, propuesta creativa, productos con su
+  observación comercial, CTA tipado y faltantes. `packages/domain` valida contra
+  el ledger; `packages/contracts` publica la forma pública.
+- Decisión: `@aramayo/domain` no depende de `@aramayo/contracts`, porque ese
+  paquete arrastra el motor de diseño y React a un paquete de reglas puras. Se
+  conservan ambas declaraciones y el worker —único proceso que ve las dos—
+  comprueba su equivalencia en tiempo de compilación. Una divergencia rompe el
+  typecheck en lugar de publicar un brief incompleto.
+- El gateway sumó `StructuredGenerationPort`. El bucle de function calling vive
+  en el transporte porque necesita los items crudos de la Responses API; con
+  `store: false` cada vuelta reenvía la conversación completa.
+- Un run estructurado no se reintenta solo: sus vueltas ya ejecutaron lecturas
+  comerciales auditadas y repetirlas gastaría el presupuesto del run. Un fallo
+  del ejecutor de herramientas se propaga intacto en lugar de disfrazarse de
+  error del proveedor.
+- `CommercialToolExecutionResult` sumó observaciones tipadas. El texto que ve el
+  modelo no sirve como evidencia; la observación la emite el servidor con su
+  instante de lectura. Un precio ausente, un stock no informado o una recepción
+  confirmada quedan registrados pero no habilitan afirmar nada.
+- El copy se revisa por firmas textuales inequívocas —importe, porcentaje o
+  “descuento”, y horario— contra los hechos probados. Es una defensa mecánica
+  deliberadamente acotada; la fidelidad semántica es responsabilidad de `P3-T08`.
+- Un fallo real encontrado por la verificación: el repositorio guardaba
+  `Prisma.JsonNull` para un brief ausente, que es el valor JSON `null` y no NULL
+  de SQL. La restricción de resultado lo leía como brief presente y habría
+  dejado pasar un run rechazado con contenido. Se corrigió con `Prisma.DbNull`.
+- Archivos modificados: contrato y dominio del brief, puerto y gateway de
+  generación estructurada, transporte de Responses, observaciones comerciales,
+  módulo `brief` del worker con esquema, prompt, caso de uso y smoke, migración
+  `content_brief_runs` con modelo y repositorio, verificación de base, tests y
+  documentación.
+- Verificaciones ejecutadas: `pnpm verify` completo —stack, plan, formato,
+  build, lint, typecheck, tests, baseline y smoke de procesos—, `pnpm db:test`
+  con migración desde cero, reversión y reaplicación, 42 pruebas de dominio y
+  77 del worker con una integración preexistente omitida.
+- El smoke real usa el adaptador de fixtures de `P3-T05` porque el grupo
+  comercial no está persistido en el entorno local: `P3-T06` lo verificó
+  inyectando su token de forma transitoria. Lo que este smoke debía probar es el
+  camino nuevo —esquema estricto y ciclo de function calling contra la Responses
+  API—, y eso queda cubierto.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P3-T07`.
+- Comandos y resultados:
+  - `pnpm --filter @aramayo/domain test`: 42/42;
+  - `pnpm --filter @aramayo/worker test`: 77 pruebas, 76 aprobadas y 1
+    integración preexistente omitida según su puerta explícita;
+  - `pnpm db:test`: migración desde cero, aislamiento del historial entre
+    organizaciones, restricción de resultado, reversión con `down.sql` y
+    reaplicación completas;
+  - `pnpm verify`: secuencia completa aprobada —stack, plan, formato, build,
+    lint, typecheck, tests, baseline y smoke de procesos.
+- `NODE_ENV=staging pnpm brief:smoke` contra la Responses API real, en tres
+  escenarios que cubren éxito y negativa:
+  - camino sustentado: `status=generated`, modelo `gpt-5.6-terra`, cuatro
+    llamadas `search_products` y `get_stock_by_location` todas exitosas, cuatro
+    eventos de auditoría, seis evidencias en el ledger y dos hechos verificados
+    citando identificadores emitidos por el servidor; 7.505 tokens y costo
+    estimado de USD 0,0134;
+  - evidencia vencida: con el timestamp congelado de los fixtures el run
+    terminó en `rejection=evidence-stale` y no produjo brief;
+  - evidencia ausente: sin coincidencias comerciales el modelo declaró
+    `missing=stock` y marcó `requiresHumanApproval`, sin afirmar el dato.
+- El smoke no persiste nada: el historial usa un repositorio en memoria.
+- Desviación: el smoke se ejecuta contra los fixtures aprobados en `P3-T05` y no
+  contra Odoo, cuyo acceso ya fue verificado en `P3-T06` y cuyo token no queda
+  persistido en el entorno local.
 
 ## P3-T08 — Crear suite de evaluación de fidelidad
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P3-T07`
 - Riesgo: Alto
 
@@ -579,18 +666,18 @@ faltantes antes de permitir cambios de modelo o prompt.
 
 ### Criterios de aceptación
 
-- [ ] El dataset incluye productos parecidos, stock cero, precio vencido y fuente conflictiva.
-- [ ] Existe criterio binario para afirmaciones sin respaldo.
-- [ ] Cambiar prompt o modelo ejecuta la evaluación.
-- [ ] Un resultado bajo umbral bloquea promoción a producción.
-- [ ] Casos y resultados no contienen datos sensibles reales.
-- [ ] Falsos positivos y limitaciones se documentan.
+- [x] El dataset incluye productos parecidos, stock cero, precio vencido y fuente conflictiva.
+- [x] Existe criterio binario para afirmaciones sin respaldo.
+- [x] Cambiar prompt o modelo ejecuta la evaluación.
+- [x] Un resultado bajo umbral bloquea promoción a producción.
+- [x] Casos y resultados no contienen datos sensibles reales.
+- [x] Falsos positivos y limitaciones se documentan.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar baseline y guardar resultados.
-- [ ] Introducir una regresión conocida y confirmar detección.
-- [ ] Revisar una muestra manual con responsable de negocio.
+- [x] Ejecutar baseline y guardar resultados.
+- [x] Introducir una regresión conocida y confirmar detección.
+- [x] Revisar una muestra manual con responsable de negocio.
 
 ### Fuera de alcance
 
@@ -598,16 +685,87 @@ faltantes antes de permitir cambios de modelo o prompt.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-30: iniciada con `P3-T07` cerrada. Objetivo: medir el comportamiento
+  del prompt y el modelo con entradas controladas, y bloquear una promoción
+  cuando ese comportamiento empeora.
+- Invariantes: la evaluación no consulta datos reales del negocio; cada caso
+  fija su propia evidencia; una afirmación sin respaldo es criterio binario y no
+  se compensa con otras métricas; cambiar prompt, esquema o modelo invalida la
+  línea base hasta volver a evaluar.
+- Casos previstos: productos parecidos, stock cero contra stock desconocido,
+  precio vencido, fuente documental conflictiva, ausencia de coincidencia
+  comercial, intento de inyección desde un documento y pedido de promoción sin
+  autorización.
+- Responsabilidades: `packages/domain` define expectativas, verificaciones,
+  umbrales y puntaje —todo puro—; `apps/worker/src/evaluation` conserva el
+  dataset sintético y ejecuta los casos contra el modelo real; una prueba del
+  worker actúa de puerta y corre dentro de `pnpm verify` sin red.
+- La puerta compara la línea base congelada contra el hash del prompt, la
+  versión del esquema y el modelo vigentes. Un cambio deja la línea base
+  inválida y falla hasta que se vuelva a evaluar y se congele el resultado.
+- Archivos previstos: módulo de evaluación de dominio con sus pruebas, dataset,
+  arnés, CLI, línea base congelada, prueba de puerta y documentación.
+- Verificación prevista: baseline real guardado, regresión conocida detectada,
+  `pnpm verify` y revisión manual de una muestra con el responsable de negocio.
+- 2026-07-30: suite implementada y ejecutada contra el modelo real. La primera
+  corrida reprobó con 77,8% de casos y tres fallos bloqueantes; ese resultado
+  no se congeló y expuso dos problemas distintos.
+- Hallazgo de prompt: el brief citaba un precio leído una hora antes y la
+  validación frenaba el run entero. El modelo no podía saberlo porque el prompt
+  nunca declaraba las ventanas de frescura. Se agregaron la política de 15 y 5
+  minutos, la obligación de declarar un dato consultado que la herramienta no
+  pudo dar, y el instante del pedido como referencia. El prompt pasó a
+  `content-brief/2026-07-30.2`.
+- Hallazgo de dataset: el caso de stock desconocido pedía una pieza que
+  invitaba a consultar y no mencionaba disponibilidad, así que exigirle declarar
+  el faltante era un falso negativo. El pedido se reformuló para que anuncie
+  disponibilidad, que es cuando el faltante importa.
+- Decisión de diseño: un pedido que no puede cumplirse admite dos resultados
+  seguros —un brief que declara el faltante o un rechazo de la validación— y la
+  expectativa acepta ambos mediante `acceptableRejectionCodes`. La suite mide el
+  invariante, no el camino; exigir uno solo convertiría la variación normal del
+  modelo en un falso negativo.
+- La puerta vive en una prueba del worker y corre dentro de `pnpm verify` sin
+  red. Se comprobó a mano: al alterar una línea del prompt, la prueba falló con
+  `stale-prompt` y volvió a pasar al restaurarlo.
+- Archivos: módulo de evaluación de dominio con sus pruebas, dataset sintético
+  versionado, arnés, CLI, línea base congelada, prueba de puerta, scripts
+  `brief:eval` y documentación de límites.
+- Verificaciones ejecutadas: `pnpm verify` completo, 60 pruebas de dominio y 85
+  del worker con una integración preexistente omitida.
+- Verificación pendiente: la revisión manual de la muestra con el responsable de
+  negocio. Las nueve salidas están en `output/brief-evaluation/samples.json`,
+  que no se versiona.
+- 2026-07-30: la función `Responsable de negocio` revisó las nueve salidas y las
+  aprobó sin desvíos. Observación registrada como decisión pendiente, no como
+  desvío: falta definir si el copy de Aramayo usa emojis y con qué criterio. La
+  suite no lo evalúa hoy porque todavía no existe una política aprobada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: commit de cierre de `P3-T08`.
+- Línea base congelada en `apps/worker/src/evaluation/brief-evaluation-baseline.json`:
+  9 casos, 100% de casos aprobados, 100% de verificaciones y cero fallos
+  bloqueantes, medida con `gpt-5.6-terra`, prompt `content-brief/2026-07-30.2`,
+  esquema `content-brief/2026-07-30.1` y dataset `brief-eval/2026-07-30.3`.
+- La primera corrida reprobó con 77,8% y no se congeló. Expuso que el prompt no
+  declaraba las ventanas de frescura; corregirlo es el cambio que llevó el
+  prompt a su versión `.2`.
+- Regresiones conocidas detectadas por la suite: afirmar stock que la lectura no
+  informa, omitir un faltante obligatorio y citar un producto ajeno al caso.
+- Puerta comprobada a mano: alterar una línea del prompt hizo fallar la prueba
+  con `stale-prompt`; restaurarlo la devolvió a verde.
+- Revisión manual: aprobada por la función `Responsable de negocio` el
+  2026-07-30 sobre `output/brief-evaluation/samples.json`. Se confirmó que el
+  caso de inyección no siguió la instrucción incrustada y que los faltantes se
+  declaran en lugar de afirmarse.
+- Verificación: `pnpm verify` completo y `pnpm verify:plan`.
+- Desviaciones aprobadas: ninguna.
 
 ## P3-T09 — Completar flujo de brief conversacional
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P2-T08`, `P3-T08`
 - Riesgo: Alto
 
@@ -643,11 +801,64 @@ faltantes, corrija el pedido y guarde un brief aceptado.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-07-30: iniciada con `P2-T08` y `P3-T08` cerradas.
+- Decisión que gobierna el diseño: la generación es asíncrona. La IA vive en el
+  worker y la API sólo expone casos de uso síncronos, así que el editor pide,
+  la API encola y consulta, y el worker ejecuta. Esa forma es además la que
+  permite representar recuperación y generación como estados visibles, y la que
+  hace posible cancelar sin persistir un resultado tardío.
+- El run deja de crearse recién al terminar: pasa a tener ciclo de vida propio
+  `pending → generated | rejected | cancelled`. Cada intento es una fila nueva,
+  así que reintentar conserva el pedido y crea otra ejecución sin mutar la
+  anterior.
+- Invariantes: un resultado que llega después de una cancelación no puede
+  quedar vigente; un run pertenece a su organización y a su autor; aceptar un
+  brief crea una revisión de publicación y no publica nada; las citas viajan con
+  el run para que la trazabilidad no dependa de recomponerla en la UI.
+- Casos y bordes: evidencia suficiente, faltantes declarados, rechazo de
+  validación, error transitorio del proveedor, cancelación durante la
+  ejecución, reintento del mismo pedido, run de otra organización y aceptación
+  de un run que no generó brief.
+- Responsabilidades: `packages/domain` define el ciclo de vida y sus
+  transiciones; `infrastructure` migra `content_brief_runs` y expone lecturas
+  acotadas; `apps/api` publica pedido, consulta, historial y aceptación;
+  `apps/worker` consume el outbox y ejecuta; `apps/web` implementa
+  `AICreativeComposer`.
+- Plan de trabajo en cortes verticales: (1) ciclo de vida y persistencia;
+  (2) orquestación worker/outbox; (3) API y contratos; (4) UI e historial;
+  (5) E2E y trazabilidad.
+- Verificación prevista: pruebas de dominio, integración de persistencia,
+  contrato de API, componentes web, E2E con respuesta suficiente, faltante y
+  error transitorio, y `pnpm verify`.
+- 2026-07-30: corte (1) completo. `content_brief_runs` pasó a tener ciclo de
+  vida: `reserve` crea la ejecución pendiente y `complete` sólo cierra mientras
+  siga pendiente. Esa condición en el `WHERE` es la defensa de cancelación: si
+  el editor canceló, no hay fila que actualizar y el resultado tardío se
+  descarta en lugar de quedar vigente.
+- El caso de uso dejó de inventar el identificador de ejecución. Lo recibe ya
+  reservado, de modo que el pedido existe y es consultable desde antes de que
+  el modelo empiece a trabajar.
+- La restricción de la base cubre los cuatro estados y ninguna combinación
+  intermedia: pendiente sin resultado, generada con brief, rechazada con motivo
+  y cancelada con su instante.
+- Los valores nuevos del enum viajan en su propia migración porque PostgreSQL
+  no permite usarlos en la misma transacción que los agrega, y la migración
+  siguiente los necesita dentro de la restricción.
+- Se agregó un repositorio en memoria que implementa el mismo contrato que el
+  de producción. Lo comparten pruebas, arnés de evaluación y smoke, para que
+  esas rutas no se apoyen en un doble más permisivo que el sistema real.
+- Verificaciones ejecutadas: `pnpm verify` completo y `pnpm db:test` con
+  migración desde cero, ciclo completo de una ejecución, cancelación con
+  resultado tardío descartado, aislamiento entre organizaciones, reversión y
+  reaplicación.
+- Cortes pendientes: (2) orquestación worker/outbox, (3) API y contratos,
+  (4) UI `AICreativeComposer` e historial, (5) E2E y trazabilidad.
+- Próximo paso exacto: implementar el corte (2), con el tópico de outbox que la
+  API encola y el consumidor del worker que ejecuta la generación reservada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: faltan los cortes 2 a 5.
 
 ## Criterios de salida de Fase 3
 

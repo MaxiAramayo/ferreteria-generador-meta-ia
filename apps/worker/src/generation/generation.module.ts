@@ -1,8 +1,14 @@
 import type { OpenAIIntegration } from "@aramayo/configuration";
-import type { TextGenerationPort } from "@aramayo/domain";
+import type {
+  StructuredGenerationPort,
+  TextGenerationPort,
+} from "@aramayo/domain";
 import { Logger, Module, type DynamicModule } from "@nestjs/common";
 
-import { TEXT_GENERATION_PORT } from "./generation.tokens.ts";
+import {
+  STRUCTURED_GENERATION_PORT,
+  TEXT_GENERATION_PORT,
+} from "./generation.tokens.ts";
 import {
   DisabledTextGenerationGateway,
   OpenAITextGenerationGateway,
@@ -22,26 +28,34 @@ class SafeOpenAITelemetry implements OpenAITelemetryPort {
 @Module({})
 export class GenerationModule {
   static forConfiguration(openAi: OpenAIIntegration): DynamicModule {
+    // El mismo gateway resuelve texto y salida estructurada; se expone bajo dos
+    // tokens para que cada caso de uso dependa sólo del puerto que necesita.
+    const gateway = (): TextGenerationPort & StructuredGenerationPort => {
+      if (!openAi.enabled) {
+        return new DisabledTextGenerationGateway();
+      }
+      return new OpenAITextGenerationGateway(
+        openAi.policy,
+        new OfficialOpenAIResponsesTransport(openAi.credentials, openAi.policy),
+        { telemetry: new SafeOpenAITelemetry() },
+      );
+    };
+
     return {
-      exports: [TEXT_GENERATION_PORT],
+      exports: [STRUCTURED_GENERATION_PORT, TEXT_GENERATION_PORT],
       global: true,
       module: GenerationModule,
       providers: [
         {
           provide: TEXT_GENERATION_PORT,
-          useFactory: (): TextGenerationPort => {
-            if (!openAi.enabled) {
-              return new DisabledTextGenerationGateway();
-            }
-            return new OpenAITextGenerationGateway(
-              openAi.policy,
-              new OfficialOpenAIResponsesTransport(
-                openAi.credentials,
-                openAi.policy,
-              ),
-              { telemetry: new SafeOpenAITelemetry() },
-            );
-          },
+          useFactory: gateway,
+        },
+        {
+          inject: [TEXT_GENERATION_PORT],
+          provide: STRUCTURED_GENERATION_PORT,
+          useFactory: (
+            port: TextGenerationPort & StructuredGenerationPort,
+          ): StructuredGenerationPort => port,
         },
       ],
     };

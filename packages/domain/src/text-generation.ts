@@ -35,6 +35,56 @@ export interface TextGenerationPort {
   generateText(command: GenerateTextCommand): Promise<GeneratedText>;
 }
 
+/** Esquema estricto que la salida debe cumplir; `version` viaja al historial. */
+export interface StructuredOutputSchema {
+  readonly name: string;
+  readonly schema: Readonly<Record<string, unknown>>;
+  readonly version: string;
+}
+
+export interface GenerationToolDefinition {
+  readonly description: string;
+  readonly name: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+}
+
+export interface GenerationToolInvocation {
+  readonly arguments: string;
+  readonly callId: string;
+  readonly name: string;
+}
+
+export interface GenerationToolResult {
+  readonly callId: string;
+  readonly output: string;
+}
+
+export interface GenerateStructuredCommand {
+  readonly executeTool: (
+    invocation: GenerationToolInvocation,
+  ) => Promise<GenerationToolResult>;
+  readonly input: string;
+  readonly instructions: string;
+  readonly maximumOutputTokens?: number;
+  readonly maximumToolIterations: number;
+  readonly schema: StructuredOutputSchema;
+  readonly tools: readonly GenerationToolDefinition[];
+  readonly workload: GenerationWorkload;
+}
+
+export interface StructuredGeneration {
+  readonly execution: GenerationExecution;
+  readonly outputText: string;
+  readonly toolIterations: number;
+  readonly usage: GenerationTokenUsage;
+}
+
+export interface StructuredGenerationPort {
+  generateStructured(
+    command: GenerateStructuredCommand,
+  ): Promise<StructuredGeneration>;
+}
+
 export type GenerationGatewayErrorCode =
   | "invalid-request"
   | "invalid-response"
@@ -42,7 +92,8 @@ export type GenerationGatewayErrorCode =
   | "provider-error"
   | "rate-limit"
   | "safety-rejection"
-  | "timeout";
+  | "timeout"
+  | "tool-loop-exhausted";
 
 export interface GenerationFailureContext {
   readonly attempts: number;

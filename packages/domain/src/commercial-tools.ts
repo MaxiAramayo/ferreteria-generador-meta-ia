@@ -1,3 +1,4 @@
+import type { CommercialSourceKind } from "./commercial-catalog.ts";
 import type { SafeJsonObject } from "./reliable-operations.ts";
 
 export const commercialToolLimits = Object.freeze({
@@ -29,8 +30,29 @@ export interface CommercialToolExecutionScope {
   readonly runId: string;
 }
 
+export type CommercialObservationKind =
+  "price" | "product" | "receipt" | "stock";
+
+/**
+ * Rastro tipado de lo que una herramienta leyó realmente.
+ *
+ * El texto que recibe el modelo no sirve como evidencia: podría citarlo mal o
+ * inventarlo. La observación se emite del lado del servidor, con el instante de
+ * lectura, y es lo único que después puede sustentar una afirmación.
+ */
+export interface CommercialObservation {
+  readonly evidenceReference: string;
+  readonly externalProductId: string | null;
+  readonly kind: CommercialObservationKind;
+  readonly observedAt: string;
+  /** Variante concreta del resultado: `priced`, `known`, `unknown`, … */
+  readonly resolution: string;
+  readonly sourceKind: CommercialSourceKind;
+}
+
 export interface CommercialToolExecutionResult {
   readonly callId: string;
+  readonly observations: readonly CommercialObservation[];
   readonly outcome: "failure" | "success";
   readonly output: string;
   readonly toolName: CommercialToolName | null;

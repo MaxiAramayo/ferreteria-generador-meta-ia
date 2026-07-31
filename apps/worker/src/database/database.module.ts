@@ -3,6 +3,7 @@ import {
   createDatabaseClient,
   type DatabaseClient,
   PrismaCommercialToolAuditRepository,
+  PrismaContentBriefRunRepository,
   PrismaKnowledgeDocumentRepository,
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
@@ -10,6 +11,7 @@ import {
 } from "@aramayo/database";
 import type {
   CommercialToolAuditPort,
+  ContentBriefRunRepository,
   KnowledgeDocumentRepository,
   MediaAssetRepository,
   OutboxRepository,
@@ -22,6 +24,7 @@ import { OUTBOX_REPOSITORY } from "../outbox/outbox.tokens.ts";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
   COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+  CONTENT_BRIEF_RUN_REPOSITORY,
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
@@ -33,6 +36,7 @@ export class DatabaseModule {
     return {
       exports: [
         COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+        CONTENT_BRIEF_RUN_REPOSITORY,
         KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         OUTBOX_REPOSITORY,
@@ -51,6 +55,12 @@ export class DatabaseModule {
           provide: COMMERCIAL_TOOL_AUDIT_REPOSITORY,
           useFactory: (database: DatabaseClient): CommercialToolAuditPort =>
             new PrismaCommercialToolAuditRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: CONTENT_BRIEF_RUN_REPOSITORY,
+          useFactory: (database: DatabaseClient): ContentBriefRunRepository =>
+            new PrismaContentBriefRunRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

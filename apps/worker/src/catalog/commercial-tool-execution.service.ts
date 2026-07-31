@@ -11,6 +11,9 @@ import {
   CommercialCatalogError,
   CommercialToolExecutionError,
   type CommercialCatalogPort,
+  type CommercialEvidence,
+  type CommercialObservation,
+  type CommercialObservationKind,
   type CommercialToolAuditPort,
   type CommercialToolCall,
   type CommercialToolExecutionResult,
@@ -232,6 +235,30 @@ function safeArgumentMetadata(
   }
 }
 
+interface ExecutedTool {
+  readonly observations: readonly CommercialObservation[];
+  readonly value: unknown;
+}
+
+/** Un intento fallido o rechazado no observa nada y no puede sustentar nada. */
+const noObservations: readonly CommercialObservation[] = Object.freeze([]);
+
+function observation(
+  kind: CommercialObservationKind,
+  evidence: CommercialEvidence,
+  externalProductId: string | null,
+  resolution: string,
+): CommercialObservation {
+  return Object.freeze({
+    evidenceReference: evidence.reference,
+    externalProductId,
+    kind,
+    observedAt: evidence.observedAt,
+    resolution,
+    sourceKind: evidence.sourceKind,
+  });
+}
+
 function failureOutput(
   code:
     | "invalid-arguments"
@@ -316,6 +343,7 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         );
         return Object.freeze({
           callId: safeCallId,
+          observations: noObservations,
           outcome: "failure",
           output,
           toolName,
@@ -329,8 +357,8 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         );
       }
       parsed = parseArguments(toolName, call.arguments);
-      const value = await this.#executeParsed(parsed);
-      const output = JSON.stringify({ data: value, status: "ok" });
+      const executed = await this.#executeParsed(parsed);
+      const output = JSON.stringify({ data: executed.value, status: "ok" });
       if (output.length > commercialToolLimits.outputCharactersMaximum) {
         throw new CommercialCatalogError(
           "unavailable",
@@ -343,11 +371,12 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         toolName,
         startedAt,
         "success",
-        resultKind(value),
+        resultKind(executed.value),
         safeArgumentMetadata(call, parsed),
       );
       return Object.freeze({
         callId: safeCallId,
+        observations: Object.freeze([...executed.observations]),
         outcome: "success",
         output,
         toolName,
@@ -382,6 +411,7 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
       }
       return Object.freeze({
         callId: safeCallId,
+        observations: noObservations,
         outcome: "failure",
         output: failureOutput(code, failure.retryable),
         toolName,
@@ -389,36 +419,98 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
     }
   }
 
-  async #executeParsed(parsed: ParsedToolArguments): Promise<unknown> {
+  async #executeParsed(parsed: ParsedToolArguments): Promise<ExecutedTool> {
     switch (parsed.toolName) {
-      case "search_products":
-        return this.#catalog.searchProducts({
+      case "search_products": {
+        const result = await this.#catalog.searchProducts({
           limit: parsed.limit,
           organizationId: this.#scope.organizationId,
           query: parsed.query,
         });
-      case "get_product":
-        return this.#catalog.getProduct({
+        return {
+          observations: result.matches.map((product) =>
+            observation(
+              "product",
+              product.evidence,
+              product.externalId,
+              product.status,
+            ),
+          ),
+          value: result,
+        };
+      }
+      case "get_product": {
+        const result = await this.#catalog.getProduct({
           externalProductId: parsed.externalProductId,
           organizationId: this.#scope.organizationId,
         });
-      case "get_current_price":
-        return this.#catalog.getPrice({
+        return {
+          observations: [
+            result.kind === "found"
+              ? observation(
+                  "product",
+                  result.product.evidence,
+                  result.product.externalId,
+                  result.product.status,
+                )
+              : observation(
+                  "product",
+                  result.evidence,
+                  parsed.externalProductId,
+                  result.kind,
+                ),
+          ],
+          value: result,
+        };
+      }
+      case "get_current_price": {
+        const result = await this.#catalog.getPrice({
           externalProductId: parsed.externalProductId,
           locationId: this.#requiredExternalLocation(),
           organizationId: this.#scope.organizationId,
         });
-      case "get_stock_by_location":
-        return this.#catalog.getStock({
+        return {
+          observations: [
+            observation(
+              "price",
+              result.evidence,
+              parsed.externalProductId,
+              result.kind,
+            ),
+          ],
+          value: result,
+        };
+      }
+      case "get_stock_by_location": {
+        const result = await this.#catalog.getStock({
           externalProductId: parsed.externalProductId,
           locationId: this.#requiredExternalLocation(),
           organizationId: this.#scope.organizationId,
         });
-      case "get_receipt_status":
-        return this.#catalog.getReceiptStatus({
+        return {
+          observations: [
+            observation(
+              "stock",
+              result.evidence,
+              parsed.externalProductId,
+              result.kind,
+            ),
+          ],
+          value: result,
+        };
+      }
+      case "get_receipt_status": {
+        const result = await this.#catalog.getReceiptStatus({
           externalReceiptId: parsed.externalReceiptId,
           organizationId: this.#scope.organizationId,
         });
+        return {
+          observations: [
+            observation("receipt", result.evidence, null, result.kind),
+          ],
+          value: result,
+        };
+      }
     }
   }
 

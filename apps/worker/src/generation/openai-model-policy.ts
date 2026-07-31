@@ -1,4 +1,7 @@
-import type { OpenAIRuntimePolicy } from "@aramayo/configuration";
+import {
+  openAiPolicyDefaults,
+  type OpenAIRuntimePolicy,
+} from "@aramayo/configuration";
 import type { GenerationWorkload } from "@aramayo/domain";
 
 import type {
@@ -10,6 +13,14 @@ export interface OpenAIWorkloadPolicy {
   readonly model: string;
   readonly reasoningEffort: OpenAIReasoningEffort;
 }
+
+/**
+ * Modelo con el que se mide la evaluación de fidelidad. Se toma del default de
+ * configuración para que no exista una segunda fuente de verdad: cambiarlo
+ * invalida la línea base congelada y obliga a volver a evaluar antes de
+ * promover.
+ */
+export const defaultBriefModel = openAiPolicyDefaults.models.brief;
 
 interface StandardTokenPrices {
   readonly cacheWriteInputUsdPerMillion: number;

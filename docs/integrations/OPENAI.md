@@ -71,8 +71,10 @@ Campos obligatorios:
 - título;
 - subtítulo nullable;
 - caption;
-- CTA;
-- referencias a hechos verificados;
+- propuesta creativa;
+- CTA tipado;
+- hechos verificados con su evidencia;
+- productos con su observación comercial;
 - información faltante;
 - dirección visual;
 - requisito de aprobación.
@@ -82,6 +84,63 @@ de error explícito. Nunca se transforma silenciosamente en un brief vacío.
 
 Fuente:
 [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+
+### Validación del brief
+
+`P3-T07` separa el esquema de la validación. El esquema estricto sólo garantiza
+forma —tipos, enums, propiedades requeridas y `additionalProperties: false`— y
+la autoridad real es `@aramayo/domain`, que no depende del SDK ni del contrato
+público. El worker es el único proceso que ve la entidad validada y el contrato,
+y comprueba en tiempo de compilación que siguen siendo la misma forma.
+
+El modelo nunca declara evidencia propia. El caso de uso arma un ledger antes de
+generar: `K1…` para citas documentales de `P3-T04` y `C1…` para observaciones
+comerciales de `P3-T06`. Cada hecho del brief debe citar una entrada existente y
+del tipo correcto:
+
+- un documento sustenta horario, ubicación, servicio y atributo de producto;
+- precio sólo lo sustenta una lectura `priced`; stock sólo una lectura `known`;
+- un precio ausente, un stock no informado o una recepción confirmada quedan en
+  el historial pero no habilitan afirmar nada;
+- una promoción no tiene fuente habilitada y queda bloqueada por diseño.
+
+Precio y stock revalidan frescura contra la política aprobada —15 y 5 minutos—
+en el instante de validar, con una tolerancia de 60 segundos de desfase de
+reloj. Además, el copy se revisa por firmas textuales inequívocas: un importe
+exige un hecho de precio, un porcentaje o la palabra descuento exigen un hecho
+de promoción y un horario exige un hecho de horario. Es una defensa mecánica y
+no reemplaza la evaluación semántica de `P3-T08`.
+
+Un faltante declarado o un objetivo de promoción obligan a `requiresHumanApproval`.
+Un fallo de esquema, de referencia o de frescura produce un rechazo que no
+expone brief: el resultado del caso de uso es una unión discriminada y sólo la
+variante generada contiene uno.
+
+### Historial de ejecución
+
+Cada ejecución —generada o rechazada— persiste en `content_brief_runs` con
+pedido, hash, versión y hash del prompt, versión del esquema, modelo efectivo,
+herramientas ofrecidas, invocaciones con su resultado, evidencia citada, estado
+de la recuperación documental, uso de tokens y costo estimado. Una restricción
+de base impide el estado híbrido: un run generado conserva su brief y no lleva
+rechazo; uno rechazado conserva el motivo y no puede exponer brief.
+
+Si el historial no puede escribirse, no se devuelve brief. Un resultado sin
+trazabilidad no es utilizable, igual que en la auditoría comercial.
+
+### Ciclo de herramientas
+
+El bucle de function calling vive en el transporte porque necesita los items
+crudos de la Responses API. Con `store: false` no hay estado remoto: cada vuelta
+reenvía la conversación completa agregando la llamada del modelo y el resultado
+del ejecutor. El límite inicial es de cuatro vueltas; superarlo es un fallo
+explícito y no un brief incompleto.
+
+Un run estructurado no se reintenta solo. Cada vuelta ya ejecutó lecturas
+comerciales reales y las auditó; repetirlas sin pedido explícito gastaría el
+presupuesto de llamadas y duplicaría evidencia. Un fallo del ejecutor de
+herramientas llega intacto al caso de uso en lugar de disfrazarse de error del
+proveedor.
 
 ## Herramientas permitidas
 
@@ -264,3 +323,49 @@ Fuentes:
 - cumplimiento de esquema;
 - tono Aramayo;
 - rechazo de instrucciones que intenten ignorar políticas.
+
+## Suite de evaluación de fidelidad
+
+`P3-T08` implementa la suite. El dataset es sintético y versionado: no contiene
+productos, precios, stock ni documentos reales del negocio. Cada caso fija su
+propia evidencia y provoca una decisión difícil.
+
+El arnés sustituye únicamente las fuentes —conocimiento documental y catálogo
+comercial— por el guion del caso. Prompt, esquema, ciclo de herramientas y
+validación son los del sistema real; si la evaluación reemplazara la validación,
+mediría el arnés.
+
+Casos cubiertos: productos parecidos, stock cero, stock no informado, precio
+vencido, precio no configurado, fuentes documentales contradictorias, intento de
+inyección desde un documento, promoción sin autorización y ausencia de
+coincidencia comercial.
+
+Una afirmación sin respaldo es criterio binario: no se promedia ni se compensa.
+Un caso que la contiene falla completo y deja un fallo bloqueante en el reporte.
+
+### Puerta de promoción
+
+La línea base congelada vive en el repositorio y sólo vale para el prompt,
+esquema, modelo y dataset con los que se midió. Una prueba del worker la
+compara contra los valores vigentes dentro de `pnpm verify`, sin red: cambiar
+cualquiera de los cuatro invalida la línea base y bloquea la promoción hasta
+volver a ejecutar `NODE_ENV=staging pnpm brief:eval`.
+
+El CLI sólo congela una corrida que supera los umbrales. Una corrida por debajo
+informa el detalle y deja la línea base anterior intacta.
+
+### Límites conocidos y falsos positivos
+
+- La suite mide lo comprobable de forma mecánica. Naturalidad del tono, calidad
+  de la idea y pertinencia editorial no se miden acá y siguen dependiendo de la
+  revisión humana.
+- Un pedido imposible de cumplir admite dos resultados seguros: un brief que
+  declara el faltante o un rechazo de la validación. La expectativa del caso
+  acepta ambos mediante `acceptableRejectionCodes`, porque exigir un solo camino
+  convertiría la variación normal del modelo en un falso negativo.
+- El modelo no es determinista: dos corridas del mismo dataset pueden diferir.
+  Por eso la puerta lee la línea base congelada y no una corrida en vivo.
+- Las verificaciones de marca comprueban presencia y accionabilidad, no calidad
+  del copy. Un texto correcto pero flojo aprueba.
+- El dataset sintético no cubre la variedad real del catálogo; su objetivo es la
+  decisión de política, no la cobertura de surtido.

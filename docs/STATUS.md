@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-29
+Actualizado: 2026-07-30
 
 ## Fase activa
 
@@ -31,10 +31,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P3-T07` — generar un `ContentBrief` estructurado desde el pedido, las
-fuentes documentales y la evidencia comercial, con esquema estricto, prompt
-versionado e historial de ejecución. `P3-T06` quedó cerrado con herramientas
-comerciales autorizadas, acotadas y auditadas.
+Continuar `P3-T09` — el flujo conversacional avanza por cortes verticales. El
+corte 1 está cerrado y verificado: la ejecución del brief tiene ciclo de vida
+propio, la API puede reservarla y una cancelación impide que un resultado tardío
+quede vigente. Sigue el corte 2: el tópico de outbox que encola el pedido y el
+consumidor del worker que lo ejecuta. Después vienen la API, la UI
+`AICreativeComposer` y los E2E.
 
 La autorización explícita del usuario habilitó únicamente la API comercial de
 Odoo. No autoriza publicar contenido ni configurar proveedores reales de
@@ -68,6 +70,20 @@ de cerrar Fase 1.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
 
+`P3-T08` dejó una consecuencia registrada: la primera evaluación real reprobó y
+mostró que el prompt nunca declaraba las ventanas de frescura, así que el modelo
+citaba precios vencidos y la validación frenaba el run completo. El prompt pasó
+a `content-brief/2026-07-30.2` con esa política y con la obligación de declarar
+un dato consultado que la herramienta no pudo dar.
+
+`P3-T07` quedó cerrado. El brief se valida contra un ledger que arma el
+servidor: cada hecho cita evidencia existente, del tipo correcto y vigente, y un
+fallo no produce brief. El smoke contra la Responses API real verificó los tres
+caminos —sustentado, evidencia vencida y evidencia ausente— con salida
+estructurada estricta y ciclo de function calling. Se ejecutó con los fixtures
+aprobados en `P3-T05`; el acceso comercial real ya tenía su smoke en `P3-T06` y
+su token no queda persistido localmente.
+
 `P3-T06` quedó cerrado. El worker consume el addon
 `ferreteria_content_api` 18.0.1.0.1 mediante cinco funciones estrictas y una API
 HTTPS acotada, `GET`-only y con token independiente. El scope de organización y
@@ -80,6 +96,9 @@ local ignorado por Git.
 ## Registro de decisiones pendientes
 
 - Política inicial de publicaciones que pueden autoaprobarse.
+- Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
+  criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una
+  política aprobada, el prompt no los pide y la evaluación no los mide.
 
 ## Cómo actualizar este archivo
 

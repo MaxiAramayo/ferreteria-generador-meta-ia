@@ -2,8 +2,11 @@ import type { OpenAIRuntimePolicy } from "@aramayo/configuration";
 import {
   GenerationGatewayError,
   type GeneratedText,
+  type GenerateStructuredCommand,
   type GenerateTextCommand,
   type GenerationGatewayErrorCode,
+  type StructuredGeneration,
+  type StructuredGenerationPort,
   type TextGenerationPort,
 } from "@aramayo/domain";
 
@@ -12,6 +15,7 @@ import {
   workloadPolicy,
 } from "./openai-model-policy.ts";
 import {
+  OpenAIToolLoopExhaustedError,
   OpenAITransportError,
   type OpenAIResponsesTransport,
   type OpenAITransportUsage,
@@ -65,10 +69,21 @@ function failureMessage(code: GenerationGatewayErrorCode): string {
       return "OpenAI rechazó la solicitud por sus controles de seguridad.";
     case "timeout":
       return "OpenAI no respondió dentro del tiempo permitido.";
+    case "tool-loop-exhausted":
+      return "El modelo no cerró el brief dentro del límite de herramientas.";
     case "provider-error":
       return "OpenAI no pudo completar la solicitud.";
   }
 }
+
+const emptyUsage: OpenAITransportUsage = Object.freeze({
+  cacheWriteInputTokens: 0,
+  cachedInputTokens: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  reasoningTokens: 0,
+  totalTokens: 0,
+});
 
 function safeUsage(
   model: string,
@@ -80,7 +95,9 @@ function safeUsage(
   });
 }
 
-export class OpenAITextGenerationGateway implements TextGenerationPort {
+export class OpenAITextGenerationGateway
+  implements TextGenerationPort, StructuredGenerationPort
+{
   readonly #now: () => number;
   readonly #policy: OpenAIRuntimePolicy;
   readonly #sleep: (milliseconds: number) => Promise<void>;
@@ -197,6 +214,164 @@ export class OpenAITextGenerationGateway implements TextGenerationPort {
     }
   }
 
+  /**
+   * Un run estructurado con herramientas no se reintenta solo.
+   *
+   * Cada vuelta ya ejecutó lecturas comerciales reales y las auditó; repetirlas
+   * sin que nadie lo pida gastaría el presupuesto de llamadas del run y
+   * duplicaría evidencia. Un fallo transitorio termina el run y la nueva
+   * ejecución la decide el editor.
+   */
+  async generateStructured(
+    command: GenerateStructuredCommand,
+  ): Promise<StructuredGeneration> {
+    this.#validateStructuredCommand(command);
+    const selectedPolicy = workloadPolicy(this.#policy, command.workload);
+    const startedAt = this.#now();
+
+    try {
+      const response = await this.#transport.createStructuredResponse(
+        {
+          input: command.input,
+          instructions: command.instructions,
+          maximumOutputTokens:
+            command.maximumOutputTokens ?? this.#policy.maximumOutputTokens,
+          maximumToolIterations: command.maximumToolIterations,
+          model: selectedPolicy.model,
+          reasoningEffort: selectedPolicy.reasoningEffort,
+          schema: command.schema.schema,
+          schemaName: command.schema.name,
+          tools: command.tools,
+        },
+        (call) =>
+          command
+            .executeTool({
+              arguments: call.arguments,
+              callId: call.callId,
+              name: call.name,
+            })
+            .then((result) => result.output),
+      );
+      const latencyMilliseconds = Math.max(0, this.#now() - startedAt);
+      if (response.requestId === null) {
+        throw new GenerationGatewayError(
+          "invalid-response",
+          failureMessage("invalid-response"),
+          false,
+          { attempts: 1, latencyMilliseconds, model: response.model },
+        );
+      }
+      const usage = safeUsage(response.model, response.usage ?? emptyUsage);
+      this.#telemetry.record(
+        Object.freeze({
+          attempts: 1,
+          estimatedCostUsd: usage.estimatedCostUsd,
+          inputTokens: usage.inputTokens,
+          latencyMilliseconds,
+          model: response.model,
+          outputTokens: usage.outputTokens,
+          requestId: response.requestId,
+          responseId: response.responseId,
+          status: "success",
+        }),
+      );
+      return Object.freeze({
+        execution: Object.freeze({
+          attempts: 1,
+          latencyMilliseconds,
+          model: response.model,
+          requestId: response.requestId,
+          responseId: response.responseId,
+        }),
+        outputText: response.outputText,
+        toolIterations: response.toolIterations,
+        usage,
+      });
+    } catch (cause: unknown) {
+      if (cause instanceof GenerationGatewayError) {
+        this.#recordFailure(cause);
+        throw cause;
+      }
+      const gatewayError = this.#structuredFailure(
+        cause,
+        selectedPolicy.model,
+        Math.max(0, this.#now() - startedAt),
+      );
+      if (gatewayError === null) {
+        throw cause;
+      }
+      this.#recordFailure(gatewayError);
+      throw gatewayError;
+    }
+  }
+
+  /**
+   * Traduce un fallo del transporte. Devuelve `null` cuando el error nació en
+   * el ejecutor de herramientas del caso de uso: ese error es suyo y debe
+   * llegar intacto.
+   */
+  #structuredFailure(
+    cause: unknown,
+    model: string,
+    latencyMilliseconds: number,
+  ): GenerationGatewayError | null {
+    if (cause instanceof OpenAIToolLoopExhaustedError) {
+      return new GenerationGatewayError(
+        "tool-loop-exhausted",
+        failureMessage("tool-loop-exhausted"),
+        false,
+        {
+          attempts: 1,
+          latencyMilliseconds,
+          model,
+          ...(cause.requestId === undefined
+            ? {}
+            : { requestId: cause.requestId }),
+        },
+      );
+    }
+    if (!(cause instanceof OpenAITransportError)) {
+      return null;
+    }
+    return new GenerationGatewayError(
+      cause.code,
+      failureMessage(cause.code),
+      cause.retryable,
+      {
+        attempts: 1,
+        latencyMilliseconds,
+        model,
+        ...(cause.requestId === undefined
+          ? {}
+          : { requestId: cause.requestId }),
+      },
+    );
+  }
+
+  #validateStructuredCommand(command: GenerateStructuredCommand): void {
+    const inputLength = command.input.length + command.instructions.length;
+    const maximumOutputTokens =
+      command.maximumOutputTokens ?? this.#policy.maximumOutputTokens;
+    if (
+      command.input.trim().length === 0 ||
+      command.instructions.trim().length === 0 ||
+      inputLength > this.#policy.maximumInputCharacters ||
+      command.tools.length === 0 ||
+      !Number.isSafeInteger(command.maximumToolIterations) ||
+      command.maximumToolIterations < 1 ||
+      !Number.isSafeInteger(maximumOutputTokens) ||
+      maximumOutputTokens < 1 ||
+      maximumOutputTokens > this.#policy.maximumOutputTokens
+    ) {
+      throw new GenerationGatewayError(
+        "invalid-request",
+        failureMessage("invalid-request"),
+        false,
+        { attempts: 0, latencyMilliseconds: 0 },
+      );
+    }
+  }
+
   #recordFailure(cause: GenerationGatewayError): void {
     this.#telemetry.record(
       Object.freeze({
@@ -235,16 +410,27 @@ export class OpenAITextGenerationGateway implements TextGenerationPort {
   }
 }
 
-export class DisabledTextGenerationGateway implements TextGenerationPort {
+export class DisabledTextGenerationGateway
+  implements TextGenerationPort, StructuredGenerationPort
+{
   generateText(command: GenerateTextCommand): Promise<GeneratedText> {
     void command;
-    return Promise.reject(
-      new GenerationGatewayError(
-        "provider-disabled",
-        failureMessage("provider-disabled"),
-        false,
-        { attempts: 0, latencyMilliseconds: 0 },
-      ),
-    );
+    return Promise.reject(disabledProvider());
   }
+
+  generateStructured(
+    command: GenerateStructuredCommand,
+  ): Promise<StructuredGeneration> {
+    void command;
+    return Promise.reject(disabledProvider());
+  }
+}
+
+function disabledProvider(): GenerationGatewayError {
+  return new GenerationGatewayError(
+    "provider-disabled",
+    failureMessage("provider-disabled"),
+    false,
+    { attempts: 0, latencyMilliseconds: 0 },
+  );
 }

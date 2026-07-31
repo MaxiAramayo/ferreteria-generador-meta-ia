@@ -16,6 +16,7 @@ export {
 export {
   parseCommercialCatalogIntegration,
   parseCloudinaryIntegration,
+  openAiPolicyDefaults,
   parseOpenAiIntegration,
   type CloudinaryCredentials,
   type CommercialCatalogCredentials,

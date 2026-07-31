@@ -45,6 +45,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "media:smoke:cloudinary": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker smoke:cloudinary",
+    "brief:eval": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker eval:brief",
+    "brief:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:brief",
     "commercial:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:commercial",
     "knowledge:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:knowledge",
     "openai:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/worker smoke:openai",
