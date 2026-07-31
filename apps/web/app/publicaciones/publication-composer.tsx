@@ -17,20 +17,13 @@ import {
   type PublicationComposerVariant,
 } from "../../lib/publication-composer-contract";
 import { saveTemplatePublicationDraft } from "../../lib/publication-workspace-api";
+import { AICreativeComposer } from "./ai-creative-composer";
 import {
   PublicationComposerContextProvider,
   usePublicationComposerActions,
   usePublicationComposerMeta,
   usePublicationComposerState,
 } from "./publication-composer-context";
-import {
-  KnowledgeEvidencePanel,
-  type KnowledgeEvidencePanelState,
-} from "./knowledge-evidence-panel";
-
-const idleKnowledgeEvidenceState: KnowledgeEvidencePanelState = Object.freeze({
-  status: "idle",
-});
 
 function PublicationComposerProvider({
   apiBaseUrl,
@@ -180,10 +173,11 @@ function PublicationComposerProvider({
   const meta = useMemo(
     () => ({
       allowedActions: allowedComposerActions(state.variant),
+      apiBaseUrl,
       canEdit,
       formId: "publication-template-form",
     }),
-    [canEdit, state.variant],
+    [apiBaseUrl, canEdit, state.variant],
   );
 
   return (
@@ -400,24 +394,10 @@ export function TemplatePublicationComposer() {
   );
 }
 
-export function AICreativeComposer() {
+function AICreative() {
+  const meta = usePublicationComposerMeta();
   return (
-    <ComposerFrame>
-      <section className="composer-ai-request">
-        <p className="workspace-eyebrow">Fase 3</p>
-        <h2>Creatividad con contexto comprobable</h2>
-        <p>
-          La consulta usará únicamente documentos aprobados para la organización
-          y la sucursal elegida. Recuperar evidencia no guarda, aprueba ni
-          publica una pieza.
-        </p>
-        <p className="composer-boundary-note">
-          La conexión del pedido al brief estructurado se habilitará después de
-          completar las herramientas comerciales y la evaluación de fidelidad.
-        </p>
-      </section>
-      <KnowledgeEvidencePanel state={idleKnowledgeEvidenceState} />
-    </ComposerFrame>
+    <AICreativeComposer apiBaseUrl={meta.apiBaseUrl} canEdit={meta.canEdit} />
   );
 }
 
@@ -451,7 +431,7 @@ function ActiveComposer() {
     case "template":
       return <TemplatePublicationComposer />;
     case "ai-creative":
-      return <AICreativeComposer />;
+      return <AICreative />;
     case "recurring-story":
       return <RecurringStoryComposer />;
     case "product-promotion":

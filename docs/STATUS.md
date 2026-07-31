@@ -32,11 +32,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 ## Próxima tarea
 
 Continuar `P3-T09` — el flujo conversacional avanza por cortes verticales. Los
-cortes 1 a 3 están cerrados y verificados: la ejecución tiene ciclo de vida
-propio, el outbox conecta el pedido con el worker que lo ejecuta, y la API ya
-expone pedido, consulta, historial, cancelación y aceptación. Sigue el corte 4:
-la UI `AICreativeComposer` con estado de recuperación y generación, historial de
-intentos y costos, y citas accesibles. Después vienen los E2E y la trazabilidad.
+cortes 1 a 4 están cerrados y verificados: la ejecución tiene ciclo de vida
+propio, el outbox conecta el pedido con el worker, la API expone pedido,
+consulta, historial, cancelación y aceptación, y `AICreativeComposer` ejecuta el
+flujo con estado visible, citas y costos. Sigue el corte 5: los E2E con
+respuesta suficiente, faltante y error transitorio, y la trazabilidad desde la
+revisión hasta la ejecución que la originó.
 
 La autorización explícita del usuario habilitó únicamente la API comercial de
 Odoo. No autoriza publicar contenido ni configurar proveedores reales de

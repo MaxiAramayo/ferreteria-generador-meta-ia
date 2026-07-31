@@ -906,13 +906,44 @@ faltantes, corrija el pedido y guarde un brief aceptado.
 - Riesgo residual anotado: la publicación no guarda de qué ejecución salió, así
   que la trazabilidad desde una revisión hasta su evidencia todavía depende de
   la UI. Se resuelve en el corte (5).
-- Próximo paso exacto: implementar el corte (4): la UI `AICreativeComposer` con
-  estado de recuperación y generación, historial de intentos y costos, y citas
-  accesibles desde cada brief.
+- 2026-07-31: corte (4) completo. `AICreativeComposer` deja de ser un límite
+  declarado y ejecuta el flujo: pedido en lenguaje natural, estado visible,
+  cancelación, reintento, historial con costos y aceptación.
+- Recuperación y generación se muestran como fases distintas porque el
+  centinela `pending` de `knowledgeStatus` las separa. Un único “trabajando”
+  habría escondido dónde está la espera.
+- La consulta se repite sólo mientras la ejecución sigue pendiente. La API no
+  empuja el resultado, así que el panel pregunta; una ejecución resuelta deja
+  de consultarse en lugar de sondear para siempre.
+- Cancelar informa el estado real. Si la generación terminó antes de que
+  llegara la cancelación, el panel lo dice en lugar de afirmar que canceló:
+  mostrar lo contrario sería exactamente la desincronización que el ciclo de
+  vida evita del lado del servidor.
+- Reintentar toma el pedido de la ejecución mostrada, no lo que haya quedado
+  escrito en el formulario. Es lo que hace que el reintento conserve el pedido
+  original en lugar de generar otro distinto por accidente.
+- Los faltantes se presentan antes del copy. El dominio ya obliga a
+  `requiresHumanApproval` cuando hay huecos declarados, así que la regla de la
+  UI se deriva de esa invariante en lugar de inventar política.
+- La lógica de decisión vive en `content-brief-presentation.ts`, separada del
+  componente, para probarse sin DOM. El cliente valida cada respuesta en
+  runtime: una ejecución con forma inesperada se informa en lugar de
+  renderizarse a medias.
+- Verificaciones ejecutadas: `pnpm verify` completo y 32 pruebas del panel, que
+  cubren las fases visibles, el corte del sondeo, aceptación habilitada sólo
+  con brief presente, faltantes con su motivo, rechazo, cancelación, y del
+  lado del cliente el envío de CSRF e idempotencia, contratos inválidos y la
+  distinción entre conflicto y error transitorio.
+- Consecuencia registrada: aceptar envía hoy un diseño fijo —historia
+  tipográfica, tema taller— porque la pieza visual es de Fase 4. El copy sí
+  sale del brief; la presentación todavía no es una elección del editor.
+- Próximo paso exacto: implementar el corte (5): E2E con respuesta suficiente,
+  faltante y error transitorio, y la trazabilidad desde la revisión hasta la
+  ejecución que la originó.
 
 ### Evidencia de cierre
 
-- Pendiente: faltan los cortes 4 y 5.
+- Pendiente: falta el corte 5.
 
 ## Criterios de salida de Fase 3
 

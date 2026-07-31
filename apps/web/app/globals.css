@@ -1211,3 +1211,75 @@ a {
     transform: translateY(-0.125rem);
   }
 }
+
+.knowledge-missing ul {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.knowledge-missing li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.knowledge-missing li > span {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.composer-history {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.composer-history ol {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.composer-history button {
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--workspace-paper) 30%, transparent);
+  color: inherit;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.composer-history button > span {
+  font-size: 0.7rem;
+  font-weight: 900;
+  justify-self: start;
+  padding: 0.2rem 0.4rem;
+  text-transform: uppercase;
+}
+
+.composer-history button > span[data-status="generated"] {
+  background: var(--workspace-safety);
+  color: var(--workspace-ink);
+}
+
+.composer-history button > span[data-status="pending"] {
+  background: color-mix(in srgb, var(--workspace-paper) 30%, transparent);
+}
+
+.composer-history button > span[data-status="cancelled"],
+.composer-history button > span[data-status="rejected"] {
+  background: var(--workspace-rust);
+  color: #ffffff;
+}
+
+.composer-history button > small {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
