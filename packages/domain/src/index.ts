@@ -56,6 +56,7 @@ export {
   brandVariants,
   callToActionKinds,
   contentBriefFreshnessPolicy,
+  contentBriefGenerationTopic,
   contentBriefLimits,
   ContentBriefRequestError,
   contentBriefRunStatuses,

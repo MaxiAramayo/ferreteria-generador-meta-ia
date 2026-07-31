@@ -851,10 +851,19 @@ faltantes, corrija el pedido y guarde un brief aceptado.
   migración desde cero, ciclo completo de una ejecución, cancelación con
   resultado tardío descartado, aislamiento entre organizaciones, reversión y
   reaplicación.
-- Cortes pendientes: (2) orquestación worker/outbox, (3) API y contratos,
-  (4) UI `AICreativeComposer` e historial, (5) E2E y trazabilidad.
-- Próximo paso exacto: implementar el corte (2), con el tópico de outbox que la
-  API encola y el consumidor del worker que ejecuta la generación reservada.
+- 2026-07-30: corte (2) completo. El tópico `content.brief.generation-requested`
+  conecta el pedido con la ejecución, y el consumidor del worker resuelve la
+  generación ya reservada sin decidir alcance: organización, membresía y
+  sucursal salen del run, que la API derivó de la sesión.
+- Un pedido que ya no está pendiente se considera entregado. Cancelado o
+  resuelto, reintentar no vuelve a gastar una generación ni pisa un resultado.
+- El despacho del outbox pasó a rutearse por tópico. Con un solo consumidor
+  alcanzaba con rechazar lo ajeno; con dos, ese rechazo habría mandado al
+  dead-letter los eventos del otro. Un tópico sin consumidor falla explícito.
+- Cortes pendientes: (3) API y contratos, (4) UI `AICreativeComposer` e
+  historial, (5) E2E y trazabilidad.
+- Próximo paso exacto: implementar el corte (3): contratos públicos y rutas de
+  pedido, consulta, historial, cancelación y aceptación.
 
 ### Evidencia de cierre
 

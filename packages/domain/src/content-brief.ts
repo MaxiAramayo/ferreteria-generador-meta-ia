@@ -716,6 +716,15 @@ export interface ContentBriefRunRejection {
   readonly message: string;
 }
 
+/**
+ * Tópico que la API encola y el worker consume.
+ *
+ * El pedido y la ejecución están separados a propósito: la API no puede
+ * generar —la IA vive en el worker— y el editor necesita ver el pedido
+ * aceptado antes de que el modelo empiece a trabajar.
+ */
+export const contentBriefGenerationTopic = "content.brief.generation-requested";
+
 /** Lo que se conoce al pedir el brief, antes de ejecutarlo. */
 export interface ContentBriefRunReservation {
   readonly actorMembershipId: string;

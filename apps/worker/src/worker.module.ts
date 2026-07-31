@@ -22,6 +22,13 @@ export class WorkerModule {
     const knowledgeModule = KnowledgeModule.forConfiguration(
       configuration.openAi,
     );
+    const briefAvailable =
+      configuration.openAi.enabled &&
+      configuration.openAi.credentials.vectorStoreId !== undefined;
+    const briefModule = BriefModule.forConfiguration({
+      available: briefAvailable,
+      imports: [catalogModule, knowledgeModule],
+    });
 
     return {
       imports: [
@@ -29,15 +36,13 @@ export class WorkerModule {
         catalogModule,
         GenerationModule.forConfiguration(configuration.openAi),
         knowledgeModule,
-        BriefModule.forConfiguration({
-          available:
-            configuration.openAi.enabled &&
-            configuration.openAi.credentials.vectorStoreId !== undefined,
-          imports: [catalogModule, knowledgeModule],
-        }),
+        briefModule,
         MediaModule.forConfiguration(configuration.cloudinary),
         RenderingModule.forConfiguration(configuration),
-        OutboxModule,
+        OutboxModule.forConfiguration({
+          briefAvailable,
+          imports: [briefModule],
+        }),
         StatusModule.forConfiguration(configuration),
       ],
       module: WorkerModule,
