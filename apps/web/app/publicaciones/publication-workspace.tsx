@@ -75,6 +75,14 @@ function PublicationRow({
           Revisión {publication.latestRevisionNumber} · versión{" "}
           {publication.version}
         </span>
+        {publication.latestContentBriefRunId === undefined ? null : (
+          // Desde la pieza se llega a la ejecución que la generó, y desde ahí
+          // a la evidencia que sustenta cada afirmación.
+          <span className="publication-brief-origin">
+            Generada desde el brief{" "}
+            <code>{publication.latestContentBriefRunId.slice(0, 8)}</code>
+          </span>
+        )}
         {publication.failure === undefined ? null : (
           <span className="publication-failure">
             {publication.failure.safeMessage}

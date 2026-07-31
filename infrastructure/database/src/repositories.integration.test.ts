@@ -2776,3 +2776,307 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
     await queryPool.end();
   }
 });
+
+test("la vertical del brief recorre pedido, resultado y aceptación trazable", async () => {
+  const organizationId = randomUUID();
+  const foreignOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización vertical",
+        id: organizationId,
+        legalName: "Organización vertical",
+        slug: `brief-e2e-${organizationId}`,
+      },
+      {
+        displayName: "Organización vertical ajena",
+        id: foreignOrganizationId,
+        legalName: "Organización vertical ajena",
+        slug: `brief-e2e-other-${foreignOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora vertical",
+      email: `${userId}@vertical.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { claim: "Ferretería y lubricentro" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "República de Siria 365",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+
+  const requests = new PrismaContentBriefRequestRepository(database);
+  const runs = new PrismaContentBriefRunRepository(database);
+  const drafts = new PrismaPublicationDraftRepository(database);
+  const requestText = "Necesito una pieza para promocionar amoladoras.";
+
+  const requestRun = async (): Promise<string> => {
+    const id = randomUUID();
+    const accepted = await requests.request({
+      actorMembershipId: membershipId,
+      id,
+      locationId,
+      locationName: "Casa Central",
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.brief:request",
+      ),
+      request: requestText,
+      requestHash: "e".repeat(64),
+      requestedAt: new Date().toISOString(),
+    });
+    assert.deepEqual(accepted, { runId: id, status: "accepted" });
+    return id;
+  };
+
+  const evidence = [
+    {
+      citationId: "C1",
+      kind: "commercial" as const,
+      observedAt: "2026-07-31T11:59:30.000Z",
+      reference: "odoo:product:42",
+    },
+  ];
+  const completion = (
+    id: string,
+    brief: Parameters<PrismaContentBriefRunRepository["complete"]>[0]["brief"],
+    rejection: Parameters<
+      PrismaContentBriefRunRepository["complete"]
+    >[0]["rejection"],
+  ): Parameters<PrismaContentBriefRunRepository["complete"]>[0] => ({
+    attempts: 1,
+    brief,
+    estimatedCostUsd: 0.004_215,
+    evidence,
+    id,
+    knowledgeStatus: "grounded",
+    latencyMilliseconds: 820,
+    model: "gpt-5.6-terra",
+    organizationId,
+    promptHash: "b".repeat(64),
+    promptVersion: "content-brief/2026-07-30.2",
+    rejection,
+    requestId: "req_e2e",
+    responseId: "resp_e2e",
+    schemaVersion: "content-brief/2026-07-30.1",
+    status: brief === null ? "rejected" : "generated",
+    toolInvocations: [
+      {
+        callId: "call-1",
+        outcome: "success" as const,
+        toolName: "get_product",
+      },
+    ],
+    toolNames: ["get_product"],
+    usage: {
+      cacheWriteInputTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0.004_215,
+      inputTokens: 800,
+      outputTokens: 360,
+      reasoningTokens: 0,
+      totalTokens: 1_160,
+    },
+  });
+
+  const groundedBrief = {
+    brand: "ferreteria" as const,
+    callToAction: {
+      kind: "whatsapp" as const,
+      label: "Consultanos por WhatsApp",
+    },
+    caption: "Pasá por el local y consultanos cuál te sirve.",
+    creativeProposal: "Tono directo.",
+    missingInformation: [],
+    objective: "product" as const,
+    products: [
+      {
+        evidenceId: "C1",
+        externalProductId: "odoo:product:42",
+        label: "Amoladora angular",
+      },
+    ],
+    requiresHumanApproval: false,
+    subtitle: null,
+    title: "Amoladora angular para tu taller",
+    verifiedFacts: [
+      {
+        claimKind: "stock" as const,
+        evidenceId: "C1",
+        statement: "Hay unidades disponibles.",
+      },
+    ],
+    visualDirection: "clean_product" as const,
+  };
+
+  // Camino 1: evidencia suficiente. El pedido queda reservado, encolado y
+  // cerrado con un brief que cita la observación que lo respalda.
+  const groundedId = await requestRun();
+  const queued = await database.outboxMessage.findFirst({
+    select: { aggregateId: true, topic: true },
+    where: { aggregateId: groundedId },
+  });
+  assert.equal(queued?.topic, "content.brief.generation-requested");
+  assert.deepEqual(
+    await runs.complete(
+      completion(groundedId, groundedBrief, null),
+      new Date().toISOString(),
+    ),
+    { status: "completed" },
+  );
+  const grounded = await runs.findById({ id: groundedId, organizationId });
+  assert.ok(grounded !== null);
+  assert.equal(grounded.status, "generated");
+  assert.equal(grounded.evidence[0]?.citationId, "C1");
+
+  // Camino 2: faltante declarado. El brief existe, pero exige revisión humana
+  // en lugar de completar el hueco por su cuenta.
+  const missingId = await requestRun();
+  await runs.complete(
+    completion(
+      missingId,
+      {
+        ...groundedBrief,
+        missingInformation: [
+          {
+            detail: "El precio consultado tenía más de 24 horas.",
+            kind: "stale_observation" as const,
+            subject: "price" as const,
+          },
+        ],
+        requiresHumanApproval: true,
+      },
+      null,
+    ),
+    new Date().toISOString(),
+  );
+  const missing = await runs.findById({ id: missingId, organizationId });
+  assert.ok(missing !== null);
+  assert.ok(missing.brief !== null);
+  assert.equal(missing.status, "generated");
+  assert.equal(missing.brief.missingInformation.length, 1);
+  assert.equal(missing.brief.requiresHumanApproval, true);
+
+  // Camino 3: error transitorio del proveedor. No hay brief que aceptar y el
+  // motivo queda registrado para que el reintento sea una decisión informada.
+  const rejectedId = await requestRun();
+  await runs.complete(
+    completion(rejectedId, null, {
+      code: "provider-unavailable",
+      message: "El proveedor no respondió a tiempo.",
+    }),
+    new Date().toISOString(),
+  );
+  const rejected = await runs.findById({ id: rejectedId, organizationId });
+  assert.ok(rejected !== null);
+  assert.equal(rejected.status, "rejected");
+  assert.equal(rejected.brief, null);
+  assert.equal(rejected.rejection?.code, "provider-unavailable");
+
+  // Camino 4: cancelación durante la ejecución. El resultado que llega después
+  // se descarta en lugar de quedar vigente.
+  const cancelledId = await requestRun();
+  assert.deepEqual(
+    await runs.cancel({
+      cancelledAt: new Date().toISOString(),
+      id: cancelledId,
+      organizationId,
+    }),
+    { status: "cancelled" },
+  );
+  assert.deepEqual(
+    await runs.complete(
+      completion(cancelledId, groundedBrief, null),
+      new Date().toISOString(),
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+  const cancelled = await runs.findById({ id: cancelledId, organizationId });
+  assert.ok(cancelled !== null);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.brief, null);
+
+  // Aceptar el brief sustentado crea una revisión que conserva de qué
+  // ejecución salió: la trazabilidad no depende de recomponerla en la UI.
+  const publicationId = randomUUID();
+  const created = await drafts.create({
+    content: {
+      caption: groundedBrief.caption,
+      products: [{ label: "Amoladora angular", reference: "odoo:product:42" }],
+    },
+    contentBriefRunId: groundedId,
+    contentHash: "f".repeat(64),
+    createdByMembershipId: membershipId,
+    designDocument: {
+      content: { title: groundedBrief.title },
+      format: "historia",
+      layout: "historia-tip",
+      media: [],
+      schemaVersion: 1,
+      slug: "historia-tip-editorial",
+      theme: "taller",
+    },
+    locationId,
+    media: [],
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:create",
+    ),
+    revisionId: randomUUID(),
+    schemaVersion: 1,
+    title: groundedBrief.title,
+  });
+  assert.ok(created.status === "created");
+  assert.equal(created.detail.latestRevision.contentBriefRunId, groundedId);
+  // Aceptar deja la publicación en borrador: no publica ni programa nada.
+  assert.equal(created.detail.publication.status, "draft");
+
+  const detail = await drafts.findById({ organizationId }, publicationId);
+  assert.ok(detail !== null);
+  assert.equal(detail.latestRevision.contentBriefRunId, groundedId);
+
+  // El listado también conserva el vínculo: llegar desde la pieza hasta su
+  // evidencia no depende de abrir el detalle.
+  const listed = await drafts.list({ limit: 10, organizationId, page: 1 });
+  assert.equal(listed.items[0]?.latestContentBriefRunId, groundedId);
+
+  // Una revisión no puede atribuirse a una ejecución inexistente ni ajena: la
+  // clave foránea es compuesta por organización, así que la base lo rechaza.
+  await assert.rejects(
+    database.publicationRevision.update({
+      data: { contentBriefRunId: randomUUID() },
+      where: { id: detail.latestRevision.id },
+    }),
+  );
+});

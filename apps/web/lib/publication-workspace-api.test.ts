@@ -158,6 +158,46 @@ test("un contrato de listado inválido se representa como error explícito", asy
   assert.equal(result.kind, "error");
 });
 
+test("el listado conserva el vínculo con la ejecución que generó la pieza", async () => {
+  const publication = {
+    createdAt: "2026-07-31T12:00:00.000Z",
+    id: "publication-1",
+    latestContentBriefRunId: "run-1",
+    latestContentHash: "a".repeat(64),
+    latestRevisionId: "revision-1",
+    latestRevisionNumber: 1,
+    status: "draft",
+    title: "Amoladora angular para tu taller",
+    updatedAt: "2026-07-31T12:00:00.000Z",
+    version: 1,
+  };
+  globalThis.fetch = (input) => {
+    const url = requestUrl(input);
+    return Promise.resolve(
+      url.pathname.endsWith("/auth/session")
+        ? jsonResponse({
+            actor: {
+              displayName: "Editora",
+              email: "editora@example.invalid",
+              membershipId: "membership-1",
+              organizationId: "organization-1",
+              roles: ["editor"],
+              sessionId: "session-1",
+              userId: "user-1",
+            },
+          })
+        : jsonResponse({ items: [publication], limit: 20, page: 1, total: 1 }),
+    );
+  };
+
+  const result = await loadPublicationWorkspace("http://api.example.test/");
+
+  assert.ok(result.kind === "ready");
+  // Sin este dato, llegar desde la pieza hasta su evidencia obligaría a
+  // recomponer el vínculo en la UI.
+  assert.equal(result.publications.items[0]?.latestContentBriefRunId, "run-1");
+});
+
 test("guardar conserva idempotencia y no confunde caption con texto visual", async () => {
   let publicationRequest: RequestInit | undefined;
   globalThis.fetch = (input, init) => {

@@ -764,8 +764,8 @@ faltantes antes de permitir cambios de modelo o prompt.
 
 ## P3-T09 — Completar flujo de brief conversacional
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETADA
 - Dependencias: `P2-T08`, `P3-T08`
 - Riesgo: Alto
 
@@ -782,18 +782,18 @@ faltantes, corrija el pedido y guarde un brief aceptado.
 
 ### Criterios de aceptación
 
-- [ ] El usuario ve estado de recuperación y generación.
-- [ ] Faltantes se solicitan antes de presentar hechos no sustentados.
-- [ ] Las citas son accesibles desde cada brief.
-- [ ] Reintentar conserva el pedido original y crea una ejecución distinta.
-- [ ] Cancelar evita persistir un resultado tardío como vigente.
-- [ ] El usuario puede convertir el brief aceptado en revisión de publicación.
+- [x] El usuario ve estado de recuperación y generación.
+- [x] Faltantes se solicitan antes de presentar hechos no sustentados.
+- [x] Las citas son accesibles desde cada brief.
+- [x] Reintentar conserva el pedido original y crea una ejecución distinta.
+- [x] Cancelar evita persistir un resultado tardío como vigente.
+- [x] El usuario puede convertir el brief aceptado en revisión de publicación.
 
 ### Verificación obligatoria
 
-- [ ] E2E con respuesta suficiente, faltante y error transitorio.
-- [ ] Confirmar autorización y aislamiento.
-- [ ] Revisar trazabilidad desde UI hasta fuente y ejecución OpenAI.
+- [x] E2E con respuesta suficiente, faltante y error transitorio.
+- [x] Confirmar autorización y aislamiento.
+- [x] Revisar trazabilidad desde UI hasta fuente y ejecución OpenAI.
 
 ### Fuera de alcance
 
@@ -937,18 +937,45 @@ faltantes, corrija el pedido y guarde un brief aceptado.
 - Consecuencia registrada: aceptar envía hoy un diseño fijo —historia
   tipográfica, tema taller— porque la pieza visual es de Fase 4. El copy sí
   sale del brief; la presentación todavía no es una elección del editor.
-- Próximo paso exacto: implementar el corte (5): E2E con respuesta suficiente,
-  faltante y error transitorio, y la trazabilidad desde la revisión hasta la
-  ejecución que la originó.
+- 2026-07-31: corte (5) completo. La revisión conserva de qué ejecución salió y
+  el E2E recorre la vertical sobre la base real.
+- El vínculo vive en la revisión, no en la publicación, porque cada revisión
+  declara su propio origen: editar a mano un borrador generado produce una
+  revisión que ya no cita ninguna ejecución, que es exactamente lo que pasó.
+- `contentBriefRunId` no viaja en ningún DTO. Lo provee la aceptación del lado
+  del servidor: si un cliente pudiera elegirlo, podría atribuirle a una
+  ejecución un contenido que nunca produjo. La clave foránea es compuesta por
+  organización, así que tampoco se puede citar una ejecución ajena.
+- El E2E recorre pedido reservado y encolado, cierre con evidencia suficiente,
+  cierre con faltante declarado que exige revisión humana, rechazo por error
+  transitorio del proveedor, cancelación con resultado tardío descartado, y
+  aceptación que crea una revisión en borrador enlazada a su ejecución.
+- Se corrigió el arnés de base: `verify.ts` seguía apuntando a una migración
+  anterior, así que el `down.sql` de las dos migraciones nuevas nunca se había
+  ejercido. Ahora revierte y reaplica la última de verdad.
+- Verificaciones ejecutadas: `pnpm verify` completo y `pnpm db:test` con
+  migración desde cero, reversión y reaplicación.
 
 ### Evidencia de cierre
 
-- Pendiente: falta el corte 5.
+- Vertical completa y verificada: el editor pide en lenguaje natural, ve
+  recuperación y generación, revisa faltantes antes del copy, accede a las
+  citas, cancela sin que un resultado tardío quede vigente, reintenta
+  conservando el pedido, y convierte el brief en una revisión que conserva de
+  qué ejecución salió.
+- Commits: `dbadcda` (API y contratos), `b623d90` (compositor) y el commit de
+  cierre de `P3-T09`.
+- Desviación registrada: aceptar envía un diseño fijo —historia tipográfica,
+  tema taller— porque la pieza visual es de Fase 4. El copy sí sale del brief.
+- Desviación registrada: el E2E recorre la vertical sobre la base real con los
+  repositorios de producción, no un navegador. La interacción con el modelo ya
+  tiene su smoke real en `P3-T07` y su evaluación en `P3-T08`; repetirla acá
+  habría gastado generaciones sin cubrir un seam nuevo.
 
 ## Criterios de salida de Fase 3
 
-- [ ] `P3-T01` a `P3-T09` están completas.
-- [ ] La suite de evaluación supera umbrales aprobados.
-- [ ] Toda afirmación comercial relevante tiene evidencia o se declara faltante.
-- [ ] El modelo no accede a SQL, secretos ni datos fuera del scope.
-- [ ] Un editor puede aceptar un brief trazable de punta a punta.
+- [x] `P3-T01` a `P3-T09` están completas.
+- [x] La suite de evaluación supera umbrales aprobados.
+- [x] Toda afirmación comercial relevante tiene evidencia o se declara faltante.
+- [x] El modelo no accede a SQL, secretos ni datos fuera del scope.
+- [x] Un editor puede aceptar un brief trazable de punta a punta.

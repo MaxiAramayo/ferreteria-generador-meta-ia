@@ -309,12 +309,16 @@ class FakeConfiguration implements OrganizationConfigurationRepository {
 }
 
 class FakeDrafts {
+  lastBriefRunId: string | undefined;
   lastSubmission: PublicationDraftSubmission | undefined;
 
   create(
     _actor: AuthenticatedActor,
     submission: PublicationDraftSubmission,
+    _idempotencyKey?: string,
+    contentBriefRunId?: string,
   ): Promise<{ publicationId: string }> {
+    this.lastBriefRunId = contentBriefRunId;
     this.lastSubmission = submission;
     return Promise.resolve({ publicationId: "created" });
   }
@@ -600,6 +604,9 @@ test("aceptar arma la revisión con el copy del brief, no con el del cliente", a
   // La sucursal sale de la ejecución, que ya la derivó de la sesión.
   assert.equal(submission.locationId, locationId);
   assert.equal(submission.design, design);
+  // La revisión conserva de qué ejecución salió, y ese vínculo lo pone el
+  // servidor: ningún campo del body puede atribuirle otro origen.
+  assert.equal(drafts.lastBriefRunId, record.id);
 });
 
 test("aceptar una ejecución que no generó brief es un conflicto", async () => {

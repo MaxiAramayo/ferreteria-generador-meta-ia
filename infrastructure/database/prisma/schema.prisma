@@ -466,6 +466,7 @@ model PublicationRevision {
   content               Json
   designDocument        Json                      @map("design_document")
   contentHash           String                    @map("content_hash") @db.Char(64)
+  contentBriefRunId     String?                   @map("content_brief_run_id") @db.Uuid
   renderedMediaAssetId  String?                   @map("rendered_media_asset_id") @db.Uuid
   renderedAt            DateTime?                 @map("rendered_at") @db.Timestamptz(3)
   createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -475,6 +476,7 @@ model PublicationRevision {
   publication      Publication                  @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   createdBy        OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   approvalSnapshot ApprovalSnapshot?
+  contentBriefRun  ContentBriefRun?             @relation(fields: [organizationId, contentBriefRunId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   media            PublicationRevisionMedia[]
   renderedMedia    MediaAsset?                  @relation("PublicationRenderedMedia", fields: [organizationId, renderedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   stateTransitions PublicationStateTransition[] @relation("TransitionNewRevision")
@@ -652,7 +654,9 @@ model ContentBriefRun {
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   location     Location?              @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  revisions    PublicationRevision[]
 
+  @@unique([organizationId, id], map: "content_brief_runs_organization_id_key")
   @@index([organizationId, createdAt(sort: Desc), id], map: "content_brief_runs_org_created_idx")
   @@index([organizationId, actorMembershipId, createdAt(sort: Desc)], map: "content_brief_runs_org_actor_idx")
   @@index([organizationId, promptVersion, model, createdAt(sort: Desc)], map: "content_brief_runs_prompt_idx")

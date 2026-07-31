@@ -303,6 +303,9 @@ export class ContentBriefService {
         title: brief.title,
       },
       idempotencyKey,
+      // La revisión conserva de qué ejecución salió: sin ese vínculo, llegar
+      // desde la pieza hasta su evidencia dependería de recomponerlo en la UI.
+      record.id,
     );
   }
 

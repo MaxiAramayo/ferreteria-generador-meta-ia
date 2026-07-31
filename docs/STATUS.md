@@ -4,13 +4,14 @@ Actualizado: 2026-07-31
 
 ## Fase activa
 
-**Fase 3 — OpenAI, RAG y datos comerciales**
+**Fase 4 — Generación personalizada de imágenes**
 
-La Fase 0 quedó cerrada. `P1-T07` tiene la implementación local completa y está
-bloqueada únicamente por las credenciales de Cloudinary staging necesarias
-para su verificación remota. La Fase 2 quedó cerrada con un flujo determinista
-desde borrador hasta snapshot aprobado. La continuidad local fue autorizada
-explícitamente mientras el smoke remoto queda en espera.
+Las Fases 0, 2 y 3 quedaron cerradas. `P1-T07` tiene la implementación local
+completa y está bloqueada únicamente por las credenciales de Cloudinary staging
+necesarias para su verificación remota, así que la Fase 1 sigue abierta por ese
+único motivo. La continuidad local fue autorizada explícitamente mientras el
+smoke remoto queda en espera. `P4-T01` está desbloqueada porque sus
+dependencias `P1-T06` y `P3-T07` están completas.
 
 ## Resumen
 
@@ -18,7 +19,7 @@ explícitamente mientras el smoke remoto queda en espera.
 - [x] Fase 0 — Fundación y bootstrap.
 - [ ] Fase 1 — Migración del motor visual.
 - [x] Fase 2 — Dominio, persistencia y panel base.
-- [ ] Fase 3 — OpenAI, RAG y datos comerciales.
+- [x] Fase 3 — OpenAI, RAG y datos comerciales.
 - [ ] Fase 4 — Generación personalizada de imágenes.
 - [ ] Fase 5 — Publicación mediante Meta.
 - [ ] Fase 6 — Programación y automatizaciones.
@@ -31,13 +32,15 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P3-T09` — el flujo conversacional avanza por cortes verticales. Los
-cortes 1 a 4 están cerrados y verificados: la ejecución tiene ciclo de vida
-propio, el outbox conecta el pedido con el worker, la API expone pedido,
-consulta, historial, cancelación y aceptación, y `AICreativeComposer` ejecuta el
-flujo con estado visible, citas y costos. Sigue el corte 5: los E2E con
-respuesta suficiente, faltante y error transitorio, y la trazabilidad desde la
-revisión hasta la ejecución que la originó.
+Iniciar `P4-T01` — definir perfiles visuales y política de prompts. Sus
+dependencias están completas y la Fase 3 cerró con un editor capaz de pedir una
+pieza en lenguaje natural, revisar faltantes y evidencia, y aceptar un brief
+trazable de punta a punta.
+
+`P3-T09` cerró la vertical: la ejecución tiene ciclo de vida propio, el outbox
+la conecta con el worker, la API expone pedido, consulta, historial,
+cancelación y aceptación, `AICreativeComposer` muestra recuperación y
+generación por separado, y la revisión conserva de qué ejecución salió.
 
 La autorización explícita del usuario habilitó únicamente la API comercial de
 Odoo. No autoriza publicar contenido ni configurar proveedores reales de
@@ -96,11 +99,10 @@ local ignorado por Git.
 
 ## Registro de decisiones pendientes
 
-- Cómo registrar en la publicación de qué ejecución del brief salió. Hoy
-  aceptar crea la revisión pero no deja el vínculo, así que la trazabilidad
-  desde una revisión hasta su evidencia depende de la UI. Surgió al cerrar el
-  corte 3 de `P3-T09` y se resuelve en su corte 5.
 - Política inicial de publicaciones que pueden autoaprobarse.
+- Qué presentación recibe un brief aceptado. Hoy la aceptación crea la revisión
+  con un diseño fijo —historia tipográfica, tema taller— porque la pieza visual
+  es de Fase 4. El copy sí sale del brief. Surgió al cerrar `P3-T09`.
 - Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
   criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una
   política aprobada, el prompt no los pide y la evaluación no los mide.

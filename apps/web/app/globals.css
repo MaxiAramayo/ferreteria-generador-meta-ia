@@ -1283,3 +1283,13 @@ a {
   font-size: 0.75rem;
   opacity: 0.75;
 }
+
+.publication-brief-origin {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.publication-brief-origin code {
+  background: color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  padding: 0.1rem 0.3rem;
+}

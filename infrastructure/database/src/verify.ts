@@ -9,7 +9,8 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260730020000_content_brief_run_lifecycle";
+const latestMigrationName =
+  "20260731120000_publication_revision_content_brief_run";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -154,8 +155,8 @@ async function verifyDatabase(): Promise<void> {
       const rollbackState = await testPool.query<{
         alt_column_exists: boolean;
         audit_table: string | null;
-        brief_completed_at_exists: boolean;
         brief_runs_table: string | null;
+        revision_brief_run_exists: boolean;
         configuration_table: string | null;
         core_table: string | null;
         failure_column_exists: boolean;
@@ -174,9 +175,9 @@ async function verifyDatabase(): Promise<void> {
               SELECT 1
               FROM information_schema.columns
               WHERE table_schema = 'public'
-                AND table_name = 'content_brief_runs'
-                AND column_name = 'completed_at'
-            ) AS "brief_completed_at_exists",
+                AND table_name = 'publication_revisions'
+                AND column_name = 'content_brief_run_id'
+            ) AS "revision_brief_run_exists",
             to_regclass('public.organization_configuration_events')::text AS "configuration_table",
             to_regclass('public.audit_events')::text AS "audit_table",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
@@ -228,9 +229,9 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
       // La reversión afecta sólo a la última migración: el historial de briefs
-      // conserva su tabla pero pierde las columnas del ciclo de vida.
+      // conserva su tabla, pero la revisión pierde el vínculo con su ejecución.
       assert.equal(rollbackEvidence.brief_runs_table, "content_brief_runs");
-      assert.equal(rollbackEvidence.brief_completed_at_exists, false);
+      assert.equal(rollbackEvidence.revision_brief_run_exists, false);
       assert.equal(
         rollbackEvidence.knowledge_documents_table,
         "knowledge_documents",

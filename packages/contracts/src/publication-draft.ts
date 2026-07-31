@@ -55,6 +55,12 @@ export interface PublicationRevisionResponse {
   readonly approvalSnapshotId?: string;
   readonly approvedAt?: string;
   readonly content: PublicationDraftContentResponse;
+  /**
+   * Ejecución del brief que originó la revisión. Ausente cuando la escribió
+   * una persona: cada revisión declara su propio origen, así que editar un
+   * borrador generado produce una revisión que ya no cita ninguna ejecución.
+   */
+  readonly contentBriefRunId?: string;
   readonly contentHash: string;
   readonly createdAt: string;
   readonly createdByMembershipId: string;
@@ -75,6 +81,8 @@ export interface PublicationSummaryResponse {
     readonly safeMessage: string;
   }>;
   readonly id: string;
+  /** Ejecución del brief que originó la última revisión, si la hubo. */
+  readonly latestContentBriefRunId?: string;
   readonly latestContentHash: string;
   readonly latestRevisionId: string;
   readonly latestRevisionNumber: number;
