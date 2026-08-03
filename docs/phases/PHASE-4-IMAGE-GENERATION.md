@@ -158,7 +158,7 @@ Desviaciones:
 ## P4-T02 — Validar y preparar entradas visuales
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P1-T07`, `P4-T01`
 - Riesgo: Alto
 
@@ -184,9 +184,9 @@ proveedor o componerlas.
 
 ### Verificación obligatoria
 
-- [ ] Casos de archivo válido, corrupto, enorme, EXIF y MIME engañoso.
-- [ ] Comparar dimensiones y hashes de derivados repetidos.
-- [ ] Inspeccionar metadatos del archivo preparado.
+- [x] Casos de archivo válido, corrupto, enorme, EXIF y MIME engañoso.
+- [x] Comparar dimensiones y hashes de derivados repetidos.
+- [x] Inspeccionar metadatos del archivo preparado.
 
 ### Fuera de alcance
 
@@ -194,7 +194,37 @@ proveedor o componerlas.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-03. Núcleo de preparación implementado y verificado.
+- Decisiones del negocio que gobiernan la tarea:
+  1. el EXIF se quita en el ingreso, también del original; la plataforma no
+     almacena ubicación ni datos de cámara;
+  2. una foto validada de la organización sirve como referencia sin aprobación
+     extra.
+- Archivos: `packages/domain/src/visual-input.ts` con las reglas y el puerto,
+  `apps/worker/src/media/visual-input-preparer.ts` con el adaptador Sharp, más
+  sus pruebas.
+- El derivado se reconstruye desde los píxeles decodificados, así que no arrastra
+  EXIF, GPS, XMP ni miniaturas. La orientación se aplica a los píxeles antes de
+  descartar la etiqueta —si no, una foto de teléfono quedaría de costado— y el
+  color se normaliza a sRGB antes de perder el perfil ICC. `mozjpeg` fija el
+  codificador para que dos corridas den los mismos bytes.
+- Se conservan los dos SHA-256: el de los bytes recibidos prueba qué entregó la
+  persona, el del derivado identifica lo que se guarda y viaja.
+- Reglas de referencia: lado corto mínimo de 512 px, proporción máxima 3:1, lado
+  largo del derivado acotado a 2048 px sin agrandar. El fondo cargado avisa y no
+  rechaza, y sólo para fotos de producto.
+- Verificado contra las tres fotos reales de la gata del local: 960×1280, las
+  tres aceptadas como `mascot_photo`, con hash de origen y de derivado
+  distintos y estables.
+- Verificaciones ejecutadas: `pnpm verify` en 0, con 78 pruebas de dominio y 129
+  de worker.
+- Pendiente: conectar la preparación con el ciclo de medios de `P1-T07` para que
+  el derivado se persista como `MediaAsset` y quede disponible como referencia, y
+  extender la política de activos de `P4-T01` —que hoy sólo admite la biblioteca
+  congelada— para que acepte medios validados de la organización.
+- Próximo paso exacto: subir las tres fotos de la gata por el ciclo de medios ya
+  preparadas, y hacer que `decideVisualReference` resuelva contra `MediaAsset`
+  además de `BRAND_ASSETS`.
 
 ### Evidencia de cierre
 

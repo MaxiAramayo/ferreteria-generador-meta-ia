@@ -311,6 +311,25 @@ export {
   type PublicationRenderRequestResult,
 } from "./publication-production.ts";
 export {
+  decideVisualInput,
+  visualInputAdvisoryCodes,
+  visualInputLimits,
+  visualInputMimeTypes,
+  visualInputRejectionCodes,
+  type PrepareVisualInputCommand,
+  type PreparedVisualInput,
+  type VisualInputAdvisory,
+  type VisualInputAdvisoryCode,
+  type VisualInputCandidate,
+  type VisualInputDecision,
+  type VisualInputInspection,
+  type VisualInputMimeType,
+  type VisualInputPreparationResult,
+  type VisualInputPreparer,
+  type VisualInputRejection,
+  type VisualInputRejectionCode,
+} from "./visual-input.ts";
+export {
   assertVisualProfileSupports,
   assertVisualReferencesAllowed,
   deterministicVisualReasons,
