@@ -193,17 +193,28 @@ export function decideVisualInput(
  * Sin el primero no se puede demostrar la correspondencia con el original; sin
  * el segundo no se sabe qué se envió.
  */
-export interface PreparedVisualInput {
-  /** Bytes normalizados: es lo que se almacena y lo que viaja al proveedor. */
+export interface PreparedVisualArtifact {
+  readonly byteSize: number;
   readonly bytes: Uint8Array;
   readonly height: number;
   readonly mimeType: VisualInputMimeType;
-  readonly preparedByteSize: number;
-  readonly preparedSha256: string;
+  readonly sha256: string;
+  readonly width: number;
+}
+
+export interface PreparedVisualInput {
+  /**
+   * Original saneado, a resolución completa. Es el que se conserva: si mañana
+   * hace falta otro derivado —otro tamaño, otro recorte— sale de acá y no de
+   * volver a pedirle la foto a alguien.
+   */
+  readonly original: PreparedVisualArtifact;
+  /** Derivado acotado. Es el único que viaja al proveedor. */
+  readonly reference: PreparedVisualArtifact;
   readonly role: VisualReferenceRole;
   readonly sourceByteSize: number;
+  /** Hash de los bytes recibidos, antes de tocarlos. */
   readonly sourceSha256: string;
-  readonly width: number;
 }
 
 export interface PrepareVisualInputCommand {

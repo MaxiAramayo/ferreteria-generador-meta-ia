@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import {
   parseDesignDocument,
   type DesignRenderer,
@@ -12,6 +10,7 @@ import {
   type SafeJsonObject,
 } from "@aramayo/domain";
 
+import { deterministicMediaId } from "../media/deterministic-media-id.ts";
 import type { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
 import { MediaLifecycleError } from "../media/media.errors.ts";
 
@@ -24,19 +23,7 @@ function payloadText(payload: SafeJsonObject, field: string): string {
 }
 
 export function deterministicRenderMediaId(revisionId: string): string {
-  const bytes = createHash("sha256")
-    .update(`aramayo:publication-render:${revisionId}`)
-    .digest()
-    .subarray(0, 16);
-  const sixth = bytes.at(6);
-  const eighth = bytes.at(8);
-  if (sixth === undefined || eighth === undefined) {
-    throw new Error("No se pudo derivar el identificador de render.");
-  }
-  bytes[6] = (sixth & 0x0f) | 0x50;
-  bytes[8] = (eighth & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return deterministicMediaId("publication-render", revisionId);
 }
 
 export class PublicationRenderOutboxTransport implements OutboxTransport {

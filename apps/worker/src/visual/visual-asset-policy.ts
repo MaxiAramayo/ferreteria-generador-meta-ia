@@ -14,6 +14,7 @@
 import { BRAND_ASSETS, type BrandAsset } from "@aramayo/design-engine";
 import {
   VisualPromptValidationError,
+  type MediaAssetStatus,
   type VisualPromptReference,
   type VisualReferenceRole,
 } from "@aramayo/domain";
@@ -145,6 +146,56 @@ export function isVisualAssetRejection(
   decision: VisualPromptReference | VisualAssetDecision,
 ): decision is VisualAssetDecision {
   return "rejectionCode" in decision;
+}
+
+/**
+ * Medio de la organización, ya validado y preparado por `P4-T02`.
+ *
+ * Es lo que hace usable una foto que subió alguien del negocio. La biblioteca
+ * congelada en `P1-T01` no admite material nuevo —`pnpm assets:sync` la verifica
+ * contra hashes—, así que todo lo que se sume desde ahora llega por acá.
+ */
+export interface TenantVisualMedia {
+  readonly mediaAssetId: string;
+  readonly organizationId: string;
+  readonly role: VisualReferenceRole;
+  /** Hash del derivado preparado, que es lo que efectivamente viaja. */
+  readonly sha256: string;
+  readonly status: MediaAssetStatus;
+}
+
+/**
+ * Evalúa un medio de la organización como referencia.
+ *
+ * El negocio decidió el 2026-08-03 que una foto validada de la organización
+ * alcanza, sin aprobación extra. Quedan dos condiciones que no dependen de esa
+ * decisión y no se relajan: el activo tiene que estar disponible —uno que falló
+ * al subir o está por borrarse no tiene bytes que enviar— y tiene que pertenecer
+ * a la organización que pide la pieza.
+ */
+export function decideTenantVisualReference(
+  media: TenantVisualMedia,
+  organizationId: string,
+): VisualPromptReference | VisualAssetDecision {
+  if (media.organizationId !== organizationId) {
+    return Object.freeze({
+      assetId: media.mediaAssetId,
+      reason: "El activo pertenece a otra organización.",
+      rejectionCode: "asset-not-approved" as const,
+    });
+  }
+  if (media.status !== "available") {
+    return Object.freeze({
+      assetId: media.mediaAssetId,
+      reason: `El activo está en estado ${media.status} y no tiene una imagen disponible para enviar.`,
+      rejectionCode: "asset-not-approved" as const,
+    });
+  }
+  return Object.freeze({
+    assetId: media.mediaAssetId,
+    role: media.role,
+    sha256: media.sha256,
+  });
 }
 
 export interface VisualReferenceRequest {

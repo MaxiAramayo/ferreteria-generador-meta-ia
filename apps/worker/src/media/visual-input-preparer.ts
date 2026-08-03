@@ -21,7 +21,9 @@ import { createHash } from "node:crypto";
 import {
   decideVisualInput,
   visualInputLimits,
+  type PreparedVisualArtifact,
   type PrepareVisualInputCommand,
+  type VisualInputMimeType,
   type VisualInputPreparationResult,
   type VisualInputPreparer,
 } from "@aramayo/domain";
@@ -137,34 +139,73 @@ export class SharpVisualInputPreparer implements VisualInputPreparer {
       });
     }
 
-    const prepared = await sharp(command.bytes, { failOn: "error" })
-      // Aplica la orientación a los píxeles y descarta la etiqueta.
-      .rotate()
-      .toColourspace("srgb")
-      .resize({
-        fit: "inside",
-        height: visualInputLimits.preparedLongestSide,
-        width: visualInputLimits.preparedLongestSide,
-        withoutEnlargement: true,
-      })
-      // `mozjpeg` fija el codificador para que dos corridas den los mismos
-      // bytes; sin eso el hash del derivado dejaría de ser comparable.
-      .jpeg({ mozjpeg: true, quality: 90 })
-      .toBuffer({ resolveWithObject: true });
+    const outputMimeType: VisualInputMimeType =
+      mimeType === "image/png" ? "image/png" : "image/jpeg";
+
+    const [original, reference] = await Promise.all([
+      this.#encode(command.bytes, outputMimeType, null),
+      this.#encode(
+        command.bytes,
+        outputMimeType,
+        visualInputLimits.preparedLongestSide,
+      ),
+    ]);
 
     return Object.freeze({
       prepared: Object.freeze({
-        bytes: new Uint8Array(prepared.data),
-        height: prepared.info.height,
-        mimeType: "image/jpeg" as const,
-        preparedByteSize: prepared.data.byteLength,
-        preparedSha256: sha256(prepared.data),
+        original,
+        reference,
         role: command.role,
         sourceByteSize: command.bytes.byteLength,
         sourceSha256,
-        width: prepared.info.width,
       }),
       status: "prepared" as const,
+    });
+  }
+
+  /**
+   * Reconstruye la imagen desde sus píxeles.
+   *
+   * El formato de salida sigue al de entrada. Convertir un PNG a JPEG le sacaría
+   * la transparencia, y un recorte de producto sobre fondo transparente quedaría
+   * con un fondo negro que nadie pidió.
+   *
+   * `longestSide` en `null` produce el original saneado, a resolución completa.
+   */
+  async #encode(
+    bytes: Uint8Array,
+    mimeType: VisualInputMimeType,
+    longestSide: number | null,
+  ): Promise<PreparedVisualArtifact> {
+    let pipeline = sharp(bytes, { failOn: "error" })
+      // Aplica la orientación a los píxeles y descarta la etiqueta.
+      .rotate()
+      .toColourspace("srgb");
+
+    if (longestSide !== null) {
+      pipeline = pipeline.resize({
+        fit: "inside",
+        height: longestSide,
+        width: longestSide,
+        withoutEnlargement: true,
+      });
+    }
+
+    // Las opciones del codificador son explícitas para que dos corridas den los
+    // mismos bytes; sin eso el hash dejaría de ser comparable.
+    const encoded = await (
+      mimeType === "image/png"
+        ? pipeline.png({ compressionLevel: 9, effort: 10, palette: false })
+        : pipeline.jpeg({ mozjpeg: true, quality: 90 })
+    ).toBuffer({ resolveWithObject: true });
+
+    return Object.freeze({
+      byteSize: encoded.data.byteLength,
+      bytes: new Uint8Array(encoded.data),
+      height: encoded.info.height,
+      mimeType,
+      sha256: sha256(encoded.data),
+      width: encoded.info.width,
     });
   }
 }

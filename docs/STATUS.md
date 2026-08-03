@@ -33,16 +33,16 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P4-T02` — validar y preparar entradas visuales. El núcleo de
-preparación está implementado y verificado: valida contenido, tipo, resolución y
-proporción, quita EXIF y datos de ubicación reconstruyendo el derivado desde los
-píxeles, y conserva los dos SHA-256. Se probó contra las tres fotos reales de la
-gata del local.
+Iniciar `P4-T03` — implementar el adaptador de OpenAI Images. Sus dependencias
+`P3-T02` y `P4-T02` están completas: la primera confina el SDK al módulo
+`generation` del worker y la segunda entrega entradas visuales normalizadas y
+sin metadatos sensibles.
 
-Falta conectarlo con el ciclo de medios de `P1-T07` para que el derivado se
-persista como `MediaAsset`, y extender la política de activos de `P4-T01` —que
-hoy sólo admite la biblioteca congelada— para que acepte medios validados de la
-organización.
+`P4-T02` quedó cerrada. La ingesta separa el original saneado del derivado que
+viaja al proveedor, quita EXIF y datos de ubicación reconstruyendo la imagen
+desde sus píxeles, deriva los identificadores del contenido para que la misma
+foto no se suba dos veces, y la política de activos ya acepta medios validados
+de la organización además de la biblioteca congelada.
 
 `P4-T01` dejó cuatro cosas que `P4-T02` tiene que resolver:
 
@@ -56,10 +56,11 @@ organización.
 - faltan fotos propias de lubricante clasificadas como material de producto: las
   de lubricentro son del local, así que `lubricentro-producto-limpio` hoy sólo
   puede resolverse con render determinista;
-- las tres fotos de la gata ya existen y pasan la preparación como
-  `mascot_photo`, pero todavía no están persistidas: la biblioteca congelada en
-  `P1-T01` es un artefacto cerrado que `pnpm assets:sync` verifica contra hashes
-  y no admite material nuevo, así que van por el ciclo de medios.
+- las tres fotos de la gata pasan la preparación como `mascot_photo`, pero
+  todavía no están persistidas: la ingesta necesita PostgreSQL y una membresía
+  real, así que subirlas es una operación de datos y no de código. La biblioteca
+  congelada en `P1-T01` no es alternativa: `pnpm assets:sync` la verifica contra
+  hashes y no admite material nuevo.
 
 Las fotos de producto de marca que el negocio consiga de los fabricantes no son
 material propio: cada una necesita registrar con qué permiso se usa, porque la

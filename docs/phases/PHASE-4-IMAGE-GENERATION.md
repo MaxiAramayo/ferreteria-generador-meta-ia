@@ -157,8 +157,8 @@ Desviaciones:
 
 ## P4-T02 — Validar y preparar entradas visuales
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T07`, `P4-T01`
 - Riesgo: Alto
 
@@ -175,12 +175,12 @@ proveedor o componerlas.
 
 ### Criterios de aceptación
 
-- [ ] Se valida contenido, MIME, dimensiones, tamaño y decodificación.
-- [ ] Se remueven metadatos de ubicación y cámara no necesarios.
-- [ ] La imagen original se conserva según política, separada de derivados.
-- [ ] Activos de otra organización o no aprobados se rechazan.
-- [ ] Se informa qué entrada falló y cómo corregirla.
-- [ ] Transformaciones son deterministas y conservan referencia al original.
+- [x] Se valida contenido, MIME, dimensiones, tamaño y decodificación.
+- [x] Se remueven metadatos de ubicación y cámara no necesarios.
+- [x] La imagen original se conserva según política, separada de derivados.
+- [x] Activos de otra organización o no aprobados se rechazan.
+- [x] Se informa qué entrada falló y cómo corregirla.
+- [x] Transformaciones son deterministas y conservan referencia al original.
 
 ### Verificación obligatoria
 
@@ -218,17 +218,81 @@ proveedor o componerlas.
   distintos y estables.
 - Verificaciones ejecutadas: `pnpm verify` en 0, con 78 pruebas de dominio y 129
   de worker.
-- Pendiente: conectar la preparación con el ciclo de medios de `P1-T07` para que
-  el derivado se persista como `MediaAsset` y quede disponible como referencia, y
-  extender la política de activos de `P4-T01` —que hoy sólo admite la biblioteca
-  congelada— para que acepte medios validados de la organización.
-- Próximo paso exacto: subir las tres fotos de la gata por el ciclo de medios ya
-  preparadas, y hacer que `decideVisualReference` resuelva contra `MediaAsset`
-  además de `BRAND_ASSETS`.
+- 2026-08-03, cierre. Se separó el original saneado del derivado, se conectó la
+  ingesta con el ciclo de medios y la política de activos pasó a aceptar medios
+  validados de la organización.
+- Verificaciones pendientes: ninguna.
 
 ### Evidencia de cierre
 
-- Pendiente.
+Reglas y puerto en `packages/domain/src/visual-input.ts`; adaptador Sharp en
+`apps/worker/src/media/visual-input-preparer.ts`; ingesta en
+`apps/worker/src/media/visual-input-ingestion.service.ts`.
+
+Criterio por criterio:
+
+- el tipo se decide por el contenido decodificado y no por la extensión, y la
+  resolución, la proporción y la decodificación se comprueban antes de tocar
+  almacenamiento. Un archivo que no decodifica se distingue de uno que decodifica
+  pero no sirve;
+- el derivado se reconstruye desde los píxeles, así que no arrastra EXIF, GPS,
+  XMP ni miniaturas. La prueba lo verifica dos veces: por la metadata que expone
+  Sharp y por los bytes crudos, buscando el marcador del segmento y el modelo de
+  cámara del fixture. Se limpia también el original, que fue la decisión del
+  negocio;
+- el original saneado se conserva a resolución completa y el derivado se acota a
+  2048 px de lado largo. Son dos activos distintos con identificador propio,
+  salvo cuando la foto no supera el tope y ambos son el mismo archivo: ahí se
+  reutiliza el activo en lugar de pagar dos veces por bytes idénticos;
+- una foto de otra organización se rechaza antes de evaluar cualquier otra cosa,
+  y un medio que no está `available` no puede referenciarse porque no tiene
+  imagen que enviar;
+- cada rechazo lleva un `correction` que dice qué hacer: «necesita al menos 512
+  px de lado corto; sacá la foto más cerca», no «no cumple la política»;
+- las opciones del codificador son explícitas, así que dos corridas dan los
+  mismos bytes y el mismo hash. Se conservan los dos SHA-256 y los
+  identificadores se derivan del contenido, de modo que la misma foto ingresada
+  dos veces cae sobre los mismos activos.
+
+Verificación ejecutada:
+
+```bash
+pnpm verify
+```
+
+Salió en 0, con 78 pruebas de dominio y 140 de worker.
+
+Casos cubiertos: archivo válido, archivo que no decodifica, foto de 4000×3000,
+JPEG con EXIF y GPS fabricados, PNG juzgado por contenido, PNG con transparencia,
+foto de otra organización y foto sin resolución. Se compararon dimensiones y
+hashes de derivados repetidos, y se inspeccionaron los metadatos del archivo
+preparado.
+
+Verificación con material real: las tres fotos de la gata del local —960×1280,
+provistas por el negocio el 2026-08-03— pasan como `mascot_photo` con hash de
+origen y de derivado distintos y estables. Al ser más chicas que el tope, su
+original y su derivado son el mismo archivo.
+
+Decisiones que conviene registrar:
+
+- **El formato de salida sigue al de entrada.** Convertir todo a JPEG le habría
+  sacado la transparencia a un PNG, y un recorte de producto sobre fondo
+  transparente habría quedado con un fondo negro que nadie pidió.
+- **El nombre almacenado se deriva del contenido.** El ciclo de medios exige que
+  la extensión coincida con el contenido real y usa el nombre para reconocer una
+  reserva repetida; conservar el nombre que eligió quien sube la foto rompería
+  las dos cosas.
+- **El aviso de fondo cargado no rechaza.** Una foto útil con fondo movido sigue
+  siendo mejor que ninguna, y sólo aplica a fotos de producto.
+- `deterministicRenderMediaId` se reescribió sobre un helper compartido en lugar
+  de duplicar la derivación de UUID. El namespace quedó idéntico, lo que la
+  prueba de identidad del render confirma: un cambio ahí habría roto la
+  idempotencia de las cargas ya existentes.
+
+Desviación: el vínculo entre derivado y original vive en los identificadores
+derivados del contenido, no en una columna de la base. Agregar `derivedFrom` a
+`media_assets` sería una migración que esta tarea no necesita; si `P4-T06` pide
+recorrer la genealogía desde SQL, ahí corresponde evaluarla.
 
 ## P4-T03 — Implementar adaptador de OpenAI Images
 

@@ -5,6 +5,7 @@ import { BRAND_ASSETS } from "@aramayo/design-engine";
 import { VisualPromptValidationError } from "@aramayo/domain";
 
 import {
+  decideTenantVisualReference,
   decideVisualReference,
   isVisualAssetRejection,
   resolveVisualReferences,
@@ -83,6 +84,59 @@ test("resolver referencias falla con el motivo en lugar de descartar", () => {
       return true;
     },
   );
+});
+
+test("una foto validada de la organización sirve de referencia", () => {
+  const decision = decideTenantVisualReference(
+    {
+      mediaAssetId: "media-gata-1",
+      organizationId: "org-aramayo",
+      role: "mascot_photo",
+      sha256: "b".repeat(64),
+      status: "available",
+    },
+    "org-aramayo",
+  );
+  assert.ok(!isVisualAssetRejection(decision));
+  assert.equal(decision.role, "mascot_photo");
+  assert.equal(decision.assetId, "media-gata-1");
+});
+
+test("un medio de otra organización no sirve de referencia", () => {
+  const decision = decideTenantVisualReference(
+    {
+      mediaAssetId: "media-ajena",
+      organizationId: "org-otra",
+      role: "product_photo",
+      sha256: "b".repeat(64),
+      status: "available",
+    },
+    "org-aramayo",
+  );
+  assert.ok(isVisualAssetRejection(decision));
+  assert.equal(decision.rejectionCode, "asset-not-approved");
+});
+
+test("un medio que no está disponible no tiene imagen que enviar", () => {
+  for (const status of [
+    "pending_upload",
+    "failed",
+    "pending_deletion",
+    "deleted",
+  ] as const) {
+    const decision = decideTenantVisualReference(
+      {
+        mediaAssetId: "media-gata-1",
+        organizationId: "org-aramayo",
+        role: "mascot_photo",
+        sha256: "b".repeat(64),
+        status,
+      },
+      "org-aramayo",
+    );
+    assert.ok(isVisualAssetRejection(decision), `estado ${status}`);
+    assert.equal(decision.rejectionCode, "asset-not-approved");
+  }
 });
 
 test("resolver referencias válidas conserva orden y hash", () => {

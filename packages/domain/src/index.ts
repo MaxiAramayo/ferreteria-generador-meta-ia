@@ -317,6 +317,7 @@ export {
   visualInputMimeTypes,
   visualInputRejectionCodes,
   type PrepareVisualInputCommand,
+  type PreparedVisualArtifact,
   type PreparedVisualInput,
   type VisualInputAdvisory,
   type VisualInputAdvisoryCode,
