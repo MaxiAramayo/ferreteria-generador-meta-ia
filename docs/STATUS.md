@@ -6,11 +6,10 @@ Actualizado: 2026-08-03
 
 **Fase 4 — Generación personalizada de imágenes**
 
-Las Fases 0, 2 y 3 quedaron cerradas. `P1-T07` tiene la implementación local
-completa y está bloqueada únicamente por las credenciales de Cloudinary staging
-necesarias para su verificación remota, así que la Fase 1 sigue abierta por ese
-único motivo. La continuidad local fue autorizada explícitamente mientras el
-smoke remoto queda en espera.
+Las Fases 0, 1, 2 y 3 quedaron cerradas. La Fase 1 cerró el 2026-08-03: el
+usuario configuró Cloudinary staging y el smoke remoto verificó carga, variante
+HTTPS, render con navegador real y borrado idempotente, que era lo único que le
+faltaba a `P1-T07`.
 
 `P4-T01` quedó cerrada. La revisión visual y comercial se hizo el 2026-08-03 y
 sus decisiones están aplicadas en `visual-profile/2026-08-03.2`.
@@ -19,7 +18,7 @@ sus decisiones están aplicadas en `visual-profile/2026-08-03.2`.
 
 - [x] Fase documental inicial creada.
 - [x] Fase 0 — Fundación y bootstrap.
-- [ ] Fase 1 — Migración del motor visual.
+- [x] Fase 1 — Migración del motor visual.
 - [x] Fase 2 — Dominio, persistencia y panel base.
 - [x] Fase 3 — OpenAI, RAG y datos comerciales.
 - [ ] Fase 4 — Generación personalizada de imágenes.
@@ -34,10 +33,10 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T02` — validar y preparar entradas visuales. Sus dependencias son
-`P1-T07` y `P4-T01`: la primera tiene su implementación local completa y la
-segunda entrega el catálogo de perfiles y la política de activos que definen
-qué entrada hace falta preparar.
+Iniciar `P4-T02` — validar y preparar entradas visuales. Sus dependencias
+`P1-T07` y `P4-T01` están completas: la primera entrega el ciclo de medios
+verificado de punta a punta y la segunda el catálogo de perfiles y la política
+de activos que definen qué entrada hace falta preparar.
 
 `P4-T01` dejó cuatro cosas que `P4-T02` tiene que resolver:
 
@@ -64,12 +63,9 @@ la conecta con el worker, la API expone pedido, consulta, historial,
 cancelación y aceptación, `AICreativeComposer` muestra recuperación y
 generación por separado, y la revisión conserva de qué ejecución salió.
 
-La autorización explícita del usuario habilitó únicamente la API comercial de
-Odoo. No autoriza publicar contenido ni configurar proveedores reales de
-OpenAI producción, Meta o Cloudinary staging.
-
-El smoke `pnpm media:smoke:cloudinary` sigue pendiente y debe ejecutarse antes
-de cerrar Fase 1.
+La autorización explícita del usuario habilitó la API comercial de Odoo y
+Cloudinary staging. No autoriza publicar contenido ni configurar proveedores
+reales de OpenAI producción ni de Meta.
 
 ## Bloqueos externos conocidos
 
@@ -91,13 +87,14 @@ de cerrar Fase 1.
 - La credencial y el vector store del proyecto OpenAI staging están
   configurados localmente; los smokes reales de `P3-T02` y `P3-T03` pasaron.
   Producción continúa sin credenciales OpenAI. Meta no está configurada.
-  Cloudinary local fue actualizado por el usuario, pero el ambiente staging aún
-  debe confirmarse antes del smoke externo.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
-- Cloudinary staging comparte cuenta con el material real: la separación es la
-  carpeta, que el smoke exige que contenga un segmento `staging`. La misma clave
-  puede tocar producción, así que la disciplina de carpeta es el único límite.
+- Cloudinary staging quedó verificado el 2026-08-03 sobre el cloud `m73l9k4c`,
+  carpeta `aramayo-posts/staging`. Su biblioteca estaba vacía al configurarlo,
+  pero no está confirmado si ese cloud es exclusivo de pruebas o comparte cuenta
+  con material real. Mientras no se confirme, la separación efectiva es la
+  carpeta: el smoke la exige con un segmento `staging` y rechaza correr fuera de
+  `NODE_ENV=staging`, pero la misma clave alcanza al resto del cloud.
 
 `P3-T08` dejó una consecuencia registrada: la primera evaluación real reprobó y
 mostró que el prompt nunca declaraba las ventanas de frescura, así que el modelo
