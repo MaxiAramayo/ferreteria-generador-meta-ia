@@ -311,6 +311,26 @@ export {
   type PublicationRenderRequestResult,
 } from "./publication-production.ts";
 export {
+  assertImageRequestSupported,
+  imageGenerationBackgrounds,
+  imageGenerationFailureCodes,
+  imageGenerationLimits,
+  imageGenerationQualities,
+  imageGenerationSizes,
+  ImageGenerationError,
+  imageSizeForFormat,
+  type EditImageCommand,
+  type GeneratedImage,
+  type GenerateImageCommand,
+  type ImageGenerationBackground,
+  type ImageGenerationFailureCode,
+  type ImageGenerationPort,
+  type ImageGenerationQuality,
+  type ImageGenerationSize,
+  type ImageGenerationUsage,
+  type ImageReferenceInput,
+} from "./image-generation.ts";
+export {
   decideVisualInput,
   visualInputAdvisoryCodes,
   visualInputLimits,

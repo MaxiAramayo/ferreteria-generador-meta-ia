@@ -297,7 +297,11 @@ recorrer la genealogía desde SQL, ahí corresponde evaluarla.
 ## P4-T03 — Implementar adaptador de OpenAI Images
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: BLOQUEADA
+
+Bloqueo: el smoke real contra staging necesita que la organización de OpenAI
+tenga habilitado GPT Image. La implementación está completa y verificada con
+transporte falso; falta ejecutar `pnpm image:smoke` una vez activado el permiso.
 - Dependencias: `P3-T02`, `P4-T02`
 - Riesgo: Alto
 
@@ -314,18 +318,18 @@ estable, separado del gateway de texto.
 
 ### Criterios de aceptación
 
-- [ ] El dominio no importa el SDK.
-- [ ] Generación nueva y edición con referencias tienen contratos distintos.
-- [ ] Parámetros no soportados fallan antes de la llamada.
-- [ ] Se distinguen rechazo de seguridad, rate limit, timeout y contenido inválido.
-- [ ] Respuestas se almacenan de inmediato con hash y metadatos.
-- [ ] No se registran binarios ni URLs temporales sensibles en logs.
+- [x] El dominio no importa el SDK.
+- [x] Generación nueva y edición con referencias tienen contratos distintos.
+- [x] Parámetros no soportados fallan antes de la llamada.
+- [x] Se distinguen rechazo de seguridad, rate limit, timeout y contenido inválido.
+- [x] Respuestas se almacenan de inmediato con hash y metadatos.
+- [x] No se registran binarios ni URLs temporales sensibles en logs.
 
 ### Verificación obligatoria
 
-- [ ] Tests de contrato con adaptador falso.
+- [x] Tests de contrato con adaptador falso.
 - [ ] Smoke test real de generación y edición en staging.
-- [ ] Simular timeout y respuesta incompleta.
+- [x] Simular timeout y respuesta incompleta.
 
 ### Fuera de alcance
 
@@ -333,11 +337,29 @@ estable, separado del gateway de texto.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-03. Implementación completa y verificada con transporte falso.
+- Archivos: `packages/domain/src/image-generation.ts` con el puerto y las
+  reglas, `apps/worker/src/generation/openai-image-transport.ts` con el SDK y la
+  traducción de errores, `apps/worker/src/generation/openai-image.gateway.ts` con
+  el gateway, y `apps/worker/src/generation/image-smoke.ts` con el smoke real.
+- El puerto está separado del de texto: comparten proveedor pero no unidad de
+  costo, modos de fallo, forma de respuesta ni política de reintento.
+- Generar y editar son tipos distintos. Editar exige al menos una referencia por
+  tipo —una tupla no vacía—, así que una edición sin nada que editar no compila.
+- El tamaño se deriva del formato de la pieza eligiendo la proporción más
+  cercana entre las tres que admite el proveedor. Ninguna coincide exacto salvo
+  los cuadrados, así que la base siempre se recorta al componer en `P4-T05`.
+- Verificaciones ejecutadas: `pnpm verify` en 0, con 86 pruebas de dominio y 149
+  de worker.
+- Verificaciones pendientes: `pnpm image:smoke` contra staging, que necesita el
+  permiso de GPT Image en la organización.
+- Próximo paso exacto: activar el permiso y ejecutar
+  `NODE_ENV=staging pnpm image:smoke`. Si falla con `provider-error` y estado
+  403, el permiso todavía no está activo.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente el smoke real. El resto está verificado y registrado en las notas.
 
 ## P4-T04 — Orquestar ejecuciones asíncronas de generación
 
