@@ -296,12 +296,8 @@ recorrer la genealogía desde SQL, ahí corresponde evaluarla.
 
 ## P4-T03 — Implementar adaptador de OpenAI Images
 
-- [ ] Tarea completada
-- Estado: BLOQUEADA
-
-Bloqueo: el smoke real contra staging necesita que la organización de OpenAI
-tenga habilitado GPT Image. La implementación está completa y verificada con
-transporte falso; falta ejecutar `pnpm image:smoke` una vez activado el permiso.
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P3-T02`, `P4-T02`
 - Riesgo: Alto
 
@@ -328,7 +324,7 @@ estable, separado del gateway de texto.
 ### Verificación obligatoria
 
 - [x] Tests de contrato con adaptador falso.
-- [ ] Smoke test real de generación y edición en staging.
+- [x] Smoke test real de generación y edición en staging.
 - [x] Simular timeout y respuesta incompleta.
 
 ### Fuera de alcance
@@ -351,15 +347,67 @@ estable, separado del gateway de texto.
   los cuadrados, así que la base siempre se recorta al componer en `P4-T05`.
 - Verificaciones ejecutadas: `pnpm verify` en 0, con 86 pruebas de dominio y 149
   de worker.
-- Verificaciones pendientes: `pnpm image:smoke` contra staging, que necesita el
-  permiso de GPT Image en la organización.
-- Próximo paso exacto: activar el permiso y ejecutar
-  `NODE_ENV=staging pnpm image:smoke`. Si falla con `provider-error` y estado
-  403, el permiso todavía no está activo.
+- 2026-08-03, cierre. El usuario habilitó GPT Image en la organización y el
+  smoke real pasó.
+- Verificaciones pendientes: ninguna.
 
 ### Evidencia de cierre
 
-- Pendiente el smoke real. El resto está verificado y registrado en las notas.
+Puerto en `packages/domain/src/image-generation.ts`; SDK y traducción de errores
+en `apps/worker/src/generation/openai-image-transport.ts`; gateway en
+`apps/worker/src/generation/openai-image.gateway.ts`.
+
+Criterio por criterio:
+
+- el dominio declara el puerto sin importar el SDK, que queda confinado al
+  transporte igual que en el gateway de texto;
+- generar y editar son tipos distintos: editar exige al menos una referencia por
+  tipo —una tupla no vacía—, así que una edición sin nada que editar no compila y
+  una generación no puede arrastrar referencias que nadie va a mirar;
+- tamaño, calidad, longitud de prompt y cantidad de referencias se comprueban
+  antes de llamar. La prueba confirma además que el transporte no recibió ninguna
+  solicitud cuando el parámetro es inválido;
+- rechazo de seguridad, límite de tasa, timeout, error de conexión y contenido
+  inválido se distinguen entre sí y cada uno declara si admite reintento. Un 4xx
+  no se reintenta porque repetirlo sin cambiar el pedido repite el gasto;
+- la respuesta se convierte en imagen verificada con su SHA-256 y sus
+  dimensiones, leídas al decodificar los bytes y no del campo que devuelve la
+  API;
+- ningún fallo arrastra el mensaje del proveedor: el `message` es fijo y el
+  `detail` lo escribimos nosotros. La prueba lo comprueba en cada caso.
+
+Verificación con transporte falso:
+
+```bash
+pnpm verify
+```
+
+Salió en 0, con 86 pruebas de dominio y 149 de worker. Cubre respuesta sin
+imagen, respuesta con bytes que no decodifican, timeout, límite de tasa, error de
+conexión, rechazo de seguridad, 4xx contra 5xx y parámetro no admitido.
+
+Smoke real contra staging, ejecutado por el usuario el 2026-08-03:
+
+```bash
+NODE_ENV=staging pnpm image:smoke
+```
+
+Ambas imágenes salieron en 1024×1536, que es lo que `imageSizeForFormat("feed")`
+mapea: el mapeo de formato a tamaño del proveedor quedó verificado de punta a
+punta. La generación y la edición devolvieron hashes distintos, que es lo que el
+smoke exige para no dar por buena una edición que no editó nada.
+
+Revisión visual de la muestra: la generación produjo la llave sobre una
+superficie lisa y gris, sin texto, sin logotipo y sin figura humana —las tres
+exclusiones que viajaron como guía negativa—, con el tercio inferior despejado
+como pedía el prompt. La edición conservó la herramienta idéntica en forma y
+posición y sólo oscureció la superficie de apoyo, que era el único cambio
+pedido. Las imágenes quedaron en `output/image-smoke/`, que no se versiona.
+
+Desviación: `estimatedCostUsd` queda en `null`. El uso en tokens sí se conserva,
+pero la tabla de precios de imágenes no está en el repositorio y ponerle un
+número inventado sería peor que dejarlo vacío. `P4-T07`, que es la tarea de
+control de costos, es donde corresponde resolverlo.
 
 ## P4-T04 — Orquestar ejecuciones asíncronas de generación
 

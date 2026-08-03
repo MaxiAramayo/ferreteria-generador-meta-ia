@@ -33,19 +33,13 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P4-T03` tiene la implementación completa y verificada con transporte falso, y
-queda bloqueada por una sola cosa: el smoke real necesita que la organización de
-OpenAI tenga habilitado GPT Image. El usuario va a activar ese permiso y después
-corresponde ejecutar:
+Iniciar `P4-T04` — orquestar ejecuciones asíncronas de generación. Sus
+dependencias `P2-T06` y `P4-T03` están completas.
 
-```bash
-NODE_ENV=staging pnpm image:smoke
-```
-
-Si falla con `provider-error` y estado 403, el permiso todavía no está activo.
-Con el smoke en verde se cierran los dos criterios remotos y la tarea.
-
-Después sigue `P4-T04` — orquestar ejecuciones asíncronas de generación.
+`P4-T03` quedó cerrada el 2026-08-03. El usuario habilitó GPT Image en la
+organización y el smoke real generó y editó contra staging: ambas imágenes en
+1024×1536 —el tamaño que el mapeo deriva del formato `feed`— con hashes
+distintos, sin texto, sin logotipo y sin figura humana.
 
 `P4-T02` quedó cerrada. La ingesta separa el original saneado del derivado que
 viaja al proveedor, quita EXIF y datos de ubicación reconstruyendo la imagen
@@ -103,11 +97,10 @@ reales de OpenAI producción ni de Meta.
 - Activos y tipo de cuenta de Meta todavía no inventariados.
 - La credencial y el vector store del proyecto OpenAI staging están
   configurados localmente; los smokes reales de `P3-T02` y `P3-T03` pasaron.
-  Producción continúa sin credenciales OpenAI. Meta no está configurada.
+  Producción continúa sin credenciales OpenAI. Meta no está configurada. GPT
+  Image quedó habilitado en la organización de staging el 2026-08-03.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
-- La organización de OpenAI todavía no tiene habilitado GPT Image; sin ese
-  permiso `pnpm image:smoke` falla con 403 y `P4-T03` no puede cerrarse.
 - Cloudinary staging quedó verificado el 2026-08-03 sobre el cloud `m73l9k4c`,
   carpeta `aramayo-posts/staging`. Su biblioteca estaba vacía al configurarlo,
   pero no está confirmado si ese cloud es exclusivo de pruebas o comparte cuenta
