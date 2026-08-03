@@ -208,7 +208,7 @@ export class ContentBriefRequestError extends Error {
  * No pretenden entender el texto: detectan las tres afirmaciones que el negocio
  * no admite sin fuente y que tienen una firma inequívoca en el copy.
  */
-const copyClaimSignals: readonly Readonly<{
+const claimSignals: readonly Readonly<{
   claimKind: FactualClaimKind;
   pattern: RegExp;
 }>[] = Object.freeze([
@@ -225,6 +225,21 @@ const copyClaimSignals: readonly Readonly<{
     pattern: /\b\d{1,2}[:.]\d{2}\b/u,
   }),
 ]);
+
+/**
+ * Devuelve todos los tipos de afirmación que el texto insinúa. Son todos y no
+ * el primero a propósito: un texto que nombra un precio sustentado y además un
+ * descuento sin fuente tiene que seguir fallando por el descuento.
+ *
+ * La usan dos frentes con el mismo criterio: el brief, para exigir un hecho que
+ * sustente el copy, y el prompt visual, para no dejar que un importe o un
+ * porcentaje viaje hacia una imagen que nadie puede verificar.
+ */
+export function detectClaimSignals(text: string): readonly FactualClaimKind[] {
+  return claimSignals
+    .filter((signal) => signal.pattern.test(text))
+    .map((signal) => signal.claimKind);
+}
 
 function schemaFailure(field: string, message: string): never {
   throw new ContentBriefValidationError("schema-mismatch", field, message);
@@ -508,15 +523,12 @@ function assertCopyIsSupported(brief: ContentBrief): void {
   ];
 
   for (const surface of surfaces) {
-    for (const signal of copyClaimSignals) {
-      if (
-        signal.pattern.test(surface.text) &&
-        !provenClaims.has(signal.claimKind)
-      ) {
+    for (const claimKind of detectClaimSignals(surface.text)) {
+      if (!provenClaims.has(claimKind)) {
         throw new ContentBriefValidationError(
           "unsupported-claim-in-copy",
           surface.field,
-          `El texto afirma ${signal.claimKind} sin un hecho verificado que lo sustente.`,
+          `El texto afirma ${claimKind} sin un hecho verificado que lo sustente.`,
         );
       }
     }

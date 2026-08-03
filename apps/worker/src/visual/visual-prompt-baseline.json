@@ -1,0 +1,169 @@
+{
+  "cases": [
+    {
+      "format": "feed",
+      "id": "ferreteria-producto-limpio-feed",
+      "kind": "generated",
+      "negativeGuidance": [
+        "texto, letras, números, tipografía",
+        "logotipo, isotipo, marca de agua",
+        "cartel de precio, etiqueta de oferta",
+        "rostro humano reconocible",
+        "collage, marco, borde decorativo",
+        "deformación de herramientas o envases",
+        "acabado plástico artificial, brillo irreal",
+        "fondo recargado",
+        "producto flotando sin apoyo",
+        "múltiples productos superpuestos"
+      ],
+      "profileId": "ferreteria-producto-limpio",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": "{\"format\":{\"height\":1350,\"id\":\"feed\",\"ratio\":\"4:5\",\"width\":1080},\"profile\":{\"focus\":\"La herramienta o el material, nítido de punta a punta y fiel a la foto de referencia.\",\"id\":\"ferreteria-producto-limpio\",\"intent\":\"Presentar una herramienta o material de ferretería con lectura inmediata del producto.\",\"restrictions\":[\"La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.\",\"La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.\",\"No aparecen personas identificables, rostros, ni material de otra empresa.\",\"La composición deja libre la región reservada para que el texto se componga encima.\",\"El producto se muestra completo, sin recortes que oculten su forma.\",\"No se inventan accesorios, repuestos ni variantes que la foto de referencia no tenga.\"],\"style\":{\"composition\":\"Producto centrado sobre superficie de trabajo lisa, fondo liso de un solo tono, tercio inferior despejado.\",\"lighting\":\"Luz de estudio suave y direccional, sombra propia corta hacia abajo, sin reflejos especulares duros.\",\"photography\":\"Fotografía de producto, lente 50 mm, ángulo levemente cenital, profundidad de campo amplia.\",\"texture\":\"Metal, plástico técnico y goma con textura real; se ven las marcas de uso propias del material.\"},\"version\":\"visual-profile/2026-08-03.1\"},\"references\":[{\"asset_id\":\"stock-herramientas-electricas\",\"role\":\"product_photo\"}],\"reserved_space\":{\"region\":\"lower_third\",\"safe_area\":{\"bottom\":72,\"left\":72,\"right\":72,\"top\":72}},\"untrusted_data\":{\"creative_note\":\"Tono directo, foco en el uso real de la herramienta en el banco.\",\"subjects\":[{\"label\":\"Perforadora percutora 650 W\"}]}}",
+      "promptHash": "5e4dbb6eaf4c35ab0e037680b13b34f2f0cbe1183ffa34d85b8f7b75af2018d7",
+      "reason": null,
+      "reservedSpace": "lower_third"
+    },
+    {
+      "format": null,
+      "id": "lubricentro-producto-limpio-sin-foto-aprobada",
+      "kind": "deterministic",
+      "negativeGuidance": [],
+      "profileId": "lubricentro-producto-limpio",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": null,
+      "promptHash": null,
+      "reason": "no-approved-reference",
+      "reservedSpace": null
+    },
+    {
+      "format": "historia",
+      "id": "ferreteria-taller-historia",
+      "kind": "generated",
+      "negativeGuidance": [
+        "texto, letras, números, tipografía",
+        "logotipo, isotipo, marca de agua",
+        "cartel de precio, etiqueta de oferta",
+        "rostro humano reconocible",
+        "collage, marco, borde decorativo",
+        "deformación de herramientas o envases",
+        "acabado plástico artificial, brillo irreal",
+        "taller vacío y frío",
+        "herramientas nuevas sin usar en exhibidor"
+      ],
+      "profileId": "ferreteria-taller",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": "{\"format\":{\"height\":1920,\"id\":\"historia\",\"ratio\":\"9:16\",\"width\":1080},\"profile\":{\"focus\":\"La herramienta en uso sobre el banco, reconocible aunque el fondo esté desenfocado.\",\"id\":\"ferreteria-taller\",\"intent\":\"Mostrar herramientas de ferretería en el contexto de trabajo del oficio.\",\"restrictions\":[\"La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.\",\"La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.\",\"No aparecen personas identificables, rostros, ni material de otra empresa.\",\"La composición deja libre la región reservada para que el texto se componga encima.\",\"El taller se ve ordenado y en uso; nada de desorden que sugiera descuido.\",\"Las manos, si aparecen, se ven de perfil o desde atrás y nunca muestran el rostro.\"],\"style\":{\"composition\":\"Banco de trabajo en diagonal, herramienta en el tercio central, banda superior despejada.\",\"lighting\":\"Luz lateral cálida de ventana de taller, sombras largas, ambiente ligeramente oscuro.\",\"photography\":\"Fotografía documental de oficio, lente 35 mm, profundidad de campo media.\",\"texture\":\"Madera gastada, viruta, metal con marcas de uso y polvo fino visible.\"},\"version\":\"visual-profile/2026-08-03.1\"},\"references\":[],\"reserved_space\":{\"region\":\"upper_band\",\"safe_area\":{\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}},\"untrusted_data\":{\"creative_note\":\"Mostrar el oficio en marcha, sin pose publicitaria.\",\"subjects\":[]}}",
+      "promptHash": "c4864d784662306ae6a9637e98fb3acfef202e4dacb7a99be07f42f8ab4fc7d2",
+      "reason": null,
+      "reservedSpace": "upper_band"
+    },
+    {
+      "format": "feed",
+      "id": "ferreteria-obra-feed",
+      "kind": "generated",
+      "negativeGuidance": [
+        "texto, letras, números, tipografía",
+        "logotipo, isotipo, marca de agua",
+        "cartel de precio, etiqueta de oferta",
+        "rostro humano reconocible",
+        "collage, marco, borde decorativo",
+        "deformación de herramientas o envases",
+        "acabado plástico artificial, brillo irreal",
+        "obra abandonada",
+        "escombros sucios",
+        "cielo plano"
+      ],
+      "profileId": "ferreteria-obra",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": "{\"format\":{\"height\":1350,\"id\":\"feed\",\"ratio\":\"4:5\",\"width\":1080},\"profile\":{\"focus\":\"El material de obra en primer plano, con la construcción legible detrás sin robarle atención.\",\"id\":\"ferreteria-obra\",\"intent\":\"Mostrar materiales de obra y construcción en el contexto real donde se usan.\",\"restrictions\":[\"La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.\",\"La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.\",\"No aparecen personas identificables, rostros, ni material de otra empresa.\",\"La composición deja libre la región reservada para que el texto se componga encima.\",\"La obra se ve ordenada y segura; nada de andamios precarios ni trabajo sin protección.\"],\"style\":{\"composition\":\"Plano medio con profundidad: material en primer plano y obra desenfocada al fondo, tercio inferior despejado.\",\"lighting\":\"Luz natural de media mañana, sombras marcadas pero abiertas, sin contraluz.\",\"photography\":\"Fotografía documental de obra, lente 35 mm, ángulo a la altura del pecho.\",\"texture\":\"Polvo de cemento, madera, hierro y ladrillo con grano real; nada pulido.\"},\"version\":\"visual-profile/2026-08-03.1\"},\"references\":[],\"reserved_space\":{\"region\":\"lower_third\",\"safe_area\":{\"bottom\":72,\"left\":72,\"right\":72,\"top\":72}},\"untrusted_data\":{\"creative_note\":\"Material de obra en el lugar donde se usa.\",\"subjects\":[{\"label\":\"Perforadora percutora 650 W\"}]}}",
+      "promptHash": "85cd9aee6416f5b85383139fda6211ed9e5be10f6025d46048c08b8bce851a22",
+      "reason": null,
+      "reservedSpace": "lower_third"
+    },
+    {
+      "format": "historia",
+      "id": "lubricentro-servicio-historia",
+      "kind": "generated",
+      "negativeGuidance": [
+        "texto, letras, números, tipografía",
+        "logotipo, isotipo, marca de agua",
+        "cartel de precio, etiqueta de oferta",
+        "rostro humano reconocible",
+        "collage, marco, borde decorativo",
+        "deformación de herramientas o envases",
+        "acabado plástico artificial, brillo irreal",
+        "patente legible",
+        "insignia de fabricante",
+        "aceite derramado en el piso"
+      ],
+      "profileId": "lubricentro-servicio",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": "{\"format\":{\"height\":1920,\"id\":\"historia\",\"ratio\":\"9:16\",\"width\":1080},\"profile\":{\"focus\":\"La operación de servicio —cambio de aceite o filtro— legible en el centro del cuadro.\",\"id\":\"lubricentro-servicio\",\"intent\":\"Mostrar el servicio del lubricentro en curso, con el trabajo como protagonista.\",\"restrictions\":[\"La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.\",\"La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.\",\"No aparecen personas identificables, rostros, ni material de otra empresa.\",\"La composición deja libre la región reservada para que el texto se componga encima.\",\"El vehículo se ve genérico: sin patente legible, sin insignia de fabricante reconocible.\",\"El operario aparece de espaldas o recortado por debajo del hombro, con protección puesta.\"],\"style\":{\"composition\":\"Fosa o elevador en diagonal, operación en el tercio central, banda superior despejada.\",\"lighting\":\"Luz de taller mixta, fría de tubo y cálida de foco puntual, ambiente contrastado.\",\"photography\":\"Fotografía documental de servicio, lente 35 mm, ángulo bajo desde la fosa.\",\"texture\":\"Metal, goma de neumático y piso de cemento pulido con marcas de uso.\"},\"version\":\"visual-profile/2026-08-03.1\"},\"references\":[],\"reserved_space\":{\"region\":\"upper_band\",\"safe_area\":{\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}},\"untrusted_data\":{\"creative_note\":\"El servicio en curso, con el trabajo como centro.\",\"subjects\":[]}}",
+      "promptHash": "4ca849e1995b111966e5c4bb5b4255c47be3f6e212317ade444b0f5f4a724106",
+      "reason": null,
+      "reservedSpace": "upper_band"
+    },
+    {
+      "format": "historia",
+      "id": "promocion-estacional-historia",
+      "kind": "generated",
+      "negativeGuidance": [
+        "texto, letras, números, tipografía",
+        "logotipo, isotipo, marca de agua",
+        "cartel de precio, etiqueta de oferta",
+        "rostro humano reconocible",
+        "collage, marco, borde decorativo",
+        "deformación de herramientas o envases",
+        "acabado plástico artificial, brillo irreal",
+        "sello de descuento",
+        "cinta de oferta",
+        "globo de porcentaje",
+        "confeti"
+      ],
+      "profileId": "promocion-estacional",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": "{\"format\":{\"height\":1920,\"id\":\"historia\",\"ratio\":\"9:16\",\"width\":1080},\"profile\":{\"focus\":\"El grupo de productos de la promoción, todos reconocibles y sin superponerse.\",\"id\":\"promocion-estacional\",\"intent\":\"Acompañar una promoción estacional con un clima visual, sin representar la oferta.\",\"restrictions\":[\"La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.\",\"La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.\",\"No aparecen personas identificables, rostros, ni material de otra empresa.\",\"La composición deja libre la región reservada para que el texto se componga encima.\",\"La estación se sugiere con luz y entorno, nunca con un cartel ni con una fecha.\",\"El descuento no se representa de ninguna forma visual: ni sello, ni cinta, ni globo.\"],\"style\":{\"composition\":\"Bodegón de pocos productos sobre superficie amplia, centro despejado para el mensaje.\",\"lighting\":\"Luz cálida y envolvente, coherente con la estación, sin sombras duras.\",\"photography\":\"Fotografía de bodegón comercial, lente 50 mm, ángulo cenital suave.\",\"texture\":\"Materiales reales con grano visible, sin acabado publicitario.\"},\"version\":\"visual-profile/2026-08-03.1\"},\"references\":[],\"reserved_space\":{\"region\":\"center_circle\",\"safe_area\":{\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}},\"untrusted_data\":{\"creative_note\":\"Clima de temporada, sin representar la oferta.\",\"subjects\":[{\"label\":\"Perforadora percutora 650 W\"}]}}",
+      "promptHash": "7e608dc6ff208bd415bc5c18082fcaca888555ef4c1f47f459a6018a98db19de",
+      "reason": null,
+      "reservedSpace": "center_circle"
+    },
+    {
+      "format": null,
+      "id": "determinista-por-plantilla",
+      "kind": "deterministic",
+      "negativeGuidance": [],
+      "profileId": null,
+      "profileVersion": null,
+      "prompt": null,
+      "promptHash": null,
+      "reason": "brief-requested-template",
+      "reservedSpace": null
+    },
+    {
+      "format": null,
+      "id": "determinista-por-generacion-deshabilitada",
+      "kind": "deterministic",
+      "negativeGuidance": [],
+      "profileId": "ferreteria-producto-limpio",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": null,
+      "promptHash": null,
+      "reason": "generation-disabled",
+      "reservedSpace": null
+    },
+    {
+      "format": null,
+      "id": "determinista-sin-referencia-aprobada",
+      "kind": "deterministic",
+      "negativeGuidance": [],
+      "profileId": "ferreteria-producto-limpio",
+      "profileVersion": "visual-profile/2026-08-03.1",
+      "prompt": null,
+      "promptHash": null,
+      "reason": "no-approved-reference",
+      "reservedSpace": null
+    }
+  ],
+  "instructionsHash": "2a3cab9ee8f024047020c80e7fd2ca8cc2c6b0cfcad5194dd38bd1ab6fa3b287",
+  "promptVersion": "visual-prompt/2026-08-03.1"
+}

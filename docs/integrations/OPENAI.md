@@ -209,6 +209,48 @@ Reglas:
 Fuente:
 [GPT Image 2](https://developers.openai.com/api/docs/models/gpt-image-2).
 
+### Perfiles visuales y política de prompts
+
+`P4-T01` define el prompt de imagen antes de que exista la llamada. La autoridad
+vive en `@aramayo/domain`; el catálogo y el texto viven en el worker, igual que
+en el brief.
+
+Un perfil declara formato, intención, estilo —composición, fotografía,
+iluminación y textura—, foco, espacio reservado, restricciones y guía negativa.
+Hay seis, uno por combinación de campaña y tipo de producto que el brief sabe
+pedir, y la dirección visual del brief junto con la marca determinan cuál
+corresponde. La selección nunca devuelve un perfil que la marca no tenga
+aprobado.
+
+El prompt tiene dos partes que no se mezclan. Las instrucciones son texto fijo y
+versionado; los datos son un objeto JSON. Todo lo que escribió una persona o
+propuso el modelo —etiqueta de producto, nota de tono— se sanea y viaja como
+cadena dentro de `untrusted_data`, nunca concatenado en las instrucciones, y las
+instrucciones declaran esa sección como datos que no son órdenes. El saneo
+rechaza controles C0 y C1, anulación bidireccional y ancho cero, y colapsa los
+saltos de línea para que un valor no pueda simular una sección nueva.
+
+El texto comercial no se delega a la imagen. El prompt no transporta título,
+bajada, caption, CTA ni hechos, y un valor que insinúe precio, promoción u
+horario —con las mismas firmas textuales que usa la validación del brief— frena
+la construcción antes de gastar una llamada. La identidad tampoco se genera: el
+logotipo se compone con el motor determinista y se rechaza como referencia.
+
+Las referencias salen de la biblioteca aprobada y viajan con su hash. Los
+activos `media` son fotos de producto; los `brand` que no son logotipo son
+contexto del local; un ícono vectorial no sirve como referencia fotográfica. Un
+activo prohibido detiene la construcción con su motivo en lugar de descartarse
+en silencio.
+
+Cada plan lleva perfil, versión de perfil, versión de prompt y hash, tanto
+cuando genera como cuando no. El fallback determinista tiene tres motivos
+distinguibles: el brief pidió plantilla, la generación está deshabilitada o el
+perfil necesita una foto aprobada que no existe.
+
+Los prompts de nueve briefs representativos están congelados en
+`apps/worker/src/visual/visual-prompt-baseline.json` y se regeneran con
+`pnpm visual:snapshot`.
+
 ## Credenciales y costo
 
 - `OPENAI_API_KEY` solo en servidor/worker.

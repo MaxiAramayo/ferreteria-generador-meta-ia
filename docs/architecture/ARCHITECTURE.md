@@ -178,6 +178,27 @@ y parámetros minimizados; ni el token, ni el texto buscado, ni el payload
 comercial completo se auditan. Si la auditoría falla, el resultado no se
 entrega.
 
+## Perfiles visuales
+
+Pedir una imagen no es redactar texto libre en cada ejecución. Un perfil
+versionado traduce el lenguaje visual aprobado a parámetros verificables
+—formato, intención, estilo, foco, espacio reservado, restricciones y guía
+negativa— y la dirección visual del brief junto con la marca determinan cuál
+corresponde.
+
+`@aramayo/domain` es la autoridad: define los perfiles, sanea las variables de
+origen no confiable y decide entre generar o resolver con render determinista.
+El worker aporta el catálogo, el texto versionado de las instrucciones y la
+política de activos. El motor de diseño sigue siendo la única fuente de
+dimensiones: el espacio reservado viaja al prompt con la zona segura real del
+formato.
+
+Dos límites gobiernan el prompt. El texto comercial no se delega a la imagen
+—precio, promoción, horario, CTA y logo se componen después— y lo que escribió
+una persona entra como dato dentro de una sección declarada no confiable, nunca
+concatenado en las instrucciones. Cada plan conserva perfil, versión y hash, y
+el fallback determinista distingue por qué no hubo generación.
+
 ## Frontend
 
 El compositor se diseña por composición:

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-07-31
+Actualizado: 2026-08-03
 
 ## Fase activa
 
@@ -10,8 +10,14 @@ Las Fases 0, 2 y 3 quedaron cerradas. `P1-T07` tiene la implementación local
 completa y está bloqueada únicamente por las credenciales de Cloudinary staging
 necesarias para su verificación remota, así que la Fase 1 sigue abierta por ese
 único motivo. La continuidad local fue autorizada explícitamente mientras el
-smoke remoto queda en espera. `P4-T01` está desbloqueada porque sus
-dependencias `P1-T06` y `P3-T07` están completas.
+smoke remoto queda en espera.
+
+`P4-T01` tiene la implementación completa y verificada, y queda bloqueada
+únicamente por la revisión visual y comercial de los seis perfiles iniciales:
+es una aprobación del negocio y no algo que el código pueda demostrar. Eso no
+detiene `P4-T02`, que trabaja sobre entradas visuales y no sobre el lenguaje
+visual, pero sí tiene que resolverse antes de generar una imagen real en
+`P4-T03`.
 
 ## Resumen
 
@@ -32,10 +38,20 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T01` — definir perfiles visuales y política de prompts. Sus
-dependencias están completas y la Fase 3 cerró con un editor capaz de pedir una
-pieza en lenguaje natural, revisar faltantes y evidencia, y aceptar un brief
-trazable de punta a punta.
+Iniciar `P4-T02` — validar y preparar entradas visuales. Sus dependencias son
+`P1-T07` y `P4-T01`: la primera tiene su implementación local completa y la
+segunda entrega el catálogo de perfiles y la política de activos que definen
+qué entrada hace falta preparar.
+
+`P4-T01` dejó dos cosas que `P4-T02` tiene que resolver. La primera es un
+faltante concreto: la biblioteca congelada en `P1-T01` no tiene ninguna foto
+propia de lubricante clasificada como material de producto —las de lubricentro
+son fotos del local—, así que el perfil `lubricentro-producto-limpio` hoy sólo
+puede resolverse con render determinista. La segunda es el criterio de
+clasificación: la política vigente admite como referencia de producto
+únicamente los activos `media` y como contexto los `brand` que no son
+logotipo, y ese criterio se vuelve fino cuando entren fotos subidas por el
+usuario.
 
 `P3-T09` cerró la vertical: la ejecución tiene ciclo de vida propio, el outbox
 la conecta con el worker, la API expone pedido, consulta, historial,
@@ -73,6 +89,9 @@ de cerrar Fase 1.
   debe confirmarse antes del smoke externo.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
+- Los seis perfiles visuales de `P4-T01` esperan la revisión visual y comercial
+  del negocio. Están congelados en `visual-profile/2026-08-03.1` y ninguna
+  imagen real se genera hasta `P4-T03`.
 
 `P3-T08` dejó una consecuencia registrada: la primera evaluación real reprobó y
 mostró que el prompt nunca declaraba las ventanas de frescura, así que el modelo
@@ -106,6 +125,12 @@ local ignorado por Git.
 - Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
   criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una
   política aprobada, el prompt no los pide y la evaluación no los mide.
+- Qué perfil visual corresponde cuando el brief combina una dirección de
+  ferretería con la marca del lubricentro. Son campos independientes y ambos
+  validan, así que la combinación existe. Hoy se elige el contexto propio de la
+  marca —el escenario donde esa marca sí trabaja— porque mostrar un banco de
+  ferretería en una pieza del lubricentro sería mostrar un lugar donde ese
+  trabajo no ocurre. Surgió al cerrar `P4-T01`.
 
 ## Cómo actualizar este archivo
 
