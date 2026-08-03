@@ -199,7 +199,7 @@ test("un formato no aprobado por el perfil se rechaza antes de generar", () => {
   );
 });
 
-test("el prompt lleva la medida real del formato y su zona segura", () => {
+test("el prompt lleva la medida real del formato y el rectángulo reservado", () => {
   const plan = generated({ format: "historia" });
   const payload = JSON.parse(plan.prompt) as Record<string, unknown>;
   assert.deepEqual(payload["format"], {
@@ -208,10 +208,74 @@ test("el prompt lleva la medida real del formato y su zona segura", () => {
     ratio: "9:16",
     width: 1080,
   });
+  // El tercio inferior de una historia termina donde empieza la caja de
+  // respuesta de Instagram, no en el borde del lienzo.
   assert.deepEqual(payload["reserved_space"], {
+    height: 457,
     region: "lower_third",
-    safe_area: { bottom: 300, left: 72, right: 72, top: 250 },
+    shape: "rectangle",
+    width: 936,
+    x: 72,
+    y: 1163,
   });
+});
+
+test("la portada destacada declara su recorte circular", () => {
+  const plan = generated({ format: "destacada" });
+  const payload = JSON.parse(plan.prompt) as {
+    format: Record<string, unknown>;
+  };
+  assert.equal(payload.format["circular_crop_diameter"], 860);
+});
+
+test("un sujeto de marca exige foto real y uno genérico no", () => {
+  const branded = buildVisualPrompt({
+    brief,
+    generationEnabled: true,
+    references: [],
+    subjectKind: "branded",
+  });
+  assert.equal(branded.kind, "deterministic");
+  assert.equal(branded.reason, "no-approved-reference");
+
+  const generic = buildVisualPrompt({
+    brief,
+    generationEnabled: true,
+    references: [],
+    subjectKind: "generic",
+  });
+  assert.equal(generic.kind, "generated");
+  const payload = JSON.parse(generic.prompt) as Record<string, unknown>;
+  assert.equal(payload["subject_kind"], "generic");
+});
+
+test("el sujeto se considera de marca cuando nadie lo declara", () => {
+  const plan = buildVisualPrompt({
+    brief,
+    generationEnabled: true,
+    references: [],
+  });
+  assert.equal(plan.kind, "deterministic");
+  assert.equal(plan.reason, "no-approved-reference");
+});
+
+test("los seis perfiles admiten personas y ninguno dibuja la etiqueta de marca", () => {
+  for (const profile of VISUAL_PROFILE_LIST) {
+    assert.equal(profile.peoplePolicy, "generic_people");
+    assert.ok(
+      profile.restrictions.some((rule) => rule.includes("nunca se genera")),
+      `${profile.id} no prohíbe generar la marca`,
+    );
+    assert.ok(
+      profile.allowedReferenceRoles.includes("mascot_photo"),
+      `${profile.id} no admite a la gata`,
+    );
+  }
+});
+
+test("el prompt declara la política de personas del perfil", () => {
+  const payload = JSON.parse(generated().prompt) as Record<string, unknown>;
+  assert.equal(payload["people_policy"], "generic_people");
 });
 
 test("el prompt no transporta texto comercial del brief", () => {
@@ -283,8 +347,16 @@ test("el mismo brief produce el mismo prompt y el mismo hash", () => {
   assert.match(visualPromptInstructionsHash, /^[0-9a-f]{64}$/u);
 });
 
-test("las instrucciones prohíben texto, logo y rostro", () => {
-  for (const rule of ["No escribas texto", "No dibujes logotipos", "rostros"]) {
-    assert.ok(visualPromptInstructions.includes(rule));
+test("las instrucciones prohíben texto, logo y suplantar a una persona real", () => {
+  for (const rule of [
+    "No escribas texto",
+    "No dibujes logotipos",
+    "No representes a una persona real reconocible",
+    "no lo dibujes ni inventes su etiqueta",
+  ]) {
+    assert.ok(
+      visualPromptInstructions.includes(rule),
+      `falta la regla: ${rule}`,
+    );
   }
 });

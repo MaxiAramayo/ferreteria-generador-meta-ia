@@ -67,8 +67,13 @@ export type VisualProfileId = (typeof visualProfileIds)[number];
 
 /**
  * Región que el perfil deja tranquila para que el motor determinista escriba
- * encima. No es una medida: la medida es la zona segura del formato. Es el
- * compromiso de composición que el prompt le pide a la imagen.
+ * encima.
+ *
+ * El nombre elige la zona; la medida la resuelve `reservedRectangleFor` contra
+ * el formato concreto. La distinción importa: una banda superior que empiece en
+ * el borde del lienzo cae, en una historia, sobre los 250 px que ocupa la
+ * interfaz de Instagram. Reservar ahí sería pedirle a la imagen que deje limpio
+ * un espacio que no es nuestro.
  */
 export const visualReservedSpaces = [
   "upper_band",
@@ -80,13 +85,113 @@ export const visualReservedSpaces = [
 export type VisualReservedSpace = (typeof visualReservedSpaces)[number];
 
 /**
- * Para qué se admite una referencia. El logo no figura: la identidad se compone
- * con activos aprobados en la capa determinista y nunca se le pide al modelo
- * que la dibuje.
+ * Para qué se admite una referencia.
+ *
+ * El logo no figura: la identidad se compone con activos aprobados en la capa
+ * determinista y nunca se le pide al modelo que la dibuje. `mascot_photo` existe
+ * porque la gatita del local es un sujeto real y recurrente: sin fotos suyas el
+ * modelo inventa un gato distinto en cada pieza.
  */
-export const visualReferenceRoles = ["product_photo", "store_context"] as const;
+export const visualReferenceRoles = [
+  "mascot_photo",
+  "product_photo",
+  "store_context",
+] as const;
 
 export type VisualReferenceRole = (typeof visualReferenceRoles)[number];
+
+/**
+ * Si el sujeto tiene una marca que la pieza debe respetar.
+ *
+ * Un lubricante, una amoladora o una pintura se reconocen por su envase, y ese
+ * envase no se genera: se compone desde una foto real, porque un modelo que
+ * dibuja una etiqueta produce letras aproximadas y un logo deformado, y una
+ * marca de terceros deformada en una pieza comercial se lee como falsificación.
+ *
+ * Un tornillo, un clavo o un tarugo no tienen marca que representar artículo por
+ * artículo, así que el modelo sí puede dibujarlos.
+ */
+export const visualSubjectKinds = ["branded", "generic"] as const;
+
+export type VisualSubjectKind = (typeof visualSubjectKinds)[number];
+
+/** Política de personas del perfil. */
+export const visualPeoplePolicies = ["generic_people", "none"] as const;
+
+export type VisualPeoplePolicy = (typeof visualPeoplePolicies)[number];
+
+export interface VisualSafeArea {
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+}
+
+/** Medidas del lienzo. Las provee el motor de diseño, que es su única fuente. */
+export interface VisualCanvas {
+  readonly height: number;
+  readonly safeArea: VisualSafeArea;
+  readonly width: number;
+}
+
+export interface VisualReservedRectangle {
+  readonly height: number;
+  readonly width: number;
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Rectángulo concreto que el perfil reserva, siempre dentro de la zona segura.
+ *
+ * Convierte el nombre de la región en píxeles para que el prompt y la capa
+ * determinista hablen de lo mismo y para que la regla sea verificable en lugar
+ * de quedar librada a cómo el modelo interprete «tercio inferior».
+ */
+export function reservedRectangleFor(
+  region: VisualReservedSpace,
+  canvas: VisualCanvas,
+): VisualReservedRectangle {
+  const left = canvas.safeArea.left;
+  const top = canvas.safeArea.top;
+  const usableWidth = canvas.width - left - canvas.safeArea.right;
+  const usableHeight = canvas.height - top - canvas.safeArea.bottom;
+
+  switch (region) {
+    case "upper_band":
+      return Object.freeze({
+        height: Math.round(usableHeight * 0.28),
+        width: usableWidth,
+        x: left,
+        y: top,
+      });
+    case "lower_third": {
+      const height = Math.round(usableHeight / 3);
+      return Object.freeze({
+        height,
+        width: usableWidth,
+        x: left,
+        y: top + usableHeight - height,
+      });
+    }
+    case "left_column":
+      return Object.freeze({
+        height: usableHeight,
+        width: Math.round(usableWidth * 0.45),
+        x: left,
+        y: top,
+      });
+    case "center_circle": {
+      const side = Math.round(Math.min(usableWidth, usableHeight) * 0.6);
+      return Object.freeze({
+        height: side,
+        width: side,
+        x: left + Math.round((usableWidth - side) / 2),
+        y: top + Math.round((usableHeight - side) / 2),
+      });
+    }
+  }
+}
 
 export interface VisualProfileStyle {
   readonly composition: string;
@@ -96,6 +201,8 @@ export interface VisualProfileStyle {
 }
 
 export interface VisualProfile {
+  /** Roles de referencia que el perfil sabe aprovechar. */
+  readonly allowedReferenceRoles: readonly VisualReferenceRole[];
   /** Marcas habilitadas a usar el perfil. */
   readonly brands: readonly BrandVariant[];
   /** Formato habitual del perfil; siempre pertenece a `formats`. */
@@ -108,7 +215,14 @@ export interface VisualProfile {
   readonly intent: string;
   /** Qué no debe aparecer. Viaja al proveedor como guía negativa explícita. */
   readonly negativeGuidance: readonly string[];
-  /** Rol de referencia sin el cual el perfil no puede generar. */
+  /** Si el perfil admite figuras humanas y con qué alcance. */
+  readonly peoplePolicy: VisualPeoplePolicy;
+  /**
+   * Rol de referencia sin el cual el perfil no puede generar.
+   *
+   * Se combina con el tipo de sujeto: un perfil de producto exige la foto sólo
+   * cuando el sujeto tiene marca, porque es la marca lo que no se puede generar.
+   */
   readonly requiredReferenceRole: VisualReferenceRole | null;
   readonly reservedSpace: VisualReservedSpace;
   /** Límites de contenido del perfil, además de la guía negativa. */
@@ -302,6 +416,26 @@ export function visualProfileIdFor(
   }
 }
 
+/**
+ * Rol de referencia que el perfil exige para este sujeto, o `null` si puede
+ * generar sin ninguna.
+ *
+ * Acá se cruza la decisión comercial con la técnica: lo que no se puede generar
+ * no es «un producto», es **una marca**. Un envase de lubricante o una amoladora
+ * se reconocen por su etiqueta y esa etiqueta se compone desde una foto real; un
+ * tornillo o un tarugo no tienen marca que representar y el modelo puede
+ * dibujarlos sin que nadie salga perjudicado.
+ */
+export function requiredReferenceRoleFor(
+  profile: VisualProfile,
+  subjectKind: VisualSubjectKind,
+): VisualReferenceRole | null {
+  if (profile.requiredReferenceRole !== "product_photo") {
+    return profile.requiredReferenceRole;
+  }
+  return subjectKind === "branded" ? "product_photo" : null;
+}
+
 export function assertVisualProfileSupports(
   profile: VisualProfile,
   scope: Readonly<{ brand: BrandVariant; format: VisualFormatId }>,
@@ -339,12 +473,8 @@ export function assertVisualReferencesAllowed(
       `El perfil admite hasta ${visualPromptLimits.referencesMaximum} referencias.`,
     );
   }
-  const allowed: readonly VisualReferenceRole[] =
-    profile.requiredReferenceRole === null
-      ? visualReferenceRoles
-      : [profile.requiredReferenceRole, "store_context"];
   for (const [index, reference] of references.entries()) {
-    if (!allowed.includes(reference.role)) {
+    if (!profile.allowedReferenceRoles.includes(reference.role)) {
       throw new VisualPromptValidationError(
         "reference-role-not-approved",
         `references[${String(index)}].role`,

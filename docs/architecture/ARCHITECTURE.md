@@ -193,11 +193,13 @@ política de activos. El motor de diseño sigue siendo la única fuente de
 dimensiones: el espacio reservado viaja al prompt con la zona segura real del
 formato.
 
-Dos límites gobiernan el prompt. El texto comercial no se delega a la imagen
-—precio, promoción, horario, CTA y logo se componen después— y lo que escribió
-una persona entra como dato dentro de una sección declarada no confiable, nunca
-concatenado en las instrucciones. Cada plan conserva perfil, versión y hash, y
-el fallback determinista distingue por qué no hubo generación.
+Tres límites gobiernan el prompt. El texto comercial no se delega a la imagen
+—precio, promoción, horario, CTA y logo se componen después—; ninguna marca se
+genera, así que un producto de marca llega como foto real y sólo un artículo
+genérico puede dibujarse; y lo que escribió una persona entra como dato dentro de
+una sección declarada no confiable, nunca concatenado en las instrucciones. Cada
+plan conserva perfil, versión y hash, y el fallback determinista distingue por
+qué no hubo generación.
 
 ## Frontend
 

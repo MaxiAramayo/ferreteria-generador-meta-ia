@@ -59,15 +59,28 @@ function isPhotographic(asset: BrandAsset): boolean {
 }
 
 /**
+ * Prefijo de las fotos de la gata del local.
+ *
+ * Es un sujeto real y recurrente, así que necesita sus propias fotos: sin ellas
+ * el modelo inventa un gato distinto en cada pieza y quien la conoce lo nota.
+ * Todavía no hay ninguna en la biblioteca; el prefijo queda definido para que
+ * incorporarlas no requiera tocar la política.
+ */
+const mascotAssetPrefix = "brand/gata-";
+
+/**
  * Rol que el activo puede cumplir, o `null` si no puede cumplir ninguno.
  *
  * Los activos `media` son fotos de producto propias; los `brand` que no son
- * logotipo son fotos del local y del taller, que sirven de contexto pero nunca
- * de producto.
+ * logotipo ni mascota son fotos del local y del taller, que sirven de contexto
+ * pero nunca de producto.
  */
 function roleFor(asset: BrandAsset): VisualReferenceRole | null {
   if (asset.assetId.startsWith(identityAssetPrefix)) {
     return null;
+  }
+  if (asset.assetId.startsWith(mascotAssetPrefix)) {
+    return "mascot_photo";
   }
   switch (asset.kind) {
     case "brand":

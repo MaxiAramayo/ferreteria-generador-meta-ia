@@ -4,8 +4,11 @@ import test from "node:test";
 import {
   assertVisualProfileSupports,
   assertVisualReferencesAllowed,
+  requiredReferenceRoleFor,
+  reservedRectangleFor,
   sanitizeVisualPromptText,
   visualDirections,
+  visualReservedSpaces,
   visualProfileIdFor,
   visualProfileIds,
   visualPromptLimits,
@@ -45,6 +48,7 @@ function briefWith(overrides: Partial<ContentBrief>): ContentBrief {
 }
 
 const profile: VisualProfile = {
+  allowedReferenceRoles: ["product_photo", "mascot_photo"],
   brands: ["ferreteria"],
   defaultFormat: "feed",
   focus: "La herramienta nítida.",
@@ -52,6 +56,7 @@ const profile: VisualProfile = {
   id: "ferreteria-producto-limpio",
   intent: "Presentar una herramienta.",
   negativeGuidance: ["texto"],
+  peoplePolicy: "generic_people",
   requiredReferenceRole: "product_photo",
   reservedSpace: "lower_third",
   restrictions: ["Sin texto."],
@@ -142,7 +147,7 @@ test("un perfil rechaza marca y formato que no tiene aprobados", () => {
 test("un rol de referencia ajeno al perfil se rechaza y no se descarta", () => {
   const other: VisualProfile = Object.freeze({
     ...profile,
-    requiredReferenceRole: "store_context",
+    allowedReferenceRoles: ["store_context" as const],
   });
   assert.equal(
     rejectionCode(() => {
@@ -150,6 +155,64 @@ test("un rol de referencia ajeno al perfil se rechaza y no se descarta", () => {
     }),
     "reference-role-not-approved",
   );
+  // La gatita sí está admitida en este perfil y no debe rechazarse.
+  assertVisualReferencesAllowed(profile, [reference({ role: "mascot_photo" })]);
+});
+
+test("la marca es lo que exige foto real, no el producto", () => {
+  assert.equal(requiredReferenceRoleFor(profile, "branded"), "product_photo");
+  assert.equal(requiredReferenceRoleFor(profile, "generic"), null);
+});
+
+test("un perfil de contexto no exige foto para ningún sujeto", () => {
+  const context: VisualProfile = Object.freeze({
+    ...profile,
+    requiredReferenceRole: null,
+  });
+  for (const kind of ["branded", "generic"] as const) {
+    assert.equal(requiredReferenceRoleFor(context, kind), null);
+  }
+});
+
+test("el rectángulo reservado vive dentro de la zona segura", () => {
+  // Historia: Instagram tapa 250 px arriba y 300 abajo.
+  const historia = {
+    height: 1920,
+    safeArea: { bottom: 300, left: 72, right: 72, top: 250 },
+    width: 1080,
+  };
+  for (const region of visualReservedSpaces) {
+    const rectangle = reservedRectangleFor(region, historia);
+    assert.ok(
+      rectangle.x >= historia.safeArea.left,
+      `${region}: borde izquierdo`,
+    );
+    assert.ok(
+      rectangle.y >= historia.safeArea.top,
+      `${region}: borde superior`,
+    );
+    assert.ok(
+      rectangle.x + rectangle.width <= historia.width - historia.safeArea.right,
+      `${region}: borde derecho`,
+    );
+    assert.ok(
+      rectangle.y + rectangle.height <=
+        historia.height - historia.safeArea.bottom,
+      `${region}: borde inferior`,
+    );
+    assert.ok(rectangle.width > 0 && rectangle.height > 0, `${region}: vacío`);
+  }
+});
+
+test("la banda superior de una historia empieza recién donde termina Instagram", () => {
+  const rectangle = reservedRectangleFor("upper_band", {
+    height: 1920,
+    safeArea: { bottom: 300, left: 72, right: 72, top: 250 },
+    width: 1080,
+  });
+  assert.equal(rectangle.y, 250);
+  assert.equal(rectangle.x, 72);
+  assert.equal(rectangle.width, 936);
 });
 
 test("la cantidad de referencias tiene tope", () => {

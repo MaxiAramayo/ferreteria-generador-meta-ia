@@ -236,18 +236,38 @@ horario —con las mismas firmas textuales que usa la validación del brief— f
 la construcción antes de gastar una llamada. La identidad tampoco se genera: el
 logotipo se compone con el motor determinista y se rechaza como referencia.
 
+Ninguna marca se genera, propia ni de terceros. Un producto de marca —un
+lubricante, una herramienta— llega como foto real y el modelo arma la escena, la
+superficie y la luz para recibirlo; el envase con su etiqueta verdadera se
+compone después. Un modelo que dibuja una etiqueta produce letras aproximadas y
+un logo deformado, y una marca de terceros deformada en una pieza comercial se
+lee como falsificación. Un artículo genérico —tornillos, clavos, tarugos— no
+tiene marca que representar y sí puede generarse: `subjectKind` distingue los dos
+casos y sólo `branded` exige foto. El valor por defecto es `branded`.
+
+La región reservada para el texto es un rectángulo calculado dentro de la zona
+segura del formato, no un nombre. La distinción importa: la banda superior del
+lienzo de una historia cae sobre los 250 px que ocupa la interfaz de Instagram,
+así que reservarla sería pedirle a la imagen que deje limpio un espacio que no
+es nuestro.
+
 Las referencias salen de la biblioteca aprobada y viajan con su hash. Los
-activos `media` son fotos de producto; los `brand` que no son logotipo son
-contexto del local; un ícono vectorial no sirve como referencia fotográfica. Un
-activo prohibido detiene la construcción con su motivo en lugar de descartarse
-en silencio.
+activos `media` son fotos de producto; los `brand` que no son logotipo ni
+mascota son contexto del local; los `brand/gata-` son la gata del local, que es
+un sujeto real y recurrente y sin fotos suyas saldría distinta en cada pieza; un
+ícono vectorial no sirve como referencia fotográfica. Un activo prohibido detiene
+la construcción con su motivo en lugar de descartarse en silencio.
+
+Las personas están admitidas de cuerpo entero en los seis perfiles, como figuras
+genéricas: la restricción no es que no haya gente, es que ninguna representa a
+una persona real reconocible.
 
 Cada plan lleva perfil, versión de perfil, versión de prompt y hash, tanto
 cuando genera como cuando no. El fallback determinista tiene tres motivos
 distinguibles: el brief pidió plantilla, la generación está deshabilitada o el
-perfil necesita una foto aprobada que no existe.
+sujeto es de marca y no hay foto aprobada que lo represente.
 
-Los prompts de nueve briefs representativos están congelados en
+Los prompts de diez briefs representativos están congelados en
 `apps/worker/src/visual/visual-prompt-baseline.json` y se regeneran con
 `pnpm visual:snapshot`.
 

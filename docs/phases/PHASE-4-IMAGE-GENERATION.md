@@ -16,15 +16,10 @@ una pieza reproducible, segura y trazable.
 
 ## P4-T01 — Definir perfiles visuales y política de prompts
 
-- [ ] Tarea completada
-- Estado: BLOQUEADA
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T06`, `P3-T07`
 - Riesgo: Alto
-
-Bloqueo: la revisión visual y comercial de los seis perfiles iniciales es una
-aprobación del negocio y no puede darse por cumplida desde el código. La
-implementación está completa y verificada; los perfiles quedan congelados y
-versionados esperando esa revisión.
 
 ### Objetivo
 
@@ -50,7 +45,7 @@ composición, fotografía, iluminación, textura, restricciones y negative guida
 
 - [x] Snapshots de prompts para briefs representativos.
 - [x] Pruebas de prompt injection dentro de campos de producto.
-- [ ] Revisión visual y comercial de cada perfil inicial.
+- [x] Revisión visual y comercial de cada perfil inicial.
 
 ### Fuera de alcance
 
@@ -62,30 +57,31 @@ composición, fotografía, iluminación, textura, restricciones y negative guida
   selección de perfil y el plan visual; el worker aporta el catálogo, la
   política de activos y el constructor. No se agregó ninguna llamada al
   proveedor, que queda para `P4-T03`.
+- 2026-08-03: revisión visual y comercial hecha con el negocio. Los perfiles
+  pasaron a `visual-profile/2026-08-03.2` y el prompt a
+  `visual-prompt/2026-08-03.2` con los cambios que decidió esa revisión.
 
 ### Evidencia de cierre
-
-Pendiente de cierre: falta la revisión visual y comercial de los perfiles. Todo
-lo demás está hecho y verificado, y queda registrado acá.
 
 Autoridad y catálogo:
 
 - `packages/domain/src/visual-prompt.ts` define perfiles, límites, saneo,
   selección y `VisualPromptPlan`;
 - `apps/worker/src/visual/visual-profiles.ts` congela seis perfiles en
-  `visual-profile/2026-08-03.1`, uno por combinación de campaña y tipo de
+  `visual-profile/2026-08-03.2`, uno por combinación de campaña y tipo de
   producto que el brief sabe pedir;
 - `apps/worker/src/visual/visual-asset-policy.ts` resuelve referencias contra la
   biblioteca aprobada;
 - `apps/worker/src/visual/visual-prompt-builder.ts` arma el prompt
-  `visual-prompt/2026-08-03.1` con su hash.
+  `visual-prompt/2026-08-03.2` con su hash.
 
 Criterio por criterio:
 
 - cada perfil declara formato, intención, estilo, foco y espacio reservado, y la
   prueba «cada perfil declara formato, intención, estilo, foco y espacio
-  reservado» lo recorre entero. El espacio reservado viaja con la medida real de
-  la zona segura, que sale del motor de diseño y no de una constante repetida;
+  reservado» lo recorre entero. El espacio reservado viaja como rectángulo en
+  coordenadas exactas, calculado dentro de la zona segura que declara el motor de
+  diseño y no contra una constante repetida;
 - el prompt transporta objetivo, perfil, formato, referencias, etiqueta de
   producto y nota de tono. No transporta título, bajada, caption, CTA ni hechos;
   un texto que insinúe precio, promoción u horario frena la construcción con
@@ -105,12 +101,12 @@ Verificación ejecutada:
 pnpm verify
 ```
 
-Salió en 0. `packages/domain` pasa 65 pruebas y `apps/worker` 116 con 1 salteada
-previa. Las nuevas son 12 en el dominio y 26 en el worker.
+Salió en 0. `packages/domain` pasa 69 pruebas y `apps/worker` 121 con 1 salteada
+previa. Las nuevas son 16 en el dominio y 31 en el worker.
 
-Snapshots: `apps/worker/src/visual/visual-prompt-baseline.json` congela nueve
-briefs representativos —los seis perfiles y los tres caminos deterministas— con
-su prompt y su hash. Los briefs no son literales: se construyen con
+Snapshots: `apps/worker/src/visual/visual-prompt-baseline.json` congela diez
+briefs representativos —los seis perfiles, el artículo genérico sin foto y los
+tres caminos deterministas— con su prompt y su hash. Los briefs no son literales: se construyen con
 `validateContentBrief`, así que un fixture que dejara de ser un brief válido
 rompería el snapshot. Se regenera con `pnpm visual:snapshot` y el diff del JSON
 es lo que se revisa.
@@ -123,19 +119,41 @@ idéntico al del brief inocuo. Se cubren además controles C0/C1, anulación
 bidireccional, ancho cero y saltos de línea que intentan simular una sección
 nueva.
 
+Revisión visual y comercial, 2026-08-03. El negocio revisó los seis perfiles y
+decidió cuatro cosas, todas aplicadas en `visual-profile/2026-08-03.2`:
+
+- **La región reservada pasó a ser un rectángulo medido dentro de la zona
+  segura.** Dibujar los perfiles a escala mostró que la banda superior de una
+  historia caía sobre los 250 px que ocupa la interfaz de Instagram: se reservaba
+  para nuestro texto un espacio que no es nuestro. `reservedRectangleFor` calcula
+  ahora las coordenadas exactas y el prompt las lleva en lugar de un nombre.
+- **La marca de un producto no se genera: se compone.** Un lubricante o una
+  herramienta de marca llegan como foto real y la IA arma la escena, la
+  superficie y la luz para recibirlos. Un modelo que dibuja una etiqueta produce
+  letras aproximadas y un logo deformado, y una marca de terceros deformada en
+  una pieza comercial se lee como falsificación.
+- **Un artículo genérico sí puede generarse.** Tornillos, clavos y tarugos no
+  tienen marca que representar artículo por artículo. `subjectKind` distingue los
+  dos casos y sólo `branded` exige foto; el valor por defecto es `branded`, que
+  es el criterio conservador.
+- **Las personas están admitidas de cuerpo entero en los seis perfiles**, como
+  figuras genéricas que no representan a nadie real. La gata del local entra como
+  sujeto propio con el rol `mascot_photo`.
+
 Desviaciones:
 
-- la revisión visual y comercial de cada perfil inicial queda sin marcar. Es una
-  aprobación del negocio sobre seis perfiles nuevos y no algo que el código
-  pueda demostrar; los perfiles están congelados y versionados esperándola. No
-  bloquea `P4-T02`, que trabaja sobre entradas y no sobre el lenguaje visual,
-  pero sí debe resolverse antes de generar una imagen real en `P4-T03`;
 - la biblioteca congelada en `P1-T01` no tiene ninguna foto propia de lubricante
   clasificada como material de producto: las de lubricentro son fotos del local.
   El perfil `lubricentro-producto-limpio` existe y es correcto, pero hoy sólo
   puede resolverse con render determinista. Queda registrado como el caso
   `lubricentro-producto-limpio-sin-foto-aprobada` del baseline y es material
-  para `P4-T02`.
+  para `P4-T02`;
+- no hay ninguna foto de la gata en la biblioteca. El rol y el prefijo
+  `brand/gata-` están definidos y probados, pero hasta que existan esas fotos el
+  modelo no puede representarla y cualquier gato que dibuje sería otro;
+- las fotos de producto de marca que el negocio piensa conseguir de los
+  fabricantes no son material propio. La biblioteca exige declarar propiedad en
+  `ownershipNote`, así que cada una necesita registrar con qué permiso se usa.
 
 ## P4-T02 — Validar y preparar entradas visuales
 

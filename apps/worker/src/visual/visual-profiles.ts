@@ -43,7 +43,13 @@ export function toDesignFormatId(
   return format;
 }
 
-export const visualProfileVersion = "visual-profile/2026-08-03.1";
+/**
+ * `2026-08-03.2` recoge la revisión visual y comercial del negocio: las
+ * personas pasan a estar admitidas en los seis perfiles, la marca de un producto
+ * se compone desde su foto real en lugar de dibujarse, y la gatita del local
+ * entra como sujeto propio con fotos suyas de referencia.
+ */
+export const visualProfileVersion = "visual-profile/2026-08-03.2";
 
 /**
  * Restricciones que comparten todos los perfiles.
@@ -54,16 +60,17 @@ export const visualProfileVersion = "visual-profile/2026-08-03.1";
  */
 const sharedRestrictions: readonly string[] = Object.freeze([
   "La imagen no lleva ningún texto: ni título, ni precio, ni porcentaje, ni fecha, ni llamado a la acción.",
-  "La imagen no lleva logotipos, marcas de agua, carteles de marca ni envases con marca de terceros reconocible.",
-  "No aparecen personas identificables, rostros, ni material de otra empresa.",
-  "La composición deja libre la región reservada para que el texto se componga encima.",
+  "La imagen no dibuja logotipos, isotipos ni etiquetas de marca. Un producto de marca se compone después desde su foto real; nunca se genera.",
+  "Las personas que aparecen son genéricas y no representan a nadie del negocio ni a una persona real reconocible.",
+  "La composición deja libre el rectángulo reservado para que el texto se componga encima.",
 ]);
 
 const sharedNegativeGuidance: readonly string[] = Object.freeze([
   "texto, letras, números, tipografía",
-  "logotipo, isotipo, marca de agua",
+  "logotipo, isotipo, etiqueta de marca legible",
   "cartel de precio, etiqueta de oferta",
-  "rostro humano reconocible",
+  "retrato de una persona real reconocible",
+  "mano con dedos de más, anatomía imposible",
   "collage, marco, borde decorativo",
   "deformación de herramientas o envases",
   "acabado plástico artificial, brillo irreal",
@@ -75,6 +82,7 @@ function profile(
     Readonly<{ extraRestrictions: readonly string[] }>,
 ): VisualProfile {
   return Object.freeze({
+    allowedReferenceRoles: Object.freeze([...entry.allowedReferenceRoles]),
     brands: Object.freeze([...entry.brands]),
     defaultFormat: entry.defaultFormat,
     focus: entry.focus,
@@ -85,6 +93,7 @@ function profile(
       ...sharedNegativeGuidance,
       ...entry.negativeGuidance,
     ]),
+    peoplePolicy: entry.peoplePolicy,
     requiredReferenceRole: entry.requiredReferenceRole,
     reservedSpace: entry.reservedSpace,
     restrictions: Object.freeze([
@@ -103,10 +112,12 @@ function profile(
 export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
   Object.freeze({
     "ferreteria-obra": profile("ferreteria-obra", {
+      allowedReferenceRoles: ["store_context", "mascot_photo"],
       brands: ["ferreteria"],
       defaultFormat: "feed",
       extraRestrictions: [
         "La obra se ve ordenada y segura; nada de andamios precarios ni trabajo sin protección.",
+        "Quien trabaja lleva la protección que la tarea exige: casco, guantes o gafas según corresponda.",
       ],
       focus:
         "El material de obra en primer plano, con la construcción legible detrás sin robarle atención.",
@@ -114,11 +125,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       intent:
         "Mostrar materiales de obra y construcción en el contexto real donde se usan.",
       negativeGuidance: ["obra abandonada", "escombros sucios", "cielo plano"],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: null,
       reservedSpace: "lower_third",
       style: {
         composition:
-          "Plano medio con profundidad: material en primer plano y obra desenfocada al fondo, tercio inferior despejado.",
+          "Plano medio con profundidad: material en primer plano y obra desenfocada al fondo.",
         lighting:
           "Luz natural de media mañana, sombras marcadas pero abiertas, sin contraluz.",
         photography:
@@ -128,14 +140,16 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       },
     }),
     "ferreteria-producto-limpio": profile("ferreteria-producto-limpio", {
+      allowedReferenceRoles: ["product_photo", "mascot_photo"],
       brands: ["ferreteria"],
       defaultFormat: "feed",
       extraRestrictions: [
         "El producto se muestra completo, sin recortes que oculten su forma.",
-        "No se inventan accesorios, repuestos ni variantes que la foto de referencia no tenga.",
+        "No se inventan accesorios, repuestos ni variantes que la referencia no tenga.",
+        "Si aparece una persona, sostiene o usa el producto sin taparlo.",
       ],
       focus:
-        "La herramienta o el material, nítido de punta a punta y fiel a la foto de referencia.",
+        "La herramienta o el material, nítido de punta a punta y fiel a su forma real.",
       formats: ["feed", "cuadrado", "historia", "destacada"],
       intent:
         "Presentar una herramienta o material de ferretería con lectura inmediata del producto.",
@@ -144,11 +158,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
         "producto flotando sin apoyo",
         "múltiples productos superpuestos",
       ],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: "product_photo",
       reservedSpace: "lower_third",
       style: {
         composition:
-          "Producto centrado sobre superficie de trabajo lisa, fondo liso de un solo tono, tercio inferior despejado.",
+          "Producto centrado sobre superficie de trabajo lisa, fondo liso de un solo tono.",
         lighting:
           "Luz de estudio suave y direccional, sombra propia corta hacia abajo, sin reflejos especulares duros.",
         photography:
@@ -158,11 +173,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       },
     }),
     "ferreteria-taller": profile("ferreteria-taller", {
+      allowedReferenceRoles: ["store_context", "mascot_photo"],
       brands: ["ferreteria"],
       defaultFormat: "feed",
       extraRestrictions: [
         "El taller se ve ordenado y en uso; nada de desorden que sugiera descuido.",
-        "Las manos, si aparecen, se ven de perfil o desde atrás y nunca muestran el rostro.",
+        "Puede aparecer alguien trabajando, de cuerpo entero, concentrado en la tarea y no posando.",
       ],
       focus:
         "La herramienta en uso sobre el banco, reconocible aunque el fondo esté desenfocado.",
@@ -172,12 +188,14 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       negativeGuidance: [
         "taller vacío y frío",
         "herramientas nuevas sin usar en exhibidor",
+        "pose de catálogo mirando a cámara",
       ],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: null,
       reservedSpace: "upper_band",
       style: {
         composition:
-          "Banco de trabajo en diagonal, herramienta en el tercio central, banda superior despejada.",
+          "Banco de trabajo en diagonal, herramienta en el tercio central.",
         lighting:
           "Luz lateral cálida de ventana de taller, sombras largas, ambiente ligeramente oscuro.",
         photography:
@@ -187,27 +205,30 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       },
     }),
     "lubricentro-producto-limpio": profile("lubricentro-producto-limpio", {
+      allowedReferenceRoles: ["product_photo", "store_context", "mascot_photo"],
       brands: ["lubricentro"],
       defaultFormat: "feed",
       extraRestrictions: [
-        "El envase se muestra completo y sin etiqueta legible; la marca del lubricante no se representa.",
-        "No se inventan medidas, viscosidades ni certificaciones sobre el envase.",
+        "El envase de marca no se dibuja: la escena se arma para que la foto real del producto se componga encima.",
+        "No se inventan medidas, viscosidades ni certificaciones.",
+        "Si aparece una persona, sostiene el envase sin taparle el frente.",
       ],
       focus:
-        "El envase o el filtro, nítido y fiel en forma y proporción a la foto de referencia.",
+        "El lugar donde va el envase o el filtro, con la luz y la superficie resueltas para recibirlo.",
       formats: ["feed", "cuadrado", "historia", "destacada"],
       intent:
         "Presentar lubricantes, filtros y baterías con lectura inmediata del producto.",
       negativeGuidance: [
-        "etiqueta legible",
+        "envase con etiqueta inventada",
         "aceite derramado",
         "envase abollado",
       ],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: "product_photo",
       reservedSpace: "lower_third",
       style: {
         composition:
-          "Envase centrado sobre superficie oscura mate, fondo liso, tercio inferior despejado.",
+          "Superficie oscura mate y fondo liso, con el centro despejado para el envase.",
         lighting:
           "Luz de estudio fría y direccional, reflejo controlado sobre el plástico, sombra corta.",
         photography:
@@ -217,11 +238,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       },
     }),
     "lubricentro-servicio": profile("lubricentro-servicio", {
+      allowedReferenceRoles: ["store_context", "mascot_photo"],
       brands: ["lubricentro"],
       defaultFormat: "historia",
       extraRestrictions: [
         "El vehículo se ve genérico: sin patente legible, sin insignia de fabricante reconocible.",
-        "El operario aparece de espaldas o recortado por debajo del hombro, con protección puesta.",
+        "El operario puede verse completo, con su protección puesta y atento al trabajo.",
       ],
       focus:
         "La operación de servicio —cambio de aceite o filtro— legible en el centro del cuadro.",
@@ -233,11 +255,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
         "insignia de fabricante",
         "aceite derramado en el piso",
       ],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: null,
       reservedSpace: "upper_band",
       style: {
         composition:
-          "Fosa o elevador en diagonal, operación en el tercio central, banda superior despejada.",
+          "Fosa o elevador en diagonal, operación en el tercio central.",
         lighting:
           "Luz de taller mixta, fría de tubo y cálida de foco puntual, ambiente contrastado.",
         photography:
@@ -247,6 +270,7 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
       },
     }),
     "promocion-estacional": profile("promocion-estacional", {
+      allowedReferenceRoles: ["product_photo", "store_context", "mascot_photo"],
       brands: ["ferreteria", "lubricentro"],
       defaultFormat: "historia",
       extraRestrictions: [
@@ -264,11 +288,12 @@ export const VISUAL_PROFILES: Readonly<Record<VisualProfileId, VisualProfile>> =
         "globo de porcentaje",
         "confeti",
       ],
+      peoplePolicy: "generic_people",
       requiredReferenceRole: null,
       reservedSpace: "center_circle",
       style: {
         composition:
-          "Bodegón de pocos productos sobre superficie amplia, centro despejado para el mensaje.",
+          "Bodegón de pocos productos sobre superficie amplia, con el centro despejado.",
         lighting:
           "Luz cálida y envolvente, coherente con la estación, sin sombras duras.",
         photography:

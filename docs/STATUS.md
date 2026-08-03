@@ -12,12 +12,8 @@ necesarias para su verificación remota, así que la Fase 1 sigue abierta por es
 único motivo. La continuidad local fue autorizada explícitamente mientras el
 smoke remoto queda en espera.
 
-`P4-T01` tiene la implementación completa y verificada, y queda bloqueada
-únicamente por la revisión visual y comercial de los seis perfiles iniciales:
-es una aprobación del negocio y no algo que el código pueda demostrar. Eso no
-detiene `P4-T02`, que trabaja sobre entradas visuales y no sobre el lenguaje
-visual, pero sí tiene que resolverse antes de generar una imagen real en
-`P4-T03`.
+`P4-T01` quedó cerrada. La revisión visual y comercial se hizo el 2026-08-03 y
+sus decisiones están aplicadas en `visual-profile/2026-08-03.2`.
 
 ## Resumen
 
@@ -43,15 +39,25 @@ Iniciar `P4-T02` — validar y preparar entradas visuales. Sus dependencias son
 segunda entrega el catálogo de perfiles y la política de activos que definen
 qué entrada hace falta preparar.
 
-`P4-T01` dejó dos cosas que `P4-T02` tiene que resolver. La primera es un
-faltante concreto: la biblioteca congelada en `P1-T01` no tiene ninguna foto
-propia de lubricante clasificada como material de producto —las de lubricentro
-son fotos del local—, así que el perfil `lubricentro-producto-limpio` hoy sólo
-puede resolverse con render determinista. La segunda es el criterio de
-clasificación: la política vigente admite como referencia de producto
-únicamente los activos `media` y como contexto los `brand` que no son
-logotipo, y ese criterio se vuelve fino cuando entren fotos subidas por el
-usuario.
+`P4-T01` dejó cuatro cosas que `P4-T02` tiene que resolver:
+
+- una foto subida y validada de la organización puede usarse como referencia de
+  generación sin aprobación extra. Lo decidió el usuario el 2026-08-03, así que
+  la política tiene que dejar de admitir sólo la biblioteca congelada;
+- el EXIF se quita en el ingreso, también del original: la plataforma no
+  almacena ubicación ni datos de cámara. Se conserva la orientación aplicada a
+  los píxeles, el color se normaliza a sRGB y se guardan los dos SHA-256 —el de
+  los bytes recibidos y el del archivo normalizado— para no perder trazabilidad;
+- faltan fotos propias de lubricante clasificadas como material de producto: las
+  de lubricentro son del local, así que `lubricentro-producto-limpio` hoy sólo
+  puede resolverse con render determinista;
+- faltan fotos de la gata del local. El rol `mascot_photo` y el prefijo
+  `brand/gata-` ya existen y están probados, pero sin fotos suyas el modelo
+  dibujaría otro gato en cada pieza.
+
+Las fotos de producto de marca que el negocio consiga de los fabricantes no son
+material propio: cada una necesita registrar con qué permiso se usa, porque la
+biblioteca exige declarar propiedad en `ownershipNote`.
 
 `P3-T09` cerró la vertical: la ejecución tiene ciclo de vida propio, el outbox
 la conecta con el worker, la API expone pedido, consulta, historial,
@@ -89,9 +95,9 @@ de cerrar Fase 1.
   debe confirmarse antes del smoke externo.
 - Asignaciones nominales de responsables y roles se confirman al provisionar
   staging y se mantienen fuera de Git.
-- Los seis perfiles visuales de `P4-T01` esperan la revisión visual y comercial
-  del negocio. Están congelados en `visual-profile/2026-08-03.1` y ninguna
-  imagen real se genera hasta `P4-T03`.
+- Cloudinary staging comparte cuenta con el material real: la separación es la
+  carpeta, que el smoke exige que contenga un segmento `staging`. La misma clave
+  puede tocar producción, así que la disciplina de carpeta es el único límite.
 
 `P3-T08` dejó una consecuencia registrada: la primera evaluación real reprobó y
 mostró que el prompt nunca declaraba las ventanas de frescura, así que el modelo
@@ -131,6 +137,10 @@ local ignorado por Git.
   marca —el escenario donde esa marca sí trabaja— porque mostrar un banco de
   ferretería en una pieza del lubricentro sería mostrar un lugar donde ese
   trabajo no ocurre. Surgió al cerrar `P4-T01`.
+- De dónde sale la señal que distingue un producto de marca de uno genérico.
+  `subjectKind` ya separa los dos casos y por defecto asume `branded`, que exige
+  foto real; falta decidir si lo declara quien edita, si lo deriva el catálogo
+  comercial o si se resuelve por categoría. Surgió en la revisión de `P4-T01`.
 
 ## Cómo actualizar este archivo
 

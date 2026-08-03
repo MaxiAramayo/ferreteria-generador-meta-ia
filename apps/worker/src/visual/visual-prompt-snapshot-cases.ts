@@ -117,6 +117,12 @@ const aceite = Object.freeze({
   label: "Aceite mineral para motor nafta 20W-50",
 });
 
+const tarugos = Object.freeze({
+  evidenceId: "C1",
+  externalProductId: "odoo-product-101",
+  label: "Tarugos de expansión con tornillo",
+});
+
 const productPhoto: readonly VisualPromptReference[] = resolveVisualReferences([
   { assetId: "stock-herramientas-electricas", role: "product_photo" },
 ]);
@@ -147,6 +153,7 @@ interface SnapshotCase {
   readonly generationEnabled: boolean;
   readonly id: string;
   readonly references: readonly VisualPromptReference[];
+  readonly subjectKind?: Parameters<typeof buildVisualPrompt>[0]["subjectKind"];
 }
 
 function snapshotCases(): readonly SnapshotCase[] {
@@ -185,6 +192,24 @@ function snapshotCases(): readonly SnapshotCase[] {
       // evidencia del faltante que `P4-T02` tiene que cubrir con fotos propias.
       id: "lubricentro-producto-limpio-sin-foto-aprobada",
       references: lubricantPhoto,
+    }),
+    Object.freeze({
+      brief: brief({
+        brand: "ferreteria",
+        creativeProposal:
+          "Bodegón simple, el surtido a la vista y nada más en el cuadro.",
+        objective: "product" as const,
+        products: [tarugos],
+        requiresHumanApproval: false,
+        title: "Tarugos y tornillos por unidad",
+        visualDirection: "clean_product" as const,
+      }),
+      generationEnabled: true,
+      // Un tarugo no tiene marca que representar artículo por artículo, así que
+      // el modelo puede dibujarlo sin foto de referencia.
+      id: "ferreteria-generico-sin-foto",
+      references: [],
+      subjectKind: "generic" as const,
     }),
     Object.freeze({
       brief: brief({
@@ -299,6 +324,9 @@ export function visualPromptSnapshots(): readonly VisualPromptSnapshotRow[] {
         ...(entry.format === undefined ? {} : { format: entry.format }),
         generationEnabled: entry.generationEnabled,
         references: entry.references,
+        ...(entry.subjectKind === undefined
+          ? {}
+          : { subjectKind: entry.subjectKind }),
       });
       const common = {
         id: entry.id,
