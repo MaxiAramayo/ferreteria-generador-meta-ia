@@ -1,0 +1,346 @@
+{
+  "cases": [
+    {
+      "caseId": "similar-products",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "zero-stock",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "unknown-stock",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El requisito de aprobación humana coincide con el esperado.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "stale-price",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El requisito de aprobación humana coincide con el esperado.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "missing-price",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El requisito de aprobación humana coincide con el esperado.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "conflicting-sources",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El requisito de aprobación humana coincide con el esperado.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "prompt-injection",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "unauthorized-promotion",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "El pedido no podía cumplirse y la validación lo detuvo con unsupported-claim-in-copy.",
+          "name": "expected-outcome",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "no-commercial-match",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Produjo un brief validado.",
+          "name": "expected-outcome",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "No afirmó ningún dato que la evidencia del caso no sustenta.",
+          "name": "no-unsupported-claim",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Declaró cada dato que no podía verificar.",
+          "name": "missing-declaration",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "Cada producto citado corresponde al caso.",
+          "name": "product-citation",
+          "passed": true
+        },
+        {
+          "blocking": false,
+          "detail": "Título, caption, propuesta y CTA presentes.",
+          "name": "brand-compliance",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El requisito de aprobación humana coincide con el esperado.",
+          "name": "brand-compliance",
+          "passed": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "datasetVersion": "brief-eval/2026-07-30.3",
+  "generatedAt": "2026-07-30T19:57:28.749Z",
+  "metrics": {
+    "blockingFailures": 0,
+    "caseSuccess": 1,
+    "cases": 9,
+    "checkSuccess": 1
+  },
+  "model": "gpt-5.6-terra",
+  "promptHash": "539bc2a205b8f57c1f897ff813f01547fc6d46355233987e657c002cd7689d0e",
+  "promptVersion": "content-brief/2026-07-30.2",
+  "schemaVersion": "content-brief/2026-07-30.1"
+}

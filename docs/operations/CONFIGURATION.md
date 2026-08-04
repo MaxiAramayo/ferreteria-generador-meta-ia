@@ -55,7 +55,21 @@ proveedor y no de archivos versionados.
 | `TOKEN_ENCRYPTION_KEYS` | No | Sí | Sí | Siempre; privada |
 | `OPENAI_API_KEY` | No | No | Sí | Grupo OpenAI habilitado |
 | `OPENAI_PROJECT_ID` | No | No | Sí | Grupo OpenAI habilitado |
-| `OPENAI_VECTOR_STORE_ID` | No | No | Sí | Opcional aun con OpenAI habilitado |
+| `OPENAI_VECTOR_STORE_ID` | No | No | Sí | Opcional para Responses; requerido para ingestión y recuperación documental |
+| `OPENAI_MODEL_ROUTINE` | No | No | Sí | Default `gpt-5.6-luna` |
+| `OPENAI_MODEL_BRIEF` | No | No | Sí | Default `gpt-5.6-terra` |
+| `OPENAI_MODEL_COMPLEX` | No | No | Sí | Default `gpt-5.6-sol` |
+| `OPENAI_REQUEST_TIMEOUT_MS` | No | No | Sí | Default 60000; entre 1000 y 300000 |
+| `OPENAI_MAX_INPUT_CHARACTERS` | No | No | Sí | Default 50000; entre 1000 y 200000 |
+| `OPENAI_MAX_OUTPUT_TOKENS` | No | No | Sí | Default 4096; entre 16 y 128000 |
+| `OPENAI_MAX_RETRIES` | No | No | Sí | Default 2; entre 0 y 4 |
+| `OPENAI_RETRY_BASE_DELAY_MS` | No | No | Sí | Default 500; entre 100 y 10000 |
+| `ODOO_CONTENT_API_BASE_URL` | No | No | Sí | Grupo comercial habilitado; termina en `/api/content/v1/` |
+| `ODOO_CONTENT_API_TOKEN` | No | No | Sí | Grupo comercial habilitado; secreto independiente de Odoo |
+| `ODOO_CONTENT_API_ORGANIZATION_ID` | No | No | Sí | Grupo comercial habilitado; UUID de la organización autorizada |
+| `ODOO_CONTENT_API_LOCATION_MAP` | No | No | Sí | Grupo comercial habilitado; mapa de UUID interno a sucursal externa |
+| `ODOO_CONTENT_API_TIMEOUT_MS` | No | No | Sí | Default 8000; entre 500 y 15000 |
+| `ODOO_CONTENT_API_MAX_CALLS` | No | No | Sí | Default 8; entre 1 y 10 |
 | `CLOUDINARY_CLOUD_NAME` | No | No | Sí | Grupo Cloudinary habilitado |
 | `CLOUDINARY_API_KEY` | No | No | Sí | Grupo Cloudinary habilitado |
 | `CLOUDINARY_API_SECRET` | No | No | Sí | Grupo Cloudinary habilitado |
@@ -99,6 +113,13 @@ considera administrador de secretos.
 - `META_GRAPH_API_VERSION`: `v<mayor>.<menor>`.
 - `OPENAI_PROJECT_ID`: prefijo `proj_`.
 - `OPENAI_VECTOR_STORE_ID`: prefijo `vs_`.
+- Los modelos OpenAI admiten letras, números, punto, guion y guion bajo; el
+  gateway selecciona uno según el tipo de carga.
+- `ODOO_CONTENT_API_BASE_URL`: URL HTTPS exacta, sin credenciales, query ni
+  fragmento, y con path `/api/content/v1/`.
+- `ODOO_CONTENT_API_LOCATION_MAP`:
+  `<uuid>=casa-central,<uuid>=rivadavia`; no admite UUID ni sucursales
+  duplicados.
 - `TRUST_PROXY_HOPS`: `0` cuando la API recibe tráfico directo; `1` en la
   topología donde sólo Caddy comparte la red `edge`.
 - `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`: ruta absoluta. La imagen productiva la
@@ -119,6 +140,9 @@ issues, capturas ni documentación.
 pnpm config:typecheck
 pnpm config:test
 pnpm build && pnpm smoke
+NODE_ENV=staging pnpm openai:smoke
+NODE_ENV=staging pnpm knowledge:smoke
+NODE_ENV=staging pnpm commercial:smoke
 ```
 
 Las pruebas cubren configuración válida, faltantes, formatos inválidos,

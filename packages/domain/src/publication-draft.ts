@@ -146,6 +146,8 @@ export interface PublicationRevisionRecord {
   readonly approvalSnapshotId?: string;
   readonly approvedAt?: string;
   readonly content: unknown;
+  /** Ejecución del brief que originó la revisión, si no la escribió una persona. */
+  readonly contentBriefRunId?: string;
   readonly contentHash: string;
   readonly createdAt: string;
   readonly createdByMembershipId: string;
@@ -166,6 +168,8 @@ export interface PublicationDraftDetailRecord {
 }
 
 export interface PublicationDraftListItemRecord extends PublicationRecord {
+  /** Permite llegar desde el listado hasta la ejecución que generó la pieza. */
+  readonly latestContentBriefRunId?: string;
   readonly latestContentHash: string;
   readonly latestRevisionId: string;
   readonly latestRevisionNumber: number;
@@ -199,6 +203,11 @@ export interface DraftMediaReferenceInput {
 
 export interface PersistPublicationDraftInput extends OrganizationScope {
   readonly content: PublicationDraftContent;
+  /**
+   * Sólo lo trae la aceptación de un brief. La clave es compuesta por
+   * organización, así que una ejecución ajena no puede citarse ni por error.
+   */
+  readonly contentBriefRunId?: string;
   readonly contentHash: string;
   readonly createdByMembershipId: string;
   readonly designDocument: unknown;

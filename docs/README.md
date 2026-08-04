@@ -25,6 +25,8 @@
 
 - [`integrations/OPENAI.md`](integrations/OPENAI.md)
 - [`integrations/RAG_AND_COMMERCIAL_DATA.md`](integrations/RAG_AND_COMMERCIAL_DATA.md)
+- [`integrations/ODOO-READ-ACCESS.md`](integrations/ODOO-READ-ACCESS.md):
+  puerto comercial, método XML-RPC propuesto y revisión técnica pendiente.
 - [`integrations/KNOWLEDGE-SOURCE-CATALOG.md`](integrations/KNOWLEDGE-SOURCE-CATALOG.md):
   inventario, autoridad, sensibilidad, vigencia y política de afirmaciones.
 - [`integrations/KNOWLEDGE-POLICY-SCENARIOS.md`](integrations/KNOWLEDGE-POLICY-SCENARIOS.md):

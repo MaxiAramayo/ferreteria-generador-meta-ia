@@ -38,6 +38,8 @@ test("builds separate immutable configurations for every process", () => {
   });
   const workerConfiguration = parseWorkerEnvironment({
     ...privateServiceEnvironment,
+    ODOO_CONTENT_API_MAX_CALLS: "8",
+    ODOO_CONTENT_API_TIMEOUT_MS: "8000",
     WORKER_CONCURRENCY: "4",
   });
 
@@ -49,6 +51,7 @@ test("builds separate immutable configurations for every process", () => {
   assert.equal(apiConfiguration.trustProxyHops, 0);
   assert.equal(workerConfiguration.concurrency, 4);
   assert.equal(workerConfiguration.chromiumExecutablePath, undefined);
+  assert.equal(workerConfiguration.commercialCatalog.enabled, false);
   assert.equal(workerConfiguration.openAi.enabled, false);
   assert.equal(Object.isFrozen(workerConfiguration), true);
   assert.equal(
@@ -158,6 +161,20 @@ test("rejects a partially configured provider integration", () => {
       cause.message.includes("OPENAI_API_KEY") &&
       cause.message.includes("OPENAI_PROJECT_ID"),
   );
+
+  assert.throws(
+    () =>
+      parseWorkerEnvironment({
+        ...privateServiceEnvironment,
+        ODOO_CONTENT_API_BASE_URL:
+          "https://ferreteriaaramayo.com.ar/api/content/v1/",
+        WORKER_CONCURRENCY: "4",
+      }),
+    (cause: unknown) =>
+      cause instanceof ConfigurationError &&
+      cause.message.includes("ODOO_CONTENT_API_TOKEN") &&
+      !cause.message.includes("ferreteriaaramayo.com.ar"),
+  );
 });
 
 test("enables complete provider groups and redacts their secrets", () => {
@@ -174,16 +191,139 @@ test("enables complete provider groups and redacts their secrets", () => {
     OPENAI_API_KEY: "openai-placeholder-key",
     OPENAI_PROJECT_ID: "proj_placeholder",
     OPENAI_VECTOR_STORE_ID: "vs_placeholder",
+    ODOO_CONTENT_API_BASE_URL:
+      "https://ferreteriaaramayo.com.ar/api/content/v1/",
+    ODOO_CONTENT_API_LOCATION_MAP:
+      "10000000-0000-4000-8000-000000000004=casa-central,10000000-0000-4000-8000-000000000005=rivadavia",
+    ODOO_CONTENT_API_ORGANIZATION_ID: "10000000-0000-4000-8000-000000000001",
+    ODOO_CONTENT_API_TOKEN: "odoo-placeholder-content-token-value",
     WORKER_CONCURRENCY: "4",
   });
 
   assert.equal(workerConfiguration.cloudinary.enabled, true);
   assert.equal(workerConfiguration.meta.enabled, true);
   assert.equal(workerConfiguration.openAi.enabled, true);
+  assert.equal(workerConfiguration.commercialCatalog.enabled, true);
+  assert.deepEqual(workerConfiguration.commercialCatalog.policy, {
+    maximumCallsPerRun: 8,
+    requestTimeoutMilliseconds: 8_000,
+  });
+  assert.deepEqual(workerConfiguration.openAi.policy, {
+    maximumInputCharacters: 50_000,
+    maximumOutputTokens: 4_096,
+    maximumRetries: 2,
+    models: {
+      brief: "gpt-5.6-terra",
+      complex: "gpt-5.6-sol",
+      routine: "gpt-5.6-luna",
+    },
+    requestTimeoutMilliseconds: 60_000,
+    retryBaseDelayMilliseconds: 500,
+  });
 
   const serializedConfiguration = JSON.stringify(workerConfiguration);
   assert.equal(serializedConfiguration.includes("placeholder-secret"), false);
   assert.equal(serializedConfiguration.includes("placeholder-key"), false);
+});
+
+test("validates OpenAI model, timeout and execution limits", () => {
+  assert.throws(
+    () =>
+      parseWorkerEnvironment({
+        ...privateServiceEnvironment,
+        OPENAI_API_KEY: "openai-placeholder-key",
+        OPENAI_MAX_RETRIES: "5",
+        OPENAI_MODEL_BRIEF: "invalid model",
+        OPENAI_PROJECT_ID: "proj_placeholder",
+        OPENAI_REQUEST_TIMEOUT_MS: "999",
+        WORKER_CONCURRENCY: "4",
+      }),
+    (cause: unknown) =>
+      cause instanceof ConfigurationError &&
+      cause.issues.some((issue) => issue.variable === "OPENAI_MAX_RETRIES"),
+  );
+
+  const workerConfiguration = parseWorkerEnvironment({
+    ...privateServiceEnvironment,
+    OPENAI_API_KEY: "openai-placeholder-key",
+    OPENAI_MAX_INPUT_CHARACTERS: "120000",
+    OPENAI_MAX_OUTPUT_TOKENS: "8192",
+    OPENAI_MAX_RETRIES: "1",
+    OPENAI_MODEL_BRIEF: "gpt-5.6-terra-snapshot",
+    OPENAI_MODEL_COMPLEX: "gpt-5.6-sol-snapshot",
+    OPENAI_MODEL_ROUTINE: "gpt-5.6-luna-snapshot",
+    OPENAI_PROJECT_ID: "proj_placeholder",
+    OPENAI_REQUEST_TIMEOUT_MS: "45000",
+    OPENAI_RETRY_BASE_DELAY_MS: "750",
+    WORKER_CONCURRENCY: "4",
+  });
+
+  assert.equal(workerConfiguration.openAi.enabled, true);
+  assert.equal(
+    workerConfiguration.openAi.policy.maximumInputCharacters,
+    120_000,
+  );
+  assert.equal(workerConfiguration.openAi.policy.maximumOutputTokens, 8_192);
+  assert.equal(workerConfiguration.openAi.policy.maximumRetries, 1);
+  assert.equal(
+    workerConfiguration.openAi.policy.models.brief,
+    "gpt-5.6-terra-snapshot",
+  );
+  assert.equal(
+    workerConfiguration.openAi.policy.requestTimeoutMilliseconds,
+    45_000,
+  );
+  assert.equal(
+    workerConfiguration.openAi.policy.retryBaseDelayMilliseconds,
+    750,
+  );
+});
+
+test("validates the commercial API scope, location mapping and limits", () => {
+  assert.throws(
+    () =>
+      parseWorkerEnvironment({
+        ...privateServiceEnvironment,
+        ODOO_CONTENT_API_BASE_URL:
+          "https://ferreteriaaramayo.com.ar/api/content/v2/",
+        ODOO_CONTENT_API_LOCATION_MAP:
+          "10000000-0000-4000-8000-000000000004=casa-central",
+        ODOO_CONTENT_API_ORGANIZATION_ID:
+          "10000000-0000-4000-8000-000000000001",
+        ODOO_CONTENT_API_TOKEN: "odoo-placeholder-content-token-value",
+        WORKER_CONCURRENCY: "4",
+      }),
+    (cause: unknown) =>
+      cause instanceof ConfigurationError &&
+      cause.issues[0]?.variable === "ODOO_CONTENT_API_BASE_URL",
+  );
+
+  const workerConfiguration = parseWorkerEnvironment({
+    ...privateServiceEnvironment,
+    ODOO_CONTENT_API_BASE_URL:
+      "https://ferreteriaaramayo.com.ar/api/content/v1/",
+    ODOO_CONTENT_API_LOCATION_MAP:
+      "10000000-0000-4000-8000-000000000004=casa-central,10000000-0000-4000-8000-000000000005=rivadavia",
+    ODOO_CONTENT_API_MAX_CALLS: "5",
+    ODOO_CONTENT_API_ORGANIZATION_ID: "10000000-0000-4000-8000-000000000001",
+    ODOO_CONTENT_API_TIMEOUT_MS: "4500",
+    ODOO_CONTENT_API_TOKEN: "odoo-placeholder-content-token-value",
+    WORKER_CONCURRENCY: "4",
+  });
+
+  assert.equal(workerConfiguration.commercialCatalog.enabled, true);
+  assert.equal(
+    workerConfiguration.commercialCatalog.policy.maximumCallsPerRun,
+    5,
+  );
+  assert.equal(
+    workerConfiguration.commercialCatalog.policy.requestTimeoutMilliseconds,
+    4_500,
+  );
+  assert.equal(
+    workerConfiguration.commercialCatalog.credentials.token.toString(),
+    "[REDACTED]",
+  );
 });
 
 test("rejects undeclared browser variables", () => {
@@ -235,8 +375,22 @@ test(".env.example documents the complete contract without secret values", async
     "META_REDIRECT_URI",
     "NEXT_PUBLIC_API_BASE_URL",
     "NODE_ENV",
+    "ODOO_CONTENT_API_BASE_URL",
+    "ODOO_CONTENT_API_LOCATION_MAP",
+    "ODOO_CONTENT_API_MAX_CALLS",
+    "ODOO_CONTENT_API_ORGANIZATION_ID",
+    "ODOO_CONTENT_API_TIMEOUT_MS",
+    "ODOO_CONTENT_API_TOKEN",
     "OPENAI_API_KEY",
+    "OPENAI_MAX_INPUT_CHARACTERS",
+    "OPENAI_MAX_OUTPUT_TOKENS",
+    "OPENAI_MAX_RETRIES",
+    "OPENAI_MODEL_BRIEF",
+    "OPENAI_MODEL_COMPLEX",
+    "OPENAI_MODEL_ROUTINE",
     "OPENAI_PROJECT_ID",
+    "OPENAI_REQUEST_TIMEOUT_MS",
+    "OPENAI_RETRY_BASE_DELAY_MS",
     "OPENAI_VECTOR_STORE_ID",
     "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH",
     "PORT",
@@ -260,6 +414,7 @@ test(".env.example documents the complete contract without secret values", async
     "CLOUDINARY_API_SECRET",
     "DATABASE_URL",
     "META_APP_SECRET",
+    "ODOO_CONTENT_API_TOKEN",
     "OPENAI_API_KEY",
     "POSTGRES_PASSWORD",
     "REDIS_PASSWORD",

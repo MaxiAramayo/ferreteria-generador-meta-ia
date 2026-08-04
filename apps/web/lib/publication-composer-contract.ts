@@ -9,7 +9,11 @@ export type PublicationComposerVariant =
   (typeof publicationComposerVariants)[number];
 
 export type PublicationComposerAction =
-  "edit-caption" | "edit-title" | "save-draft";
+  | "accept-brief"
+  | "edit-caption"
+  | "edit-title"
+  | "request-brief"
+  | "save-draft";
 
 export interface PublicationComposerState {
   readonly caption: string;
@@ -34,6 +38,7 @@ export interface PublicationComposerActions {
 
 export interface PublicationComposerMeta {
   readonly allowedActions: ReadonlySet<PublicationComposerAction>;
+  readonly apiBaseUrl: string;
   readonly canEdit: boolean;
   readonly formId: string;
 }
@@ -47,7 +52,12 @@ export interface PublicationComposerContextValue {
 const actionsByVariant: Readonly<
   Record<PublicationComposerVariant, ReadonlySet<PublicationComposerAction>>
 > = Object.freeze({
-  "ai-creative": new Set<PublicationComposerAction>(),
+  // Pedir un brief y aceptarlo son acciones distintas: la primera encola una
+  // generación, la segunda crea una revisión. Ninguna publica.
+  "ai-creative": new Set<PublicationComposerAction>([
+    "accept-brief",
+    "request-brief",
+  ]),
   "product-promotion": new Set<PublicationComposerAction>(),
   "recurring-story": new Set<PublicationComposerAction>(),
   template: new Set<PublicationComposerAction>([

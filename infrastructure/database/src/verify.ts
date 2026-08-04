@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260729000000_publication_render_output";
+const latestMigrationName = "20260803000000_generation_runs";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -154,10 +154,16 @@ async function verifyDatabase(): Promise<void> {
       const rollbackState = await testPool.query<{
         alt_column_exists: boolean;
         audit_table: string | null;
+        brief_runs_table: string | null;
+        revision_brief_run_exists: boolean;
         configuration_table: string | null;
         core_table: string | null;
         failure_column_exists: boolean;
+        generation_runs_table: string | null;
+        generation_variants_table: string | null;
         idempotency_table: string | null;
+        knowledge_documents_table: string | null;
+        knowledge_versions_table: string | null;
         outbox_table: string | null;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
@@ -165,10 +171,22 @@ async function verifyDatabase(): Promise<void> {
         `
           SELECT
             to_regclass('public.organizations')::text AS "core_table",
+            to_regclass('public.content_brief_runs')::text AS "brief_runs_table",
+            to_regclass('public.generation_runs')::text AS "generation_runs_table",
+            to_regclass('public.generation_run_variants')::text AS "generation_variants_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_revisions'
+                AND column_name = 'content_brief_run_id'
+            ) AS "revision_brief_run_exists",
             to_regclass('public.organization_configuration_events')::text AS "configuration_table",
             to_regclass('public.audit_events')::text AS "audit_table",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
             to_regclass('public.outbox_messages')::text AS "outbox_table",
+            to_regclass('public.knowledge_documents')::text AS "knowledge_documents_table",
+            to_regclass('public.knowledge_document_versions')::text AS "knowledge_versions_table",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -213,8 +231,23 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      assert.equal(rollbackEvidence.rendered_at_exists, false);
-      assert.equal(rollbackEvidence.rendered_media_exists, false);
+      // La reversión afecta sólo a la última migración: el lote de generación
+      // desaparece con sus variantes, y todo lo anterior —incluido el vínculo
+      // entre revisión y ejecución de brief— queda intacto.
+      assert.equal(rollbackEvidence.generation_runs_table, null);
+      assert.equal(rollbackEvidence.generation_variants_table, null);
+      assert.equal(rollbackEvidence.brief_runs_table, "content_brief_runs");
+      assert.equal(rollbackEvidence.revision_brief_run_exists, true);
+      assert.equal(
+        rollbackEvidence.knowledge_documents_table,
+        "knowledge_documents",
+      );
+      assert.equal(
+        rollbackEvidence.knowledge_versions_table,
+        "knowledge_document_versions",
+      );
+      assert.equal(rollbackEvidence.rendered_at_exists, true);
+      assert.equal(rollbackEvidence.rendered_media_exists, true);
       await testPool.query(
         'DELETE FROM "_prisma_migrations" WHERE "migration_name" = $1',
         [latestMigrationName],

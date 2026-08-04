@@ -13,6 +13,7 @@
 | Next.js | `16.2.11` | Node `>=20.9.0`; React 19 admitido | [requisitos](https://nextjs.org/docs/app/getting-started/installation), [paquete](https://www.npmjs.com/package/next/v/16.2.11) |
 | React / React DOM | `19.2.8` | Versión estable de la línea 19.2; ambos paquetes quedan alineados | [versiones](https://react.dev/versions), [paquete](https://www.npmjs.com/package/react/v/19.2.8) |
 | NestJS | `11.1.28` | Node 20 o superior; paquetes oficiales en la misma versión | [migración a v11](https://docs.nestjs.com/migration-guide), [paquete](https://www.npmjs.com/package/@nestjs/core/v/11.1.28) |
+| OpenAI SDK | `7.1.0` | Cliente oficial ESM; requiere Node 22 o superior | [repositorio](https://github.com/openai/openai-node), [paquete](https://www.npmjs.com/package/openai/v/7.1.0) |
 | TypeScript | `5.9.3` | Supera el mínimo de Next.js y Prisma sin adoptar una transición mayor durante el bootstrap | [TypeScript 5.9](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-9.html), [paquete](https://www.npmjs.com/package/typescript/v/5.9.3) |
 | Prisma ORM | `7.9.0` | Soporta Node 24 y TypeScript 5.4 o superior | [requisitos](https://www.prisma.io/docs/orm/reference/system-requirements), [paquete](https://www.npmjs.com/package/prisma/v/7.9.0) |
 

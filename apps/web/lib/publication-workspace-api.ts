@@ -150,6 +150,8 @@ function isPublicationList(value: unknown): value is PublicationListResponse {
         isDateText(publication["createdAt"]) &&
         isPublicationFailure(publication["failure"]) &&
         typeof publication["id"] === "string" &&
+        (publication["latestContentBriefRunId"] === undefined ||
+          typeof publication["latestContentBriefRunId"] === "string") &&
         typeof publication["latestContentHash"] === "string" &&
         typeof publication["latestRevisionId"] === "string" &&
         typeof publication["latestRevisionNumber"] === "number" &&

@@ -7,6 +7,9 @@ import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
   transitionPublication,
+  type GenerationRunRecord,
+  type GenerationVariantRecord,
+  type ReserveKnowledgeDocumentVersionInput,
   type ReliableMutationContext,
 } from "@aramayo/domain";
 
@@ -19,6 +22,16 @@ import {
   PrismaPublicationStateRepository,
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
+import { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
+import { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
+import {
+  PrismaContentBriefRequestRepository,
+  PrismaContentBriefRunRepository,
+} from "./content-brief-run-repository.ts";
+import {
+  PrismaGenerationRunRepository,
+  PrismaGenerationRunRequestRepository,
+} from "./generation-run-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -65,6 +78,587 @@ function reliableMutation(
 
 after(async () => {
   await database.$disconnect();
+});
+
+test("audita herramientas comerciales con actor y organización aislados", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización herramienta comercial",
+        id: organizationId,
+        legalName: "Organización herramienta comercial",
+        slug: `commercial-tool-${organizationId}`,
+      },
+      {
+        displayName: "Organización comercial ajena",
+        id: otherOrganizationId,
+        legalName: "Organización comercial ajena",
+        slug: `commercial-tool-other-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Operador comercial",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["editor"],
+      userId,
+    },
+  });
+
+  const repository = new PrismaCommercialToolAuditRepository(database);
+  const eventId = randomUUID();
+  const runId = randomUUID();
+  await repository.record({
+    actorMembershipId: membershipId,
+    callId: "call_catalog_1",
+    durationMilliseconds: 12,
+    eventId,
+    occurredAt: "2026-07-29T16:00:00.000Z",
+    organizationId,
+    outcome: "success",
+    resultKind: "search-result",
+    runId,
+    safeParameters: {
+      argumentNames: ["limit", "query"],
+      limit: 5,
+      queryCharacters: 9,
+    },
+    toolName: "search_products",
+  });
+
+  const event = await database.auditEvent.findUniqueOrThrow({
+    where: { id: eventId },
+  });
+  assert.equal(event.organizationId, organizationId);
+  assert.equal(event.actorMembershipId, membershipId);
+  assert.equal(event.operation, "commercial.tool.search-products");
+  assert.equal(event.entityId, runId);
+  assert.equal(JSON.stringify(event.metadata).includes("amoladora"), false);
+
+  await assert.rejects(
+    repository.record({
+      actorMembershipId: membershipId,
+      callId: "call_cross_scope",
+      durationMilliseconds: 1,
+      eventId: randomUUID(),
+      occurredAt: "2026-07-29T16:00:01.000Z",
+      organizationId: otherOrganizationId,
+      outcome: "failure",
+      resultKind: "invalid-scope",
+      runId: randomUUID(),
+      safeParameters: {},
+      toolName: "get_product",
+    }),
+  );
+});
+
+test("el historial de briefs reserva, cierra, cancela y aísla organizaciones", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización brief",
+        id: organizationId,
+        legalName: "Organización brief",
+        slug: `brief-run-${organizationId}`,
+      },
+      {
+        displayName: "Organización brief ajena",
+        id: otherOrganizationId,
+        legalName: "Organización brief ajena",
+        slug: `brief-run-other-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editor de briefs",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { claim: "Ferretería y lubricentro" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "República de Siria 365",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+
+  const repository = new PrismaContentBriefRunRepository(database);
+  const reservation = (
+    id: string,
+  ): Parameters<PrismaContentBriefRunRepository["reserve"]>[0] => ({
+    actorMembershipId: membershipId,
+    id,
+    locationId,
+    organizationId,
+    request: "Necesito una pieza para promocionar taladros percutores.",
+    requestHash: "a".repeat(64),
+    requestedAt: "2026-07-30T12:00:00.000Z",
+  });
+  const completion = (
+    id: string,
+    generated: boolean,
+  ): Parameters<PrismaContentBriefRunRepository["complete"]>[0] => ({
+    attempts: 1,
+    brief: generated
+      ? {
+          brand: "ferreteria" as const,
+          callToAction: {
+            kind: "whatsapp" as const,
+            label: "Consultanos por WhatsApp",
+          },
+          caption:
+            "Pasá por el local y consultanos cuál te sirve para el trabajo que tenés entre manos.",
+          creativeProposal: "Tono directo.",
+          missingInformation: [],
+          objective: "product" as const,
+          products: [],
+          requiresHumanApproval: false,
+          subtitle: null,
+          title: "Taladro percutor para tu obra",
+          verifiedFacts: [],
+          visualDirection: "clean_product" as const,
+        }
+      : null,
+    estimatedCostUsd: 0.004_215,
+    evidence: [
+      {
+        citationId: "C1",
+        kind: "commercial" as const,
+        observedAt: "2026-07-30T11:59:30.000Z",
+        reference: "odoo:product:42",
+      },
+    ],
+    id,
+    knowledgeStatus: "grounded",
+    latencyMilliseconds: 820,
+    model: "gpt-5.6-terra",
+    organizationId,
+    promptHash: "b".repeat(64),
+    promptVersion: "content-brief/2026-07-30.2",
+    rejection: generated
+      ? null
+      : { code: "evidence-stale", message: "La evidencia está vencida." },
+    requestId: "req_brief",
+    responseId: "resp_brief",
+    schemaVersion: "content-brief/2026-07-30.1",
+    status: generated ? ("generated" as const) : ("rejected" as const),
+    toolInvocations: [
+      {
+        callId: "call-product",
+        outcome: "success" as const,
+        toolName: "get_product",
+      },
+    ],
+    toolNames: ["search_products", "get_product"],
+    usage: {
+      cacheWriteInputTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0.004_215,
+      inputTokens: 900,
+      outputTokens: 220,
+      reasoningTokens: 40,
+      totalTokens: 1_160,
+    },
+  });
+
+  // Una reserva queda pendiente y sin resultado.
+  const generatedId = randomUUID();
+  await repository.reserve(reservation(generatedId));
+  const pending = await repository.findById({
+    id: generatedId,
+    organizationId,
+  });
+  assert.ok(pending !== null);
+  assert.equal(pending.status, "pending");
+  assert.equal(pending.brief, null);
+  assert.equal(pending.completedAt, null);
+  // Reservar no elige prompt ni esquema: se anotan al cerrar, cuando describen
+  // lo que realmente ejecutó.
+  assert.equal(pending.promptVersion, null);
+  assert.equal(pending.promptHash, null);
+  assert.equal(pending.schemaVersion, null);
+
+  assert.deepEqual(
+    await repository.complete(
+      completion(generatedId, true),
+      "2026-07-30T12:00:30.000Z",
+    ),
+    { status: "completed" },
+  );
+  const generated = await repository.findById({
+    id: generatedId,
+    organizationId,
+  });
+  assert.ok(generated !== null);
+  assert.equal(generated.status, "generated");
+  assert.equal(generated.brief?.title, "Taladro percutor para tu obra");
+  assert.equal(generated.model, "gpt-5.6-terra");
+  assert.equal(generated.promptVersion, "content-brief/2026-07-30.2");
+  assert.equal(generated.schemaVersion, "content-brief/2026-07-30.1");
+  assert.equal(generated.usage.totalTokens, 1_160);
+  assert.equal(generated.evidence[0]?.citationId, "C1");
+
+  // Cerrar dos veces la misma ejecución no la reescribe.
+  assert.deepEqual(
+    await repository.complete(
+      completion(generatedId, false),
+      "2026-07-30T12:01:00.000Z",
+    ),
+    { reason: "not-pending", status: "discarded" },
+  );
+
+  // Un rechazo conserva su motivo y no expone brief.
+  const rejectedId = randomUUID();
+  await repository.reserve(reservation(rejectedId));
+  await repository.complete(
+    completion(rejectedId, false),
+    "2026-07-30T12:02:00.000Z",
+  );
+  const rejected = await repository.findById({
+    id: rejectedId,
+    organizationId,
+  });
+  assert.ok(rejected !== null);
+  assert.equal(rejected.status, "rejected");
+  assert.equal(rejected.brief, null);
+  assert.equal(rejected.rejection?.code, "evidence-stale");
+
+  // Cancelar impide que un resultado tardío quede vigente.
+  const cancelledId = randomUUID();
+  await repository.reserve(reservation(cancelledId));
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-07-30T12:03:00.000Z",
+      id: cancelledId,
+      organizationId,
+    }),
+    { status: "cancelled" },
+  );
+  assert.deepEqual(
+    await repository.complete(
+      completion(cancelledId, true),
+      "2026-07-30T12:03:30.000Z",
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+  const cancelled = await repository.findById({
+    id: cancelledId,
+    organizationId,
+  });
+  assert.ok(cancelled !== null);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.brief, null);
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-07-30T12:04:00.000Z",
+      id: generatedId,
+      organizationId,
+    }),
+    { resolvedStatus: "generated", status: "already-resolved" },
+  );
+
+  // El aislamiento cubre lectura, cierre y cancelación.
+  assert.equal(
+    await repository.findById({
+      id: generatedId,
+      organizationId: otherOrganizationId,
+    }),
+    null,
+  );
+  assert.deepEqual(
+    await repository.complete(
+      { ...completion(generatedId, true), organizationId: otherOrganizationId },
+      "2026-07-30T12:05:00.000Z",
+    ),
+    { status: "not-found" },
+  );
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-07-30T12:05:00.000Z",
+      id: generatedId,
+      organizationId: otherOrganizationId,
+    }),
+    { status: "not-found" },
+  );
+
+  const history = await repository.list({
+    limit: 10,
+    organizationId,
+    page: 1,
+  });
+  assert.equal(history.total, 3);
+  assert.equal(history.items.length, 3);
+  assert.equal(
+    await repository
+      .list({
+        actorMembershipId: randomUUID(),
+        limit: 10,
+        organizationId,
+        page: 1,
+      })
+      .then((page) => page.total),
+    0,
+  );
+
+  // La base rechaza un run generado sin brief aunque el código lo intente.
+  await assert.rejects(
+    database.contentBriefRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        attempts: 1,
+        cachedInputTokens: 0,
+        completedAt: new Date("2026-07-30T12:00:00.000Z"),
+        evidence: [],
+        id: randomUUID(),
+        inputTokens: 0,
+        knowledgeStatus: "grounded",
+        latencyMilliseconds: 1,
+        model: "gpt-5.6-terra",
+        organizationId,
+        outputTokens: 0,
+        promptHash: "b".repeat(64),
+        promptVersion: "content-brief/2026-07-30.2",
+        reasoningTokens: 0,
+        request: "Pedido sin brief.",
+        requestHash: "a".repeat(64),
+        requestedAt: new Date("2026-07-30T12:00:00.000Z"),
+        schemaVersion: "content-brief/2026-07-30.1",
+        status: "generated",
+        toolInvocations: [],
+        toolNames: [],
+        totalTokens: 0,
+      },
+    }),
+  );
+
+  const requests = new PrismaContentBriefRequestRepository(database);
+  const requestOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.brief:request",
+  );
+  const requestInput = {
+    actorMembershipId: membershipId,
+    id: randomUUID(),
+    locationId,
+    locationName: "Sucursal Centro",
+    organizationId,
+    reliableOperation: requestOperation,
+    request: "Necesito una pieza para promocionar amoladoras.",
+    requestHash: "c".repeat(64),
+    requestedAt: "2026-07-30T13:00:00.000Z",
+  };
+
+  const accepted = await requests.request(requestInput);
+  assert.deepEqual(accepted, {
+    runId: requestInput.id,
+    status: "accepted",
+  });
+  const queued = await database.outboxMessage.findUniqueOrThrow({
+    select: { aggregateId: true, topic: true },
+    where: { id: requestOperation.outboxEventId },
+  });
+  assert.equal(queued.topic, "content.brief.generation-requested");
+  assert.equal(queued.aggregateId, requestInput.id);
+
+  // Reintentar con la misma clave devuelve la ejecución original, no el
+  // identificador que este intento acaba de sortear: consultar ese otro daría
+  // 404 sobre una fila que nunca existió.
+  const replayedRequest = await requests.request({
+    ...requestInput,
+    id: randomUUID(),
+  });
+  assert.deepEqual(replayedRequest, {
+    runId: requestInput.id,
+    status: "accepted",
+  });
+  assert.equal(
+    await database.contentBriefRun.count({
+      where: { organizationId, request: requestInput.request },
+    }),
+    1,
+  );
+
+  const requestConflict = await requests.request({
+    ...requestInput,
+    id: randomUUID(),
+    reliableOperation: {
+      ...requestOperation,
+      claim: { ...requestOperation.claim, requestHash: randomHash() },
+    },
+  });
+  assert.deepEqual(requestConflict, { status: "idempotency-conflict" });
+});
+
+test("versiona, activa, reemplaza y retira conocimiento por organización", async () => {
+  const organizationId = randomUUID();
+  const foreignOrganizationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización documental",
+        id: organizationId,
+        legalName: "Organización documental",
+        slug: `knowledge-${organizationId}`,
+      },
+      {
+        displayName: "Organización ajena documental",
+        id: foreignOrganizationId,
+        legalName: "Organización ajena documental",
+        slug: `knowledge-${foreignOrganizationId}`,
+      },
+    ],
+  });
+  const repository = new PrismaKnowledgeDocumentRepository(database);
+  const knowledgeLocationId = randomUUID();
+  const baseInput: Omit<ReserveKnowledgeDocumentVersionInput, "contentHash"> = {
+    approvalReference: "approval-2026-07-29",
+    approvedAt: "2026-07-29T12:00:00.000Z",
+    brand: "Aramayo",
+    byteSize: 128,
+    documentType: "faq",
+    effectiveFrom: "2026-07-29T12:00:00.000Z",
+    effectiveUntil: null,
+    filename: "faq.md",
+    locationIds: [knowledgeLocationId],
+    mimeType: "text/markdown",
+    organizationId,
+    providerVectorStoreId: "vs_integration",
+    sensitivity: "internal",
+    sourceKey: "marca.faq",
+    sourceOwner: "Responsable de negocio",
+    title: "Preguntas frecuentes",
+  };
+  const first = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "a".repeat(64),
+  });
+  assert.equal(first.status, "reserved");
+  const duplicate = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "a".repeat(64),
+  });
+  assert.equal(duplicate.status, "duplicate");
+  assert.equal(duplicate.record.id, first.record.id);
+
+  await repository.markUploaded(organizationId, first.record.id, "file-first");
+  await repository.markIndexing(organizationId, first.record.id, "completed");
+  const firstActivation = await repository.activateVersion(
+    organizationId,
+    first.record.id,
+    "2026-07-29T13:00:00.000Z",
+  );
+  assert.equal(firstActivation.active.status, "active");
+  assert.equal(firstActivation.superseded, null);
+
+  const second = await repository.reserveVersion({
+    ...baseInput,
+    contentHash: "b".repeat(64),
+  });
+  assert.equal(second.record.version, 2);
+  const beforeReplacement = await database.knowledgeDocument.findUniqueOrThrow({
+    where: { id: first.record.documentId },
+  });
+  assert.equal(beforeReplacement.activeVersionId, first.record.id);
+  await repository.markUploaded(
+    organizationId,
+    second.record.id,
+    "file-second",
+  );
+  await repository.markIndexing(organizationId, second.record.id, "completed");
+  const replacement = await repository.activateVersion(
+    organizationId,
+    second.record.id,
+    "2026-07-29T14:00:00.000Z",
+  );
+  assert.equal(replacement.active.status, "active");
+  assert.equal(replacement.superseded?.id, first.record.id);
+  assert.equal(replacement.superseded.status, "superseded");
+  const activeForLocation = await repository.findActiveSources({
+    at: "2026-07-29T14:30:00.000Z",
+    limit: 10,
+    locationId: knowledgeLocationId,
+    organizationId,
+  });
+  assert.deepEqual(
+    activeForLocation.map((record) => record.id),
+    [second.record.id],
+  );
+  assert.deepEqual(
+    await repository.findActiveSources({
+      at: "2026-07-29T14:30:00.000Z",
+      limit: 10,
+      locationId: randomUUID(),
+      organizationId,
+    }),
+    [],
+  );
+  assert.deepEqual(
+    await repository.findActiveSources({
+      at: "2026-07-29T14:30:00.000Z",
+      limit: 10,
+      locationId: null,
+      organizationId,
+    }),
+    [],
+  );
+  assert.equal(
+    await repository.findVersion(foreignOrganizationId, second.record.id),
+    null,
+  );
+
+  const retiring = await repository.beginRetirement(
+    organizationId,
+    second.record.documentId,
+  );
+  assert.equal(retiring?.status, "retiring");
+  const excluded = await database.knowledgeDocument.findUniqueOrThrow({
+    where: { id: second.record.documentId },
+  });
+  assert.equal(excluded.activeVersionId, null);
+  const retired = await repository.completeRetirement(
+    organizationId,
+    second.record.id,
+    "2026-07-29T15:00:00.000Z",
+  );
+  assert.equal(retired.status, "retired");
+  assert.equal(retired.remoteStatus, "detached");
 });
 
 test("render y aprobación confirman una sola salida y un snapshot inmutable", async () => {
@@ -2187,4 +2781,956 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
     connection.release();
     await queryPool.end();
   }
+});
+
+test("la vertical del brief recorre pedido, resultado y aceptación trazable", async () => {
+  const organizationId = randomUUID();
+  const foreignOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Organización vertical",
+        id: organizationId,
+        legalName: "Organización vertical",
+        slug: `brief-e2e-${organizationId}`,
+      },
+      {
+        displayName: "Organización vertical ajena",
+        id: foreignOrganizationId,
+        legalName: "Organización vertical ajena",
+        slug: `brief-e2e-other-${foreignOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora vertical",
+      email: `${userId}@vertical.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { claim: "Ferretería y lubricentro" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "República de Siria 365",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+
+  const requests = new PrismaContentBriefRequestRepository(database);
+  const runs = new PrismaContentBriefRunRepository(database);
+  const drafts = new PrismaPublicationDraftRepository(database);
+  const requestText = "Necesito una pieza para promocionar amoladoras.";
+
+  const requestRun = async (): Promise<string> => {
+    const id = randomUUID();
+    const accepted = await requests.request({
+      actorMembershipId: membershipId,
+      id,
+      locationId,
+      locationName: "Casa Central",
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.brief:request",
+      ),
+      request: requestText,
+      requestHash: "e".repeat(64),
+      requestedAt: new Date().toISOString(),
+    });
+    assert.deepEqual(accepted, { runId: id, status: "accepted" });
+    return id;
+  };
+
+  const evidence = [
+    {
+      citationId: "C1",
+      kind: "commercial" as const,
+      observedAt: "2026-07-31T11:59:30.000Z",
+      reference: "odoo:product:42",
+    },
+  ];
+  const completion = (
+    id: string,
+    brief: Parameters<PrismaContentBriefRunRepository["complete"]>[0]["brief"],
+    rejection: Parameters<
+      PrismaContentBriefRunRepository["complete"]
+    >[0]["rejection"],
+  ): Parameters<PrismaContentBriefRunRepository["complete"]>[0] => ({
+    attempts: 1,
+    brief,
+    estimatedCostUsd: 0.004_215,
+    evidence,
+    id,
+    knowledgeStatus: "grounded",
+    latencyMilliseconds: 820,
+    model: "gpt-5.6-terra",
+    organizationId,
+    promptHash: "b".repeat(64),
+    promptVersion: "content-brief/2026-07-30.2",
+    rejection,
+    requestId: "req_e2e",
+    responseId: "resp_e2e",
+    schemaVersion: "content-brief/2026-07-30.1",
+    status: brief === null ? "rejected" : "generated",
+    toolInvocations: [
+      {
+        callId: "call-1",
+        outcome: "success" as const,
+        toolName: "get_product",
+      },
+    ],
+    toolNames: ["get_product"],
+    usage: {
+      cacheWriteInputTokens: 0,
+      cachedInputTokens: 0,
+      estimatedCostUsd: 0.004_215,
+      inputTokens: 800,
+      outputTokens: 360,
+      reasoningTokens: 0,
+      totalTokens: 1_160,
+    },
+  });
+
+  const groundedBrief = {
+    brand: "ferreteria" as const,
+    callToAction: {
+      kind: "whatsapp" as const,
+      label: "Consultanos por WhatsApp",
+    },
+    caption: "Pasá por el local y consultanos cuál te sirve.",
+    creativeProposal: "Tono directo.",
+    missingInformation: [],
+    objective: "product" as const,
+    products: [
+      {
+        evidenceId: "C1",
+        externalProductId: "odoo:product:42",
+        label: "Amoladora angular",
+      },
+    ],
+    requiresHumanApproval: false,
+    subtitle: null,
+    title: "Amoladora angular para tu taller",
+    verifiedFacts: [
+      {
+        claimKind: "stock" as const,
+        evidenceId: "C1",
+        statement: "Hay unidades disponibles.",
+      },
+    ],
+    visualDirection: "clean_product" as const,
+  };
+
+  // Camino 1: evidencia suficiente. El pedido queda reservado, encolado y
+  // cerrado con un brief que cita la observación que lo respalda.
+  const groundedId = await requestRun();
+  const queued = await database.outboxMessage.findFirst({
+    select: { aggregateId: true, topic: true },
+    where: { aggregateId: groundedId },
+  });
+  assert.equal(queued?.topic, "content.brief.generation-requested");
+  assert.deepEqual(
+    await runs.complete(
+      completion(groundedId, groundedBrief, null),
+      new Date().toISOString(),
+    ),
+    { status: "completed" },
+  );
+  const grounded = await runs.findById({ id: groundedId, organizationId });
+  assert.ok(grounded !== null);
+  assert.equal(grounded.status, "generated");
+  assert.equal(grounded.evidence[0]?.citationId, "C1");
+
+  // Camino 2: faltante declarado. El brief existe, pero exige revisión humana
+  // en lugar de completar el hueco por su cuenta.
+  const missingId = await requestRun();
+  await runs.complete(
+    completion(
+      missingId,
+      {
+        ...groundedBrief,
+        missingInformation: [
+          {
+            detail: "El precio consultado tenía más de 24 horas.",
+            kind: "stale_observation" as const,
+            subject: "price" as const,
+          },
+        ],
+        requiresHumanApproval: true,
+      },
+      null,
+    ),
+    new Date().toISOString(),
+  );
+  const missing = await runs.findById({ id: missingId, organizationId });
+  assert.ok(missing !== null);
+  assert.ok(missing.brief !== null);
+  assert.equal(missing.status, "generated");
+  assert.equal(missing.brief.missingInformation.length, 1);
+  assert.equal(missing.brief.requiresHumanApproval, true);
+
+  // Camino 3: error transitorio del proveedor. No hay brief que aceptar y el
+  // motivo queda registrado para que el reintento sea una decisión informada.
+  const rejectedId = await requestRun();
+  await runs.complete(
+    completion(rejectedId, null, {
+      code: "provider-unavailable",
+      message: "El proveedor no respondió a tiempo.",
+    }),
+    new Date().toISOString(),
+  );
+  const rejected = await runs.findById({ id: rejectedId, organizationId });
+  assert.ok(rejected !== null);
+  assert.equal(rejected.status, "rejected");
+  assert.equal(rejected.brief, null);
+  assert.equal(rejected.rejection?.code, "provider-unavailable");
+
+  // Camino 4: cancelación durante la ejecución. El resultado que llega después
+  // se descarta en lugar de quedar vigente.
+  const cancelledId = await requestRun();
+  assert.deepEqual(
+    await runs.cancel({
+      cancelledAt: new Date().toISOString(),
+      id: cancelledId,
+      organizationId,
+    }),
+    { status: "cancelled" },
+  );
+  assert.deepEqual(
+    await runs.complete(
+      completion(cancelledId, groundedBrief, null),
+      new Date().toISOString(),
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+  const cancelled = await runs.findById({ id: cancelledId, organizationId });
+  assert.ok(cancelled !== null);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.brief, null);
+
+  // Aceptar el brief sustentado crea una revisión que conserva de qué
+  // ejecución salió: la trazabilidad no depende de recomponerla en la UI.
+  const publicationId = randomUUID();
+  const created = await drafts.create({
+    content: {
+      caption: groundedBrief.caption,
+      products: [{ label: "Amoladora angular", reference: "odoo:product:42" }],
+    },
+    contentBriefRunId: groundedId,
+    contentHash: "f".repeat(64),
+    createdByMembershipId: membershipId,
+    designDocument: {
+      content: { title: groundedBrief.title },
+      format: "historia",
+      layout: "historia-tip",
+      media: [],
+      schemaVersion: 1,
+      slug: "historia-tip-editorial",
+      theme: "taller",
+    },
+    locationId,
+    media: [],
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:create",
+    ),
+    revisionId: randomUUID(),
+    schemaVersion: 1,
+    title: groundedBrief.title,
+  });
+  assert.ok(created.status === "created");
+  assert.equal(created.detail.latestRevision.contentBriefRunId, groundedId);
+  // Aceptar deja la publicación en borrador: no publica ni programa nada.
+  assert.equal(created.detail.publication.status, "draft");
+
+  const detail = await drafts.findById({ organizationId }, publicationId);
+  assert.ok(detail !== null);
+  assert.equal(detail.latestRevision.contentBriefRunId, groundedId);
+
+  // El listado también conserva el vínculo: llegar desde la pieza hasta su
+  // evidencia no depende de abrir el detalle.
+  const listed = await drafts.list({ limit: 10, organizationId, page: 1 });
+  assert.equal(listed.items[0]?.latestContentBriefRunId, groundedId);
+
+  // Una revisión no puede atribuirse a una ejecución inexistente ni ajena: la
+  // clave foránea es compuesta por organización, así que la base lo rechaza.
+  await assert.rejects(
+    database.publicationRevision.update({
+      data: { contentBriefRunId: randomUUID() },
+      where: { id: detail.latestRevision.id },
+    }),
+  );
+});
+
+/**
+ * Fixture mínimo para un lote: organización, membresía y la ejecución de brief
+ * de la que sale el pedido. El lote siempre cita un brief, así que no hay
+ * escenario válido sin él.
+ */
+/**
+ * Lee una variante por su índice y afirma que existe. Evita encadenar
+ * opcionales sobre un acceso indexado, que el compilador y el linter juzgan
+ * distinto.
+ */
+function variantAt(
+  run: GenerationRunRecord,
+  index: number,
+): GenerationVariantRecord {
+  const variant = run.variants[index];
+  assert.ok(variant !== undefined);
+  return variant;
+}
+
+async function generationFixture(): Promise<{
+  briefRunId: string;
+  membershipId: string;
+  organizationId: string;
+}> {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const briefRunId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización de generación",
+      id: organizationId,
+      legalName: "Organización de generación",
+      slug: `generation-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora de generación",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.contentBriefRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      attempts: 0,
+      cachedInputTokens: 0,
+      evidence: [],
+      id: briefRunId,
+      inputTokens: 0,
+      knowledgeStatus: "pending",
+      latencyMilliseconds: 0,
+      model: "unselected",
+      organizationId,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      request: "Pieza para promocionar amoladoras.",
+      requestHash: randomHash(),
+      requestedAt: new Date("2026-08-03T12:00:00.000Z"),
+      status: "pending",
+      toolInvocations: [],
+      toolNames: [],
+      totalTokens: 0,
+    },
+  });
+  return { briefRunId, membershipId, organizationId };
+}
+
+test("el lote de generación conserva su ciclo de vida y sus variantes", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-03T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+
+  const reserved = await repository.findById({ id: runId, organizationId });
+  assert.ok(reserved !== null);
+  assert.equal(reserved.status, "pending");
+  assert.equal(reserved.plan, null);
+  assert.equal(reserved.variants.length, 3);
+  // El índice ordena la presentación sin depender del reloj.
+  assert.deepEqual(
+    reserved.variants.map((variant) => variant.index),
+    [0, 1, 2],
+  );
+  assert.ok(reserved.variants.every((variant) => variant.status === "pending"));
+
+  // Tomar el lote es la transición que actúa de candado: la segunda entrega del
+  // mismo evento la pierde y no vuelve a lanzarlo.
+  assert.deepEqual(
+    await repository.start({
+      id: runId,
+      organizationId,
+      startedAt: "2026-08-03T12:00:01.000Z",
+    }),
+    { status: "written" },
+  );
+  assert.deepEqual(
+    await repository.start({
+      id: runId,
+      organizationId,
+      startedAt: "2026-08-03T12:00:02.000Z",
+    }),
+    { reason: "not-open", status: "discarded" },
+  );
+
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "variante.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/variante-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/variante-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 4_200,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "a".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[0] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T12:00:20.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Fallo parcial: la segunda variante no sale y explica cómo corregirlo.
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 3,
+        failure: {
+          code: "rate-limit",
+          correction: "Reintentá el lote en unos minutos.",
+          detail: "El proveedor limitó la tasa.",
+        },
+        latencyMilliseconds: 900,
+        organizationId,
+        requestId: null,
+        runId,
+        status: "failed",
+        variantId: variantIds[1] ?? "",
+      },
+      "2026-08-03T12:00:25.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Una variante ya resuelta no se reescribe: una reentrega no puede pisar un
+  // resultado que ya se cobró.
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 100,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "b".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[1] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T12:00:30.000Z",
+    ),
+    { reason: "not-open", status: "discarded" },
+  );
+
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: null,
+        id: runId,
+        organizationId,
+        plan: {
+          format: "feed",
+          profileId: "ferreteria-producto-limpio",
+          profileVersion: "visual-profile/2026-08-03.2",
+          promptHash: "c".repeat(64),
+          promptVersion: "visual-prompt/2026-08-03.2",
+        },
+        resolution: null,
+        status: "completed",
+        totalTokens: 4_120,
+      },
+      "2026-08-03T12:00:40.000Z",
+    ),
+    { status: "written" },
+  );
+
+  const completed = await repository.findById({ id: runId, organizationId });
+  assert.ok(completed !== null);
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.plan?.promptVersion, "visual-prompt/2026-08-03.2");
+  assert.equal(completed.totalTokens, 4_120);
+  assert.equal(variantAt(completed, 0).status, "succeeded");
+  assert.equal(variantAt(completed, 0).mediaAssetId, mediaAssetId);
+  assert.equal(variantAt(completed, 1).status, "failed");
+  assert.equal(variantAt(completed, 1).failure?.code, "rate-limit");
+  // La tercera nunca se intentó: descartada, no fallida. No gastó nada y
+  // presentarla como fallo sugeriría un problema del proveedor que no ocurrió.
+  assert.equal(variantAt(completed, 2).status, "discarded");
+  assert.equal(variantAt(completed, 2).failure, null);
+
+  // Cerrar dos veces no reescribe un lote ya terminado.
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: null,
+        id: runId,
+        organizationId,
+        plan: null,
+        resolution: null,
+        status: "failed",
+        totalTokens: 0,
+      },
+      "2026-08-03T12:00:50.000Z",
+    ),
+    { reason: "not-open", status: "discarded" },
+  );
+});
+
+test("cancelar un lote impide promover el resultado tardío", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "historia",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+  await repository.start({
+    id: runId,
+    organizationId,
+    startedAt: "2026-08-03T13:00:01.000Z",
+  });
+
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:10.000Z",
+      id: runId,
+      organizationId,
+    }),
+    { status: "cancelled" },
+  );
+
+  const cancelled = await repository.findById({ id: runId, organizationId });
+  assert.ok(cancelled !== null);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.completedAt, null);
+  // Cancelar no deja variantes en curso eternas.
+  assert.ok(
+    cancelled.variants.every((variant) => variant.status === "discarded"),
+  );
+
+  // El proveedor no se puede detener, pero su respuesta tardía no se promueve.
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "tardia.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/tardia-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/tardia-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 5_000,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "d".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[0] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T13:00:30.000Z",
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: 0.42,
+        id: runId,
+        organizationId,
+        plan: null,
+        resolution: null,
+        status: "completed",
+        totalTokens: 100,
+      },
+      "2026-08-03T13:00:31.000Z",
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+
+  const afterLateResult = await repository.findById({
+    id: runId,
+    organizationId,
+  });
+  assert.ok(afterLateResult !== null);
+  assert.equal(afterLateResult.status, "cancelled");
+  assert.equal(variantAt(afterLateResult, 0).mediaAssetId, null);
+
+  // Cancelar de nuevo informa el estado real en lugar de fallar.
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:40.000Z",
+      id: runId,
+      organizationId,
+    }),
+    { resolvedStatus: "cancelled", status: "already-resolved" },
+  );
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:40.000Z",
+      id: randomUUID(),
+      organizationId,
+    }),
+    { status: "not-found" },
+  );
+});
+
+test("el pedido de generación reserva, encola y no factura dos lotes", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const repository = new PrismaGenerationRunRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:request",
+  );
+  const input = {
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed" as const,
+    id: randomUUID(),
+    organizationId,
+    reliableOperation: operation,
+    requestedAt: "2026-08-03T14:00:00.000Z",
+    subjectKind: "branded" as const,
+    variantIds: [randomUUID(), randomUUID()],
+  };
+
+  assert.deepEqual(await requests.request(input), {
+    runId: input.id,
+    status: "accepted",
+  });
+  const queued = await database.outboxMessage.findUniqueOrThrow({
+    select: { aggregateId: true, aggregateType: true, topic: true },
+    where: { id: operation.outboxEventId },
+  });
+  assert.equal(queued.topic, "content.generation.requested");
+  assert.equal(queued.aggregateType, "generation-run");
+  assert.equal(queued.aggregateId, input.id);
+
+  // La misma clave devuelve el lote original y no crea otro: es lo que impide
+  // que un reintento del cliente termine facturando dos veces.
+  assert.deepEqual(
+    await requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+    { runId: input.id, status: "accepted" },
+  );
+  assert.equal(
+    await database.generationRun.count({ where: { organizationId } }),
+    1,
+  );
+  assert.equal(
+    await database.generationRunVariant.count({ where: { organizationId } }),
+    2,
+  );
+
+  // Misma clave con otro pedido es un conflicto, no un lote nuevo.
+  assert.deepEqual(
+    await requests.request({
+      ...input,
+      id: randomUUID(),
+      reliableOperation: {
+        ...operation,
+        claim: { ...operation.claim, requestHash: randomHash() },
+      },
+      variantIds: [randomUUID()],
+    }),
+    { status: "idempotency-conflict" },
+  );
+
+  const history = await repository.list({ limit: 10, organizationId, page: 1 });
+  assert.equal(history.total, 1);
+  const firstRun = history.items[0];
+  assert.ok(firstRun !== undefined);
+  assert.equal(firstRun.contentBriefRunId, briefRunId);
+  assert.equal(
+    await repository
+      .list({
+        contentBriefRunId: randomUUID(),
+        limit: 10,
+        organizationId,
+        page: 1,
+      })
+      .then((page) => page.total),
+    0,
+  );
+
+  // Un lote de otra organización no es visible ni escribible.
+  const other = await generationFixture();
+  assert.equal(
+    await repository.findById({
+      id: input.id,
+      organizationId: other.organizationId,
+    }),
+    null,
+  );
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T14:05:00.000Z",
+      id: input.id,
+      organizationId: other.organizationId,
+    }),
+    { status: "not-found" },
+  );
+});
+
+test("la base rechaza estados de lote que no describen nada real", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+
+  // Un lote pendiente no puede tener instante de cierre.
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        completedAt: new Date("2026-08-03T15:00:00.000Z"),
+        contentBriefRunId: briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "pending",
+      },
+    }),
+  );
+
+  // El plan es indivisible: perfil sin hash no permite comparar dos lotes.
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        completedAt: new Date("2026-08-03T15:00:00.000Z"),
+        contentBriefRunId: briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        profileId: "ferreteria-producto-limpio",
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "completed",
+      },
+    }),
+  );
+
+  const runId = randomUUID();
+  await database.generationRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: runId,
+      organizationId,
+      requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+      status: "pending",
+    },
+  });
+
+  // Una variante exitosa sin activo ni hash no describe ninguna imagen.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        completedAt: new Date("2026-08-03T15:00:10.000Z"),
+        id: randomUUID(),
+        organizationId,
+        position: 0,
+        runId,
+        status: "succeeded",
+      },
+    }),
+  );
+
+  // Una variante fallida sin motivo no explica nada.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        completedAt: new Date("2026-08-03T15:00:10.000Z"),
+        id: randomUUID(),
+        organizationId,
+        position: 1,
+        runId,
+        status: "failed",
+      },
+    }),
+  );
+
+  // Un lote no puede citar una ejecución de brief ajena: la clave foránea es
+  // compuesta por organización.
+  const other = await generationFixture();
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        contentBriefRunId: other.briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "pending",
+      },
+    }),
+  );
+});
+
+test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:request",
+  );
+  const input = {
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed" as const,
+    organizationId,
+    reliableOperation: operation,
+    requestedAt: "2026-08-03T16:00:00.000Z",
+    subjectKind: "branded" as const,
+  };
+
+  // Los dos intentos salen a la vez con la misma clave idempotente y con
+  // identificadores distintos, que es lo que hace un cliente que reintenta
+  // antes de recibir la primera respuesta.
+  const [first, second] = await Promise.all([
+    requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+    requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+  ]);
+
+  // Uno gana la reserva; el otro replica su respuesta o encuentra la operación
+  // en curso. Ninguno de los dos crea un segundo lote.
+  const outcomes = [first.status, second.status].toSorted();
+  assert.ok(
+    outcomes.every(
+      (status) => status === "accepted" || status === "in-progress",
+    ),
+    `estados inesperados: ${outcomes.join(", ")}`,
+  );
+  assert.equal(
+    await database.generationRun.count({ where: { organizationId } }),
+    1,
+  );
+  // Un solo lote significa además un solo evento encolado: el worker no puede
+  // recibir dos pedidos para el mismo gasto.
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateType: "generation-run", organizationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.generationRunVariant.count({ where: { organizationId } }),
+    2,
+  );
 });

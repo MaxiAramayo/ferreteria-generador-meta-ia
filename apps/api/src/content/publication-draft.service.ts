@@ -197,6 +197,9 @@ function revisionResponse(
     content: contentObject(
       revision.content,
     ) satisfies PublicationDraftContentResponse,
+    ...(revision.contentBriefRunId === undefined
+      ? {}
+      : { contentBriefRunId: revision.contentBriefRunId }),
     contentHash: revision.contentHash,
     createdAt: revision.createdAt,
     createdByMembershipId: revision.createdByMembershipId,
@@ -238,6 +241,9 @@ function listItemResponse(
     createdAt: item.createdAt,
     ...(item.failure === undefined ? {} : { failure: item.failure }),
     id: item.id,
+    ...(item.latestContentBriefRunId === undefined
+      ? {}
+      : { latestContentBriefRunId: item.latestContentBriefRunId }),
     latestContentHash: item.latestContentHash,
     latestRevisionId: item.latestRevisionId,
     latestRevisionNumber: item.latestRevisionNumber,
@@ -279,15 +285,22 @@ export class PublicationDraftService {
     this.#reliableOperations = reliableOperations;
   }
 
+  /**
+   * `contentBriefRunId` no viaja en el body y ningún DTO lo declara: lo provee
+   * la aceptación de un brief, del lado del servidor. Si un cliente pudiera
+   * elegirlo, podría atribuirle a una ejecución un contenido que nunca produjo.
+   */
   async create(
     actor: AuthenticatedActor,
     submission: PublicationDraftSubmission,
     idempotencyKey?: string,
+    contentBriefRunId?: string,
   ): Promise<PublicationDraftResponse> {
     this.#require(actor, "content:edit");
     const prepared = await this.#prepare(actor, submission);
     const result = await this.#repository.create({
       ...prepared,
+      ...(contentBriefRunId === undefined ? {} : { contentBriefRunId }),
       publicationId: randomUUID(),
       reliableOperation: this.#prepareReliableOperation(
         actor,

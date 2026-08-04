@@ -581,8 +581,8 @@ previsualizarla son accesibles.
 
 ## P1-T07 — Integrar ciclo de vida de medios
 
-- [ ] Tarea completada
-- Estado: BLOQUEADA
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T07`, `P1-T05`
 - Riesgo: Alto
 
@@ -602,14 +602,14 @@ aptas para render y futura publicación en Meta.
 - [x] Solo se aceptan tipos y tamaños permitidos.
 - [x] Se verifica el contenido real, no solo la extensión.
 - [x] Cada activo conserva origen, hash, dimensiones y propietario.
-- [ ] Las URLs requeridas por Meta son HTTPS y accesibles durante la publicación.
+- [x] Las URLs requeridas por Meta son HTTPS y accesibles durante la publicación.
 - [x] Reemplazar un activo no muta retrospectivamente una publicación aprobada.
 - [x] La eliminación respeta referencias y política de retención.
 
 ### Verificación obligatoria
 
 - [x] Probar carga válida, archivo corrupto, tipo engañoso y tamaño excesivo.
-- [ ] Renderizar desde la URL remota.
+- [x] Renderizar desde la URL remota.
 - [x] Confirmar que un activo referenciado no puede borrarse accidentalmente.
 
 ### Fuera de alcance
@@ -640,24 +640,40 @@ aptas para render y futura publicación en Meta.
   `pnpm db:test` y `pnpm verify`; la integración aplica desde cero, revierte,
   migra datos históricos, reaplica y valida aislamiento, reemplazo inmutable,
   retención, referencias y la carrera adjuntar/eliminar.
-- Verificaciones pendientes: `pnpm media:smoke:cloudinary` contra staging.
-- Bloqueo, si existe: las cuatro variables de Cloudinary staging no están
-  configuradas. La suite remota rechaza producción, sube un PNG sintético,
-  valida la variante HTTPS, renderiza y elimina el activo en `finally`.
-- Próximo paso exacto: configurar las credenciales separadas de staging y
-  ejecutar `pnpm media:smoke:cloudinary`; si pasa, completar los dos criterios
-  remotos y cerrar la tarea.
+- Verificaciones pendientes: ninguna.
+- Fecha: 2026-08-03. El usuario configuró Cloudinary staging y el smoke remoto
+  pasó, así que los dos criterios que faltaban quedaron cumplidos y la tarea
+  cierra.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Verificación remota ejecutada el 2026-08-03:
+
+  ```bash
+  NODE_ENV=staging pnpm media:smoke:cloudinary
+  ```
+
+  Salida: «carga, variante HTTPS y render remoto verificados» y «recurso
+  temporal eliminado de forma idempotente». Con eso quedan cumplidos los dos
+  criterios que dependían de infraestructura remota: la URL entregada es HTTPS y
+  accesible, y el navegador real la renderiza dentro de un documento de diseño.
+- Configuración usada: cloud `m73l9k4c` y carpeta `aramayo-posts/staging`. El
+  smoke rechaza cualquier ejecución cuya carpeta no declare un segmento
+  `staging`, y rechaza correr fuera de `NODE_ENV=staging`.
+- Al configurarlo apareció un desajuste que conviene registrar: el
+  `CLOUDINARY_CLOUD_NAME` cargado no era el del cloud de la consola. El smoke
+  habría fallado con un error de autenticación que no dice nada sobre la causa
+  real, así que la verificación de forma —comparar el nombre configurado contra
+  el de la consola— vale la pena antes de culpar a las credenciales.
+- Las credenciales viven únicamente en el `.env` local, que está en
+  `.gitignore`; ningún valor quedó en el repositorio.
 
 ## Criterios de salida de Fase 1
 
-- [ ] `P1-T01` a `P1-T07` están completas (falta `P1-T07`).
-- [ ] El nuevo motor reproduce todos los fixtures aprobados.
-- [ ] El worker falla de forma explícita ante activos no decodificables.
-- [ ] Medios remotos conservan trazabilidad y pueden renderizarse.
-- [ ] El generador anterior ya no es una dependencia de ejecución.
-- [ ] Tokens, temas, formatos y layouts son código nativo versionable del paquete.
-- [ ] PNG/HTML del repositorio fuente se usan solo como evidencia o fixtures.
+- [x] `P1-T01` a `P1-T07` están completas.
+- [x] El nuevo motor reproduce todos los fixtures aprobados.
+- [x] El worker falla de forma explícita ante activos no decodificables.
+- [x] Medios remotos conservan trazabilidad y pueden renderizarse.
+- [x] El generador anterior ya no es una dependencia de ejecución.
+- [x] Tokens, temas, formatos y layouts son código nativo versionable del paquete.
+- [x] PNG/HTML del repositorio fuente se usan solo como evidencia o fixtures.

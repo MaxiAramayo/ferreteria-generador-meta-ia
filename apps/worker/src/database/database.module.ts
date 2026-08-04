@@ -2,11 +2,19 @@ import type { SecretValue } from "@aramayo/configuration";
 import {
   createDatabaseClient,
   type DatabaseClient,
+  PrismaCommercialToolAuditRepository,
+  PrismaContentBriefRunRepository,
+  PrismaGenerationRunRepository,
+  PrismaKnowledgeDocumentRepository,
+  PrismaMediaAssetRepository,
   PrismaOutboxRepository,
   PrismaPublicationProductionRepository,
-  PrismaMediaAssetRepository,
 } from "@aramayo/database";
 import type {
+  CommercialToolAuditPort,
+  ContentBriefRunRepository,
+  GenerationRunRepository,
+  KnowledgeDocumentRepository,
   MediaAssetRepository,
   OutboxRepository,
   PublicationProductionRepository,
@@ -17,6 +25,10 @@ import { MEDIA_ASSET_REPOSITORY } from "../media/media.tokens.ts";
 import { OUTBOX_REPOSITORY } from "../outbox/outbox.tokens.ts";
 import { DatabaseLifecycleService } from "./database-lifecycle.service.ts";
 import {
+  COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+  CONTENT_BRIEF_RUN_REPOSITORY,
+  GENERATION_RUN_REPOSITORY,
+  KNOWLEDGE_DOCUMENT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
@@ -26,6 +38,10 @@ export class DatabaseModule {
   static forConfiguration(databaseUrl: SecretValue): DynamicModule {
     return {
       exports: [
+        COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+        CONTENT_BRIEF_RUN_REPOSITORY,
+        GENERATION_RUN_REPOSITORY,
+        KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         OUTBOX_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
@@ -37,6 +53,30 @@ export class DatabaseModule {
           provide: WORKER_DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>
             createDatabaseClient(databaseUrl.reveal()),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: COMMERCIAL_TOOL_AUDIT_REPOSITORY,
+          useFactory: (database: DatabaseClient): CommercialToolAuditPort =>
+            new PrismaCommercialToolAuditRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: CONTENT_BRIEF_RUN_REPOSITORY,
+          useFactory: (database: DatabaseClient): ContentBriefRunRepository =>
+            new PrismaContentBriefRunRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: GENERATION_RUN_REPOSITORY,
+          useFactory: (database: DatabaseClient): GenerationRunRepository =>
+            new PrismaGenerationRunRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: KNOWLEDGE_DOCUMENT_REPOSITORY,
+          useFactory: (database: DatabaseClient): KnowledgeDocumentRepository =>
+            new PrismaKnowledgeDocumentRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

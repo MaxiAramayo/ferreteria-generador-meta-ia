@@ -58,10 +58,46 @@ Solo `status=approved` y documentos vigentes entran en recuperación publicable.
 
 La eliminación de un documento debe retirar o invalidar su versión del índice.
 
+### Implementación inicial
+
+El worker acepta Markdown, texto plano, PDF y DOCX aprobados, con un máximo
+local de 10 MiB. `KnowledgeDocument` identifica la fuente lógica y
+`KnowledgeDocumentVersion` conserva versión, SHA-256, aprobación, vigencia,
+ámbito y referencias de OpenAI. El mismo hash no crea otra versión.
+
+La indexación usa `candidate` hasta que OpenAI informa `completed`; sólo
+entonces cambia los atributos remotos a `approved` y activa la versión en una
+transacción local. Una consulta futura deberá usar los hashes activos de
+PostgreSQL además de los atributos remotos. Esta defensa es obligatoria porque
+el retiro de un archivo del vector store es eventualmente consistente.
+
+Los estados `sync_failed` y `retiring` conservan diagnóstico seguro y permiten
+reanudar una subida ya asociada, completar la activación o repetir el retiro.
+La fuente queda fuera de consultas desde que comienza el retiro local.
+
+### Recuperación inicial
+
+La consulta comienza en PostgreSQL y sólo habilita versiones activas,
+aprobadas, vigentes y aplicables a la organización y sucursal de la sesión.
+File Search recibe ese conjunto acotado de hashes junto con el tenant y el
+estado aprobado. Cada resultado remoto se valida nuevamente contra la versión,
+hash, archivo y nombre locales antes de usarse.
+
+El contexto es determinista y acotado: hasta 6 fragmentos, 900 caracteres por
+fragmento y 4.800 caracteres totales. Cada evidencia preserva la fuente lógica,
+versión, fragmento exacto y metadatos necesarios para revisión. Sin evidencia
+se devuelve `missing_information`; ante fuentes vigentes conflictivas se
+conservan ambas citas para revisión, pero el contexto queda vacío.
+
 ## Capa comercial
 
 Precio, stock, SKU, disponibilidad y recepción se consultan mediante
 `CommercialCatalogPort`.
+
+El contrato y la API HTTPS acotada de solo lectura para Odoo 18 se detallan en
+[`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md). La revisión del
+`Administrador de Odoo` quedó completada y XML-RPC fue descartado por su alcance
+mayor.
 
 Capacidades iniciales:
 
@@ -71,6 +107,22 @@ Capacidades iniciales:
 - obtener stock por local;
 - conocer fecha de actualización;
 - comprobar si una recepción está confirmada.
+
+### Ejecución segura
+
+El worker configura la URL, token, organización y mapping de sucursales como un
+grupo privado opcional. Cuando el grupo está incompleto, el proceso no arranca;
+cuando está ausente, las herramientas comerciales permanecen deshabilitadas.
+
+Las cinco definiciones para OpenAI son estrictas y no aceptan scope. El ejecutor
+deriva organización, membresía y sucursal del servidor, limita cada búsqueda a
+10 filas, cada run a 8 llamadas por defecto y la salida a 12.000 caracteres.
+El adaptador usa rutas `GET` fijas, timeout configurable hasta 15 segundos,
+rechazo de redirects y validación exacta de campos.
+
+La auditoría persiste herramienta, actor, run, duración, resultado y sólo
+metadata segura. El texto de búsqueda se representa por su longitud y los
+identificadores por SHA-256; token y payload comercial completo quedan fuera.
 
 ## Restricciones de datos
 
@@ -85,10 +137,12 @@ Capacidades iniciales:
 
 ## Frescura
 
-La política inicial se definirá con responsables comerciales. Hasta entonces:
+Política aprobada por el negocio el 2026-07-29:
 
 - un dato sin timestamp no es publicable;
-- un dato vencido bloquea aprobación;
+- precio tiene vigencia máxima de 15 minutos;
+- stock tiene vigencia máxima de 5 minutos;
+- un dato vencido bloquea aprobación o publicación;
 - precio y stock se vuelven a consultar antes de publicar;
 - una discrepancia posterior a aprobación vuelve la pieza a revisión.
 

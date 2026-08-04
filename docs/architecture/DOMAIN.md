@@ -53,6 +53,32 @@ timestamp y documentos `before`/`after`. Una configuración nueva sólo afecta
 trabajo futuro: el snapshot de una revisión aprobada conserva la marca y los
 medios que tenía al aprobarse.
 
+### ContentBrief y ContentBriefRun
+
+El `ContentBrief` es la entrada estructurada que el motor visual y la revisión
+humana consumen sin interpretar texto libre. Separa tres cosas que no pueden
+mezclarse: hechos verificados —cada uno atado a una evidencia que recolectó el
+servidor—, propuesta creativa y información faltante.
+
+El modelo no declara evidencia propia. Antes de generar, el caso de uso arma un
+ledger con las citas documentales y las observaciones comerciales de la
+ejecución, y la validación exige que cada hecho cite una entrada existente,
+capaz de sustentar ese tipo de afirmación y vigente cuando corresponde. Precio y
+stock caducan a los 15 y 5 minutos; el resto se apoya en fuentes estables. Una
+promoción no tiene fuente habilitada y queda bloqueada hasta que exista una
+autorización humana versionada.
+
+Un brief inválido no existe: el resultado del caso de uso es una unión
+discriminada y sólo su variante generada contiene uno. Un faltante declarado o
+un objetivo de promoción obligan a aprobación humana.
+
+`ContentBriefRun` es el historial append-only de cada ejecución. Conserva
+pedido, prompt y esquema versionados, modelo efectivo, herramientas ofrecidas e
+invocadas, evidencia citada, uso y costo, y el brief cuando lo hubo. Una
+restricción de base impide el estado híbrido: generado conserva brief sin
+rechazo, rechazado conserva motivo sin brief. Si el historial no puede
+escribirse, no se entrega brief.
+
 ### Publication
 
 Representa una intención editorial completa. Contiene brief, recursos,
@@ -130,6 +156,33 @@ serializa contra la decisión de borrado mediante locks de fila.
 
 Conexión cifrada con OpenAI, Meta, Cloudinary o sistema comercial. Expone estado
 y capacidades, nunca el secreto.
+
+### KnowledgeDocument
+
+Fuente documental aprobada e identificada por
+`organizationId + sourceKey`. Cada contenido distinto crea una
+`KnowledgeDocumentVersion` inmutable con SHA-256, versión, vigencia, ámbito de
+sucursales, aprobación y referencias remotas de File Search.
+
+El ciclo persistente es:
+
+```text
+pending_upload -> uploaded -> indexing -> active
+                         \-> sync_failed -> reconciliar
+active anterior -> superseded
+active -> retiring -> retired
+```
+
+Repetir el mismo hash dentro de la fuente devuelve la versión existente. Una
+versión sólo puede quedar activa cuando OpenAI informa `completed` y sus
+atributos remotos se actualizaron a `approved`. El reemplazo cambia
+atómicamente el puntero activo y marca la versión anterior `superseded`.
+
+El retiro primero elimina el puntero activo en PostgreSQL y marca
+`retiring`; después contacta al proveedor. Así una fuente deja de ser elegible
+para consultas nuevas aunque la eliminación remota sea eventualmente
+consistente o requiera reintento. `sync_failed` y `retiring` conservan
+diagnóstico seguro y referencias suficientes para reconciliar el estado.
 
 ### RecurringRule
 

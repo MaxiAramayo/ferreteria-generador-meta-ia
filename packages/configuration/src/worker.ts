@@ -1,10 +1,12 @@
 import {
+  parseCommercialCatalogIntegration,
   parseCloudinaryIntegration,
   parseMetaIntegration,
   parseOpenAiIntegration,
   type CloudinaryCredentials,
+  type CommercialCatalogIntegration,
   type MetaCredentials,
-  type OpenAICredentials,
+  type OpenAIIntegration,
 } from "./providers.ts";
 import type {
   CommonConfiguration,
@@ -24,10 +26,11 @@ import {
 export interface WorkerConfiguration extends CommonConfiguration {
   readonly chromiumExecutablePath?: string;
   readonly cloudinary: OptionalIntegration<CloudinaryCredentials>;
+  readonly commercialCatalog: CommercialCatalogIntegration;
   readonly concurrency: number;
   readonly databaseUrl: SecretValue;
   readonly meta: OptionalIntegration<MetaCredentials>;
-  readonly openAi: OptionalIntegration<OpenAICredentials>;
+  readonly openAi: OpenAIIntegration;
   readonly redisUrl: SecretValue;
   readonly tokenEncryption: EncryptionKeyRing;
 }
@@ -49,6 +52,11 @@ export function parseWorkerEnvironment(
     ...commonConfiguration,
     ...(chromiumExecutablePath === undefined ? {} : { chromiumExecutablePath }),
     cloudinary: parseCloudinaryIntegration(rawEnvironment, "worker"),
+    commercialCatalog: parseCommercialCatalogIntegration(
+      rawEnvironment,
+      "worker",
+      commonConfiguration.environment,
+    ),
     concurrency: parseInteger(rawEnvironment, "worker", "WORKER_CONCURRENCY", {
       maximum: 64,
       minimum: 1,

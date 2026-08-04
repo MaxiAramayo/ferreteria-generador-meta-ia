@@ -122,6 +122,45 @@ recurso en `finally`. Rechaza `NODE_ENV` distinto de `staging` o una
 `CLOUDINARY_FOLDER` que no identifique explícitamente staging. No forma parte de
 `pnpm verify` porque realiza escrituras externas.
 
+El smoke de OpenAI usa un input sintético, `store: false`, la ruta rutinaria de
+menor costo y un máximo de 32 tokens:
+
+```bash
+NODE_ENV=staging pnpm openai:smoke
+```
+
+Requiere el proyecto y credencial exclusivos de staging, conserva request ID,
+modelo, latencia, tokens y costo estimado, y nunca imprime clave, prompt ni
+output. Tampoco forma parte de `pnpm verify` porque consume una API facturable.
+
+El smoke de conocimiento crea el vector store de staging si falta, ingiere una
+fuente sintética, recupera su primera versión mediante el caso de uso completo,
+la reemplaza, recupera la segunda y la retira:
+
+```bash
+NODE_ENV=staging pnpm knowledge:smoke
+```
+
+Requiere PostgreSQL local migrado y con el seed de Aramayo. Si crea el vector
+store, su identificador se copia a `OPENAI_VECTOR_STORE_ID` en el entorno no
+versionado. Los documentos no contienen información comercial ni personal. El
+smoke confirma hash, versión, estados local/remoto y la secuencia
+`grounded`, `grounded`, `missing_information`; no forma parte de CI porque
+escribe activos facturables en el proyecto de staging.
+
+El smoke comercial usa el ejecutor completo contra la API de solo lectura
+aprobada y registra la auditoría en PostgreSQL local:
+
+```bash
+NODE_ENV=staging pnpm commercial:smoke
+```
+
+Requiere la base local migrada y con el seed de Aramayo, además de URL, token,
+organización y mapa de sucursales en el entorno no versionado. Ejecuta búsqueda,
+detalle, precio y stock, confirma cuatro eventos de auditoría y sólo informa
+tipos de resultado; no imprime token, identificadores, consultas ni valores
+comerciales. No forma parte de CI porque consulta el proveedor real.
+
 ## Puertas de calidad
 
 Antes de merge:
@@ -173,7 +212,8 @@ La verificación reproducible del núcleo persistente es `pnpm db:test`. Usa una
 base efímera, nunca la base configurada como destino de datos de desarrollo, y
 la elimina al terminar. También ejecuta la vertical de render con outbox y
 almacenamiento doble, restaura el snapshot, compara su SHA-256 con los bytes del
-PNG y repite la integración después de revertir y reaplicar la última migración.
+PNG, verifica el ciclo documental y repite la integración después de revertir y
+reaplicar la última migración.
 
 ### Integración continua
 

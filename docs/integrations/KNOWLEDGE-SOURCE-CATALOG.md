@@ -1,8 +1,9 @@
 # Catálogo y política de fuentes de conocimiento
 
-- Estado: BORRADOR PARA REVISIÓN DEL NEGOCIO
+- Estado: POLÍTICA APROBADA; FUENTES AÚN NO ACTIVADAS
 - Inventario técnico: 2026-07-29
 - Datos de negocio incorporados: 2026-07-29
+- Aprobación de negocio: 2026-07-29
 - Responsable de aprobación: función `Responsable de negocio`
 - Activación para IA: NO AUTORIZADA
 
@@ -54,18 +55,18 @@ la ausencia fue comprobada. No reemplaza la revisión del negocio.
 
 | ID | Hechos permitidos | Canal y referencia actual | Autoridad | Sensibilidad | Volatilidad y vigencia propuesta | Función propietaria | Revisión técnica | Revisión de negocio | Estado |
 |---|---|---|---|---|---|---|---|---|---|
-| `KN-001` | nombre, nombre corto, claim, handle | documental: [`packages/brand-knowledge/src/brand-profile.ts`](../../packages/brand-knowledge/src/brand-profile.ts) | documento heredado; no autoritativo hasta confirmar | publicable | estable; revisar cada 180 días o ante cambio de marca | Responsable de negocio | 2026-07-29 | pendiente antes de activar | candidate |
-| `KN-002` | tono, objetivos, CTA y tipos de pieza permitidos | documental: [`PIECE-CATALOG.md`](../architecture/PIECE-CATALOG.md) y reglas de copy de `AGENTS.md` | política editorial aprobada del proyecto | interna/publicable según campo | estable; revisar cada 180 días y ante cambio editorial | Responsable de negocio | 2026-07-29 | decisión parcial 2026-07-27; falta aprobar esta política | candidate |
-| `KN-003` | direcciones, teléfono, WhatsApp y horario semanal por sucursal | estructurado: configuración auditada de organización y ubicación en PostgreSQL | fuente operativa prevista | publicable | alta; versión vigente y revalidación el día de aprobación/publicación | Responsable de negocio | 2026-07-29 | seed no constituye aprobación | candidate |
-| `KN-004` | servicios reales de ferretería y lubricentro, alcance, rubros que se venden y que no | documental: `KN-006`, secciones 6 y 7 | fuente aportada por el negocio; falta aprobación formal | publicable | media; revisar cada 90 días o al cambiar un servicio | Responsable de negocio | 2026-07-29 | pendiente de aprobar | candidate |
-| `KN-005` | medios de pago, cuenta corriente y alcance geográfico | documental: `KN-006`, sección 8 | fuente aportada por el negocio; falta aprobación formal | publicable | media; cada versión declara inicio y fin | Responsable de negocio | 2026-07-29 | pendiente de aprobar | candidate |
-| `KN-006` | contexto del negocio: identificación, locales, surtido, servicios, segmentos | documental: informe de contexto y definición de negocio, fuera del repositorio | documento del negocio, actualizado a julio de 2026 | interna; extracto publicable acotado | media; revisar cada 180 días o ante cambio de surtido, sistema o locales | Responsable de negocio | 2026-07-29 | pendiente de aprobar el extracto publicable | candidate |
-| `KN-007` | garantías, cambios y devoluciones | documental: política controlada todavía inexistente | sin autoridad disponible | publicable/interna | media; cada versión declara inicio y fin | Responsable de negocio | 2026-07-29 | pendiente de aportar y aprobar | missing |
-| `KC-001` | identidad de producto, SKU, marca, presentación, categoría y estado discontinuado | estructurado: Odoo 18 (ver [Sistema comercial](#sistema-comercial)); puerto tipado pendiente de `P3-T05` | maestro comercial identificado | publicable; excluir costo/proveedor | media; consultar en el flujo y conservar timestamp | Responsable de negocio + custodio del sistema comercial | 2026-07-29 | método de acceso pendiente | candidate |
-| `KC-002` | precio vigente, moneda, unidad y condiciones explícitas | estructurado: Odoo 18; puerto tipado pendiente de `P3-T05` | única fuente válida para precio | publicable; costo y margen prohibidos | muy alta; propuesta: máximo 15 minutos y revalidación antes de publicar | Responsable de negocio + custodio del sistema comercial | 2026-07-29 | umbral pendiente de aprobación | candidate |
-| `KC-003` | stock por sucursal y timestamp | estructurado: Odoo 18; puerto tipado pendiente de `P3-T05` | única fuente válida para disponibilidad | interna/publicable según política | muy alta; propuesta: máximo 5 minutos y revalidación antes de publicar | Responsable de negocio + custodio del sistema comercial | 2026-07-29 | umbral pendiente de aprobación | candidate |
-| `KC-004` | promoción, precio anterior, condiciones e intervalo de vigencia | humano: autorización del negocio por pieza; Odoo no gobierna promociones hoy | única fuente válida para promoción | publicable | muy alta; debe estar dentro de `effective_from`/`effective_until` y revalidarse antes de publicar | Responsable de negocio | 2026-07-29 | condiciones pendientes | missing |
-| `KC-005` | recepción de mercadería confirmada | estructurado: Odoo 18; consulta futura | evidencia operativa, nunca disparador automático | interna | alta; sólo el evento confirmado y su timestamp | Responsable de negocio + custodio del sistema comercial | 2026-07-29 | fuera de automatización hasta aprobar el acceso | candidate |
+| `KN-001` | nombre, nombre corto, claim, handle | documental: [`packages/brand-knowledge/src/brand-profile.ts`](../../packages/brand-knowledge/src/brand-profile.ts) | perfil heredado confirmado por el negocio | publicable | estable; revisar cada 180 días o ante cambio de marca | Responsable de negocio | 2026-07-29 | inventario aprobado 2026-07-29 | approved |
+| `KN-002` | tono, objetivos, CTA y tipos de pieza permitidos | documental: [`PIECE-CATALOG.md`](../architecture/PIECE-CATALOG.md) y reglas de copy de `AGENTS.md` | política editorial aprobada del proyecto | interna/publicable según campo | estable; revisar cada 180 días y ante cambio editorial | Responsable de negocio | 2026-07-29 | inventario aprobado 2026-07-29 | approved |
+| `KN-003` | direcciones, teléfono, WhatsApp y horario semanal por sucursal | estructurado: configuración auditada de organización y ubicación en PostgreSQL | fuente operativa prevista | publicable | alta; versión vigente y revalidación el día de aprobación/publicación | Responsable de negocio | 2026-07-29 | inventario aprobado; el seed no constituye evidencia publicable | approved |
+| `KN-004` | servicios reales de ferretería y lubricentro, alcance, rubros que se venden y que no | documental: `KN-006`, secciones 6 y 7 | fuente aportada y aprobada por el negocio | publicable | media; revisar cada 90 días o al cambiar un servicio | Responsable de negocio | 2026-07-29 | inventario y extracto aprobados 2026-07-29 | approved |
+| `KN-005` | medios de pago, cuenta corriente y alcance geográfico | documental: `KN-006`, sección 8 | fuente aportada y aprobada por el negocio | publicable | media; cada versión declara inicio y fin | Responsable de negocio | 2026-07-29 | inventario y extracto aprobados 2026-07-29 | approved |
+| `KN-006` | contexto del negocio: identificación, locales, surtido, servicios, segmentos | documental: informe de contexto y definición de negocio, fuera del repositorio | documento del negocio, actualizado a julio de 2026 | interna; extracto publicable acotado | media; revisar cada 180 días o ante cambio de surtido, sistema o locales | Responsable de negocio | 2026-07-29 | inventario y extracto publicable aprobados 2026-07-29 | approved |
+| `KN-007` | garantías, cambios y devoluciones | humano: fuente aprobada para cada caso; no existe una política general activa | sin una fuente aprobada para el caso no existe autoridad | publicable/interna | limitada al caso y a la vigencia declarada por su fuente | Responsable de negocio | 2026-07-29 | política de consulta caso por caso aprobada 2026-07-29 | missing |
+| `KC-001` | identidad de producto, SKU, marca, presentación, categoría y estado discontinuado | estructurado: Odoo 18 (ver [Sistema comercial](#sistema-comercial)); puerto tipado pendiente de `P3-T05` | maestro comercial identificado | publicable; excluir costo/proveedor | media; consultar en el flujo y conservar timestamp | Responsable de negocio + Administrador de Odoo | 2026-07-29 | inventario aprobado; método de acceso aún no seleccionado | approved |
+| `KC-002` | precio vigente, moneda, unidad y condiciones explícitas | estructurado: Odoo 18; puerto tipado pendiente de `P3-T05` | única fuente válida para precio | publicable; costo y margen prohibidos | muy alta; máximo 15 minutos y revalidación antes de publicar | Responsable de negocio + Administrador de Odoo | 2026-07-29 | umbral aprobado 2026-07-29 | approved |
+| `KC-003` | stock por sucursal y timestamp | estructurado: Odoo 18; puerto tipado pendiente de `P3-T05` | única fuente válida para disponibilidad | interna/publicable según política | muy alta; máximo 5 minutos y revalidación antes de publicar | Responsable de negocio + Administrador de Odoo | 2026-07-29 | umbral aprobado 2026-07-29 | approved |
+| `KC-004` | promoción, precio anterior, condiciones e intervalo de vigencia | humano: autorización del negocio por pieza; Odoo no gobierna promociones hoy | única fuente válida para promoción | publicable | muy alta; aprobación por pieza con condiciones, `effective_from` y `effective_until`; revalidar antes de publicar | Responsable de negocio | 2026-07-29 | gobierno por pieza aprobado 2026-07-29 | approved |
+| `KC-005` | recepción de mercadería confirmada | estructurado: Odoo 18; consulta futura | evidencia operativa, nunca disparador automático | interna | alta; sólo el evento confirmado y su timestamp | Responsable de negocio + Administrador de Odoo | 2026-07-29 | inventario aprobado; fuera de automatización hasta implementar el acceso | approved |
 | `KH-001` | objetivo, público, oferta y restricciones de una campaña puntual | humano: brief versionado y aprobado, todavía no implementado | decisión de campaña dentro de su alcance | interna/publicable según campo | limitada al intervalo de la campaña | Responsable de negocio | 2026-07-29 | pendiente por campaña | candidate |
 
 ## Sistema comercial
@@ -77,7 +78,8 @@ la ausencia fue comprobada. No reemplaza la revisión del negocio.
 | Escala | Cerca de 10.000 productos, unos 9.600 activos |
 | Taxonomía | Árbol `Catálogo Aramayo`: 18 rubros de primer nivel y unas 244 categorías con productos |
 | Datos disponibles | Producto, SKU, categoría, precio vigente, stock por local, fecha de actualización |
-| Método de acceso | **Pendiente.** Se define en `P3-T05`: credencial técnica de solo lectura, campos permitidos, límite de filas y timeout |
+| Custodio técnico | `Administrador de Odoo` |
+| Método de acceso | **Propuesta técnica: XML-RPC sobre HTTPS**, con API key de un usuario técnico de solo lectura y operaciones `execute_kw` encerradas por el adaptador. Requiere revisión del `Administrador de Odoo` antes de conectar; ver [`ODOO-READ-ACCESS.md`](ODOO-READ-ACCESS.md) |
 
 La escala decide el canal: un maestro de ese tamaño, que cambia sin versión, no
 puede copiarse a un documento. El catálogo se consulta; no se indexa.
@@ -92,9 +94,10 @@ para una prueba no habilita ninguna afirmación.
 > producción es Odoo 18 y el informe se corrigió en julio de 2026. Este catálogo
 > toma Odoo 18 como fuente vigente.
 
-Identificar el sistema no lo vuelve consultable: `KC-001` a `KC-005` siguen sin
-puerto tipado. Hasta que `P3-T05` lo defina, toda afirmación de precio o stock
-queda bloqueada por falta de lectura, no aprobada por otra vía.
+Identificar el sistema y definir un puerto no lo vuelve consultable: `KC-001` a
+`KC-005` siguen sin un adaptador real revisado y habilitado. Hasta que exista esa
+lectura, toda afirmación de precio o stock queda bloqueada, no aprobada por otra
+vía.
 
 ## Canal web para clientes
 
@@ -211,7 +214,8 @@ bajo, de una compra anterior ni de una publicación previa.
 - Descuento, promoción, urgencia, escasez o promesa de resultado.
 - Plazo de entrega, de pedido o de disponibilidad futura.
 - Horario especial o cambio de contacto.
-- Beneficios técnicos, compatibilidad, rendimiento, garantía o seguridad.
+- Beneficios técnicos, compatibilidad, rendimiento o seguridad.
+- Garantías, cambios y devoluciones, siempre con una fuente aprobada para el caso.
 - Comparaciones, testimonios, reseñas, atribuciones y marcas de terceros.
 - Todo contenido generado por IA durante las fases iniciales.
 
@@ -239,8 +243,10 @@ Un disclaimer agrega condiciones conocidas; nunca compensa evidencia faltante.
 - Horario especial: indicar fecha y sucursal. El horario semanal no demuestra
   apertura en un feriado o excepción.
 
-Los textos finales y los umbrales de frescura propuestos requieren aprobación
-del negocio antes de volverse política activa.
+Los umbrales aprobados son 15 minutos para precio y 5 minutos para stock, ambos
+con revalidación obligatoria antes de publicar. El wording final puede adaptarse
+a la pieza, pero no puede omitir condiciones materiales ni compensar una fuente
+ausente.
 
 ## Retiro y trazabilidad
 
@@ -253,7 +259,7 @@ del negocio antes de volverse política activa.
 - Una ejecución conserva ID de fuente, versión, hash, ámbito y timestamp. El
   contenido completo sólo se retiene según su clasificación.
 
-## Aprobación pendiente
+## Aprobación de negocio
 
 Resuelto el 2026-07-29 por el negocio:
 
@@ -264,14 +270,21 @@ Resuelto el 2026-07-29 por el negocio:
 - Fuente aportada para servicios, rubros y medios de pago (`KN-006`), con su
   extracto publicable delimitado.
 - Canal web declarado como proyecto no publicado.
+- Inventario completo y escenarios `S-01` a `S-19` aprobados por la función
+  `Responsable de negocio` el 2026-07-29.
+- Precio aprobado con vigencia máxima de 15 minutos y stock con vigencia máxima
+  de 5 minutos; ambos deben revalidarse antes de publicar.
+- Garantías, cambios y devoluciones se consultan caso por caso y no se afirman
+  sin una fuente aprobada para ese caso.
+- Promociones requieren aprobación humana por pieza, condiciones materiales y
+  fechas de vigencia.
+- Custodio técnico designado por función: `Administrador de Odoo`.
 
-Para pasar este documento a vigente, la función `Responsable de negocio` debe:
+La aprobación de esta política no activa por sí sola ninguna fuente ni autoriza
+una conexión real. Continúan pendientes:
 
-1. confirmar o corregir cada fila del inventario;
-2. designar al custodio técnico del acceso a Odoo y aprobar el método de lectura
-   que define `P3-T05`;
-3. aprobar umbrales de frescura y textos de disclaimer;
-4. resolver las fuentes `missing` que quedan: `KN-007` garantías y devoluciones,
-   y `KC-004` gobierno de promociones;
-5. ejecutar y firmar los escenarios de
-   [`KNOWLEDGE-POLICY-SCENARIOS.md`](KNOWLEDGE-POLICY-SCENARIOS.md).
+1. revisar con el `Administrador de Odoo` la propuesta XML-RPC, el mapping y los
+   permisos exactos de solo lectura;
+2. activar documentos únicamente después del ciclo de ingestión de `P3-T03`;
+3. aportar la fuente aprobada de cada garantía, cambio o devolución cuando un
+   caso concreto la requiera.

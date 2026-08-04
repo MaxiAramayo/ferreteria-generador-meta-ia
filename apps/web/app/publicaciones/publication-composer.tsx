@@ -17,6 +17,7 @@ import {
   type PublicationComposerVariant,
 } from "../../lib/publication-composer-contract";
 import { saveTemplatePublicationDraft } from "../../lib/publication-workspace-api";
+import { AICreativeComposer } from "./ai-creative-composer";
 import {
   PublicationComposerContextProvider,
   usePublicationComposerActions,
@@ -172,10 +173,11 @@ function PublicationComposerProvider({
   const meta = useMemo(
     () => ({
       allowedActions: allowedComposerActions(state.variant),
+      apiBaseUrl,
       canEdit,
       formId: "publication-template-form",
     }),
-    [canEdit, state.variant],
+    [apiBaseUrl, canEdit, state.variant],
   );
 
   return (
@@ -392,15 +394,10 @@ export function TemplatePublicationComposer() {
   );
 }
 
-export function AICreativeComposer() {
+function AICreative() {
+  const meta = usePublicationComposerMeta();
   return (
-    <ComposerFrame>
-      <CapabilityBoundary
-        description="Acá se definirán el objetivo y las fuentes verificadas antes de generar una propuesta."
-        eyebrow="Fase 3"
-        title="Creatividad con contexto comprobable"
-      />
-    </ComposerFrame>
+    <AICreativeComposer apiBaseUrl={meta.apiBaseUrl} canEdit={meta.canEdit} />
   );
 }
 
@@ -434,7 +431,7 @@ function ActiveComposer() {
     case "template":
       return <TemplatePublicationComposer />;
     case "ai-creative":
-      return <AICreativeComposer />;
+      return <AICreative />;
     case "recurring-story":
       return <RecurringStoryComposer />;
     case "product-promotion":

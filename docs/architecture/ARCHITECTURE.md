@@ -143,6 +143,64 @@ referencias y retención dentro de una transacción, elimina en Cloudinary y só
 entonces confirma `deleted`. Una respuesta remota ambigua conserva el estado
 reintentable.
 
+## Recuperación de conocimiento
+
+La recuperación documental combina dos controles independientes. PostgreSQL
+selecciona primero las versiones activas, aprobadas, vigentes y permitidas para
+la organización y sucursal derivadas de la sesión. File Search busca únicamente
+entre sus hashes y el worker vuelve a validar cada resultado contra esa lista
+local antes de construir contexto.
+
+`KnowledgeRetrievalRepository` resuelve elegibilidad y
+`KnowledgeSearchPort` aísla la búsqueda remota. El caso de uso limita fuentes,
+fragmentos y tamaño total, conserva documento, versión y fragmento exacto, y
+devuelve `missing_information` cuando no existe evidencia suficiente o hay
+fuentes conflictivas. Un fallo del proveedor es un error operativo explícito,
+no ausencia de información.
+
+## Herramientas comerciales
+
+El worker expone cinco definiciones estrictas y estables para buscar productos,
+obtener una ficha, consultar precio, consultar stock y verificar una recepción.
+Los esquemas no contienen organización ni sucursal: ambos valores, junto con la
+membresía del actor, provienen del contexto autenticado que crea la sesión de
+herramientas.
+
+`CommercialToolExecutionService` valida argumentos, tenant y mapping de
+sucursal antes de alcanzar `CommercialCatalogPort`. El adaptador productivo usa
+exclusivamente `GET` contra la API HTTPS dedicada de Odoo, rechaza redirects,
+campos inesperados y respuestas mayores a 64 KiB. La salida para OpenAI queda
+limitada a 10 productos y 12.000 caracteres.
+
+Cada ejecución conserva una cuota máxima por run y timeout. Éxito, rechazo y
+fallo se escriben en `audit_events` con actor, herramienta, duración, resultado
+y parámetros minimizados; ni el token, ni el texto buscado, ni el payload
+comercial completo se auditan. Si la auditoría falla, el resultado no se
+entrega.
+
+## Perfiles visuales
+
+Pedir una imagen no es redactar texto libre en cada ejecución. Un perfil
+versionado traduce el lenguaje visual aprobado a parámetros verificables
+—formato, intención, estilo, foco, espacio reservado, restricciones y guía
+negativa— y la dirección visual del brief junto con la marca determinan cuál
+corresponde.
+
+`@aramayo/domain` es la autoridad: define los perfiles, sanea las variables de
+origen no confiable y decide entre generar o resolver con render determinista.
+El worker aporta el catálogo, el texto versionado de las instrucciones y la
+política de activos. El motor de diseño sigue siendo la única fuente de
+dimensiones: el espacio reservado viaja al prompt con la zona segura real del
+formato.
+
+Tres límites gobiernan el prompt. El texto comercial no se delega a la imagen
+—precio, promoción, horario, CTA y logo se componen después—; ninguna marca se
+genera, así que un producto de marca llega como foto real y sólo un artículo
+genérico puede dibujarse; y lo que escribió una persona entra como dato dentro de
+una sección declarada no confiable, nunca concatenado en las instrucciones. Cada
+plan conserva perfil, versión y hash, y el fallback determinista distingue por
+qué no hubo generación.
+
 ## Frontend
 
 El compositor se diseña por composición:
@@ -165,6 +223,9 @@ Variantes explícitas:
 
 El provider es el único que conoce persistencia y sincronización. Los
 subcomponentes consumen una interfaz con `state`, `actions` y `meta`.
+La variante de creatividad asistida presenta el texto propuesto y las fuentes
+verificadas en regiones separadas; una cita nunca se renderiza como parte del
+texto generado.
 
 ## Fuente de verdad
 

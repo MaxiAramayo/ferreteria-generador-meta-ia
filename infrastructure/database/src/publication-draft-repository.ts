@@ -49,6 +49,7 @@ const revisionFields = {
     },
   },
   content: true,
+  contentBriefRunId: true,
   contentHash: true,
   createdAt: true,
   createdByMembershipId: true,
@@ -214,6 +215,9 @@ function mapRevision(row: RevisionRow): PublicationRevisionRecord {
           approvedAt: approval.approvedAt.toISOString(),
         }),
     content: row.content,
+    ...(row.contentBriefRunId === null
+      ? {}
+      : { contentBriefRunId: row.contentBriefRunId }),
     contentHash: row.contentHash,
     createdAt: row.createdAt.toISOString(),
     createdByMembershipId: row.createdByMembershipId,
@@ -627,6 +631,7 @@ function prismaJson(value: unknown, path = "document"): Prisma.InputJsonValue {
 
 function revisionData(input: PersistPublicationDraftInput): Readonly<{
   content: Prisma.InputJsonObject;
+  contentBriefRunId: string | null;
   contentHash: string;
   createdByMembershipId: string;
   designDocument: Prisma.InputJsonValue;
@@ -644,6 +649,7 @@ function revisionData(input: PersistPublicationDraftInput): Readonly<{
         reference: product.reference,
       })),
     },
+    contentBriefRunId: input.contentBriefRunId ?? null,
     contentHash: input.contentHash,
     createdByMembershipId: input.createdByMembershipId,
     designDocument: prismaJson(input.designDocument),
@@ -851,6 +857,12 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
           const detail = mapDetail(row);
           return Object.freeze({
             ...detail.publication,
+            ...(detail.latestRevision.contentBriefRunId === undefined
+              ? {}
+              : {
+                  latestContentBriefRunId:
+                    detail.latestRevision.contentBriefRunId,
+                }),
             latestContentHash: detail.latestRevision.contentHash,
             latestRevisionId: detail.latestRevision.id,
             latestRevisionNumber: detail.latestRevision.revisionNumber,

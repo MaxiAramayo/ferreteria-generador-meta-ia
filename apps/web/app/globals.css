@@ -289,7 +289,8 @@ a {
 
 .workspace-section-heading h2,
 .composer-form h2,
-.composer-boundary h2 {
+.composer-boundary h2,
+.composer-ai-request h2 {
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
   font-size: clamp(2.2rem, 4vw, 3.75rem);
   font-weight: 800;
@@ -584,11 +585,134 @@ a {
   max-width: 52rem;
 }
 
+.composer-ai-request {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  justify-content: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.composer-ai-request > p:not(.workspace-eyebrow, .composer-boundary-note) {
+  color: var(--workspace-muted);
+  margin: 0;
+  max-width: 38rem;
+}
+
 .composer-boundary-note {
   border-left: 0.35rem solid var(--workspace-safety);
   font-size: 0.9rem;
   margin: 0;
   padding-left: 1rem;
+}
+
+.knowledge-evidence-panel {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.knowledge-evidence-panel h3 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  line-height: 0.95;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.knowledge-evidence-panel[data-status="idle"] {
+  justify-content: center;
+}
+
+.knowledge-evidence-panel[data-status="idle"] > p:last-child,
+.knowledge-generated-text > p:last-child,
+.knowledge-source-empty {
+  color: var(--workspace-cream);
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.knowledge-generated-text {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  padding-bottom: 1.5rem;
+}
+
+.knowledge-missing {
+  border-left: 0.4rem solid var(--workspace-safety);
+  padding-left: 1rem;
+}
+
+.knowledge-missing p:last-child {
+  margin-bottom: 0;
+}
+
+.knowledge-source-heading {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.knowledge-source-heading > span {
+  align-items: center;
+  background: var(--workspace-safety);
+  color: var(--workspace-ink);
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 900;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.knowledge-citation-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.knowledge-citation {
+  border: 1px solid color-mix(in srgb, var(--workspace-paper) 35%, transparent);
+  padding: 1rem;
+}
+
+.knowledge-citation > div {
+  align-items: center;
+  display: grid;
+  gap: 0.25rem 0.6rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.knowledge-citation > div > span {
+  background: var(--workspace-rust);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 0.3rem 0.4rem;
+}
+
+.knowledge-citation small,
+.knowledge-citation > p {
+  color: var(--workspace-cream);
+  font-size: 0.7rem;
+}
+
+.knowledge-citation blockquote {
+  border-left: 0.2rem solid var(--workspace-safety);
+  margin: 0.9rem 0;
+  padding-left: 0.75rem;
+}
+
+.knowledge-citation > p {
+  margin: 0;
 }
 
 .composer-notice {
@@ -1086,4 +1210,86 @@ a {
   .configuration-hero a:hover {
     transform: translateY(-0.125rem);
   }
+}
+
+.knowledge-missing ul {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.knowledge-missing li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.knowledge-missing li > span {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.composer-history {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.composer-history ol {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.composer-history button {
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--workspace-paper) 30%, transparent);
+  color: inherit;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.composer-history button > span {
+  font-size: 0.7rem;
+  font-weight: 900;
+  justify-self: start;
+  padding: 0.2rem 0.4rem;
+  text-transform: uppercase;
+}
+
+.composer-history button > span[data-status="generated"] {
+  background: var(--workspace-safety);
+  color: var(--workspace-ink);
+}
+
+.composer-history button > span[data-status="pending"] {
+  background: color-mix(in srgb, var(--workspace-paper) 30%, transparent);
+}
+
+.composer-history button > span[data-status="cancelled"],
+.composer-history button > span[data-status="rejected"] {
+  background: var(--workspace-rust);
+  color: #ffffff;
+}
+
+.composer-history button > small {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.publication-brief-origin {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.publication-brief-origin code {
+  background: color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  padding: 0.1rem 0.3rem;
 }

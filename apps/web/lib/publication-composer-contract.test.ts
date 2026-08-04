@@ -14,8 +14,15 @@ test("cada variante expone únicamente sus acciones válidas", () => {
     [...allowedComposerActions("template")],
     ["edit-caption", "edit-title", "save-draft"],
   );
+  // Pedir un brief y aceptarlo son acciones separadas, y ninguna publica.
+  assert.deepEqual(
+    [...allowedComposerActions("ai-creative")],
+    ["accept-brief", "request-brief"],
+  );
+  // Las variantes que todavía no tienen dominio detrás no simulan acciones.
+  const implemented = new Set(["ai-creative", "template"]);
   for (const variant of publicationComposerVariants) {
-    if (variant !== "template") {
+    if (!implemented.has(variant)) {
       assert.equal(allowedComposerActions(variant).size, 0);
     }
   }

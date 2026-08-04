@@ -13,3 +13,13 @@ export {
   PrismaReliableOperationRepository,
 } from "./reliable-operation-repository.ts";
 export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
+export { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
+export { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
+export {
+  PrismaContentBriefRequestRepository,
+  PrismaContentBriefRunRepository,
+} from "./content-brief-run-repository.ts";
+export {
+  PrismaGenerationRunRepository,
+  PrismaGenerationRunRequestRepository,
+} from "./generation-run-repository.ts";
