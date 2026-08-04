@@ -5,6 +5,8 @@ import {
   PrismaApprovalSnapshotRepository,
   PrismaContentBriefRequestRepository,
   PrismaContentBriefRunRepository,
+  PrismaGenerationRunRepository,
+  PrismaGenerationRunRequestRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
@@ -18,6 +20,8 @@ import type {
   ApprovalSnapshotRepository,
   ContentBriefRequestRepository,
   ContentBriefRunRepository,
+  GenerationRunRepository,
+  GenerationRunRequestRepository,
   IdentityRepository,
   MediaAssetRepository,
   OrganizationConfigurationRepository,
@@ -35,6 +39,8 @@ import {
   CONTENT_BRIEF_REQUEST_REPOSITORY,
   CONTENT_BRIEF_RUN_REPOSITORY,
   DATABASE_CLIENT,
+  GENERATION_RUN_REPOSITORY,
+  GENERATION_RUN_REQUEST_REPOSITORY,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -53,6 +59,8 @@ export class DatabaseModule {
         APPROVAL_SNAPSHOT_REPOSITORY,
         CONTENT_BRIEF_REQUEST_REPOSITORY,
         CONTENT_BRIEF_RUN_REPOSITORY,
+        GENERATION_RUN_REPOSITORY,
+        GENERATION_RUN_REQUEST_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -141,6 +149,20 @@ export class DatabaseModule {
           provide: CONTENT_BRIEF_RUN_REPOSITORY,
           useFactory: (database: DatabaseClient): ContentBriefRunRepository =>
             new PrismaContentBriefRunRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: GENERATION_RUN_REQUEST_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): GenerationRunRequestRepository =>
+            new PrismaGenerationRunRequestRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: GENERATION_RUN_REPOSITORY,
+          useFactory: (database: DatabaseClient): GenerationRunRepository =>
+            new PrismaGenerationRunRepository(database),
         },
         DatabaseLifecycleService,
       ],

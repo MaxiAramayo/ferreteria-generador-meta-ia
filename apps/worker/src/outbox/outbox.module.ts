@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   contentBriefGenerationTopic,
+  generationRunTopic,
   publicationRenderTopic,
   type ContentBriefRunRepository,
   type OutboxRepository,
@@ -17,6 +18,9 @@ import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
 } from "../database/database.tokens.ts";
+import { IMAGE_GENERATION_RUN_SERVICE } from "../generation/generation.tokens.ts";
+import { GenerationRunOutboxTransport } from "../generation/generation-run-outbox.transport.ts";
+import type { ImageGenerationRunService } from "../generation/image-generation-run.service.ts";
 import { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
 import { DESIGN_RENDERER } from "../rendering/rendering.module.ts";
 import { PublicationRenderOutboxTransport } from "../rendering/publication-render.service.ts";
@@ -41,6 +45,7 @@ export class OutboxModule {
       PUBLICATION_PRODUCTION_REPOSITORY,
       DESIGN_RENDERER,
       MediaLifecycleService,
+      IMAGE_GENERATION_RUN_SERVICE,
     ];
     const briefInjection = dependencies.briefAvailable
       ? [CONTENT_BRIEF_GENERATION_SERVICE, CONTENT_BRIEF_RUN_REPOSITORY]
@@ -58,10 +63,14 @@ export class OutboxModule {
             repository: PublicationProductionRepository,
             renderer: DesignRenderer,
             media: MediaLifecycleService,
+            generation: ImageGenerationRunService,
             brief?: ContentBriefGenerationService,
             runs?: ContentBriefRunRepository,
           ): OutboxTransport =>
             new TopicRoutingOutboxTransport({
+              [generationRunTopic]: new GenerationRunOutboxTransport(
+                generation,
+              ),
               [publicationRenderTopic]: new PublicationRenderOutboxTransport(
                 repository,
                 renderer,

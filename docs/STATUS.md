@@ -14,6 +14,13 @@ faltaba a `P1-T07`.
 `P4-T01` quedó cerrada. La revisión visual y comercial se hizo el 2026-08-03 y
 sus decisiones están aplicadas en `visual-profile/2026-08-03.2`.
 
+`P4-T04` quedó cerrada el 2026-08-03. Una ejecución de generación es un lote de
+variantes con ciclo de vida propio —`pending → running → completed | failed |
+cancelled`—, la API la encola con 202 y la deja consultable con su progreso, el
+worker la resuelve con concurrencia acotada y reintento por variante, y una
+cancelación impide promover el resultado tardío aunque el proveedor ya haya
+respondido.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -33,8 +40,20 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T04` — orquestar ejecuciones asíncronas de generación. Sus
-dependencias `P2-T06` y `P4-T03` están completas.
+Iniciar `P4-T05` — componer la salida con la capa de marca. Sus dependencias
+`P1-T05` y `P4-T04` están completas.
+
+`P4-T04` dejó tres cosas registradas que conviene tener presentes al continuar:
+
+- el transporte del lote es el outbox transaccional sobre PostgreSQL y no
+  BullMQ. La plataforma no tiene BullMQ desde `P2-T06` y no se agregó una
+  segunda cola para esta tarea;
+- la edición con referencias no está conectada porque `MediaStorage` no expone
+  lectura de bytes. Hoy un sujeto `branded` sin foto aprobada se resuelve con
+  render determinista y un sujeto `generic` sí se genera. Corresponde a
+  `P4-T06`;
+- `estimatedCostUsd` sigue en `null`; el uso en tokens sí se conserva y se suma
+  al lote. Corresponde a `P4-T07`.
 
 `P4-T03` quedó cerrada el 2026-08-03. El usuario habilitó GPT Image en la
 organización y el smoke real generó y editó contra staging: ambas imágenes en

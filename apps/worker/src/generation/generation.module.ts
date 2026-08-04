@@ -1,6 +1,8 @@
 import type { OpenAIIntegration } from "@aramayo/configuration";
 import {
   ImageGenerationError,
+  type ContentBriefRunRepository,
+  type GenerationRunRepository,
   type ImageGenerationPort,
   type StructuredGenerationPort,
   type TextGenerationPort,
@@ -8,10 +10,17 @@ import {
 import { Logger, Module, type DynamicModule } from "@nestjs/common";
 
 import {
+  CONTENT_BRIEF_RUN_REPOSITORY,
+  GENERATION_RUN_REPOSITORY,
+} from "../database/database.tokens.ts";
+import { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
+import {
   IMAGE_GENERATION_PORT,
+  IMAGE_GENERATION_RUN_SERVICE,
   STRUCTURED_GENERATION_PORT,
   TEXT_GENERATION_PORT,
 } from "./generation.tokens.ts";
+import { ImageGenerationRunService } from "./image-generation-run.service.ts";
 import { OfficialOpenAIImagesTransport } from "./openai-image-transport.ts";
 import { OpenAIImageGenerationGateway } from "./openai-image.gateway.ts";
 import {
@@ -83,6 +92,7 @@ export class GenerationModule {
     return {
       exports: [
         IMAGE_GENERATION_PORT,
+        IMAGE_GENERATION_RUN_SERVICE,
         STRUCTURED_GENERATION_PORT,
         TEXT_GENERATION_PORT,
       ],
@@ -103,6 +113,27 @@ export class GenerationModule {
           useFactory: (
             port: TextGenerationPort & StructuredGenerationPort,
           ): StructuredGenerationPort => port,
+        },
+        {
+          inject: [
+            GENERATION_RUN_REPOSITORY,
+            CONTENT_BRIEF_RUN_REPOSITORY,
+            IMAGE_GENERATION_PORT,
+            MediaLifecycleService,
+          ],
+          provide: IMAGE_GENERATION_RUN_SERVICE,
+          useFactory: (
+            runs: GenerationRunRepository,
+            briefs: ContentBriefRunRepository,
+            images: ImageGenerationPort,
+            media: MediaLifecycleService,
+          ): ImageGenerationRunService =>
+            new ImageGenerationRunService(runs, briefs, images, media, {
+              // Sin credenciales el lote se cierra con render determinista y
+              // motivo `generation-disabled`, en lugar de gastar cada variante
+              // contra un gateway que sólo sabe rechazar.
+              generationEnabled: openAi.enabled,
+            }),
         },
       ],
     };

@@ -7,6 +7,8 @@ import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
   transitionPublication,
+  type GenerationRunRecord,
+  type GenerationVariantRecord,
   type ReserveKnowledgeDocumentVersionInput,
   type ReliableMutationContext,
 } from "@aramayo/domain";
@@ -26,6 +28,10 @@ import {
   PrismaContentBriefRequestRepository,
   PrismaContentBriefRunRepository,
 } from "./content-brief-run-repository.ts";
+import {
+  PrismaGenerationRunRepository,
+  PrismaGenerationRunRequestRepository,
+} from "./generation-run-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -3078,5 +3084,653 @@ test("la vertical del brief recorre pedido, resultado y aceptación trazable", a
       data: { contentBriefRunId: randomUUID() },
       where: { id: detail.latestRevision.id },
     }),
+  );
+});
+
+/**
+ * Fixture mínimo para un lote: organización, membresía y la ejecución de brief
+ * de la que sale el pedido. El lote siempre cita un brief, así que no hay
+ * escenario válido sin él.
+ */
+/**
+ * Lee una variante por su índice y afirma que existe. Evita encadenar
+ * opcionales sobre un acceso indexado, que el compilador y el linter juzgan
+ * distinto.
+ */
+function variantAt(
+  run: GenerationRunRecord,
+  index: number,
+): GenerationVariantRecord {
+  const variant = run.variants[index];
+  assert.ok(variant !== undefined);
+  return variant;
+}
+
+async function generationFixture(): Promise<{
+  briefRunId: string;
+  membershipId: string;
+  organizationId: string;
+}> {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const briefRunId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización de generación",
+      id: organizationId,
+      legalName: "Organización de generación",
+      slug: `generation-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora de generación",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.contentBriefRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      attempts: 0,
+      cachedInputTokens: 0,
+      evidence: [],
+      id: briefRunId,
+      inputTokens: 0,
+      knowledgeStatus: "pending",
+      latencyMilliseconds: 0,
+      model: "unselected",
+      organizationId,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      request: "Pieza para promocionar amoladoras.",
+      requestHash: randomHash(),
+      requestedAt: new Date("2026-08-03T12:00:00.000Z"),
+      status: "pending",
+      toolInvocations: [],
+      toolNames: [],
+      totalTokens: 0,
+    },
+  });
+  return { briefRunId, membershipId, organizationId };
+}
+
+test("el lote de generación conserva su ciclo de vida y sus variantes", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-03T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+
+  const reserved = await repository.findById({ id: runId, organizationId });
+  assert.ok(reserved !== null);
+  assert.equal(reserved.status, "pending");
+  assert.equal(reserved.plan, null);
+  assert.equal(reserved.variants.length, 3);
+  // El índice ordena la presentación sin depender del reloj.
+  assert.deepEqual(
+    reserved.variants.map((variant) => variant.index),
+    [0, 1, 2],
+  );
+  assert.ok(reserved.variants.every((variant) => variant.status === "pending"));
+
+  // Tomar el lote es la transición que actúa de candado: la segunda entrega del
+  // mismo evento la pierde y no vuelve a lanzarlo.
+  assert.deepEqual(
+    await repository.start({
+      id: runId,
+      organizationId,
+      startedAt: "2026-08-03T12:00:01.000Z",
+    }),
+    { status: "written" },
+  );
+  assert.deepEqual(
+    await repository.start({
+      id: runId,
+      organizationId,
+      startedAt: "2026-08-03T12:00:02.000Z",
+    }),
+    { reason: "not-open", status: "discarded" },
+  );
+
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "variante.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/variante-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/variante-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 4_200,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "a".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[0] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T12:00:20.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Fallo parcial: la segunda variante no sale y explica cómo corregirlo.
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 3,
+        failure: {
+          code: "rate-limit",
+          correction: "Reintentá el lote en unos minutos.",
+          detail: "El proveedor limitó la tasa.",
+        },
+        latencyMilliseconds: 900,
+        organizationId,
+        requestId: null,
+        runId,
+        status: "failed",
+        variantId: variantIds[1] ?? "",
+      },
+      "2026-08-03T12:00:25.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Una variante ya resuelta no se reescribe: una reentrega no puede pisar un
+  // resultado que ya se cobró.
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 100,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "b".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[1] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T12:00:30.000Z",
+    ),
+    { reason: "not-open", status: "discarded" },
+  );
+
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: null,
+        id: runId,
+        organizationId,
+        plan: {
+          format: "feed",
+          profileId: "ferreteria-producto-limpio",
+          profileVersion: "visual-profile/2026-08-03.2",
+          promptHash: "c".repeat(64),
+          promptVersion: "visual-prompt/2026-08-03.2",
+        },
+        resolution: null,
+        status: "completed",
+        totalTokens: 4_120,
+      },
+      "2026-08-03T12:00:40.000Z",
+    ),
+    { status: "written" },
+  );
+
+  const completed = await repository.findById({ id: runId, organizationId });
+  assert.ok(completed !== null);
+  assert.equal(completed.status, "completed");
+  assert.equal(completed.plan?.promptVersion, "visual-prompt/2026-08-03.2");
+  assert.equal(completed.totalTokens, 4_120);
+  assert.equal(variantAt(completed, 0).status, "succeeded");
+  assert.equal(variantAt(completed, 0).mediaAssetId, mediaAssetId);
+  assert.equal(variantAt(completed, 1).status, "failed");
+  assert.equal(variantAt(completed, 1).failure?.code, "rate-limit");
+  // La tercera nunca se intentó: descartada, no fallida. No gastó nada y
+  // presentarla como fallo sugeriría un problema del proveedor que no ocurrió.
+  assert.equal(variantAt(completed, 2).status, "discarded");
+  assert.equal(variantAt(completed, 2).failure, null);
+
+  // Cerrar dos veces no reescribe un lote ya terminado.
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: null,
+        id: runId,
+        organizationId,
+        plan: null,
+        resolution: null,
+        status: "failed",
+        totalTokens: 0,
+      },
+      "2026-08-03T12:00:50.000Z",
+    ),
+    { reason: "not-open", status: "discarded" },
+  );
+});
+
+test("cancelar un lote impide promover el resultado tardío", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "historia",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+  await repository.start({
+    id: runId,
+    organizationId,
+    startedAt: "2026-08-03T13:00:01.000Z",
+  });
+
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:10.000Z",
+      id: runId,
+      organizationId,
+    }),
+    { status: "cancelled" },
+  );
+
+  const cancelled = await repository.findById({ id: runId, organizationId });
+  assert.ok(cancelled !== null);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.completedAt, null);
+  // Cancelar no deja variantes en curso eternas.
+  assert.ok(
+    cancelled.variants.every((variant) => variant.status === "discarded"),
+  );
+
+  // El proveedor no se puede detener, pero su respuesta tardía no se promueve.
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "tardia.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/tardia-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/tardia-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+  assert.deepEqual(
+    await repository.completeVariant(
+      {
+        attempts: 1,
+        height: 1536,
+        latencyMilliseconds: 5_000,
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        requestId: null,
+        runId,
+        sha256: "d".repeat(64),
+        status: "succeeded",
+        variantId: variantIds[0] ?? "",
+        width: 1024,
+      },
+      "2026-08-03T13:00:30.000Z",
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+  assert.deepEqual(
+    await repository.complete(
+      {
+        estimatedCostUsd: 0.42,
+        id: runId,
+        organizationId,
+        plan: null,
+        resolution: null,
+        status: "completed",
+        totalTokens: 100,
+      },
+      "2026-08-03T13:00:31.000Z",
+    ),
+    { reason: "cancelled", status: "discarded" },
+  );
+
+  const afterLateResult = await repository.findById({
+    id: runId,
+    organizationId,
+  });
+  assert.ok(afterLateResult !== null);
+  assert.equal(afterLateResult.status, "cancelled");
+  assert.equal(variantAt(afterLateResult, 0).mediaAssetId, null);
+
+  // Cancelar de nuevo informa el estado real en lugar de fallar.
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:40.000Z",
+      id: runId,
+      organizationId,
+    }),
+    { resolvedStatus: "cancelled", status: "already-resolved" },
+  );
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T13:00:40.000Z",
+      id: randomUUID(),
+      organizationId,
+    }),
+    { status: "not-found" },
+  );
+});
+
+test("el pedido de generación reserva, encola y no factura dos lotes", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const repository = new PrismaGenerationRunRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:request",
+  );
+  const input = {
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed" as const,
+    id: randomUUID(),
+    organizationId,
+    reliableOperation: operation,
+    requestedAt: "2026-08-03T14:00:00.000Z",
+    subjectKind: "branded" as const,
+    variantIds: [randomUUID(), randomUUID()],
+  };
+
+  assert.deepEqual(await requests.request(input), {
+    runId: input.id,
+    status: "accepted",
+  });
+  const queued = await database.outboxMessage.findUniqueOrThrow({
+    select: { aggregateId: true, aggregateType: true, topic: true },
+    where: { id: operation.outboxEventId },
+  });
+  assert.equal(queued.topic, "content.generation.requested");
+  assert.equal(queued.aggregateType, "generation-run");
+  assert.equal(queued.aggregateId, input.id);
+
+  // La misma clave devuelve el lote original y no crea otro: es lo que impide
+  // que un reintento del cliente termine facturando dos veces.
+  assert.deepEqual(
+    await requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+    { runId: input.id, status: "accepted" },
+  );
+  assert.equal(
+    await database.generationRun.count({ where: { organizationId } }),
+    1,
+  );
+  assert.equal(
+    await database.generationRunVariant.count({ where: { organizationId } }),
+    2,
+  );
+
+  // Misma clave con otro pedido es un conflicto, no un lote nuevo.
+  assert.deepEqual(
+    await requests.request({
+      ...input,
+      id: randomUUID(),
+      reliableOperation: {
+        ...operation,
+        claim: { ...operation.claim, requestHash: randomHash() },
+      },
+      variantIds: [randomUUID()],
+    }),
+    { status: "idempotency-conflict" },
+  );
+
+  const history = await repository.list({ limit: 10, organizationId, page: 1 });
+  assert.equal(history.total, 1);
+  const firstRun = history.items[0];
+  assert.ok(firstRun !== undefined);
+  assert.equal(firstRun.contentBriefRunId, briefRunId);
+  assert.equal(
+    await repository
+      .list({
+        contentBriefRunId: randomUUID(),
+        limit: 10,
+        organizationId,
+        page: 1,
+      })
+      .then((page) => page.total),
+    0,
+  );
+
+  // Un lote de otra organización no es visible ni escribible.
+  const other = await generationFixture();
+  assert.equal(
+    await repository.findById({
+      id: input.id,
+      organizationId: other.organizationId,
+    }),
+    null,
+  );
+  assert.deepEqual(
+    await repository.cancel({
+      cancelledAt: "2026-08-03T14:05:00.000Z",
+      id: input.id,
+      organizationId: other.organizationId,
+    }),
+    { status: "not-found" },
+  );
+});
+
+test("la base rechaza estados de lote que no describen nada real", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+
+  // Un lote pendiente no puede tener instante de cierre.
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        completedAt: new Date("2026-08-03T15:00:00.000Z"),
+        contentBriefRunId: briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "pending",
+      },
+    }),
+  );
+
+  // El plan es indivisible: perfil sin hash no permite comparar dos lotes.
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        completedAt: new Date("2026-08-03T15:00:00.000Z"),
+        contentBriefRunId: briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        profileId: "ferreteria-producto-limpio",
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "completed",
+      },
+    }),
+  );
+
+  const runId = randomUUID();
+  await database.generationRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: runId,
+      organizationId,
+      requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+      status: "pending",
+    },
+  });
+
+  // Una variante exitosa sin activo ni hash no describe ninguna imagen.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        completedAt: new Date("2026-08-03T15:00:10.000Z"),
+        id: randomUUID(),
+        organizationId,
+        position: 0,
+        runId,
+        status: "succeeded",
+      },
+    }),
+  );
+
+  // Una variante fallida sin motivo no explica nada.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        completedAt: new Date("2026-08-03T15:00:10.000Z"),
+        id: randomUUID(),
+        organizationId,
+        position: 1,
+        runId,
+        status: "failed",
+      },
+    }),
+  );
+
+  // Un lote no puede citar una ejecución de brief ajena: la clave foránea es
+  // compuesta por organización.
+  const other = await generationFixture();
+  await assert.rejects(
+    database.generationRun.create({
+      data: {
+        actorMembershipId: membershipId,
+        contentBriefRunId: other.briefRunId,
+        format: "feed",
+        id: randomUUID(),
+        organizationId,
+        requestedAt: new Date("2026-08-03T15:00:00.000Z"),
+        status: "pending",
+      },
+    }),
+  );
+});
+
+test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:request",
+  );
+  const input = {
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed" as const,
+    organizationId,
+    reliableOperation: operation,
+    requestedAt: "2026-08-03T16:00:00.000Z",
+    subjectKind: "branded" as const,
+  };
+
+  // Los dos intentos salen a la vez con la misma clave idempotente y con
+  // identificadores distintos, que es lo que hace un cliente que reintenta
+  // antes de recibir la primera respuesta.
+  const [first, second] = await Promise.all([
+    requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+    requests.request({
+      ...input,
+      id: randomUUID(),
+      variantIds: [randomUUID(), randomUUID()],
+    }),
+  ]);
+
+  // Uno gana la reserva; el otro replica su respuesta o encuentra la operación
+  // en curso. Ninguno de los dos crea un segundo lote.
+  const outcomes = [first.status, second.status].toSorted();
+  assert.ok(
+    outcomes.every(
+      (status) => status === "accepted" || status === "in-progress",
+    ),
+    `estados inesperados: ${outcomes.join(", ")}`,
+  );
+  assert.equal(
+    await database.generationRun.count({ where: { organizationId } }),
+    1,
+  );
+  // Un solo lote significa además un solo evento encolado: el worker no puede
+  // recibir dos pedidos para el mismo gasto.
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateType: "generation-run", organizationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.generationRunVariant.count({ where: { organizationId } }),
+    2,
   );
 });

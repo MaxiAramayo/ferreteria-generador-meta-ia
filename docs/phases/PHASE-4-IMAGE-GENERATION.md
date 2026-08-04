@@ -411,8 +411,8 @@ control de costos, es donde corresponde resolverlo.
 
 ## P4-T04 — Orquestar ejecuciones asíncronas de generación
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T06`, `P4-T03`
 - Riesgo: Alto
 
@@ -429,18 +429,18 @@ concurrencia, cancelación e idempotencia.
 
 ### Criterios de aceptación
 
-- [ ] La API encola y responde sin esperar la imagen.
-- [ ] PostgreSQL conserva el estado canónico de la ejecución.
-- [ ] Redis/BullMQ transporta trabajos sin ser fuente de verdad.
-- [ ] La misma clave idempotente no factura dos lotes involuntariamente.
-- [ ] Cancelar impide promover resultados tardíos, aunque no pueda detener al proveedor.
-- [ ] Fallos parciales conservan variantes válidas y explican las fallidas.
+- [x] La API encola y responde sin esperar la imagen.
+- [x] PostgreSQL conserva el estado canónico de la ejecución.
+- [x] Redis/BullMQ transporta trabajos sin ser fuente de verdad.
+- [x] La misma clave idempotente no factura dos lotes involuntariamente.
+- [x] Cancelar impide promover resultados tardíos, aunque no pueda detener al proveedor.
+- [x] Fallos parciales conservan variantes válidas y explican las fallidas.
 
 ### Verificación obligatoria
 
-- [ ] Reiniciar worker y Redis durante un lote.
-- [ ] Enviar requests duplicados concurrentes.
-- [ ] Probar cancelación antes, durante y después de la respuesta externa.
+- [x] Reiniciar worker y Redis durante un lote.
+- [x] Enviar requests duplicados concurrentes.
+- [x] Probar cancelación antes, durante y después de la respuesta externa.
 
 ### Fuera de alcance
 
@@ -448,11 +448,167 @@ concurrencia, cancelación e idempotencia.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-03: iniciada con `P2-T06` y `P4-T03` cerradas.
+- Decisión que gobierna el diseño: una ejecución produce un **lote de variantes**,
+  no una imagen. Es la diferencia con `content_brief_runs`, donde el resultado era
+  uno solo. El fallo parcial —criterio explícito de la tarea— sólo se puede
+  representar si cada variante tiene estado, motivo y activo propios, así que el
+  lote son dos tablas: la ejecución y sus variantes.
+- Estados de la ejecución: `pending → running → completed | failed | cancelled`.
+  `running` existe para que el progreso sea consultable: separa la espera en cola
+  de la ejecución real, igual que el centinela `pending` de `knowledgeStatus`
+  separaba recuperación de generación en el brief.
+- `completed` no significa que todas las variantes salieron. Significa que el lote
+  terminó y al menos una sirve; las fallidas conservan su código y su corrección.
+  `failed` es el lote sin ninguna variante utilizable.
+- Invariantes: un resultado que llega después de una cancelación no se promueve;
+  una ejecución pertenece a su organización y a su autor; la misma clave
+  idempotente no lanza dos lotes; una variante no reintenta un fallo que el
+  proveedor declaró no reintentable, porque repetirlo repite el gasto sin cambiar
+  el pedido; el plan visual queda ligado a la ejecución con perfil, versión y hash.
+- Casos y bordes: lote completo, lote parcial, lote sin ninguna variante,
+  cancelación antes de empezar, durante la ejecución y después de la respuesta
+  externa, reintento del mismo pedido con la misma clave, reinicio del worker con
+  el lote a medias, y ejecución de otra organización.
+- Responsabilidades: `packages/domain` define ciclo de vida, transiciones y
+  puertos; `infrastructure` migra `generation_runs` y `generation_run_variants`;
+  `apps/worker` consume el outbox y ejecuta el lote; `apps/api` publica pedido,
+  consulta, historial y cancelación.
+- Plan en cortes verticales: (1) ciclo de vida y persistencia; (2) orquestación
+  worker/outbox; (3) API y contratos; (4) verificación.
+- La UI de variantes es de `P4-T06` y queda fuera de esta tarea.
+- Verificación prevista: pruebas de dominio, integración de persistencia, contrato
+  de API, `pnpm verify` y `pnpm db:test` con migración desde cero, reversión y
+  reaplicación.
+- 2026-08-03: cortes (1) a (4) completos. La vertical queda cerrada sin UI, que
+  es de `P4-T06`.
+- La revisión final encontró tres defectos más, corregidos antes de cerrar:
+  - **la palanca de operación estaba muerta.** El planificador recibía
+    `generationEnabled: true` fijo, así que el motivo `generation-disabled` que
+    definió `P4-T01` no podía producirse nunca. Un worker sin credenciales
+    gastaba el lote entero contra el gateway deshabilitado y terminaba `failed`,
+    presentando como falla del proveedor lo que es una decisión de
+    configuración. Ahora la palanca viene de `openAi.enabled` y el lote se cierra
+    con render determinista sin intentar ninguna llamada;
+  - **el planificador se tragaba cualquier excepción.** Un fallo interno —la base
+    que no responde, un error del motor de diseño— se convertía en un lote
+    `failed` con «el pedido no produce un prompt válido»: daba por resuelto un
+    lote que nadie resolvió, perdía el error y le impedía al outbox reintentarlo.
+    Ahora sólo `VisualPromptValidationError` cierra el lote y el resto sube. Es
+    la misma corrección que `P3-T09` aplicó a la clave idempotente;
+  - **el motivo del cierre podía exceder su columna.** `resolution_detail` es
+    `VARCHAR(300)`; un mensaje largo habría hecho fallar el cierre y dejado el
+    lote en curso para siempre. Se acota antes de escribir, y el detalle pasó a
+    llevar código y campo del rechazo en lugar del mensaje completo.
+- La revisión de los cortes encontró dos defectos, corregidos antes de cerrar:
+  - la finalización de variante no llevaba `width`. La restricción de la base lo
+    detectó al primer `pnpm db:test`: una variante exitosa exige activo, hash y
+    las dos medidas. El contrato pasó a ser una unión discriminada, así que ahora
+    una variante exitosa sin imagen ni siquiera compila y el error no depende de
+    que la base lo atrape;
+  - un lote interrumpido no se recuperaba. `execute` sólo admitía `pending`, de
+    modo que un worker caído a mitad del lote lo dejaba en `running` para
+    siempre. Ahora también retoma `running`: el lease del outbox es exclusivo,
+    así que recibir el mensaje significa que nadie más lo está ejecutando, y las
+    variantes ya resueltas no se vuelven a pedir.
 
 ### Evidencia de cierre
 
-- Pendiente.
+Ciclo de vida y puertos en `packages/domain/src/generation-run.ts`; migración
+`20260803000000_generation_runs`; persistencia en
+`infrastructure/database/src/generation-run-repository.ts`; orquestación en
+`apps/worker/src/generation/image-generation-run.service.ts`; consumidor en
+`apps/worker/src/generation/generation-run-outbox.transport.ts`; API en
+`apps/api/src/content/generation-run.service.ts` y su controlador.
+
+Criterio por criterio:
+
+- `POST /generation-runs` responde 202 con el lote ya consultable y no espera al
+  proveedor: la imagen se resuelve en el worker, del otro lado del outbox. La
+  reserva del lote con sus variantes y el encolado del evento van en la misma
+  transacción, así que un pedido aceptado que no llegara al outbox no existe;
+- PostgreSQL conserva el estado canónico en `generation_runs` y
+  `generation_run_variants`. Las restricciones impiden cualquier combinación que
+  no describa un estado real: un lote pendiente sin instante de cierre, uno
+  cancelado sin instante de cancelación, un plan visual a medias, una variante
+  exitosa sin activo ni medidas, una fallida sin motivo;
+- el trabajo se transporta por el outbox transaccional y no por BullMQ —ver la
+  desviación registrada más abajo—, y ese transporte no es fuente de verdad:
+  perder un mensaje no pierde el lote, y reentregarlo no vuelve a gastar una
+  variante ya resuelta;
+- la misma clave idempotente devuelve el lote de la respuesta guardada y no el
+  identificador que ese intento acaba de sortear. Dos pedidos concurrentes con la
+  misma clave dejan un solo lote, un solo evento y dos variantes;
+- cancelar cierra el lote y descarta sus variantes pendientes. Cada escritura del
+  worker exige que el lote siga abierto, así que una respuesta que llega después
+  no se promueve; el activo no se anota y el lote conserva `cancelled` sin
+  instante de cierre. No se puede detener al proveedor, pero sí dejar de pedirle
+  la variante siguiente;
+- un lote parcial termina `completed` con la variante válida intacta y la fallida
+  con su código y su corrección. Una sola variante viva alcanza para que el lote
+  sirva; sin ninguna, el lote es `failed`. La variante que nunca se intentó queda
+  `discarded` y no `failed`: no gastó nada, y presentarla como fallo sugeriría un
+  problema del proveedor que no ocurrió.
+
+Verificación ejecutada:
+
+```bash
+pnpm verify
+```
+
+Salió en 0. `packages/domain` pasa 97 pruebas, `apps/worker` 165 con 1 salteada
+previa y `apps/api` 59. Las nuevas son 11 en el dominio, 15 en el worker y 14 en
+la API.
+
+```bash
+pnpm db:test
+```
+
+Salió en 0: migración aplicada desde una base vacía, reversión con `down.sql`,
+reaplicación y cinco pruebas de integración nuevas. `verify.ts` pasó a apuntar a
+esta migración, así que su `down.sql` se ejerce de verdad.
+
+Las tres verificaciones obligatorias:
+
+- **Reinicio durante un lote.** La prueba «un lote interrumpido se retoma sin
+  repetir la variante ya resuelta» reconstruye el estado que deja un worker
+  muerto —lote en curso, primera variante anotada, segunda pendiente— y comprueba
+  que la reentrega pide sólo la que faltaba. Redis no participa del transporte,
+  así que reiniciarlo no interrumpe un lote; lo que se ejerció es el camino real
+  de recuperación, que es el lease vencido del outbox.
+- **Duplicados concurrentes.** «dos pedidos concurrentes con la misma clave
+  lanzan un solo lote» dispara los dos intentos con `Promise.all`, con
+  identificadores distintos y la misma clave, y confirma un solo lote, un solo
+  evento y dos variantes.
+- **Cancelación antes, durante y después.** Tres pruebas separadas: antes de que
+  el worker tome el lote no se gasta ninguna llamada; durante, la cancelación
+  llega mientras la primera variante está en vuelo y la segunda no se pide;
+  después, cancelar informa el estado real y no revierte lo confirmado.
+
+Desviaciones:
+
+- **El transporte es el outbox transaccional sobre PostgreSQL, no BullMQ.** El
+  criterio nombra «Redis/BullMQ», pero la plataforma no tiene BullMQ: `P2-T06`
+  eligió outbox con leases y entrega at-least-once, y `P3-T09` construyó la
+  vertical del brief sobre él. Redis sólo participa como dependencia de
+  readiness. Introducir una segunda cola para esta tarea habría duplicado el
+  mecanismo de entrega sin resolver ningún criterio: lo que el criterio protege
+  —que el transporte no sea fuente de verdad— lo cumple el outbox, y lo cumple
+  mejor, porque el evento se confirma en la misma transacción que la reserva.
+  Queda registrado en lugar de elegirlo en silencio.
+- **La edición con referencias no está conectada.** Enviar una foto real al
+  proveedor exige leer sus bytes del almacenamiento, y `MediaStorage` no expone
+  lectura: hoy sólo guarda, borra y firma URLs. Agregar esa salida es una
+  capacidad nueva que ningún criterio de esta tarea necesita. La consecuencia es
+  la que ya había diseñado `P4-T01`: un sujeto `branded` sin foto aprobada se
+  resuelve con render determinista y lo registra con
+  `no-approved-reference`; un sujeto `generic` —tornillos, clavos, tarugos— sí se
+  genera. `P4-T06`, que es la tarea de edición, es donde corresponde resolverlo.
+- **`estimatedCostUsd` sigue en `null`.** El uso en tokens sí se conserva y se
+  suma al lote, pero la tabla de precios de imágenes no está en el repositorio.
+  Es lo mismo que registró `P4-T03` y le corresponde a `P4-T07`.
+- **Sin UI.** El panel de variantes es de `P4-T06`. La superficie de esta tarea
+  es la API: pedido, consulta con progreso, historial y cancelación.
 
 ## P4-T05 — Componer la salida con la capa de marca
 
