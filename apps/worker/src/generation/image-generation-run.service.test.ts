@@ -58,15 +58,23 @@ const brief: ContentBrief = Object.freeze({
 
 class StubBriefRuns implements ContentBriefRunRepository {
   readonly #brief: ContentBrief | null;
+  readonly #organizationId: string;
 
-  constructor(value: ContentBrief | null = brief) {
+  constructor(
+    value: ContentBrief | null = brief,
+    owner: string = organizationId,
+  ) {
     this.#brief = value;
+    this.#organizationId = owner;
   }
 
   findById(
     scope: OrganizationScope & { readonly id: string },
   ): Promise<ContentBriefRunRecord | null> {
-    if (scope.organizationId !== organizationId || scope.id !== briefRunId) {
+    if (
+      scope.organizationId !== this.#organizationId ||
+      scope.id !== briefRunId
+    ) {
       return Promise.resolve(null);
     }
     return Promise.resolve({
@@ -82,7 +90,7 @@ class StubBriefRuns implements ContentBriefRunRepository {
       latencyMilliseconds: 100,
       locationId: null,
       model: "gpt-5.6-terra",
-      organizationId,
+      organizationId: this.#organizationId,
       promptHash: "a".repeat(64),
       promptVersion: "content-brief/2026-07-30.2",
       rejection: null,
@@ -540,6 +548,49 @@ test("un sujeto de marca sin foto aprobada se resuelve sin gastar", async () => 
   assert.equal(run.plan, null);
   assert.equal(run.totalTokens, 0);
   assert.ok(run.variants.every((variant) => variant.status === "discarded"));
+});
+
+test("dos organizaciones con la misma imagen no comparten activo", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const media = new StubMedia();
+  // Las dos variantes devuelven bytes de hash idéntico, que es el caso que
+  // colisionaría si el identificador no llevara la organización.
+  const images = new StubImages([
+    { sha256: "f".repeat(64) },
+    { sha256: "f".repeat(64) },
+  ]);
+  await service(runs, images, media).execute({ organizationId, runId });
+
+  const otherOrganizationId = "77777777-7777-4777-8777-777777777777";
+  const otherRuns = new InMemoryGenerationRunRepository();
+  await otherRuns.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId: otherOrganizationId,
+    requestedAt: "2026-08-03T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+  const otherMedia = new StubMedia();
+  await service(
+    otherRuns,
+    new StubImages([{ sha256: "f".repeat(64) }]),
+    otherMedia,
+    new StubBriefRuns(brief, otherOrganizationId),
+  ).execute({ organizationId: otherOrganizationId, runId });
+
+  const mine = media.uploads[0]?.mediaAssetId;
+  const theirs = otherMedia.uploads[0]?.mediaAssetId;
+  assert.ok(mine !== undefined && theirs !== undefined);
+  // `media_assets.id` es clave primaria global: sin la organización en la
+  // derivación, la segunda organización chocaría contra el activo de la primera.
+  assert.notEqual(mine, theirs);
+  // Dentro de la misma organización sí se reutiliza: la misma imagen es el
+  // mismo archivo y no se paga dos veces por subirlo.
+  assert.equal(media.uploads[0]?.mediaAssetId, media.uploads[1]?.mediaAssetId);
 });
 
 test("sin generación habilitada el lote no intenta ninguna llamada", async () => {

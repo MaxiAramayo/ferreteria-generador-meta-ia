@@ -500,6 +500,15 @@ concurrencia, cancelación e idempotencia.
     `VARCHAR(300)`; un mensaje largo habría hecho fallar el cierre y dejado el
     lote en curso para siempre. Se acota antes de escribir, y el detalle pasó a
     llevar código y campo del rechazo en lugar del mensaje completo.
+  - **el identificador del activo generado no llevaba la organización.**
+    `media_assets.id` es clave primaria global, así que dos organizaciones que
+    generaran una imagen de bytes idénticos derivaban el mismo identificador y la
+    segunda chocaba contra el activo de la primera. La comprobación de propiedad
+    del ciclo de medios lo rechazaba —no había filtración— pero convertía en
+    fallo lo que debía ser un activo propio, y acoplaba dos organizaciones que no
+    se conocen. La organización entró en la derivación. El mismo riesgo existe en
+    la ingesta de `P4-T02`, donde no se tocó porque cambiar el namespace rompería
+    la idempotencia de las cargas ya hechas; quedó registrado en `P4-T07`.
 - La revisión de los cortes encontró dos defectos, corregidos antes de cerrar:
   - la finalización de variante no llevaba `width`. La restricción de la base lo
     detectó al primer `pnpm db:test`: una variante exitosa exige activo, hash y
@@ -556,8 +565,8 @@ Verificación ejecutada:
 pnpm verify
 ```
 
-Salió en 0. `packages/domain` pasa 97 pruebas, `apps/worker` 165 con 1 salteada
-previa y `apps/api` 59. Las nuevas son 11 en el dominio, 15 en el worker y 14 en
+Salió en 0. `packages/domain` pasa 97 pruebas, `apps/worker` 166 con 1 salteada
+previa y `apps/api` 59. Las nuevas son 11 en el dominio, 16 en el worker y 14 en
 la API.
 
 ```bash
@@ -694,7 +703,14 @@ sobrescribir el material previamente generado.
 
 ### Notas de progreso
 
-- Sin notas.
+- Registrado por `P4-T04`: conectar la edición con referencias exige leer los
+  bytes del activo, y `MediaStorage` sólo guarda, borra y firma URLs. Falta esa
+  lectura para que una foto real pueda viajar al proveedor; hasta entonces un
+  sujeto `branded` sin foto aprobada se resuelve con render determinista.
+- Registrado por `P4-T04`: dos variantes con bytes idénticos comparten activo,
+  porque el identificador se deriva del contenido y de la organización. Es
+  correcto —una imagen, un archivo— pero la comparación de variantes no puede
+  suponer que cada una tiene un activo distinto.
 
 ### Evidencia de cierre
 
@@ -739,7 +755,28 @@ mostrarse con seguridad.
 
 ### Notas de progreso
 
-- Sin notas.
+- Registrado por `P4-T04`: una variante que sube su imagen y cuya escritura se
+  rechaza —el lote se canceló mientras el proveedor respondía— deja un activo sin
+  nada que lo referencie. No se borra en el momento a propósito: el identificador
+  se deriva del contenido, así que otra variante o lote de la misma organización
+  puede estar apuntando al mismo archivo, y un borrado ciego rompería esa
+  referencia. Corresponde una barrida de retención que compruebe referencias
+  antes de borrar.
+- Registrado por `P4-T04`: `estimatedCostUsd` sigue en `null` en el lote. El uso
+  en tokens sí se conserva y se suma; falta la tabla de precios de imágenes.
+- Registrado por `P4-T04`: la palanca `generation-disabled` ya funciona de punta
+  a punta y sale de `openAi.enabled`. Falta que un administrador pueda accionarla
+  sin reiniciar el proceso, que es el criterio de esta tarea.
+- Riesgo preexistente detectado al revisar `P4-T04`: la ingesta de entradas
+  visuales deriva el identificador del activo con
+  `deterministicMediaId("visual-input:original", sha256)`, sin la organización.
+  Como `media_assets.id` es clave primaria global, dos organizaciones que suban
+  la misma foto —el caso probable es la foto de producto que un fabricante le da
+  a varios comercios— derivan el mismo identificador y la segunda choca contra el
+  activo de la primera. La comprobación de propiedad lo rechaza, así que no hay
+  filtración, pero convierte en fallo lo que debería ser un activo propio.
+  Cambiar el namespace rompería la idempotencia de las cargas ya existentes, así
+  que la corrección necesita decidir qué hacer con ellas.
 
 ### Evidencia de cierre
 

@@ -504,6 +504,13 @@ export class ImageGenerationRunService {
    * El identificador se deriva del hash de los bytes, así que si el proceso cae
    * entre la subida y la anotación, el reintento cae sobre el mismo activo en
    * lugar de pagar la subida dos veces.
+   *
+   * La organización entra en la derivación porque `media_assets.id` es clave
+   * primaria global: sin ella, dos organizaciones que generaran una imagen de
+   * bytes idénticos derivarían el mismo identificador y la segunda chocaría
+   * contra el activo de la primera. La comprobación de propiedad del ciclo de
+   * medios lo rechazaría —no hay filtración— pero convertiría en un fallo lo que
+   * debería ser un activo propio, y acopla dos organizaciones que no se conocen.
    */
   async #store(
     run: GenerationRunRecord,
@@ -511,7 +518,7 @@ export class ImageGenerationRunService {
   ): Promise<string> {
     const mediaAssetId = deterministicMediaId(
       "generated-variant",
-      image.sha256,
+      `${run.organizationId}:${image.sha256}`,
     );
     const asset = await this.#media.upload({
       bytes: image.bytes,
