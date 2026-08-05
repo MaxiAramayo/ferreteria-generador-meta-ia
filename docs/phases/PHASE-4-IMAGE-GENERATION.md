@@ -621,8 +621,8 @@ Desviaciones:
 
 ## P4-T05 — Componer la salida con la capa de marca
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P1-T05`, `P4-T04`
 - Riesgo: Alto
 
@@ -639,18 +639,18 @@ precio, CTA, disclaimers y logo con el motor determinista.
 
 ### Criterios de aceptación
 
-- [ ] El texto comercial no depende de píxeles generados por el modelo.
-- [ ] Logo, precio y CTA provienen del brief aprobado.
-- [ ] Contraste y legibilidad cumplen umbrales definidos.
-- [ ] Recortes no ocultan el producto ni invaden safe zones.
-- [ ] El snapshot registra hashes de base generada y overlays.
-- [ ] Re-renderizar la misma composición produce resultado equivalente.
+- [x] El texto comercial no depende de píxeles generados por el modelo.
+- [x] Logo, precio y CTA provienen del brief aprobado.
+- [x] Contraste y legibilidad cumplen umbrales definidos.
+- [x] Recortes no ocultan el producto ni invaden safe zones.
+- [x] El snapshot registra hashes de base generada y overlays.
+- [x] Re-renderizar la misma composición produce resultado equivalente.
 
 ### Verificación obligatoria
 
-- [ ] Suite visual en todos los formatos iniciales.
-- [ ] Casos de fondos claros, oscuros, recargados y producto fuera de centro.
-- [ ] Comparar salida con snapshot aprobado.
+- [x] Suite visual en todos los formatos iniciales.
+- [x] Casos de fondos claros, oscuros, recargados y producto fuera de centro.
+- [x] Comparar salida con snapshot aprobado.
 
 ### Fuera de alcance
 
@@ -658,11 +658,182 @@ precio, CTA, disclaimers y logo con el motor determinista.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-05: implementación completa y verificada. Cuatro decisiones se
+  tomaron con el usuario antes de empezar: la vertical va completa —el lote
+  compone, renderiza y persiste—, el contraste se resuelve con un panel de
+  marca opaco, el precio sale de un parser estricto sobre hechos verificados, y
+  el diseño fijo del brief aceptado no se toca.
+- El lazo que abrió `P4-T01` queda cerrado: el prompt le pide al modelo dejar
+  libre un rectángulo en coordenadas exactas y la capa determinista escribe
+  sobre ese mismo rectángulo. La fórmula está declarada de los dos lados —el
+  motor no depende del dominio ni el dominio del motor— y una prueba comprueba
+  que coinciden en cada región y en cada formato.
+- La base viaja **embebida** en el documento (`ADR-014`) y no como URL. Componer
+  ocurre con los bytes en la mano, ni bien vuelven del proveedor: es el único
+  momento en que existen sin pedirle una lectura al almacenamiento, que sigue
+  sin saber devolver contenido.
+- Verificaciones ejecutadas: `pnpm verify` en 0, `pnpm db:test` en 0 y
+  `pnpm composition:snapshot` con 39 casos aprobados.
+- Verificaciones pendientes: ninguna.
 
 ### Evidencia de cierre
 
-- Pendiente.
+Autoridad y piezas:
+
+- `packages/domain/src/visual-composition.ts` define qué se compone: copy con su
+  procedencia, parser de precio, recorte, presupuestos y el rechazo previo al
+  gasto, en `visual-composition/2026-08-05.1`;
+- `packages/design-engine/src/layouts/composed-pieces.tsx` agrega las tres
+  piezas, con su geometría en `composed-geometry.ts` y el panel en `kit.tsx`;
+- `packages/design-engine/src/tokens/contrast.ts` es la regla de contraste, que
+  no existía en el repositorio;
+- `apps/worker/src/visual/piece-composer.ts` convierte el plan en documento de
+  diseño;
+- `apps/worker/src/generation/image-generation-run.service.ts` compone,
+  renderiza, sube y anota;
+- migración `20260805000000_generation_run_compositions`.
+
+Criterio por criterio:
+
+- **el texto comercial no depende de píxeles generados.** Todo lo determinista
+  —incluido el logo— vive dentro de un panel opaco, y la suite lo comprueba
+  midiendo cajas sobre el PNG exportado: un elemento que se saliera del panel es
+  un hallazgo, no una diferencia estética. El prompt sigue sin transportar
+  precio, promoción ni CTA, que era lo que ya garantizaba `P4-T01`;
+- **logo, precio y CTA vienen del brief aprobado.** El CTA es
+  `brief.callToAction.label`; el logo es identidad del motor; el precio sale de
+  un hecho verificado con `claimKind: "price"` y queda ligado a su `evidenceId`.
+  El brief no tiene campo de precio, así que el importe se reconoce con un
+  parser estricto: exige símbolo de moneda y admite un solo importe por
+  enunciado. «De $32.000 a $24.500» no se resuelve adivinando cuál rige, y dos
+  hechos de precio con importes distintos tampoco: la pieza sale con la
+  invitación a consultar, que es la decisión de negocio ya aprobada;
+- **el contraste cumple un umbral medido.** No el de los tokens: el de los
+  píxeles. Para cada texto se toma el color más frecuente de su caja en el PNG
+  —los trazos de las letras son minoría, así que la moda es el fondo sobre el
+  que se lee— y se compara con su color resuelto. El peor valor de los 39 casos
+  es 4,38:1 y corresponde al botón de acción;
+- **los recortes no ocultan el producto ni invaden zonas seguras.** El panel es
+  exactamente el rectángulo reservado, que por construcción está dentro de la
+  zona segura, y una prueba lo recorre en cada región y formato. El encuadre se
+  corre en contra de la región reservada —si el panel va abajo, la base sube—,
+  que es lo que el caso `producto-fuera-de-centro` ejerce;
+- **el snapshot registra los hashes.** `composition-reference/manifest.json`
+  guarda por caso el hash de la base generada, el de la capa determinista, el de
+  la composición completa, el del PNG y el contraste medido. El hash de
+  composición y el de capa son lo que se compara contra la línea base aprobada;
+- **re-renderizar produce el mismo resultado.** Cada caso se renderiza dos veces
+  dentro de la misma corrida y los dos PNG tienen que dar el mismo SHA-256.
+
+Verificación ejecutada:
+
+```bash
+pnpm verify
+```
+
+Salió en 0. `packages/design-engine` pasa 75 pruebas, `packages/domain` 111,
+`apps/worker` 182 con 1 salteada previa y `apps/api` 60. Las nuevas son 14 en el
+motor, 14 en el dominio, 16 en el worker y 1 en la API.
+
+```bash
+pnpm db:test
+```
+
+Salió en 0: migración aplicada desde una base vacía, reversión con `down.sql`,
+reaplicación **sobre datos existentes** y dos pruebas de integración nuevas.
+`verify.ts` pasó a apuntar a esta migración, así que su `down.sql` se ejerce de
+verdad.
+
+```bash
+pnpm composition:snapshot
+```
+
+39 casos aprobados: las tres piezas en feed, cuadrado e historia contra los
+cuatro fondos —claro, oscuro, recargado y producto fuera de centro— más una
+corrida determinista por pieza. Peor contraste medido, 4,38:1. Los fondos se
+fabrican con una fórmula y no se descargan, así que la suite da el mismo
+resultado en cualquier máquina y sin red; una prueba comprueba que sean
+reproducibles y distintos entre sí.
+
+Se comprobó además que la comparación contra la línea base **detecta una
+desviación**: alterar a mano un hash del manifiesto hace fallar la revisión con
+el caso nombrado.
+
+Defectos reales que encontró la verificación y se corrigieron antes de cerrar:
+
+- **el logo no entraba en su tamaño mínimo legible.** La primitiva rechaza
+  dibujar el isotipo por debajo de 48 px y la primera versión del panel pedía
+  44. Lo detectó la suite del motor, no una revisión visual;
+- **el tercio inferior desbordaba en formato cuadrado.** Con 312 px de alto, el
+  precio y el llamado a la acción se salían del panel y quedaban apoyados sobre
+  la imagen generada. Se corrigió con dos reglas medidas: la bajada sólo se
+  compone si el panel tiene 360 px, y el escalón del titular pasó a depender
+  también del alto del panel, porque el mismo titular entra en un renglón en un
+  feed y ocupa dos en un cuadrado;
+- **el panel no podía heredar el fondo del tema.** El tema `promo` pinta el
+  lienzo de rojo, y su texto blanco encima mide 4,19:1 y su texto atenuado
+  2,97:1. Sobre un lienzo entero eso pasa; sobre el bloque que lleva el precio,
+  no. El panel usa ahora el par tinta/papel del tono, que mide 15,43:1, y el
+  tema sigue decidiendo la etiqueta y el botón;
+- **la reversión de la migración se violaba a sí misma.** Descartaba las
+  variantes deterministas antes de soltar el check que esas filas dejan de
+  cumplir. Lo detectó `pnpm db:test`;
+- **la migración no se podía aplicar sobre una base con historial.** Exigir
+  composición en toda variante `succeeded` rompía con las que ya existían, cuyos
+  bytes de base no son recuperables. El check pasó a exigir sólo la implicación
+  que sí es cierta, y el invariante fuerte lo sostiene el contrato: la rama
+  `succeeded` de `GenerationVariantCompletion` lleva la composición adentro, así
+  que una variante que salga sin pieza no compila;
+- **la línea base nunca se comparaba.** La revisión borraba el directorio de
+  referencia antes de leer su manifiesto, así que siempre creía estar
+  estableciendo la primera línea base y aprobaba cualquier cambio en silencio.
+
+Decisiones que conviene registrar:
+
+- **Un lote determinista entrega pieza, no un motivo.** Los tres motivos de
+  `P4-T01` —`brief-requested-template`, `generation-disabled` y
+  `no-approved-reference`— terminan en una variante `succeeded` con
+  `source: "deterministic"`, sin base ni modelo y con su pieza compuesta. Las
+  demás variantes quedan `discarded`: una pieza determinista es siempre la
+  misma, así que pedir copias idénticas no tendría sentido.
+- **Sin base no se dibuja el marcador punteado.** `PhotoFallback` señala «acá
+  falta una foto» y sirve en el panel; una pieza que sale por el camino
+  determinista no es una pieza incompleta, es la que corresponde.
+- **La composición se comprueba antes de gastar.** Región sin pieza, formato no
+  admitido y titular que no entra son rechazos deterministas: se detectan en la
+  planificación y el lote se cierra sin pedirle nada al proveedor.
+- **Un fallo de composición no se atribuye al proveedor.** La imagen puede
+  llegar bien y el render fallar igual, así que la variante lleva el código
+  `composition-failed` y no `provider-error`. Reintentar contra OpenAI no
+  arreglaría un navegador caído.
+- **La composición se escribe junto al resultado, no después.** No existe el
+  estado «generó pero no compuso»: sería irrecuperable, porque componer necesita
+  los bytes de la base y el almacenamiento no sabe devolverlos.
+
+Desviaciones:
+
+- **El botón de acción mide 4,38:1 y el umbral de texto normal es 4,5:1.** El
+  verde de WhatsApp con texto blanco es identidad aprobada en `P1-T06` y lo usan
+  las dieciocho piezas del catálogo, así que cambiarlo es una decisión de marca
+  y no un ajuste de esta tarea. Se le exige el umbral de texto grande —es
+  tipografía grande en negrita— y una prueba impide que el valor baje. Queda
+  como decisión pendiente en `docs/STATUS.md`.
+- **`banner-fb` y `destacada` no componen.** El rectángulo reservado de un
+  banner no sostiene el bloque de marca sin achicar el titular hasta que deje de
+  serlo, y una portada destacada ya tiene su propia pieza. Un lote que los pida
+  se rechaza antes de gastar con `format-not-composable`.
+- **`left_column` no tiene pieza.** Ningún perfil visual aprobado la usa y
+  `PIECE-CATALOG.md` no admite una pieza sin objetivo comercial. El mapeo la
+  rechaza de forma explícita en lugar de caer en otro layout y escribir donde el
+  modelo no dejó lugar.
+- **Los PNG de la suite no se versionan.** Pesan 15 MB —los fondos recargados
+  comprimen mal— y se regeneran en menos de un minuto. Lo que se versiona es el
+  manifiesto, que es contra lo que la revisión compara. Es coherente con
+  `ADR-011`: la línea base es de identidad y calidad, no de paridad pixel a
+  pixel.
+- **El diseño fijo del brief aceptado no se tocó.** Lo decidió el usuario al
+  planificar. La decisión pendiente de `docs/STATUS.md` queda apuntando al
+  compositor.
 
 ## P4-T06 — Implementar variantes y edición conversacional
 
@@ -703,6 +874,15 @@ sobrescribir el material previamente generado.
 
 ### Notas de progreso
 
+- Registrado por `P4-T05`: recomponer una variante ya guardada necesita los
+  bytes de su base, y la composición hoy sólo ocurre mientras la generación está
+  en curso (`ADR-014`). Editar una pieza existente sin volver a generarla exige
+  o `MediaStorage.read()` o volver a la referencia remota; es la misma capacidad
+  que pide la edición con referencias.
+- Registrado por `P4-T05`: la comparación de variantes ya tiene con qué. Cada
+  variante conserva `compositionHash` —que cubre versión, pieza, tema, formato,
+  copy y base— y `overlayHash`, que cubre sólo la capa determinista. Dos
+  variantes del mismo lote comparten el segundo y difieren en el primero.
 - Registrado por `P4-T04`: conectar la edición con referencias exige leer los
   bytes del activo, y `MediaStorage` sólo guarda, borra y firma URLs. Falta esa
   lectura para que una foto real pueda viajar al proveedor; hasta entonces un
@@ -767,6 +947,11 @@ mostrarse con seguridad.
 - Registrado por `P4-T04`: la palanca `generation-disabled` ya funciona de punta
   a punta y sale de `openAi.enabled`. Falta que un administrador pueda accionarla
   sin reiniciar el proceso, que es el criterio de esta tarea.
+- Registrado por `P4-T05`: una variante deja ahora **dos** activos, la base y la
+  pieza compuesta, y el identificador de la pieza se deriva del hash de
+  composición y de la organización. La barrida de retención tiene que comprobar
+  las dos referencias antes de borrar; el índice
+  `generation_run_variants_composed_asset_idx` es la consulta que necesita.
 - Riesgo preexistente detectado al revisar `P4-T04`: la ingesta de entradas
   visuales deriva el identificador del activo con
   `deterministicMediaId("visual-input:original", sha256)`, sin la organización.

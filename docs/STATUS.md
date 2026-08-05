@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-03
+Actualizado: 2026-08-05
 
 ## Fase activa
 
@@ -13,6 +13,12 @@ faltaba a `P1-T07`.
 
 `P4-T01` quedó cerrada. La revisión visual y comercial se hizo el 2026-08-03 y
 sus decisiones están aplicadas en `visual-profile/2026-08-03.2`.
+
+`P4-T05` quedó cerrada el 2026-08-05. El lote deja de entregar bases crudas y
+entrega **piezas publicables**: la imagen del modelo es el fondo y encima se
+compone la capa de marca —logo, titular, precio, vigencia y llamado a la
+acción— sobre un panel opaco ubicado en el mismo rectángulo que el prompt le
+pidió al modelo dejar libre. Un lote determinista también entrega pieza.
 
 `P4-T04` quedó cerrada el 2026-08-03. Una ejecución de generación es un lote de
 variantes con ciclo de vida propio —`pending → running → completed | failed |
@@ -40,14 +46,34 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T05` — componer la salida con la capa de marca. Sus dependencias
-`P1-T05` y `P4-T04` están completas.
+Iniciar `P4-T07` — seguridad, cuotas y control de costos. Su dependencia
+`P4-T04` está completa. `P4-T06` también está habilitada, pero depende además de
+`P4-T05`, que acaba de cerrar.
 
-`P4-T04` dejó tres cosas registradas que conviene tener presentes al continuar:
+`P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
+continuar:
+
+- **la base generada viaja embebida en el documento de diseño** (`ADR-014`), no
+  como URL. Componer ocurre con los bytes en la mano, ni bien vuelven del
+  proveedor: es el único momento en que existen sin pedirle una lectura al
+  almacenamiento. Recomponer una variante vieja —que es de `P4-T06`— va a
+  necesitar esos bytes otra vez, y ahí sí corresponde evaluar
+  `MediaStorage.read()`;
+- **una variante que salió lleva su pieza compuesta y se escribe junto al
+  resultado.** No existe el estado «generó pero no compuso»: sería
+  irrecuperable. Las variantes anteriores a la migración sí quedan sin pieza y
+  no pueden tenerla;
+- **el botón de acción mide 4,38:1** y el umbral de texto normal es 4,5:1. El
+  verde de WhatsApp es identidad aprobada en `P1-T06` y lo usan las dieciocho
+  piezas del catálogo; cambiarlo es una decisión de marca;
+- **`banner-fb`, `destacada` y la región `left_column` no componen.** Un lote
+  que los pida se rechaza antes de gastar.
+
+`P4-T04` dejó tres cosas registradas:
 
 - el transporte del lote es el outbox transaccional sobre PostgreSQL y no
   BullMQ. La plataforma no tiene BullMQ desde `P2-T06` y no se agregó una
-  segunda cola para esta tarea;
+  segunda cola para esa tarea;
 - la edición con referencias no está conectada porque `MediaStorage` no expone
   lectura de bytes. Hoy un sujeto `branded` sin foto aprobada se resuelve con
   render determinista y un sujeto `generic` sí se genera. Corresponde a
@@ -154,8 +180,15 @@ local ignorado por Git.
 
 - Política inicial de publicaciones que pueden autoaprobarse.
 - Qué presentación recibe un brief aceptado. Hoy la aceptación crea la revisión
-  con un diseño fijo —historia tipográfica, tema taller— porque la pieza visual
-  es de Fase 4. El copy sí sale del brief. Surgió al cerrar `P3-T09`.
+  con un diseño fijo —historia tipográfica, tema taller— armado en el cliente
+  web. Desde `P4-T05` existe un compositor en el servidor que sabe armar la
+  pieza desde el brief; usarlo acá es la decisión que falta, y el usuario
+  resolvió el 2026-08-05 dejarla fuera de esa tarea. Surgió al cerrar `P3-T09`.
+- Si el verde de acción de la marca se corrige. Con texto blanco mide 4,38:1 y
+  el umbral AA para texto normal es 4,5:1. Supera el de texto grande, que es lo
+  que la composición le exige, pero queda 0,12 por debajo del general. Lo usan
+  las dieciocho piezas del catálogo, así que es una decisión de marca y no un
+  ajuste técnico. Surgió al medir el contraste en `P4-T05`.
 - Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
   criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una
   política aprobada, el prompt no los pide y la evaluación no los mide.

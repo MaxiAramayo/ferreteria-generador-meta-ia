@@ -66,6 +66,34 @@ afirmación de disponibilidad sin dato que la respalde.
 | `testimonio` | Prueba social de un cliente real | Reseña, autor, servicio | Ver más opiniones |
 | `lubricentro-servicio` | Explicar un servicio del lubricentro | Servicio, beneficio, foto | Pedir turno |
 
+### Composición con imagen generada (1080×1350, 1080×1080, 1080×1920)
+
+Estas tres piezas son la mitad determinista de
+[`ADR-004`](decisions/ADR-004-DETERMINISTIC-BRAND-RENDER.md): el fondo lo produce
+un modelo y encima se compone la capa de marca sobre un panel opaco, ubicado en
+el mismo rectángulo que el prompt le pidió al modelo dejar libre. El nombre
+describe esa región, porque es lo que decide qué contenido sostiene cada una.
+
+| Pieza | Objetivo | Contenido mínimo | CTA |
+|---|---|---|---|
+| `composicion-tercio-inferior` | Producto o promoción con la escena generada | Título; precio, bajada y vigencia opcionales | Reservar por WhatsApp |
+| `composicion-banda-superior` | Contexto de taller o de servicio | Título | Consultar por WhatsApp |
+| `composicion-circulo-central` | Promoción con vigencia, como sello | Título; precio y vigencia opcionales | Aprovechar por WhatsApp |
+
+Reglas que las gobiernan:
+
+1. **Todo lo determinista vive dentro del panel**, incluido el logo. Nada de la
+   capa de marca se apoya en píxeles que decidió un modelo: es lo que permite
+   afirmar un umbral de contraste en lugar de suponerlo.
+2. **El panel no crece.** Es exactamente el rectángulo reservado, y el contenido
+   se elige para que entre: la banda superior es ancha y baja, así que no lleva
+   precio; el tercio inferior sólo lleva bajada cuando el formato le deja alto.
+3. **Se componen en feed, cuadrado e historia.** Un banner de Facebook y una
+   portada destacada no sostienen el bloque de marca sin achicar el titular hasta
+   que deje de serlo, y la portada ya tiene su propia pieza.
+4. **Sin imagen generada se componen igual**, con el fondo de marca del tema. Una
+   pieza que sale por el camino determinista no es una pieza incompleta.
+
 ### Banner y destacadas
 
 | Pieza | Objetivo | Contenido mínimo | CTA |
