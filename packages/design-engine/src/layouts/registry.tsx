@@ -9,6 +9,11 @@ import { themeFor } from "../themes/theme-colors.ts";
 import type { DesignIssue } from "../validation/issues.ts";
 import { BannerMarca, DestacadaCover } from "./brand-pieces.tsx";
 import {
+  ComposicionBandaSuperior,
+  ComposicionCirculoCentral,
+  ComposicionTercioInferior,
+} from "./composed-pieces.tsx";
+import {
   ComboKit,
   HistoriaLocales,
   HistoriaPrecioDia,
@@ -44,6 +49,9 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
   Object.freeze({
     "banner-marca": BannerMarca,
     "combo-kit": ComboKit,
+    "composicion-banda-superior": ComposicionBandaSuperior,
+    "composicion-circulo-central": ComposicionCirculoCentral,
+    "composicion-tercio-inferior": ComposicionTercioInferior,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
     "historia-locales": HistoriaLocales,

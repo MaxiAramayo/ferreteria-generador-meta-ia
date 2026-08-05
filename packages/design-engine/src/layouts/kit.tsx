@@ -6,7 +6,7 @@ import { Logo } from "../primitives/logo.tsx";
 import { Photo, PhotoFallback } from "../primitives/photo.tsx";
 import { Text } from "../primitives/text.tsx";
 import type { IconName } from "../registry/icons.ts";
-import type { Theme } from "../themes/theme-colors.ts";
+import { composedPanelColors, type Theme } from "../themes/theme-colors.ts";
 import { COLORS, withAlpha } from "../tokens/colors.ts";
 import { RADII, SPACING, STROKES } from "../tokens/space.ts";
 import { FONT_WEIGHTS, TYPOGRAPHY } from "../tokens/typography.ts";
@@ -189,6 +189,117 @@ export function IconBadge({
         strokeWidth={STROKES.iconBadge}
       />
     </span>
+  );
+}
+
+export const consultPriceLabel = "Consultá precio";
+
+/**
+ * Bloque de precio.
+ *
+ * Sin precio no desaparece: ocupa el mismo lugar con la invitación a
+ * consultarlo, de modo que la jerarquía de la pieza no cambia según el dato
+ * disponible. Es la decisión del negocio registrada en `PIECE-CATALOG.md`.
+ */
+export function PriceBlock({
+  color,
+  compact = false,
+  mutedColor,
+  price,
+  previousPrice,
+  validity,
+}: {
+  readonly color: string;
+  /**
+   * Dentro de un panel de composición el precio comparte una caja de altura
+   * fija con el titular y el CTA: `hero` no entra, y achicar el titular para
+   * que entre el número invertiría la jerarquía de la pieza.
+   */
+  readonly compact?: boolean | undefined;
+  readonly mutedColor: string;
+  readonly price: string | undefined;
+  readonly previousPrice?: string | undefined;
+  readonly validity?: string | undefined;
+}): ReactElement {
+  return (
+    <div data-price="" data-role="precio">
+      {previousPrice === undefined || price === undefined ? null : (
+        <div
+          style={{
+            color: mutedColor,
+            fontFamily: TYPOGRAPHY.body.cssStack,
+            fontSize: compact ? 32 : 44,
+            fontWeight: FONT_WEIGHTS.bold,
+            textDecoration: "line-through",
+          }}
+        >
+          {previousPrice}
+        </div>
+      )}
+      {price === undefined ? (
+        <Text as="div" color={color} token={compact ? "sub" : "h2"}>
+          {consultPriceLabel}
+        </Text>
+      ) : (
+        <Text as="div" color={color} token={compact ? "h2" : "hero"}>
+          {price}
+        </Text>
+      )}
+      {validity === undefined ? null : (
+        <div
+          style={{
+            color: mutedColor,
+            fontFamily: TYPOGRAPHY.body.cssStack,
+            fontSize: compact ? 22 : 26,
+            fontWeight: FONT_WEIGHTS.semibold,
+            marginTop: SPACING.xxs,
+          }}
+        >
+          {validity}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Panel de marca sobre el que se apoya la capa determinista.
+ *
+ * Es la respuesta de `P4-T05` al contraste sobre una imagen generada: el texto
+ * comercial no se apoya en píxeles que decidió un modelo, sino en un color de
+ * tema que conocemos, así que el contraste se puede calcular antes de
+ * renderizar y demostrar con un umbral en lugar de suponerlo.
+ *
+ * Por eso el fondo es **opaco**. Un velo translúcido haría que el contraste
+ * real dependiera de lo que el modelo haya dibujado debajo, que es exactamente
+ * lo que esta pieza evita.
+ */
+export function BrandPanel({
+  children,
+  style,
+  theme,
+}: {
+  readonly children: ReactNode;
+  readonly style?: CSSProperties | undefined;
+  readonly theme: Theme;
+}): ReactElement {
+  return (
+    <div
+      data-panel=""
+      style={{
+        backgroundColor: composedPanelColors(theme).background,
+        borderRadius: RADII.card,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        padding: SPACING.xxl,
+        position: "relative",
+        zIndex: 10,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
   );
 }
 

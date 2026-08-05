@@ -35,17 +35,25 @@ export {
 } from "./primitives/photo.tsx";
 export { Text, typeStyleFor, type TextProps } from "./primitives/text.tsx";
 export {
+  BrandPanel,
   BulletList,
+  consultPriceLabel,
   Cta,
   Eyebrow,
   Footer,
   Header,
   IconBadge,
   PhotoScrim,
+  PriceBlock,
   ProductImage,
   Subtitle,
   Title,
 } from "./layouts/kit.tsx";
+export {
+  ComposicionBandaSuperior,
+  ComposicionCirculoCentral,
+  ComposicionTercioInferior,
+} from "./layouts/composed-pieces.tsx";
 export {
   footerBranch,
   mediaAt,

@@ -386,6 +386,43 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["subtitle", "category", "badge", "icon", "callToAction"],
       singlePhoto,
     ),
+    // Piezas de composición (`P4-T05`). Los tres formatos aprobados son los que
+    // publican una pieza comercial; `banner-fb` y `destacada` quedan afuera
+    // porque su rectángulo reservado no sostiene el bloque determinista sin
+    // achicar el titular hasta que deje de serlo, y porque una portada
+    // destacada ya tiene su propia pieza.
+    "composicion-banda-superior": specFor(
+      "composicion-banda-superior",
+      "composicion",
+      ["feed", "cuadrado", "historia"],
+      ["title"],
+      ["badge", "callToAction", "icon"],
+      singlePhoto,
+    ),
+    "composicion-circulo-central": specFor(
+      "composicion-circulo-central",
+      "composicion",
+      ["feed", "cuadrado", "historia"],
+      ["title"],
+      ["badge", "callToAction", "icon", "previousPrice", "price", "validity"],
+      singlePhoto,
+    ),
+    "composicion-tercio-inferior": specFor(
+      "composicion-tercio-inferior",
+      "composicion",
+      ["feed", "cuadrado", "historia"],
+      ["title"],
+      [
+        "badge",
+        "callToAction",
+        "icon",
+        "previousPrice",
+        "price",
+        "subtitle",
+        "validity",
+      ],
+      singlePhoto,
+    ),
   });
 
 const layoutIds: ReadonlySet<string> = new Set(Object.keys(LAYOUT_SPECS));

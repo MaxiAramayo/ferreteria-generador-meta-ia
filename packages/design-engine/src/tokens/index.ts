@@ -1,5 +1,14 @@
 export { COLORS, rgbChannels, withAlpha, type ColorToken } from "./colors.ts";
 export {
+  CONTRAST_THRESHOLDS,
+  contrastRatio,
+  flatten,
+  meetsContrast,
+  parseColor,
+  relativeLuminance,
+  type ColorChannels,
+} from "./contrast.ts";
+export {
   RADII,
   SPACING,
   STROKES,

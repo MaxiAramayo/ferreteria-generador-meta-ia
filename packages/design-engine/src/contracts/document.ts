@@ -27,12 +27,20 @@ export type DesignSchemaVersion = typeof DESIGN_SCHEMA_VERSION;
  * Referencia a un activo.
  *
  * Nunca es una ruta local ni un nombre de archivo del generador anterior:
- * `brand-library` nombra un activo aprobado del inventario y `remote` una URL
- * pública HTTPS. Resolver la referencia a bytes es trabajo del adaptador de
- * medios, fuera de este contrato.
+ * `brand-library` nombra un activo aprobado del inventario, `remote` una URL
+ * pública HTTPS e `inline` los bytes del propio documento. Resolver la
+ * referencia a bytes es trabajo del adaptador de medios, fuera de este
+ * contrato.
+ *
+ * `inline` existe por la composición de `P4-T05` (`ADR-014`): la base que
+ * generó el modelo se compone con los bytes en la mano, ni bien vuelven del
+ * proveedor. Llevarlos dentro del documento mantiene el render sin red y hace
+ * que volver a componer el mismo documento dé el mismo PNG, cosa que una URL
+ * —que puede cambiar de contenido o dejar de responder— no garantiza.
  */
 export type AssetReference =
   | { readonly assetId: string; readonly source: "brand-library" }
+  | { readonly dataUrl: string; readonly source: "inline" }
   | { readonly source: "remote"; readonly url: string };
 
 export type MediaFit = "contain" | "cover";
@@ -92,6 +100,19 @@ export const mediaLimits = Object.freeze({
   focusMinimum: 0,
   zoomMaximum: 4,
   zoomMinimum: 0.5,
+});
+
+/**
+ * Límites de un activo embebido.
+ *
+ * El tope de caracteres acota lo que puede entrar al HTML de un render: una
+ * base de 1024×1536 en PNG ronda los 2 MB, que en base64 son unos 2,7 M de
+ * caracteres. Doce millones dejan margen para una base más pesada sin admitir
+ * que alguien meta un archivo arbitrario en un documento persistido.
+ */
+export const inlineAssetLimits = Object.freeze({
+  dataUrlMaximum: 12_000_000,
+  mimeTypes: Object.freeze(["image/jpeg", "image/png"]),
 });
 
 export const contentLimits = Object.freeze({

@@ -19,10 +19,21 @@ export function findBrandAsset(assetId: string): BrandAsset | undefined {
   return assetsById.get(assetId);
 }
 
+/**
+ * Descripción redactada de la referencia.
+ *
+ * Un activo embebido se nombra por su tipo y no por su contenido: el `dataUrl`
+ * lleva la imagen entera y terminaría en un log o en un mensaje de error.
+ */
 export function describeReference(reference: AssetReference): string {
-  return reference.source === "brand-library"
-    ? `brand-library:${reference.assetId}`
-    : "remote";
+  switch (reference.source) {
+    case "brand-library":
+      return `brand-library:${reference.assetId}`;
+    case "inline":
+      return "inline";
+    case "remote":
+      return "remote";
+  }
 }
 
 function assetNotFound(reference: AssetReference): never {
@@ -47,6 +58,10 @@ export function resolveAssetUrl(
 ): string {
   if (reference.source === "remote") {
     return reference.url;
+  }
+
+  if (reference.source === "inline") {
+    return reference.dataUrl;
   }
 
   const asset = findBrandAsset(reference.assetId);
