@@ -27,6 +27,8 @@ import {
   type OrganizationScope,
   type PaginatedRecords,
   type RequestGenerationRunInput,
+  type GenerationDeterministicVariantWrite,
+  type GenerationVariantSource,
   type SafeJsonObject,
   type VisualFormatId,
   type VisualProfileId,
@@ -46,6 +48,15 @@ const openStatuses = ["pending", "running"] as const;
 const variantSelection = {
   attempts: true,
   completedAt: true,
+  composedHeight: true,
+  composedMediaAssetId: true,
+  composedSha256: true,
+  composedWidth: true,
+  compositionHash: true,
+  compositionLayout: true,
+  compositionOverlayHash: true,
+  compositionTheme: true,
+  compositionVersion: true,
   failureCode: true,
   failureCorrection: true,
   failureDetail: true,
@@ -57,6 +68,7 @@ const variantSelection = {
   position: true,
   requestId: true,
   sha256: true,
+  source: true,
   status: true,
   width: true,
 } satisfies Prisma.GenerationRunVariantSelect;
@@ -95,6 +107,22 @@ function toVariant(row: GenerationRunVariantRow): GenerationVariantRecord {
   return {
     attempts: row.attempts,
     completedAt: row.completedAt?.toISOString() ?? null,
+    // La composición es indivisible y la base lo garantiza: o están los nueve
+    // campos o no está ninguno, así que alcanza con mirar uno para decidir.
+    composition:
+      row.compositionHash === null || row.composedMediaAssetId === null
+        ? null
+        : {
+            compositionHash: row.compositionHash,
+            height: row.composedHeight ?? 0,
+            layout: row.compositionLayout ?? "",
+            mediaAssetId: row.composedMediaAssetId,
+            overlayHash: row.compositionOverlayHash ?? "",
+            sha256: row.composedSha256 ?? "",
+            theme: row.compositionTheme ?? "",
+            version: row.compositionVersion ?? "",
+            width: row.composedWidth ?? 0,
+          },
     failure:
       row.failureCode === null
         ? null
@@ -111,6 +139,7 @@ function toVariant(row: GenerationRunVariantRow): GenerationVariantRecord {
     model: row.model,
     requestId: row.requestId,
     sha256: row.sha256,
+    source: row.source as GenerationVariantSource,
     status: row.status,
     width: row.width,
   };
@@ -388,6 +417,15 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
     const outcome =
       completion.status === "succeeded"
         ? {
+            composedHeight: completion.composition.height,
+            composedMediaAssetId: completion.composition.mediaAssetId,
+            composedSha256: completion.composition.sha256,
+            composedWidth: completion.composition.width,
+            compositionHash: completion.composition.compositionHash,
+            compositionLayout: completion.composition.layout,
+            compositionOverlayHash: completion.composition.overlayHash,
+            compositionTheme: completion.composition.theme,
+            compositionVersion: completion.composition.version,
             failureCode: null,
             failureCorrection: null,
             failureDetail: null,
@@ -398,6 +436,15 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
             width: completion.width,
           }
         : {
+            composedHeight: null,
+            composedMediaAssetId: null,
+            composedSha256: null,
+            composedWidth: null,
+            compositionHash: null,
+            compositionLayout: null,
+            compositionOverlayHash: null,
+            compositionTheme: null,
+            compositionVersion: null,
             failureCode: completion.failure.code,
             failureCorrection: completion.failure.correction,
             failureDetail: completion.failure.detail,
@@ -432,6 +479,75 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
     return explainMissingWrite(this.#database, {
       id: completion.runId,
       organizationId: completion.organizationId,
+    });
+  }
+
+  /**
+   * Resuelve una variante que no gastó proveedor.
+   *
+   * La pieza es enteramente del motor de marca, así que el resultado y su
+   * composición se escriben juntos: no hay nada intermedio que valga la pena
+   * conservar si algo falla en el medio.
+   */
+  async completeDeterministicVariant(
+    write: GenerationDeterministicVariantWrite,
+    completedAt: string,
+  ): Promise<GenerationRunWriteOutcome> {
+    const { composition } = write;
+    const updated = await this.#database.generationRunVariant.updateMany({
+      data: {
+        completedAt: new Date(completedAt),
+        composedHeight: composition.height,
+        composedMediaAssetId: composition.mediaAssetId,
+        composedSha256: composition.sha256,
+        composedWidth: composition.width,
+        compositionHash: composition.compositionHash,
+        compositionLayout: composition.layout,
+        compositionOverlayHash: composition.overlayHash,
+        compositionTheme: composition.theme,
+        compositionVersion: composition.version,
+        source: "deterministic",
+        status: "succeeded",
+      },
+      where: {
+        id: write.variantId,
+        organizationId: write.organizationId,
+        run: { is: { status: { in: [...openStatuses] } } },
+        runId: write.runId,
+        status: "pending",
+      },
+    });
+    if (updated.count === 1) {
+      return { status: "written" };
+    }
+    return explainMissingWrite(this.#database, {
+      id: write.runId,
+      organizationId: write.organizationId,
+    });
+  }
+
+  /**
+   * Descarta lo que quedó sin intentar.
+   *
+   * Una variante que nunca se pidió no gastó nada, así que se cierra como
+   * `discarded` y no como fallida: presentarla como fallo sugeriría un problema
+   * del proveedor que no ocurrió.
+   */
+  async discardPendingVariants(input: {
+    readonly discardedAt: string;
+    readonly organizationId: string;
+    readonly runId: string;
+  }): Promise<void> {
+    await this.#database.generationRunVariant.updateMany({
+      data: {
+        completedAt: new Date(input.discardedAt),
+        status: "discarded",
+      },
+      where: {
+        organizationId: input.organizationId,
+        runId: input.runId,
+        status: "pending",
+      },
     });
   }
 

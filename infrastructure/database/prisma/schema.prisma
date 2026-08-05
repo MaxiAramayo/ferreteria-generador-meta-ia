@@ -561,6 +561,7 @@ model MediaAsset {
   revisions         PublicationRevisionMedia[]
   renderedRevisions PublicationRevision[]      @relation("PublicationRenderedMedia")
   generationVariants GenerationRunVariant[]
+  composedVariants   GenerationRunVariant[]     @relation("GenerationComposedMedia")
 
   @@unique([organizationId, id], map: "media_assets_organization_id_key")
   @@unique([organizationId, storageProvider, storageKey, storageVersion], map: "media_assets_storage_version_key")
@@ -743,13 +744,29 @@ model GenerationRunVariant {
   completedAt         DateTime?               @map("completed_at") @db.Timestamptz(3)
   createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  // Pieza compuesta con la capa de marca (`P4-T05`). Es un activo distinto de
+  // la base: la base prueba qué generó el modelo y la pieza es lo que se
+  // publica.
+  source                 String  @default("generated") @db.VarChar(20)
+  composedMediaAssetId   String? @map("composed_media_asset_id") @db.Uuid
+  composedSha256         String? @map("composed_sha256") @db.Char(64)
+  composedWidth          Int?    @map("composed_width")
+  composedHeight         Int?    @map("composed_height")
+  compositionLayout      String? @map("composition_layout") @db.VarChar(60)
+  compositionTheme       String? @map("composition_theme") @db.VarChar(40)
+  compositionVersion     String? @map("composition_version") @db.VarChar(80)
+  compositionHash        String? @map("composition_hash") @db.Char(64)
+  compositionOverlayHash String? @map("composition_overlay_hash") @db.Char(64)
+
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   run          GenerationRun @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   mediaAsset   MediaAsset?   @relation(fields: [organizationId, mediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  composedAsset MediaAsset?  @relation("GenerationComposedMedia", fields: [organizationId, composedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([organizationId, id], map: "generation_run_variants_organization_id_key")
   @@unique([organizationId, runId, position], map: "generation_run_variants_position_key")
   @@index([organizationId, mediaAssetId], map: "generation_run_variants_asset_idx")
+  @@index([organizationId, composedMediaAssetId], map: "generation_run_variants_composed_asset_idx")
   @@map("generation_run_variants")
 }
 

@@ -3229,10 +3229,46 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
     },
   });
 
+  // La pieza compuesta es un activo distinto de la base: la base prueba qué
+  // generó el modelo y la pieza es lo que se publica.
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: composedAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 740_000n,
+      checksumSha256: randomHash(),
+      height: 1350,
+      mimeType: "image/png",
+      originalFileName: "pieza.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/pieza-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/pieza-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+
+  const composition = {
+    compositionHash: "c".repeat(64),
+    height: 1350,
+    layout: "composicion-tercio-inferior",
+    mediaAssetId: composedAssetId,
+    overlayHash: "d".repeat(64),
+    sha256: "e".repeat(64),
+    theme: "taller",
+    version: "visual-composition/2026-08-05.1",
+    width: 1080,
+  };
+
   assert.deepEqual(
     await repository.completeVariant(
       {
         attempts: 1,
+        composition,
         height: 1536,
         latencyMilliseconds: 4_200,
         mediaAssetId,
@@ -3278,6 +3314,7 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
     await repository.completeVariant(
       {
         attempts: 1,
+        composition,
         height: 1536,
         latencyMilliseconds: 100,
         mediaAssetId,
@@ -3415,6 +3452,19 @@ test("cancelar un lote impide promover el resultado tardío", async () => {
     await repository.completeVariant(
       {
         attempts: 1,
+        // La composición no llega a escribirse: el lote ya está cancelado y la
+        // escritura entera se descarta.
+        composition: {
+          compositionHash: "f".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId,
+          overlayHash: "0".repeat(64),
+          sha256: "1".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
         height: 1536,
         latencyMilliseconds: 5_000,
         mediaAssetId,
@@ -3732,5 +3782,214 @@ test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async ()
   assert.equal(
     await database.generationRunVariant.count({ where: { organizationId } }),
     2,
+  );
+});
+
+test("una variante determinista sale sin base y con pieza compuesta", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-05T12:00:00.000Z",
+    subjectKind: "branded",
+    variantIds,
+  });
+
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: composedAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 640_000n,
+      checksumSha256: randomHash(),
+      height: 1350,
+      mimeType: "image/png",
+      originalFileName: "pieza-determinista.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/deterministica-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/deterministica-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+
+  assert.deepEqual(
+    await repository.completeDeterministicVariant(
+      {
+        composition: {
+          compositionHash: "a".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: composedAssetId,
+          overlayHash: "b".repeat(64),
+          sha256: "c".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        organizationId,
+        runId,
+        variantId: variantIds[0] ?? "",
+      },
+      "2026-08-05T12:00:10.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Las demás no se intentaron: una pieza determinista es siempre la misma, así
+  // que pedir copias idénticas no tendría sentido.
+  await repository.discardPendingVariants({
+    discardedAt: "2026-08-05T12:00:11.000Z",
+    organizationId,
+    runId,
+  });
+
+  const record = await repository.findById({ id: runId, organizationId });
+  assert.ok(record !== null);
+  const [first, second] = record.variants;
+  assert.ok(first !== undefined && second !== undefined);
+
+  assert.equal(first.status, "succeeded");
+  assert.equal(first.source, "deterministic");
+  // No hubo proveedor: no hay base, ni hash de base, ni modelo.
+  assert.equal(first.mediaAssetId, null);
+  assert.equal(first.sha256, null);
+  assert.equal(first.model, null);
+  assert.ok(first.composition !== null);
+  assert.equal(first.composition.mediaAssetId, composedAssetId);
+  assert.equal(first.composition.layout, "composicion-tercio-inferior");
+  assert.equal(second.status, "discarded");
+});
+
+test("la base rechaza una variante que salió sin pieza o con pieza a medias", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runId = randomUUID();
+
+  await database.generationRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: runId,
+      organizationId,
+      requestedAt: new Date("2026-08-05T12:00:00.000Z"),
+      startedAt: new Date("2026-08-05T12:00:01.000Z"),
+      status: "running",
+    },
+  });
+
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "base.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/base-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/base-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+
+  // Una pieza sobre una variante que no salió no describe nada: una fallida no
+  // tiene qué componer y una descartada nunca se intentó.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 1,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedHeight: 1350,
+        composedMediaAssetId: mediaAssetId,
+        composedSha256: "c".repeat(64),
+        composedWidth: 1080,
+        compositionHash: "d".repeat(64),
+        compositionLayout: "composicion-tercio-inferior",
+        compositionOverlayHash: "e".repeat(64),
+        compositionTheme: "taller",
+        compositionVersion: "visual-composition/2026-08-05.1",
+        failureCode: "rate-limit",
+        failureCorrection: "Reintentá el lote en unos minutos.",
+        failureDetail: "El proveedor limitó la tasa.",
+        id: randomUUID(),
+        organizationId,
+        position: 0,
+        runId,
+        status: "failed",
+      },
+    }),
+  );
+
+  // Y una composición a medias no permitiría comparar dos piezas ni saber con
+  // qué reglas se armó, que es para lo que se guarda.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 1,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedMediaAssetId: mediaAssetId,
+        compositionHash: "b".repeat(64),
+        height: 1536,
+        id: randomUUID(),
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        position: 1,
+        runId,
+        sha256: "a".repeat(64),
+        status: "succeeded",
+        width: 1024,
+      },
+    }),
+  );
+
+  // Una variante determinista no puede arrastrar base ni modelo: la pieza es
+  // enteramente del motor.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 0,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedHeight: 1350,
+        composedMediaAssetId: mediaAssetId,
+        composedSha256: "c".repeat(64),
+        composedWidth: 1080,
+        compositionHash: "d".repeat(64),
+        compositionLayout: "composicion-tercio-inferior",
+        compositionOverlayHash: "e".repeat(64),
+        compositionTheme: "taller",
+        compositionVersion: "visual-composition/2026-08-05.1",
+        height: 1536,
+        id: randomUUID(),
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        position: 2,
+        runId,
+        sha256: "a".repeat(64),
+        source: "deterministic",
+        status: "succeeded",
+        width: 1024,
+      },
+    }),
   );
 });
