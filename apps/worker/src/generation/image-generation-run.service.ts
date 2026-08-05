@@ -2,41 +2,58 @@
  * Orquestación del lote de generación.
  *
  * Ejecuta fuera del request web lo que la API sólo encoló. Su responsabilidad
- * es el ciclo de vida: tomar el lote, resolver cada variante, conservar lo que
- * salió, explicar lo que no y cerrar. No decide alcance —organización,
- * membresía y brief vienen del lote, que la API derivó de la sesión— ni compone
- * la pieza final, que es de `P4-T05`.
+ * es el ciclo de vida: tomar el lote, resolver cada variante, componerla con la
+ * capa de marca, conservar lo que salió, explicar lo que no y cerrar. No decide
+ * alcance: organización, membresía y brief vienen del lote, que la API derivó
+ * de la sesión.
  *
- * Tres reglas gobiernan el gasto:
+ * Cuatro reglas gobiernan el gasto:
  *
  * 1. antes de cada variante se comprueba que el lote siga abierto, así que una
  *    cancelación deja de gastar en la próxima en lugar de al final;
  * 2. un fallo que el proveedor declaró no reintentable no se reintenta, porque
  *    repetir el mismo pedido repite el gasto sin cambiar el resultado;
  * 3. una variante que ya se resolvió no se vuelve a pedir, ni siquiera si el
- *    evento se reentrega.
+ *    evento se reentrega;
+ * 4. **componer es barato y generar es caro.** Si la composición falla, el
+ *    error sube y el outbox reintrega: la base ya está persistida y la variante
+ *    ya está `succeeded`, así que el reintento rehace sólo el render. Anotar
+ *    resultado y composición juntos obligaría a regenerar la imagen para
+ *    recuperar un render fallido.
  */
 
+import type { DesignRenderer } from "@aramayo/design-engine";
 import {
   generationRunOutcome,
   ImageGenerationError,
   imageSizeForFormat,
+  VisualCompositionError,
   VisualPromptValidationError,
+  type ContentBrief,
   type ContentBriefRunRepository,
   type DeterministicVisualReason,
   type GeneratedImage,
   type GenerationRunPlan,
   type GenerationRunRecord,
   type GenerationRunRepository,
+  type GenerationVariantComposition,
   type GenerationVariantCompletion,
   type GenerationVariantFailure,
-  type ImageGenerationFailureCode,
+  type GenerationVariantFailureCode,
   type ImageGenerationPort,
   type VisualPromptPlan,
+  type VisualReservedSpace,
 } from "@aramayo/domain";
 
 import { deterministicMediaId } from "../media/deterministic-media-id.ts";
 import type { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
+import {
+  composePiece,
+  CompositionRenderError,
+  type ComposedBaseImage,
+  type ComposedPiece,
+} from "../visual/piece-composer.ts";
+import { visualProfileFor } from "../visual/visual-profiles.ts";
 import { buildVisualPrompt } from "../visual/visual-prompt-builder.ts";
 
 export interface ExecuteGenerationRunCommand {
@@ -84,8 +101,12 @@ export type GenerationRunExecutionResult =
  * No repite el mensaje del proveedor: ese texto puede traer el prompt reflejado
  * o una URL temporal, y termina guardado y mostrado.
  */
-const corrections: Readonly<Record<ImageGenerationFailureCode, string>> =
+const corrections: Readonly<Record<GenerationVariantFailureCode, string>> =
   Object.freeze({
+    // La composición es nuestra, no del proveedor: la imagen puede haber
+    // llegado bien y aun así el navegador no haber podido renderizar la pieza.
+    "composition-failed":
+      "La imagen se generó pero la pieza no se pudo componer. Volvé a pedir el lote.",
     "content-invalid":
       "El proveedor respondió sin una imagen utilizable. Volvé a pedir el lote.",
     "provider-error":
@@ -101,6 +122,16 @@ const corrections: Readonly<Record<ImageGenerationFailureCode, string>> =
   });
 
 function failureFrom(cause: unknown): GenerationVariantFailure {
+  // La imagen llegó y la pieza no se pudo componer: no es un fallo del
+  // proveedor, y decir que lo es mandaría a reintentar contra OpenAI.
+  if (cause instanceof CompositionRenderError) {
+    return compositionFailure(
+      `La pieza no se pudo renderizar (etapa ${cause.stage}).`,
+    );
+  }
+  if (cause instanceof VisualCompositionError) {
+    return compositionFailure(`${cause.message} ${cause.correction}`);
+  }
   if (cause instanceof ImageGenerationError) {
     return Object.freeze({
       code: cause.code,
@@ -122,6 +153,14 @@ function isRetryable(cause: unknown): boolean {
   return cause instanceof ImageGenerationError && cause.retryable;
 }
 
+function compositionFailure(detail: string): GenerationVariantFailure {
+  return Object.freeze({
+    code: "composition-failed" as const,
+    correction: corrections["composition-failed"],
+    detail: resolutionDetail(detail),
+  });
+}
+
 /**
  * Acota el motivo al ancho que admite la columna.
  *
@@ -131,6 +170,17 @@ function isRetryable(cause: unknown): boolean {
  */
 function resolutionDetail(detail: string): string {
   return detail.length <= 300 ? detail : `${detail.slice(0, 297)}...`;
+}
+
+/**
+ * Identificador de la pieza dentro de la plataforma.
+ *
+ * El documento exige un slug con forma de identificador legible; se deriva del
+ * lote para que dos piezas del mismo lote se reconozcan juntas y ninguna
+ * dependa del reloj.
+ */
+function compositionSlug(runId: string): string {
+  return `composicion-${runId.replaceAll("-", "").slice(0, 24)}`;
 }
 
 function toRunPlan(
@@ -153,6 +203,7 @@ export class ImageGenerationRunService {
   readonly #images: ImageGenerationPort;
   readonly #maxAttempts: number;
   readonly #media: Pick<MediaLifecycleService, "upload">;
+  readonly #renderer: DesignRenderer;
   readonly #runs: GenerationRunRepository;
   readonly #sleep: (milliseconds: number) => Promise<void>;
 
@@ -161,6 +212,7 @@ export class ImageGenerationRunService {
     briefs: ContentBriefRunRepository,
     images: ImageGenerationPort,
     media: Pick<MediaLifecycleService, "upload">,
+    renderer: DesignRenderer,
     dependencies: GenerationRunDependencies = {},
   ) {
     this.#briefs = briefs;
@@ -170,6 +222,7 @@ export class ImageGenerationRunService {
     this.#images = images;
     this.#maxAttempts = Math.max(dependencies.maxAttempts ?? 3, 1);
     this.#media = media;
+    this.#renderer = renderer;
     this.#runs = runs;
     this.#sleep =
       dependencies.sleep ??
@@ -200,15 +253,21 @@ export class ImageGenerationRunService {
     if (plan.status === "unavailable") {
       return this.#resolveWithoutSpending(run, null, plan.detail, "failed");
     }
+
+    // La composición se comprueba antes de gastar: una región sin pieza, un
+    // formato que la pieza no admite o un titular que no entra son rechazos
+    // deterministas, y descubrirlos después de pagarle una imagen al proveedor
+    // sería gastar para nada.
+    const composable = this.#assertComposable(run, plan.brief, plan.plan);
+    if (composable !== null) {
+      return this.#resolveWithoutSpending(run, null, composable, "failed");
+    }
+
     if (plan.plan.kind === "deterministic") {
-      // No es un error: la pieza sale con render de marca y `P4-T05` la compone
-      // igual. Lo que corresponde conservar es por qué no se generó.
-      return this.#resolveWithoutSpending(
-        run,
-        plan.plan.reason,
-        `La pieza se resuelve con render determinista (${plan.plan.reason}).`,
-        "completed",
-      );
+      // No es un error: la pieza sale enteramente del motor de marca. Lo que
+      // corresponde conservar es por qué no se generó, y la pieza igual se
+      // compone y se guarda: un lote determinista entrega pieza, no un motivo.
+      return this.#resolveDeterministically(run, plan.brief, plan.plan);
     }
 
     // Tomar el lote es además el candado de reentrega: dos entregas simultáneas
@@ -226,7 +285,7 @@ export class ImageGenerationRunService {
     }
 
     const generated = plan.plan;
-    const totals = await this.#runVariants(run, generated);
+    const totals = await this.#runVariants(run, plan.brief, generated);
     if (totals.cancelled) {
       return { runId: run.id, status: "discarded" };
     }
@@ -257,10 +316,12 @@ export class ImageGenerationRunService {
    * Un brief que no llegó a producirse no puede dar una pieza: el lote termina
    * sin gastar nada y lo dice, en lugar de generar sobre un pedido vacío.
    */
-  async #plan(
-    run: GenerationRunRecord,
-  ): Promise<
-    | Readonly<{ plan: VisualPromptPlan; status: "planned" }>
+  async #plan(run: GenerationRunRecord): Promise<
+    | Readonly<{
+        brief: ContentBrief;
+        plan: VisualPromptPlan;
+        status: "planned";
+      }>
     | Readonly<{ detail: string; status: "unavailable" }>
   > {
     const briefRun = await this.#briefs.findById({
@@ -274,10 +335,12 @@ export class ImageGenerationRunService {
         status: "unavailable",
       };
     }
+    const brief = briefRun.brief;
     try {
       return {
+        brief,
         plan: buildVisualPrompt({
-          brief: briefRun.brief,
+          brief,
           format: run.format,
           // La palanca de operación: sin proveedor configurado el constructor
           // devuelve `generation-disabled` y el lote se cierra sin intentar
@@ -302,6 +365,176 @@ export class ImageGenerationRunService {
         status: "unavailable",
       };
     }
+  }
+
+  /**
+   * Región que la capa determinista ocupa.
+   *
+   * En el camino generado la trae el plan, que es la misma que viajó al
+   * proveedor. En el determinista no hubo prompt, así que se toma la del perfil
+   * que habría correspondido; si el brief pidió plantilla no hay perfil, y el
+   * tercio inferior es la región de la pieza comercial completa.
+   */
+  #regionFor(plan: VisualPromptPlan): VisualReservedSpace {
+    if (plan.kind === "generated") {
+      return plan.reservedSpace;
+    }
+    return plan.profileId === null
+      ? "lower_third"
+      : visualProfileFor(plan.profileId).reservedSpace;
+  }
+
+  /**
+   * Comprueba que la pieza se pueda componer, sin componerla de verdad.
+   *
+   * Devuelve el motivo cuando no se puede, y `null` cuando sí. Se corre antes de
+   * gastar porque los tres rechazos posibles —región sin pieza, formato no
+   * admitido y titular que no entra— son deterministas: reintentar no los
+   * cambia, y descubrirlos después de generar sería gastar para nada.
+   */
+  #assertComposable(
+    run: GenerationRunRecord,
+    brief: ContentBrief,
+    plan: VisualPromptPlan,
+  ): string | null {
+    try {
+      composePiece({
+        base: null,
+        brief,
+        format: run.format,
+        region: this.#regionFor(plan),
+        slug: compositionSlug(run.id),
+      });
+      return null;
+    } catch (cause: unknown) {
+      if (!(cause instanceof VisualCompositionError)) {
+        throw cause;
+      }
+      return resolutionDetail(
+        `La pieza no se puede componer (${cause.code} en ${cause.field}). ${cause.correction}`,
+      );
+    }
+  }
+
+  /**
+   * Resuelve un lote que no gasta proveedor y aun así entrega pieza.
+   *
+   * Los tres motivos deterministas de `P4-T01` terminan acá. La diferencia con
+   * cerrar el lote y ya está es que quien pidió la pieza recibe una pieza: el
+   * motivo se conserva, pero no reemplaza al resultado.
+   */
+  async #resolveDeterministically(
+    run: GenerationRunRecord,
+    brief: ContentBrief,
+    plan: Extract<VisualPromptPlan, { kind: "deterministic" }>,
+  ): Promise<GenerationRunExecutionResult> {
+    const detail = `La pieza se resuelve con render determinista (${plan.reason}).`;
+    const [variant] = run.variants;
+
+    if (variant === undefined) {
+      return this.#resolveWithoutSpending(
+        run,
+        plan.reason,
+        detail,
+        "completed",
+      );
+    }
+
+    let composition: GenerationVariantComposition;
+    try {
+      const piece = composePiece({
+        base: null,
+        brief,
+        format: run.format,
+        region: this.#regionFor(plan),
+        slug: compositionSlug(run.id),
+      });
+      composition = await this.#renderAndStore(run, piece);
+    } catch (cause: unknown) {
+      // Un fallo de render es nuestro y puede ser transitorio: sube para que el
+      // outbox reentregue en lugar de cerrar el lote sin pieza.
+      if (cause instanceof VisualCompositionError) {
+        return this.#resolveWithoutSpending(
+          run,
+          null,
+          resolutionDetail(`${cause.message} ${cause.correction}`),
+          "failed",
+        );
+      }
+      throw cause;
+    }
+
+    const now = this.#clock().toISOString();
+    const written = await this.#runs.completeDeterministicVariant(
+      {
+        composition,
+        organizationId: run.organizationId,
+        runId: run.id,
+        variantId: variant.id,
+      },
+      now,
+    );
+    if (written.status !== "written") {
+      return { runId: run.id, status: "discarded" };
+    }
+
+    // Las demás variantes no se intentaron y no gastaron nada: una pieza
+    // determinista es siempre la misma, así que pedir cuatro copias idénticas
+    // no tendría sentido.
+    await this.#runs.discardPendingVariants({
+      discardedAt: now,
+      organizationId: run.organizationId,
+      runId: run.id,
+    });
+
+    return this.#resolveWithoutSpending(run, plan.reason, detail, "completed");
+  }
+
+  /**
+   * Renderiza la pieza y la guarda.
+   *
+   * El identificador del activo se deriva del hash de composición y de la
+   * organización, así que dos variantes que componen exactamente lo mismo caen
+   * sobre el mismo archivo en lugar de pagar la subida dos veces, y un reintento
+   * no duplica nada.
+   */
+  async #renderAndStore(
+    run: GenerationRunRecord,
+    piece: ComposedPiece,
+  ): Promise<GenerationVariantComposition> {
+    const rendered = await this.#renderer.render({
+      document: piece.document,
+      requestId: `${run.id}:${piece.snapshot.compositionHash.slice(0, 12)}`,
+    });
+    if (!rendered.ok) {
+      throw new CompositionRenderError(rendered.failure.stage);
+    }
+
+    const mediaAssetId = deterministicMediaId(
+      "composed-piece",
+      `${run.organizationId}:${piece.snapshot.compositionHash}`,
+    );
+    const asset = await this.#media.upload({
+      bytes: rendered.image.png,
+      declaredMimeType: "image/png",
+      mediaAssetId,
+      organizationId: run.organizationId,
+      origin: "generated",
+      originalFileName: `${piece.document.slug}.png`,
+      ownerMembershipId: run.actorMembershipId,
+    });
+
+    return Object.freeze({
+      compositionHash: piece.snapshot.compositionHash,
+      height: rendered.image.height,
+      layout: piece.snapshot.layout,
+      mediaAssetId: asset.id,
+      overlayHash: piece.snapshot.overlayHash,
+      sha256: rendered.image.sha256,
+      theme: piece.snapshot.theme,
+      version: piece.snapshot.version,
+      width: rendered.image.width,
+    });
   }
 
   /** Cierra un lote que no gastó ninguna llamada al proveedor. */
@@ -340,6 +573,7 @@ export class ImageGenerationRunService {
    */
   async #runVariants(
     run: GenerationRunRecord,
+    brief: ContentBrief,
     plan: Extract<VisualPromptPlan, { kind: "generated" }>,
   ): Promise<
     Readonly<{
@@ -369,7 +603,7 @@ export class ImageGenerationRunService {
         if (variant === undefined) {
           return false;
         }
-        const completion = await this.#runVariant(run, plan, variant.id);
+        const completion = await this.#runVariant(run, brief, plan, variant.id);
         if (completion.status === "cancelled") {
           // Dejar de gastar en la próxima variante es el punto: no se puede
           // detener al proveedor, pero sí no pedirle nada más.
@@ -406,6 +640,7 @@ export class ImageGenerationRunService {
 
   async #runVariant(
     run: GenerationRunRecord,
+    brief: ContentBrief,
     plan: Extract<VisualPromptPlan, { kind: "generated" }>,
     variantId: string,
   ): Promise<
@@ -433,8 +668,14 @@ export class ImageGenerationRunService {
           size,
         });
         const stored = await this.#store(run, image);
+        // Componer necesita los bytes de la base, y estos bytes sólo existen
+        // acá: el almacenamiento no sabe devolverlos. Por eso la pieza se
+        // compone antes de anotar la variante y las dos cosas se escriben
+        // juntas, en lugar de dejar una variante que salió y no tiene pieza.
+        const composition = await this.#composeVariant(run, brief, plan, image);
         const written = await this.#complete(run, {
           attempts,
+          composition,
           height: image.height,
           latencyMilliseconds: image.latencyMilliseconds,
           mediaAssetId: stored,
@@ -481,6 +722,37 @@ export class ImageGenerationRunService {
     return written
       ? { outcome: "failed", status: "resolved", totalTokens: 0 }
       : { status: "cancelled" };
+  }
+
+  /**
+   * Compone la pieza de una variante generada.
+   *
+   * La base entra embebida con sus bytes: es el único momento en que existen
+   * fuera del proveedor, porque el almacenamiento sólo guarda, borra y firma
+   * URLs. Lo que devuelve es lo que se escribe junto al resultado.
+   */
+  async #composeVariant(
+    run: GenerationRunRecord,
+    brief: ContentBrief,
+    plan: Extract<VisualPromptPlan, { kind: "generated" }>,
+    image: GeneratedImage,
+  ): Promise<GenerationVariantComposition> {
+    const base: ComposedBaseImage = {
+      bytes: image.bytes,
+      height: image.height,
+      mimeType: image.mimeType,
+      sha256: image.sha256,
+      width: image.width,
+    };
+    const piece = composePiece({
+      base,
+      brief,
+      format: run.format,
+      region: plan.reservedSpace,
+      slug: compositionSlug(run.id),
+    });
+
+    return this.#renderAndStore(run, piece);
   }
 
   /**

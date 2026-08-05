@@ -1,6 +1,12 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type {
+  DesignRenderer,
+  RenderRequest,
+  RenderResult,
+} from "@aramayo/design-engine";
 import {
   ImageGenerationError,
   type ContentBriefRunRecord,
@@ -189,6 +195,52 @@ class StubImages implements ImageGenerationPort {
   }
 }
 
+/**
+ * Renderizador de prueba.
+ *
+ * Devuelve un PNG cuyo hash depende del documento, así que dos composiciones
+ * distintas producen piezas distintas y dos iguales, la misma. Es lo que
+ * permite afirmar reproducibilidad sin abrir un navegador; el render real tiene
+ * su propia suite con Chromium.
+ */
+class StubRenderer implements DesignRenderer {
+  readonly requests: RenderRequest[] = [];
+  #failStage: string | null;
+
+  constructor(failStage: string | null = null) {
+    this.#failStage = failStage;
+  }
+
+  render(request: RenderRequest): Promise<RenderResult> {
+    this.requests.push(request);
+
+    if (this.#failStage !== null) {
+      return Promise.resolve({
+        durationMs: 5,
+        failure: { durationMs: 5, reason: "timeout", stage: "render" },
+        ok: false,
+        requestId: request.requestId,
+      });
+    }
+
+    const serialized = JSON.stringify(request.document);
+    const png = Uint8Array.from(Buffer.from(serialized));
+
+    return Promise.resolve({
+      durationMs: 10,
+      image: {
+        byteLength: png.byteLength,
+        height: 1350,
+        png,
+        sha256: createHash("sha256").update(serialized).digest("hex"),
+        width: 1080,
+      },
+      ok: true,
+      requestId: request.requestId,
+    });
+  }
+}
+
 class StubMedia {
   readonly uploads: UploadMediaCommand[] = [];
 
@@ -240,14 +292,25 @@ function service(
   images: ImageGenerationPort,
   media: StubMedia = new StubMedia(),
   briefs: ContentBriefRunRepository = new StubBriefRuns(),
-  overrides: Partial<{ concurrency: number; maxAttempts: number }> = {},
+  overrides: Partial<{
+    concurrency: number;
+    maxAttempts: number;
+    renderer: DesignRenderer;
+  }> = {},
 ): ImageGenerationRunService {
-  return new ImageGenerationRunService(runs, briefs, images, media, {
-    concurrency: overrides.concurrency ?? 1,
-    maxAttempts: overrides.maxAttempts ?? 3,
-    // Sin espera real las pruebas de reintento no tardan.
-    sleep: (): Promise<void> => Promise.resolve(),
-  });
+  return new ImageGenerationRunService(
+    runs,
+    briefs,
+    images,
+    media,
+    overrides.renderer ?? new StubRenderer(),
+    {
+      concurrency: overrides.concurrency ?? 1,
+      maxAttempts: overrides.maxAttempts ?? 3,
+      // Sin espera real las pruebas de reintento no tardan.
+      sleep: (): Promise<void> => Promise.resolve(),
+    },
+  );
 }
 
 /** Lee el lote y afirma que existe, para que las aserciones no encadenen. */
@@ -291,9 +354,37 @@ test("un lote completo conserva sus variantes, su plan y su uso", async () => {
   assert.equal(run.plan?.format, "feed");
   assert.equal(run.totalTokens, 200);
   assert.equal(run.resolution, null);
-  // Cada imagen se persiste antes de anotarse, con origen `generated`.
-  assert.equal(media.uploads.length, 2);
+  // Cada variante persiste dos activos: la base que devolvió el modelo y la
+  // pieza compuesta con la capa de marca. Son cosas distintas y las dos
+  // importan —la base prueba qué generó el modelo, la pieza es lo que se
+  // publica—, así que dos variantes dejan cuatro subidas.
+  assert.equal(media.uploads.length, 4);
   assert.ok(media.uploads.every((upload) => upload.origin === "generated"));
+
+  // Toda variante que salió tiene pieza: no existe el estado intermedio de
+  // «generó pero no compuso», porque componer necesita los bytes de la base y
+  // el almacenamiento no sabe devolverlos.
+  for (const variant of run.variants) {
+    const composition = variant.composition;
+    assert.ok(composition !== null, "Una variante que salió no tiene pieza.");
+    assert.equal(composition.layout, "composicion-tercio-inferior");
+    assert.equal(composition.theme, "taller");
+    assert.equal(composition.width, 1080);
+    assert.equal(composition.height, 1350);
+    assert.match(composition.version, /^visual-composition\//u);
+    assert.notEqual(composition.mediaAssetId, variant.mediaAssetId);
+  }
+
+  // Dos variantes con bases distintas dan piezas distintas.
+  assert.notEqual(
+    variantAt(run, 0).composition?.compositionHash,
+    variantAt(run, 1).composition?.compositionHash,
+  );
+  // Pero comparten la capa determinista: el copy es el mismo brief.
+  assert.equal(
+    variantAt(run, 0).composition?.overlayHash,
+    variantAt(run, 1).composition?.overlayHash,
+  );
 
   // El tamaño sale del formato de la pieza y no de una constante suelta.
   assert.ok(images.requests.every((request) => request.size === "1024x1536"));
@@ -494,6 +585,17 @@ test("un lote interrumpido se retoma sin repetir la variante ya resuelta", async
   await runs.completeVariant(
     {
       attempts: 1,
+      composition: {
+        compositionHash: "1".repeat(64),
+        height: 1350,
+        layout: "composicion-tercio-inferior",
+        mediaAssetId: "77777777-7777-4777-8777-777777777777",
+        overlayHash: "2".repeat(64),
+        sha256: "3".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-08-05.1",
+        width: 1080,
+      },
       height: 1536,
       latencyMilliseconds: 1_000,
       mediaAssetId: "66666666-6666-4666-8666-666666666666",
@@ -547,7 +649,20 @@ test("un sujeto de marca sin foto aprobada se resuelve sin gastar", async () => 
   assert.equal(run.resolution?.deterministicReason, "no-approved-reference");
   assert.equal(run.plan, null);
   assert.equal(run.totalTokens, 0);
-  assert.ok(run.variants.every((variant) => variant.status === "discarded"));
+
+  // Un lote determinista entrega pieza, no un motivo: la primera variante sale
+  // compuesta enteramente por el motor de marca.
+  const first = variantAt(run, 0);
+  assert.equal(first.status, "succeeded");
+  assert.equal(first.source, "deterministic");
+  assert.equal(first.mediaAssetId, null, "No hubo base: nadie generó nada.");
+  assert.equal(first.model, null);
+  assert.ok(first.composition !== null);
+  assert.equal(first.composition.layout, "composicion-tercio-inferior");
+
+  // Las demás no se intentaron y no gastaron nada: una pieza determinista es
+  // siempre la misma, así que pedir copias idénticas no tendría sentido.
+  assert.equal(variantAt(run, 1).status, "discarded");
 });
 
 test("dos organizaciones con la misma imagen no comparten activo", async () => {
@@ -588,9 +703,74 @@ test("dos organizaciones con la misma imagen no comparten activo", async () => {
   // `media_assets.id` es clave primaria global: sin la organización en la
   // derivación, la segunda organización chocaría contra el activo de la primera.
   assert.notEqual(mine, theirs);
-  // Dentro de la misma organización sí se reutiliza: la misma imagen es el
-  // mismo archivo y no se paga dos veces por subirlo.
-  assert.equal(media.uploads[0]?.mediaAssetId, media.uploads[1]?.mediaAssetId);
+  // Cada variante sube base y pieza, en ese orden, así que las dos bases son la
+  // primera y la tercera subida. Dentro de la misma organización se reutilizan:
+  // la misma imagen es el mismo archivo y no se paga dos veces por subirlo.
+  assert.equal(media.uploads[0]?.mediaAssetId, media.uploads[2]?.mediaAssetId);
+  // Y también la pieza, porque la composición es la misma sobre la misma base.
+  assert.equal(media.uploads[1]?.mediaAssetId, media.uploads[3]?.mediaAssetId);
+});
+
+test("si la pieza no se puede componer el lote no gasta nada", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await runs.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-03T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds,
+  });
+  const images = new StubImages([{}, {}]);
+  // Un titular más largo que el presupuesto de la región es un rechazo
+  // determinista: reintentar no lo cambia, y descubrirlo después de pagarle una
+  // imagen al proveedor sería gastar para nada.
+  const longTitle = { ...brief, title: "P".repeat(80) };
+
+  const result = await service(
+    runs,
+    images,
+    new StubMedia(),
+    new StubBriefRuns(longTitle),
+  ).execute({ organizationId, runId });
+
+  assert.equal(result.status, "failed");
+  assert.equal(images.requests.length, 0);
+  const run = await loadRun(runs);
+  assert.equal(run.status, "failed");
+  assert.match(run.resolution?.detail ?? "", /copy-too-long/u);
+  // La corrección dice qué hacer, no sólo qué pasó.
+  assert.match(run.resolution?.detail ?? "", /Acortá el título/u);
+});
+
+test("una pieza que no se pudo renderizar no se atribuye al proveedor", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const images = new StubImages([{}, {}]);
+
+  const result = await service(
+    runs,
+    images,
+    new StubMedia(),
+    new StubBriefRuns(),
+    {
+      renderer: new StubRenderer("render"),
+    },
+  ).execute({ organizationId, runId });
+
+  assert.equal(result.status, "failed");
+  const run = await loadRun(runs);
+  const failure = variantAt(run, 0).failure;
+  assert.ok(failure !== null);
+  // La imagen llegó bien: decir que falló OpenAI mandaría a reintentar contra
+  // el lugar equivocado.
+  assert.equal(failure.code, "composition-failed");
+  assert.match(failure.detail, /no se pudo renderizar/u);
+  // Y no se reintenta contra el proveedor: un render que falla no se arregla
+  // pidiendo otra imagen.
+  assert.equal(images.requests.length, 2);
 });
 
 test("sin generación habilitada el lote no intenta ninguna llamada", async () => {
@@ -603,6 +783,7 @@ test("sin generación habilitada el lote no intenta ninguna llamada", async () =
     new StubBriefRuns(),
     images,
     new StubMedia(),
+    new StubRenderer(),
     { concurrency: 1, generationEnabled: false },
   ).execute({ organizationId, runId });
 

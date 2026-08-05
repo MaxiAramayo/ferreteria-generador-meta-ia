@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Plataforma de contenido y publicación de Ferretería y Lubricentro Aramayo.",
+  "description": "Plataforma de contenido y publicaci\u00f3n de Ferreter\u00eda y Lubricentro Aramayo.",
   "packageManager": "pnpm@11.17.0",
   "engines": {
     "node": "24.18.0",
@@ -25,6 +25,7 @@
     "brief:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:brief",
     "build": "pnpm --recursive build",
     "commercial:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:commercial",
+    "composition:snapshot": "pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker review:composition",
     "config:test": "node --test packages/configuration/src/*.test.ts",
     "config:typecheck": "tsc --project packages/configuration/tsconfig.json",
     "db:generate": "prisma generate",

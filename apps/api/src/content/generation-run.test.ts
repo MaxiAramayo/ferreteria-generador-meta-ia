@@ -190,6 +190,7 @@ function runRecord(
     variants: variantIds.map((id, index) => ({
       attempts: 0,
       completedAt: null,
+      composition: null,
       failure: null,
       height: null,
       id,
@@ -199,6 +200,7 @@ function runRecord(
       model: null,
       requestId: null,
       sha256: null,
+      source: "generated" as const,
       status: "pending" as const,
       width: null,
     })),
@@ -254,6 +256,14 @@ class FakeRuns implements GenerationRunRepository {
 
   completeVariant(): Promise<never> {
     throw new Error("La API no cierra variantes.");
+  }
+
+  completeDeterministicVariant(): Promise<never> {
+    throw new Error("La API no compone piezas.");
+  }
+
+  discardPendingVariants(): Promise<never> {
+    throw new Error("La API no descarta variantes.");
   }
 
   start(): Promise<GenerationRunWriteOutcome> {
@@ -526,6 +536,65 @@ test("la consulta expone progreso y no expone el hash del prompt", async () => {
     total: 2,
   });
   assert.equal(response.usage.totalTokens, 200);
+});
+
+test("la variante expone su pieza compuesta y no el hash de la base", async () => {
+  const runs = new FakeRuns();
+  const base = runRecord();
+  const [first] = base.variants;
+  assert.ok(first !== undefined);
+  const record = runs.add({
+    ...base,
+    status: "completed",
+    variants: [
+      {
+        ...first,
+        composition: {
+          compositionHash: "1".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: "88888888-8888-4888-8888-888888888888",
+          overlayHash: "2".repeat(64),
+          sha256: "3".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        height: 1536,
+        mediaAssetId: "99999999-9999-4999-8999-999999999999",
+        model: "gpt-image-1",
+        sha256: "4".repeat(64),
+        status: "succeeded" as const,
+        width: 1024,
+      },
+      ...base.variants.slice(1),
+    ],
+  });
+  const service = await serviceFor(new FakeRequests(), runs);
+
+  const response = await service.findById(actor, record.id);
+  const variant = response.variants[0];
+  assert.ok(variant !== undefined);
+  const composition = variant.composition;
+  assert.ok(composition !== null);
+
+  // La pieza es lo que se publica, así que su activo y sus medidas salen.
+  assert.equal(composition.layout, "composicion-tercio-inferior");
+  assert.equal(composition.width, 1080);
+  assert.equal(composition.height, 1350);
+  assert.equal(
+    composition.mediaAssetId,
+    "88888888-8888-4888-8888-888888888888",
+  );
+  // El hash de composición sale porque es lo que permite comparar variantes.
+  assert.equal(composition.compositionHash, "1".repeat(64));
+  // El de la base, el de la pieza y el modelo no: no le sirven a quien revisa.
+  assert.ok(!Object.hasOwn(composition, "sha256"));
+  assert.ok(!Object.hasOwn(composition, "overlayHash"));
+  assert.ok(!Object.hasOwn(variant, "sha256"));
+  assert.ok(!Object.hasOwn(variant, "model"));
+  // De dónde salió sí, porque distingue lo que gastó proveedor de lo que no.
+  assert.equal(variant.source, "generated");
 });
 
 test("el detalle interno de un fallo no sale por la API", async () => {

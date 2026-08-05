@@ -101,6 +101,18 @@ function toResponse(record: GenerationRunRecord): GenerationRunResponse {
       totalTokens: record.totalTokens,
     },
     variants: record.variants.map((variant) => ({
+      composition:
+        variant.composition === null
+          ? null
+          : {
+              compositionHash: variant.composition.compositionHash,
+              height: variant.composition.height,
+              layout: variant.composition.layout,
+              mediaAssetId: variant.composition.mediaAssetId,
+              theme: variant.composition.theme,
+              version: variant.composition.version,
+              width: variant.composition.width,
+            },
       failure:
         variant.failure === null
           ? null
@@ -112,6 +124,7 @@ function toResponse(record: GenerationRunRecord): GenerationRunResponse {
       id: variant.id,
       index: variant.index,
       mediaAssetId: variant.mediaAssetId,
+      source: variant.source,
       status: variant.status,
       width: variant.width,
     })),

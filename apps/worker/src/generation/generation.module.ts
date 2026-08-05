@@ -1,4 +1,5 @@
 import type { OpenAIIntegration } from "@aramayo/configuration";
+import type { DesignRenderer } from "@aramayo/design-engine";
 import {
   ImageGenerationError,
   type ContentBriefRunRepository,
@@ -14,6 +15,7 @@ import {
   GENERATION_RUN_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
+import { DESIGN_RENDERER } from "../rendering/rendering.module.ts";
 import {
   IMAGE_GENERATION_PORT,
   IMAGE_GENERATION_RUN_SERVICE,
@@ -120,6 +122,7 @@ export class GenerationModule {
             CONTENT_BRIEF_RUN_REPOSITORY,
             IMAGE_GENERATION_PORT,
             MediaLifecycleService,
+            DESIGN_RENDERER,
           ],
           provide: IMAGE_GENERATION_RUN_SERVICE,
           useFactory: (
@@ -127,13 +130,21 @@ export class GenerationModule {
             briefs: ContentBriefRunRepository,
             images: ImageGenerationPort,
             media: MediaLifecycleService,
+            renderer: DesignRenderer,
           ): ImageGenerationRunService =>
-            new ImageGenerationRunService(runs, briefs, images, media, {
-              // Sin credenciales el lote se cierra con render determinista y
-              // motivo `generation-disabled`, en lugar de gastar cada variante
-              // contra un gateway que sólo sabe rechazar.
-              generationEnabled: openAi.enabled,
-            }),
+            new ImageGenerationRunService(
+              runs,
+              briefs,
+              images,
+              media,
+              renderer,
+              {
+                // Sin credenciales el lote se cierra con render determinista y
+                // motivo `generation-disabled`, en lugar de gastar cada variante
+                // contra un gateway que sólo sabe rechazar.
+                generationEnabled: openAi.enabled,
+              },
+            ),
         },
       ],
     };
