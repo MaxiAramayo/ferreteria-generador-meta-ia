@@ -29,10 +29,31 @@ export type GenerationVariantResponse = {
   height: number | null;
   id: string;
   index: number;
-  /** Activo con la imagen; sólo existe si la variante salió. */
+  /** Activo con la base generada; nulo en una pieza sin imagen del modelo. */
   mediaAssetId: string | null;
+  /** Pieza compuesta con la capa de marca; presente si la variante salió. */
+  composition: GenerationVariantCompositionResponse | null;
+  /** De dónde salió: `generated` gastó proveedor, `deterministic` no. */
+  source: string;
   status: GenerationVariantStatusResponse;
   width: number | null;
+};
+
+/**
+ * Pieza compuesta: es lo que se publica.
+ *
+ * `compositionHash` sale porque es lo que permite comparar dos variantes sin
+ * mirar píxeles, que es justo lo que necesita el panel. El hash de la base y el
+ * modelo siguen sin salir: no le sirven a quien revisa.
+ */
+export type GenerationVariantCompositionResponse = {
+  compositionHash: string;
+  height: number;
+  layout: string;
+  mediaAssetId: string;
+  theme: string;
+  version: string;
+  width: number;
 };
 
 /** Progreso del lote, para que la espera sea legible sin contar a mano. */

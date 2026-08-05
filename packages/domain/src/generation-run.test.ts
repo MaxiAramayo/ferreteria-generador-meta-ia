@@ -21,6 +21,22 @@ function variant(
   return {
     attempts: status === "pending" || status === "discarded" ? 0 : 1,
     completedAt: status === "pending" ? null : "2026-08-03T12:00:00.000Z",
+    // Toda variante que salió lleva su pieza compuesta: se escribe junto al
+    // resultado, porque componer necesita los bytes de la base.
+    composition:
+      status === "succeeded"
+        ? {
+            compositionHash: "c".repeat(64),
+            height: 1350,
+            layout: "composicion-tercio-inferior",
+            mediaAssetId: `33333333-3333-4333-8333-00000000000${String(index)}`,
+            overlayHash: "d".repeat(64),
+            sha256: "e".repeat(64),
+            theme: "taller",
+            version: "visual-composition/2026-08-05.1",
+            width: 1080,
+          }
+        : null,
     failure:
       status === "failed"
         ? {
@@ -38,6 +54,7 @@ function variant(
         ? `22222222-2222-4222-8222-00000000000${String(index)}`
         : null,
     model: status === "succeeded" ? "gpt-image-1" : null,
+    source: "generated" as const,
     requestId: null,
     sha256: status === "succeeded" ? "a".repeat(64) : null,
     status,
