@@ -15,15 +15,17 @@
  *    repetir el mismo pedido repite el gasto sin cambiar el resultado;
  * 3. una variante que ya se resolvió no se vuelve a pedir, ni siquiera si el
  *    evento se reentrega;
- * 4. **componer es barato y generar es caro.** Si la composición falla, el
- *    error sube y el outbox reintrega: la base ya está persistida y la variante
- *    ya está `succeeded`, así que el reintento rehace sólo el render. Anotar
- *    resultado y composición juntos obligaría a regenerar la imagen para
- *    recuperar un render fallido.
+ * 4. el ledger se liquida al recibir Images, antes de moderar, almacenar o
+ *    componer. Un fallo posterior conserva el costo, pero no reintenta la
+ *    generación automáticamente ni expone una imagen que no quedó aprobada.
  */
+
+import { createHash } from "node:crypto";
 
 import type { DesignRenderer } from "@aramayo/design-engine";
 import {
+  generationImageModel,
+  generationModerationModel,
   generationRunOutcome,
   ImageGenerationError,
   imageSizeForFormat,
@@ -36,11 +38,15 @@ import {
   type GenerationRunPlan,
   type GenerationRunRecord,
   type GenerationRunRepository,
+  type GenerationAttemptLedgerRepository,
+  type GenerationAdmissionReason,
+  type GenerationPolicyRepository,
   type GenerationVariantComposition,
   type GenerationVariantCompletion,
   type GenerationVariantFailure,
   type GenerationVariantFailureCode,
   type ImageGenerationPort,
+  type ContentModerationPort,
   type VisualPromptPlan,
   type VisualReservedSpace,
 } from "@aramayo/domain";
@@ -62,6 +68,7 @@ export interface ExecuteGenerationRunCommand {
 }
 
 export interface GenerationRunDependencies {
+  readonly attempts?: GenerationAttemptLedgerRepository;
   readonly clock?: () => Date;
   /**
    * Palanca de operación. En `false` el lote se resuelve con render determinista
@@ -73,6 +80,8 @@ export interface GenerationRunDependencies {
    * pero presentando como falla lo que es una decisión de configuración.
    */
   readonly generationEnabled?: boolean;
+  readonly moderation?: ContentModerationPort;
+  readonly policies?: GenerationPolicyRepository;
   /**
    * Cuántas variantes se piden a la vez. Dos es deliberadamente bajo: el lote
    * compite con el resto del worker por el mismo proceso, y un límite de tasa
@@ -107,6 +116,16 @@ const corrections: Readonly<Record<GenerationVariantFailureCode, string>> =
     // llegado bien y aun así el navegador no haber podido renderizar la pieza.
     "composition-failed":
       "La imagen se generó pero la pieza no se pudo componer. Volvé a pedir el lote.",
+    "generation-disabled":
+      "La generación fue desactivada por un administrador. Volvé a pedir la pieza cuando se habilite.",
+    "monthly-budget-exceeded":
+      "Se alcanzó el presupuesto mensual. Usá la pieza determinista o esperá el próximo período.",
+    "moderation-rejected":
+      "La imagen no pasó la revisión de seguridad. Revisá el brief antes de volver a pedirla.",
+    "moderation-unavailable":
+      "La revisión de seguridad no estuvo disponible. Reintentá más tarde.",
+    "organization-daily-limit":
+      "Se alcanzó el límite diario de la organización. Usá la pieza determinista o esperá el próximo día UTC.",
     "content-invalid":
       "El proveedor respondió sin una imagen utilizable. Volvé a pedir el lote.",
     "provider-error":
@@ -119,7 +138,29 @@ const corrections: Readonly<Record<GenerationVariantFailureCode, string>> =
       "El proveedor tardó más de lo admitido. Reintentá con menos variantes.",
     "unsupported-parameter":
       "El pedido no es válido para el proveedor. Revisá formato y perfil visual.",
+    "user-daily-limit":
+      "Alcanzaste tu límite diario de generación. Usá la pieza determinista o esperá el próximo día UTC.",
   });
+
+class GovernanceBlockedError extends Error {
+  readonly reason: GenerationAdmissionReason;
+
+  constructor(reason: GenerationAdmissionReason) {
+    super("La política bloqueó el intento de generación.");
+    this.name = "GovernanceBlockedError";
+    this.reason = reason;
+  }
+}
+
+class ModerationRejectedError extends Error {
+  readonly code: "moderation-rejected" | "moderation-unavailable";
+
+  constructor(code: "moderation-rejected" | "moderation-unavailable") {
+    super("La revisión de seguridad bloqueó la imagen.");
+    this.name = "ModerationRejectedError";
+    this.code = code;
+  }
+}
 
 function failureFrom(cause: unknown): GenerationVariantFailure {
   // La imagen llegó y la pieza no se pudo componer: no es un fallo del
@@ -137,6 +178,23 @@ function failureFrom(cause: unknown): GenerationVariantFailure {
       code: cause.code,
       correction: corrections[cause.code],
       detail: cause.detail,
+    });
+  }
+  if (cause instanceof GovernanceBlockedError) {
+    return Object.freeze({
+      code: cause.reason,
+      correction: corrections[cause.reason],
+      detail: "La política vigente no admitió otro intento del proveedor.",
+    });
+  }
+  if (cause instanceof ModerationRejectedError) {
+    return Object.freeze({
+      code: cause.code,
+      correction: corrections[cause.code],
+      detail:
+        cause.code === "moderation-rejected"
+          ? "La revisión de seguridad marcó el contenido."
+          : "La revisión de seguridad no pudo completarse.",
     });
   }
   // Un fallo que no es del puerto es nuestro. Se registra como error de
@@ -197,13 +255,16 @@ function toRunPlan(
 
 export class ImageGenerationRunService {
   readonly #briefs: ContentBriefRunRepository;
+  readonly #attempts: GenerationAttemptLedgerRepository | null;
   readonly #clock: () => Date;
   readonly #concurrency: number;
-  readonly #generationEnabled: boolean;
+  readonly #providerConfigured: boolean;
   readonly #images: ImageGenerationPort;
   readonly #maxAttempts: number;
+  readonly #moderation: ContentModerationPort | null;
   readonly #media: Pick<MediaLifecycleService, "upload">;
   readonly #renderer: DesignRenderer;
+  readonly #policies: GenerationPolicyRepository | null;
   readonly #runs: GenerationRunRepository;
   readonly #sleep: (milliseconds: number) => Promise<void>;
 
@@ -216,13 +277,16 @@ export class ImageGenerationRunService {
     dependencies: GenerationRunDependencies = {},
   ) {
     this.#briefs = briefs;
+    this.#attempts = dependencies.attempts ?? null;
     this.#clock = dependencies.clock ?? ((): Date => new Date());
     this.#concurrency = Math.max(dependencies.concurrency ?? 2, 1);
-    this.#generationEnabled = dependencies.generationEnabled ?? true;
+    this.#providerConfigured = dependencies.generationEnabled ?? true;
     this.#images = images;
     this.#maxAttempts = Math.max(dependencies.maxAttempts ?? 3, 1);
+    this.#moderation = dependencies.moderation ?? null;
     this.#media = media;
     this.#renderer = renderer;
+    this.#policies = dependencies.policies ?? null;
     this.#runs = runs;
     this.#sleep =
       dependencies.sleep ??
@@ -249,7 +313,8 @@ export class ImageGenerationRunService {
       return { runId: run.id, status: "discarded" };
     }
 
-    const plan = await this.#plan(run);
+    const generationEnabled = await this.#generationEnabledFor(run);
+    const plan = await this.#plan(run, generationEnabled);
     if (plan.status === "unavailable") {
       return this.#resolveWithoutSpending(run, null, plan.detail, "failed");
     }
@@ -268,6 +333,19 @@ export class ImageGenerationRunService {
       // corresponde conservar es por qué no se generó, y la pieza igual se
       // compone y se guarda: un lote determinista entrega pieza, no un motivo.
       return this.#resolveDeterministically(run, plan.brief, plan.plan);
+    }
+
+    if (this.#attempts !== null && run.status === "running") {
+      await this.#attempts.recoverInFlight({
+        at: this.#clock().toISOString(),
+        organizationId: run.organizationId,
+        runId: run.id,
+      });
+    }
+
+    const inputModeration = await this.#moderateInput(run, plan.plan.prompt);
+    if (inputModeration !== null) {
+      return this.#resolveWithoutSpending(run, null, inputModeration, "failed");
     }
 
     // Tomar el lote es además el candado de reentrega: dos entregas simultáneas
@@ -292,8 +370,8 @@ export class ImageGenerationRunService {
 
     const closed = await this.#runs.complete(
       {
-        // La tabla de precios de imágenes no está en el repositorio; ponerle un
-        // número inventado sería peor que dejarlo vacío. Es de `P4-T07`.
+        // El repositorio deriva el alias histórico desde el ledger exacto. El
+        // caso de uso no calcula dinero con flotantes ni duplica pricing.
         estimatedCostUsd: null,
         id: run.id,
         organizationId: run.organizationId,
@@ -316,7 +394,10 @@ export class ImageGenerationRunService {
    * Un brief que no llegó a producirse no puede dar una pieza: el lote termina
    * sin gastar nada y lo dice, en lugar de generar sobre un pedido vacío.
    */
-  async #plan(run: GenerationRunRecord): Promise<
+  async #plan(
+    run: GenerationRunRecord,
+    generationEnabled: boolean,
+  ): Promise<
     | Readonly<{
         brief: ContentBrief;
         plan: VisualPromptPlan;
@@ -339,16 +420,22 @@ export class ImageGenerationRunService {
     try {
       return {
         brief,
-        plan: buildVisualPrompt({
-          brief,
-          format: run.format,
-          // La palanca de operación: sin proveedor configurado el constructor
-          // devuelve `generation-disabled` y el lote se cierra sin intentar
-          // ninguna llamada.
-          generationEnabled: this.#generationEnabled,
-          references: [],
-          subjectKind: run.subjectKind,
-        }),
+        plan: ((): VisualPromptPlan => {
+          const visualPlan = buildVisualPrompt({
+            brief,
+            format: run.format,
+            // La palanca de operación: sin proveedor configurado el constructor
+            // devuelve `generation-disabled` y el lote se cierra sin intentar
+            // ninguna llamada.
+            generationEnabled,
+            references: [],
+            subjectKind: run.subjectKind,
+          });
+          return run.admission.mode === "deterministic" &&
+            visualPlan.kind === "deterministic"
+            ? { ...visualPlan, reason: run.admission.reason }
+            : visualPlan;
+        })(),
         status: "planned",
       };
     } catch (cause: unknown) {
@@ -364,6 +451,56 @@ export class ImageGenerationRunService {
         ),
         status: "unavailable",
       };
+    }
+  }
+
+  async #generationEnabledFor(run: GenerationRunRecord): Promise<boolean> {
+    if (!this.#providerConfigured || run.admission.mode === "deterministic") {
+      return false;
+    }
+    if (this.#policies === null) return true;
+    const snapshot = await this.#policies.find({
+      actorMembershipId: run.actorMembershipId,
+      at: this.#clock().toISOString(),
+      organizationId: run.organizationId,
+    });
+    return snapshot?.policy.enabled === true;
+  }
+
+  async #moderateInput(
+    run: GenerationRunRecord,
+    prompt: string,
+  ): Promise<string | null> {
+    if (this.#moderation === null || this.#attempts === null) return null;
+    try {
+      const result = await this.#moderation.moderateText(prompt);
+      await this.#attempts.auditModeration({
+        actorMembershipId: run.actorMembershipId,
+        at: this.#clock().toISOString(),
+        categories: result.categories,
+        model: result.model,
+        organizationId: run.organizationId,
+        outcome: result.status,
+        phase: "input",
+        requestId: result.requestId,
+        runId: run.id,
+      });
+      return result.status === "rejected"
+        ? "El prompt no pasó la revisión de seguridad."
+        : null;
+    } catch {
+      await this.#attempts.auditModeration({
+        actorMembershipId: run.actorMembershipId,
+        at: this.#clock().toISOString(),
+        categories: [],
+        model: generationModerationModel,
+        organizationId: run.organizationId,
+        outcome: "unavailable",
+        phase: "input",
+        requestId: null,
+        runId: run.id,
+      });
+      return "La revisión de seguridad del prompt no estuvo disponible.";
     }
   }
 
@@ -522,6 +659,7 @@ export class ImageGenerationRunService {
       origin: "generated",
       originalFileName: `${piece.document.slug}.png`,
       ownerMembershipId: run.actorMembershipId,
+      retentionUntil: await this.#generatedRetentionUntil(run),
     });
 
     return Object.freeze({
@@ -544,6 +682,7 @@ export class ImageGenerationRunService {
     detail: string,
     status: "completed" | "failed",
   ): Promise<GenerationRunExecutionResult> {
+    await this.#releaseReservations(run);
     const closed = await this.#runs.complete(
       {
         estimatedCostUsd: null,
@@ -657,16 +796,70 @@ export class ImageGenerationRunService {
     const startedAt = Date.now();
 
     while (attempts < this.#maxAttempts) {
-      attempts += 1;
+      let attemptId: string | null = null;
+      let attemptAccounted = false;
       try {
+        if (this.#attempts !== null) {
+          const started = await this.#attempts.begin({
+            at: this.#clock().toISOString(),
+            maximumAttempts: this.#maxAttempts,
+            model: generationImageModel,
+            organizationId: run.organizationId,
+            quality: "medium",
+            runId: run.id,
+            size,
+            variantId,
+          });
+          if (started.status === "cancelled") return { status: "cancelled" };
+          if (started.status === "blocked") {
+            lastFailure = new GovernanceBlockedError(started.reason);
+            break;
+          }
+          if (started.status === "exhausted") {
+            attempts = started.attempts;
+            lastFailure = new ImageGenerationError(
+              "provider-error",
+              "La variante agotó sus intentos sin una respuesta confirmada.",
+              false,
+            );
+            break;
+          }
+          attemptId = started.attemptId;
+          attempts = started.attemptNumber;
+        } else {
+          attempts += 1;
+        }
         const image = await this.#images.generate({
           background: "opaque",
           kind: "generate",
           negativeGuidance: plan.negativeGuidance,
           prompt: plan.prompt,
           quality: "medium",
+          safetyIdentifier: createHash("sha256")
+            .update(`${run.organizationId}:${run.actorMembershipId}`)
+            .digest("hex"),
           size,
         });
+        if (this.#attempts !== null && attemptId !== null) {
+          if (image.usage === null) {
+            await this.#attempts.markUnconfirmed({
+              at: this.#clock().toISOString(),
+              attemptId,
+              organizationId: run.organizationId,
+              requestId: image.requestId,
+            });
+          } else {
+            await this.#attempts.settle({
+              at: this.#clock().toISOString(),
+              attemptId,
+              organizationId: run.organizationId,
+              requestId: image.requestId,
+              usage: image.usage,
+            });
+          }
+          attemptAccounted = true;
+        }
+        await this.#moderateOutput(run, image, plan.prompt);
         const stored = await this.#store(run, image);
         // Componer necesita los bytes de la base, y estos bytes sólo existen
         // acá: el almacenamiento no sabe devolverlos. Por eso la pieza se
@@ -688,9 +881,8 @@ export class ImageGenerationRunService {
           variantId,
           width: image.width,
         });
-        // Un lote cancelado no acumula uso porque tampoco escribe totales: su
-        // cierre nunca ocurre. El gasto de esta llamada existió igual, y
-        // contabilizarlo es de `P4-T07`, que es donde vive el control de costos.
+        // Un lote cancelado no promueve la variante, pero el ledger ya conserva
+        // el gasto de la llamada que alcanzó al proveedor.
         return written
           ? {
               outcome: "succeeded",
@@ -699,6 +891,35 @@ export class ImageGenerationRunService {
             }
           : { status: "cancelled" };
       } catch (cause: unknown) {
+        if (
+          this.#attempts !== null &&
+          attemptId !== null &&
+          !attemptAccounted
+        ) {
+          if (
+            cause instanceof ImageGenerationError &&
+            cause.accounting?.usage !== null &&
+            cause.accounting?.usage !== undefined
+          ) {
+            await this.#attempts.settle({
+              at: this.#clock().toISOString(),
+              attemptId,
+              organizationId: run.organizationId,
+              requestId: cause.accounting.requestId,
+              usage: cause.accounting.usage,
+            });
+          } else {
+            await this.#attempts.markUnconfirmed({
+              at: this.#clock().toISOString(),
+              attemptId,
+              organizationId: run.organizationId,
+              requestId:
+                cause instanceof ImageGenerationError
+                  ? (cause.accounting?.requestId ?? null)
+                  : null,
+            });
+          }
+        }
         lastFailure = cause;
         if (!isRetryable(cause) || attempts >= this.#maxAttempts) {
           break;
@@ -722,6 +943,49 @@ export class ImageGenerationRunService {
     return written
       ? { outcome: "failed", status: "resolved", totalTokens: 0 }
       : { status: "cancelled" };
+  }
+
+  async #moderateOutput(
+    run: GenerationRunRecord,
+    image: GeneratedImage,
+    prompt: string,
+  ): Promise<void> {
+    if (this.#moderation === null || this.#attempts === null) return;
+    try {
+      const result = await this.#moderation.moderateImage({
+        bytes: image.bytes,
+        mimeType: image.mimeType,
+        text: prompt,
+      });
+      await this.#attempts.auditModeration({
+        actorMembershipId: run.actorMembershipId,
+        at: this.#clock().toISOString(),
+        categories: result.categories,
+        model: result.model,
+        organizationId: run.organizationId,
+        outcome: result.status,
+        phase: "output",
+        requestId: result.requestId,
+        runId: run.id,
+      });
+      if (result.status === "rejected") {
+        throw new ModerationRejectedError("moderation-rejected");
+      }
+    } catch (cause: unknown) {
+      if (cause instanceof ModerationRejectedError) throw cause;
+      await this.#attempts.auditModeration({
+        actorMembershipId: run.actorMembershipId,
+        at: this.#clock().toISOString(),
+        categories: [],
+        model: generationModerationModel,
+        organizationId: run.organizationId,
+        outcome: "unavailable",
+        phase: "output",
+        requestId: null,
+        runId: run.id,
+      });
+      throw new ModerationRejectedError("moderation-unavailable");
+    }
   }
 
   /**
@@ -800,7 +1064,31 @@ export class ImageGenerationRunService {
       origin: "generated",
       originalFileName: `generated-${image.sha256.slice(0, 16)}.${image.mimeType === "image/png" ? "png" : "jpg"}`,
       ownerMembershipId: run.actorMembershipId,
+      retentionUntil: await this.#generatedRetentionUntil(run),
     });
     return asset.id;
+  }
+
+  async #generatedRetentionUntil(run: GenerationRunRecord): Promise<string> {
+    let hours = 24;
+    if (this.#policies !== null) {
+      const snapshot = await this.#policies.find({
+        actorMembershipId: run.actorMembershipId,
+        at: this.#clock().toISOString(),
+        organizationId: run.organizationId,
+      });
+      hours = snapshot?.policy.generatedOrphanRetentionHours ?? hours;
+    }
+    return new Date(
+      this.#clock().getTime() + hours * 60 * 60 * 1000,
+    ).toISOString();
+  }
+
+  async #releaseReservations(run: GenerationRunRecord): Promise<void> {
+    await this.#attempts?.releaseRunReservations({
+      at: this.#clock().toISOString(),
+      organizationId: run.organizationId,
+      runId: run.id,
+    });
   }
 }

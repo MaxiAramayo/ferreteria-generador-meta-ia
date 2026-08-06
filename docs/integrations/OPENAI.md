@@ -1,6 +1,6 @@
 # Integración OpenAI
 
-Verificado contra documentación oficial: 2026-07-29.
+Verificado contra documentación oficial: 2026-08-05.
 
 ## Responsabilidades
 
@@ -209,6 +209,23 @@ Reglas:
 Fuente:
 [GPT Image 2](https://developers.openai.com/api/docs/models/gpt-image-2).
 
+### Moderación y privacidad de imágenes
+
+Images recibe `moderation: "auto"` y un identificador irreversible derivado de
+`organizationId + membershipId`; no recibe email, nombre ni otro dato personal.
+El worker ejecuta además `omni-moderation-latest` sobre el prompt final antes de
+generar y sobre prompt más imagen al recibir el resultado. Rechazo o
+indisponibilidad en cualquiera de las dos revisiones falla cerrado, no se
+reintenta por ese motivo y no persiste la imagen.
+
+La auditoría de moderación conserva sólo fase, resultado, categorías marcadas,
+modelo y request ID. Nunca guarda prompt, scores, binario, data URL ni secreto.
+La segunda revisión ocurre después de liquidar Images: un rechazo conserva el
+costo que el proveedor ya produjo.
+
+Fuentes: [Moderation](https://developers.openai.com/api/docs/guides/moderation),
+[Images API](https://developers.openai.com/api/reference/resources/images).
+
 ### Perfiles visuales y política de prompts
 
 `P4-T01` define el prompt de imagen antes de que exista la llamada. La autoridad
@@ -277,7 +294,20 @@ Los prompts de diez briefs representativos están congelados en
 - Nunca en variables `NEXT_PUBLIC_*`.
 - Proyecto de API separado para staging y producción.
 - Límite de gasto y alertas antes de habilitar producción.
-- Registrar tokens y costo por `GenerationRun`.
+- Registrar cada intento con modelo, tamaño, calidad, request ID y tokens de
+  entrada de texto, entrada de imagen, salida y total.
+
+### Pricing fijado
+
+`openai-gpt-image-2-standard-2026-08-05` fija `gpt-image-2`, calidad `medium`.
+La referencia oficial verificada el 2026-08-05 es USD 0,053 para 1024×1024 y
+USD 0,041 para 1024×1536 o 1536×1024. El cálculo por uso emplea enteros
+micro-USD: 5 por token de texto de entrada, 8 por token de imagen de entrada y
+30 por token de salida. La reserva máxima suma a la salida de referencia 32.000
+tokens de texto.
+
+Cambiar modelo, calidad o tarifas exige otra versión en código y evaluación
+separada. La UI no edita ni el modelo ni el pricing.
 - No registrar prompts que contengan datos personales innecesarios.
 - La disponibilidad de GPT Image puede requerir verificación de organización.
 

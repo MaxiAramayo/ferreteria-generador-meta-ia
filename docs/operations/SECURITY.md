@@ -95,6 +95,24 @@ y respuesta ante exposición están en [`SECRETS.md`](SECRETS.md).
 - La auditoría comercial excluye token, consulta literal, respuestas y payloads
   de proveedor.
 
+## Generación de imágenes
+
+- La política se administra con `organization:manage` y compare-and-swap.
+- Las cuotas se calculan por organización y membresía; las ventanas diarias y
+  mensuales usan UTC.
+- La admisión autoritativa y las reservas de todas las variantes se escriben en
+  una sola transacción. Preflight no reserva.
+- Al agotarse política, cuota o presupuesto, un pedido nuevo usa fallback
+  determinista sin llamada externa.
+- El identificador que recibe Images es un SHA-256 del tenant y membership; no
+  es reversible y no contiene PII.
+- Moderación previa y posterior fallan cerrado. La auditoría excluye prompt,
+  binario, data URL, scores y secretos.
+- Una cancelación libera sólo reservas nunca iniciadas. Timeout o respuesta
+  ambigua conservan el máximo como costo no confirmado.
+- El barrido de retención sólo recibe activos vencidos sin referencias; los
+  guards de PostgreSQL serializan adjuntar contra borrar.
+
 ## Acciones externas
 
 - Aprobación explícita o política de automatización.

@@ -7,6 +7,7 @@ import {
   PrismaContentBriefRunRepository,
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
+  PrismaGenerationPolicyRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
@@ -22,6 +23,7 @@ import type {
   ContentBriefRunRepository,
   GenerationRunRepository,
   GenerationRunRequestRepository,
+  GenerationPolicyRepository,
   IdentityRepository,
   MediaAssetRepository,
   OrganizationConfigurationRepository,
@@ -41,6 +43,7 @@ import {
   DATABASE_CLIENT,
   GENERATION_RUN_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -61,6 +64,7 @@ export class DatabaseModule {
         CONTENT_BRIEF_RUN_REPOSITORY,
         GENERATION_RUN_REPOSITORY,
         GENERATION_RUN_REQUEST_REPOSITORY,
+        GENERATION_POLICY_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -73,6 +77,12 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: GENERATION_POLICY_REPOSITORY,
+          useFactory: (database: DatabaseClient): GenerationPolicyRepository =>
+            new PrismaGenerationPolicyRepository(database),
+        },
         {
           provide: DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>

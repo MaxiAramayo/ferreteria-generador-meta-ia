@@ -143,6 +143,13 @@ referencias y retención dentro de una transacción, elimina en Cloudinary y só
 entonces confirma `deleted`. Una respuesta remota ambigua conserva el estado
 reintentable.
 
+La retención se asigna al reservar: originales y derivados preparados toman la
+política de su organización; bases y composiciones generadas reciben la ventana
+de huérfanos. El worker ejecuta un barrido horario, acotado y no superpuesto,
+que consulta únicamente vencidos sin referencias. Crear un adjunto, render,
+base o composición bloquea la fila del medio y exige `available`, por lo que se
+serializa contra `beginDeletion` en PostgreSQL.
+
 ## Recuperación de conocimiento
 
 La recuperación documental combina dos controles independientes. PostgreSQL
@@ -200,6 +207,21 @@ genérico puede dibujarse; y lo que escribió una persona entra como dato dentro
 una sección declarada no confiable, nunca concatenado en las instrucciones. Cada
 plan conserva perfil, versión y hash, y el fallback determinista distingue por
 qué no hubo generación.
+
+## Gobernanza de generación
+
+La admisión y el costo siguen
+[`ADR-015`](decisions/ADR-015-GENERATION-GOVERNANCE.md). La API reserva el
+primer intento de todas las variantes en la misma transacción que crea el lote
+y su outbox. El worker consulta la política vigente antes de generar y cada
+retry entra nuevamente por el ledger. La configuración del proveedor es una
+condición adicional: una política habilitada no inventa una credencial ausente.
+
+El ledger persiste `reserved`, `in_flight`, `settled`, `unconfirmed` y
+`released`. Reservas activas, costo liquidado y costo no confirmado forman el
+gasto comprometido. Esta separación conserva el costo aunque fallen moderación,
+almacenamiento o composición, y permite liberar en una cancelación sólo los
+intentos que nunca alcanzaron al proveedor.
 
 ## Frontend
 

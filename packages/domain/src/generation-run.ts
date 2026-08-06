@@ -15,6 +15,11 @@
  */
 
 import type { ImageGenerationFailureCode } from "./image-generation.ts";
+import type {
+  GenerationAdmission,
+  GenerationAdmissionReason,
+  GenerationAttemptUsage,
+} from "./generation-governance.ts";
 import type { OrganizationScope } from "./persistence.ts";
 import type { PaginatedRecords } from "./publication-draft.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
@@ -115,7 +120,11 @@ export type GenerationVariantStatus =
  * contra el lugar equivocado.
  */
 export type GenerationVariantFailureCode =
-  ImageGenerationFailureCode | "composition-failed";
+  | ImageGenerationFailureCode
+  | GenerationAdmissionReason
+  | "composition-failed"
+  | "moderation-rejected"
+  | "moderation-unavailable";
 
 export interface GenerationVariantFailure {
   readonly code: GenerationVariantFailureCode;
@@ -202,6 +211,7 @@ export interface GenerationRunReservation {
  * lado del outbox. Anotarlo al reservar sería adivinar cuál va a ejecutar.
  */
 export interface GenerationRunRecord extends GenerationRunReservation {
+  readonly admission: GenerationAdmission;
   readonly cancelledAt: string | null;
   readonly completedAt: string | null;
   readonly estimatedCostUsd: number | null;
@@ -210,7 +220,15 @@ export interface GenerationRunRecord extends GenerationRunReservation {
   readonly startedAt: string | null;
   readonly status: GenerationRunStatus;
   readonly totalTokens: number;
+  readonly cost: GenerationRunCost;
   readonly variants: readonly GenerationVariantRecord[];
+}
+
+export interface GenerationRunCost extends GenerationAttemptUsage {
+  readonly pricingVersion: string | null;
+  readonly reservedMicrousd: number;
+  readonly settledMicrousd: number;
+  readonly unconfirmedMicrousd: number;
 }
 
 /**
@@ -398,7 +416,11 @@ export interface RequestGenerationRunInput extends GenerationRunReservation {
 }
 
 export type GenerationRunRequestResult =
-  | Readonly<{ runId: string; status: "accepted" }>
+  | Readonly<{
+      admission: GenerationAdmission;
+      runId: string;
+      status: "accepted";
+    }>
   | Readonly<{ status: "idempotency-conflict" }>
   | Readonly<{ retryAfter: string; status: "in-progress" }>;
 

@@ -1005,7 +1005,8 @@ a {
 
 .configuration-form,
 .configuration-locations,
-.configuration-status {
+.configuration-status,
+.generation-usage {
   background-color: #ffffff;
   border: 1px solid #d8d1c7;
   box-shadow: 0.5rem 0.5rem 0 var(--configuration-ink);
@@ -1128,7 +1129,7 @@ a {
 }
 
 .configuration-permission,
-.configuration-success,
+.configuration-notice,
 .configuration-empty {
   border-left: 0.35rem solid var(--configuration-safety);
   font-weight: 600;
@@ -1136,10 +1137,98 @@ a {
   padding: 0.85rem 1rem;
 }
 
-.configuration-success {
+.configuration-notice-success {
   background-color: #e4f4e9;
   border-color: #1f8a4c;
   color: #155d34;
+}
+
+.configuration-notice-conflict,
+.configuration-notice-error {
+  background-color: #fff0e9;
+  border-color: var(--configuration-accent);
+  color: #7c2010;
+}
+
+.configuration-policy-note {
+  color: var(--configuration-muted);
+  margin: -0.25rem 0 1.5rem;
+  max-width: 52rem;
+}
+
+.generation-policy-layout {
+  align-items: start;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+}
+
+.generation-usage {
+  position: sticky;
+  top: 1.5rem;
+}
+
+.generation-usage h3 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 2rem;
+  line-height: 1;
+  margin: 0 0 1rem;
+  text-transform: uppercase;
+}
+
+.generation-usage-total {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.generation-usage-total span {
+  color: var(--configuration-muted);
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.generation-usage progress {
+  accent-color: var(--configuration-accent);
+  height: 0.8rem;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.generation-usage dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.generation-usage dl div {
+  border-top: 1px solid #d8d1c7;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+}
+
+.generation-usage dt {
+  color: var(--configuration-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.generation-usage dd {
+  font-weight: 700;
+  margin: 0;
+  text-align: right;
+}
+
+.generation-alert {
+  background: #fff1c7;
+  border-left: 0.35rem solid var(--configuration-safety);
+  font-weight: 700;
+  margin: 1.25rem 0 0;
+  padding: 0.75rem;
 }
 
 .configuration-locations {
@@ -1195,6 +1284,16 @@ a {
 
   .configuration-wide {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 60rem) {
+  .generation-policy-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .generation-usage {
+    position: static;
   }
 }
 

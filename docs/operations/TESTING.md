@@ -97,6 +97,23 @@ El smoke no reemplaza la verificación con infraestructura real: readiness en 20
 se comprueba con `pnpm infra:up` antes de cerrar una tarea que toque el
 arranque.
 
+### Seguridad y costo de imágenes
+
+Los tests automáticos de generación usan transportes falsos y no llaman a
+OpenAI. Deben cubrir como mínimo:
+
+- validación y CAS de política;
+- reserva atómica y carreras en cuotas/presupuesto;
+- frontera diaria UTC y alerta mensual única;
+- retries, cancelación, liquidación y recuperación `unconfirmed`;
+- moderación previa y posterior fail-closed;
+- costo liquidado antes de almacenamiento/composición;
+- retención por categoría, referencias y carrera adjuntar-vs-borrar;
+- aislamiento del ID determinista entre organizaciones.
+
+`pnpm db:test` aplica la migración desde una base vacía, ejecuta integración,
+revierte `20260805010000_generation_governance`, la reaplica y vuelve a probar.
+
 ## Pruebas reales controladas
 
 OpenAI, Cloudinary y Meta requieren suites separadas, manuales o programadas

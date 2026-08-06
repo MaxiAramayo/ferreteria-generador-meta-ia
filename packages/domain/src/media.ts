@@ -204,7 +204,13 @@ export interface ReserveMediaUploadInput extends OrganizationScope {
   readonly origin: MediaAssetOrigin;
   readonly originalFileName: string;
   readonly ownerMembershipId: string;
+  readonly retentionUntil?: string;
   readonly storageProvider: MediaStorageProvider;
+}
+
+export interface ExpiredMediaAssetCandidate {
+  readonly id: string;
+  readonly organizationId: string;
 }
 
 export type MediaUploadReservation =
@@ -254,6 +260,13 @@ export interface CompleteMediaDeletionInput extends OrganizationScope {
 }
 
 export interface MediaAssetRepository {
+  auditRetention(input: {
+    readonly at: string;
+    readonly mediaAssetId: string;
+    readonly organizationId: string;
+    readonly outcome: "deleted" | "failed" | "skipped";
+    readonly reason: string;
+  }): Promise<void>;
   beginDeletion(
     input: BeginMediaDeletionInput,
   ): Promise<BeginMediaDeletionResult>;
@@ -272,6 +285,10 @@ export interface MediaAssetRepository {
     scope: OrganizationScope,
     mediaAssetIds: readonly string[],
   ): Promise<readonly MediaAssetRecord[]>;
+  findExpiredUnreferenced(input: {
+    readonly expiredBefore: string;
+    readonly limit: number;
+  }): Promise<readonly ExpiredMediaAssetCandidate[]>;
   reserveUpload(
     input: ReserveMediaUploadInput,
   ): Promise<MediaUploadReservation>;

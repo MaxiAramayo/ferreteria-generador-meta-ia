@@ -8,6 +8,7 @@ import type {
   ConfigurationMutationResult,
   CreateAuthenticationSessionInput,
   IdentityRepository,
+  GenerationPolicyRepository,
   LoginIdentityRecord,
   OrganizationConfiguration,
   OrganizationConfigurationRepository,
@@ -29,8 +30,11 @@ import {
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 
-import { IDENTITY_REPOSITORY } from "../database/database.tokens.ts";
-import { ORGANIZATION_CONFIGURATION_REPOSITORY } from "../database/database.tokens.ts";
+import {
+  GENERATION_POLICY_REPOSITORY,
+  IDENTITY_REPOSITORY,
+  ORGANIZATION_CONFIGURATION_REPOSITORY,
+} from "../database/database.tokens.ts";
 import { OrganizationsModule } from "../organizations/organizations.module.ts";
 import { RequirePermission } from "./identity.decorators.ts";
 import { IdentityModule } from "./identity.module.ts";
@@ -256,10 +260,18 @@ class TestPersistenceModule {
     configurationRepository: OrganizationConfigurationRepository,
   ): DynamicModule {
     return {
-      exports: [IDENTITY_REPOSITORY, ORGANIZATION_CONFIGURATION_REPOSITORY],
+      exports: [
+        GENERATION_POLICY_REPOSITORY,
+        IDENTITY_REPOSITORY,
+        ORGANIZATION_CONFIGURATION_REPOSITORY,
+      ],
       global: true,
       module: TestPersistenceModule,
       providers: [
+        {
+          provide: GENERATION_POLICY_REPOSITORY,
+          useValue: generationPolicyRepository,
+        },
         { provide: IDENTITY_REPOSITORY, useValue: identityRepository },
         {
           provide: ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -301,6 +313,11 @@ function requiredString(
 const repository = new InMemoryIdentityRepository();
 const configurationRepository =
   new InMemoryOrganizationConfigurationRepository();
+const generationPolicyRepository: GenerationPolicyRepository = {
+  find: (): Promise<never> => Promise.reject(new Error("no usado")),
+  preflight: (): Promise<never> => Promise.reject(new Error("no usado")),
+  update: (): Promise<never> => Promise.reject(new Error("no usado")),
+};
 let application: INestApplication;
 let baseUrl: string;
 

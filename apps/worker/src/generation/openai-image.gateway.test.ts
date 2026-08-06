@@ -128,13 +128,22 @@ test("las dimensiones salen de decodificar los bytes, no del pedido", async () =
 test("una respuesta sin imagen es contenido inválido y no un éxito vacío", async () => {
   for (const encodedImage of [null, ""]) {
     const transport = new FakeImagesTransport(async () =>
-      Promise.resolve({ encodedImage, requestId: null, usage: null }),
+      Promise.resolve({
+        encodedImage,
+        requestId: "req_invalid",
+        usage: { inputTokens: 12, outputTokens: 300, totalTokens: 312 },
+      }),
     );
-    assert.equal(
-      await codeOf(async () =>
-        new OpenAIImageGenerationGateway(transport).generate(command),
-      ),
-      "content-invalid",
+    await assert.rejects(
+      () => new OpenAIImageGenerationGateway(transport).generate(command),
+      (cause: unknown) => {
+        assert.ok(cause instanceof ImageGenerationError);
+        assert.equal(cause.code, "content-invalid");
+        assert.ok(cause.accounting !== null);
+        assert.equal(cause.accounting.requestId, "req_invalid");
+        assert.equal(cause.accounting.usage?.totalTokens, 312);
+        return true;
+      },
     );
   }
 });

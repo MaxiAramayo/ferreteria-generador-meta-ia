@@ -255,7 +255,10 @@ export interface VisualPromptSubject {
 export const deterministicVisualReasons = [
   "brief-requested-template",
   "generation-disabled",
+  "monthly-budget-exceeded",
   "no-approved-reference",
+  "organization-daily-limit",
+  "user-daily-limit",
 ] as const;
 
 export type DeterministicVisualReason =

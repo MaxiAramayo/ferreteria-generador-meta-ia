@@ -17,17 +17,21 @@ import type {
   GenerationRunCancellationResponse,
   GenerationRunListResponse,
   GenerationRunResponse,
+  GenerationPreflightResponse,
 } from "@aramayo/contracts";
 import {
   authorizeActor,
   generationRunLimits,
   generationRunProgress,
+  generationImageModel,
+  imageSizeForFormat,
   visualFormatIds,
   visualSubjectKinds,
   type AuthenticatedActor,
   type ContentBriefRunRepository,
   type GenerationRunRecord,
   type GenerationRunRepository,
+  type GenerationPolicyRepository,
   type GenerationRunRequestRepository,
   type VisualFormatId,
   type VisualSubjectKind,
@@ -39,6 +43,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 
 import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
@@ -46,6 +51,7 @@ import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
 } from "../database/database.tokens.ts";
 
 export const generationRunHistoryLimits = Object.freeze({
@@ -97,6 +103,7 @@ function toResponse(record: GenerationRunRecord): GenerationRunResponse {
     status: record.status,
     subjectKind: record.subjectKind,
     usage: {
+      cost: { ...record.cost },
       estimatedCostUsd: record.estimatedCostUsd,
       totalTokens: record.totalTokens,
     },
@@ -137,6 +144,7 @@ export class GenerationRunService {
   readonly #reliableOperations: ReliableOperationService;
   readonly #requests: GenerationRunRequestRepository;
   readonly #runs: GenerationRunRepository;
+  readonly #policies: GenerationPolicyRepository | null;
 
   constructor(
     @Inject(GENERATION_RUN_REQUEST_REPOSITORY)
@@ -146,11 +154,15 @@ export class GenerationRunService {
     @Inject(CONTENT_BRIEF_RUN_REPOSITORY)
     briefs: ContentBriefRunRepository,
     reliableOperations: ReliableOperationService,
+    @Optional()
+    @Inject(GENERATION_POLICY_REPOSITORY)
+    policies: GenerationPolicyRepository | null,
   ) {
     this.#briefs = briefs;
     this.#reliableOperations = reliableOperations;
     this.#requests = requests;
     this.#runs = runs;
+    this.#policies = policies ?? null;
   }
 
   async request(
@@ -206,7 +218,11 @@ export class GenerationRunService {
 
     switch (result.status) {
       case "accepted":
-        return Object.freeze({ runId: result.runId, status: "pending" });
+        return Object.freeze({
+          admission: result.admission,
+          runId: result.runId,
+          status: "pending",
+        });
       case "idempotency-conflict":
         throw new ConflictException(
           "La clave idempotente ya fue usada con otro pedido.",
@@ -217,6 +233,51 @@ export class GenerationRunService {
           retryAfter: result.retryAfter,
         });
     }
+  }
+
+  async preflight(
+    actor: AuthenticatedActor,
+    command: RequestGenerationRunCommand,
+  ): Promise<GenerationPreflightResponse> {
+    this.#require(actor, "content:edit");
+    const format = this.#format(command.format);
+    this.#subjectKind(command.subjectKind);
+    const variants = this.#variants(command.variants);
+    await this.#requireBrief(actor, command.contentBriefRunId);
+    if (this.#policies === null) {
+      throw new Error(
+        "El repositorio de política de generación no está disponible.",
+      );
+    }
+    const result = await this.#policies.preflight({
+      actorMembershipId: actor.membershipId,
+      at: new Date().toISOString(),
+      organizationId: actor.organizationId,
+      quality: "medium",
+      size: imageSizeForFormat(format),
+      variants,
+    });
+    if (result === null) {
+      return {
+        admission: { mode: "deterministic", reason: "generation-disabled" },
+        model: generationImageModel,
+        quality: "medium",
+        size: imageSizeForFormat(format),
+        usage: {
+          alertActive: false,
+          committedMicrousd: 0,
+          monthUtc: new Date().toISOString().slice(0, 7),
+          monthlyBudgetMicrousd: 0,
+          organizationAttemptsRemaining: 0,
+          reservedMicrousd: 0,
+          settledMicrousd: 0,
+          unconfirmedMicrousd: 0,
+          userAttemptsRemaining: 0,
+        },
+        variants,
+      };
+    }
+    return result;
   }
 
   async findById(
@@ -327,6 +388,20 @@ export class GenerationRunService {
       throw new BadRequestException("El formato pedido no está aprobado.");
     }
     return format;
+  }
+
+  #variants(value: number | undefined): number {
+    const variants = value ?? defaultVariants;
+    if (
+      !Number.isInteger(variants) ||
+      variants < generationRunLimits.variantsMinimum ||
+      variants > generationRunLimits.variantsMaximum
+    ) {
+      throw new BadRequestException(
+        `El lote admite entre ${String(generationRunLimits.variantsMinimum)} y ${String(generationRunLimits.variantsMaximum)} variantes.`,
+      );
+    }
+    return variants;
   }
 
   #subjectKind(value: string | undefined): VisualSubjectKind {

@@ -4,6 +4,10 @@ import {
   ImageGenerationError,
   type ContentBriefRunRepository,
   type GenerationRunRepository,
+  type GenerationAttemptLedgerRepository,
+  type GenerationPolicyRepository,
+  type ContentModerationPort,
+  ContentModerationError,
   type ImageGenerationPort,
   type StructuredGenerationPort,
   type TextGenerationPort,
@@ -13,11 +17,14 @@ import { Logger, Module, type DynamicModule } from "@nestjs/common";
 import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_ATTEMPT_LEDGER_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
 import { DESIGN_RENDERER } from "../rendering/rendering.module.ts";
 import {
   IMAGE_GENERATION_PORT,
+  CONTENT_MODERATION_PORT,
   IMAGE_GENERATION_RUN_SERVICE,
   STRUCTURED_GENERATION_PORT,
   TEXT_GENERATION_PORT,
@@ -25,6 +32,7 @@ import {
 import { ImageGenerationRunService } from "./image-generation-run.service.ts";
 import { OfficialOpenAIImagesTransport } from "./openai-image-transport.ts";
 import { OpenAIImageGenerationGateway } from "./openai-image.gateway.ts";
+import { OpenAIContentModerationGateway } from "./openai-moderation.gateway.ts";
 import {
   DisabledTextGenerationGateway,
   OpenAITextGenerationGateway,
@@ -66,6 +74,16 @@ class DisabledImageGenerationGateway implements ImageGenerationPort {
   }
 }
 
+class DisabledContentModerationGateway implements ContentModerationPort {
+  moderateImage(): Promise<never> {
+    return Promise.reject(new ContentModerationError());
+  }
+
+  moderateText(): Promise<never> {
+    return Promise.reject(new ContentModerationError());
+  }
+}
+
 @Module({})
 export class GenerationModule {
   static forConfiguration(openAi: OpenAIIntegration): DynamicModule {
@@ -94,6 +112,7 @@ export class GenerationModule {
     return {
       exports: [
         IMAGE_GENERATION_PORT,
+        CONTENT_MODERATION_PORT,
         IMAGE_GENERATION_RUN_SERVICE,
         STRUCTURED_GENERATION_PORT,
         TEXT_GENERATION_PORT,
@@ -101,6 +120,13 @@ export class GenerationModule {
       global: true,
       module: GenerationModule,
       providers: [
+        {
+          provide: CONTENT_MODERATION_PORT,
+          useFactory: (): ContentModerationPort =>
+            openAi.enabled
+              ? new OpenAIContentModerationGateway(openAi.credentials)
+              : new DisabledContentModerationGateway(),
+        },
         {
           provide: IMAGE_GENERATION_PORT,
           useFactory: imageGateway,
@@ -123,6 +149,9 @@ export class GenerationModule {
             IMAGE_GENERATION_PORT,
             MediaLifecycleService,
             DESIGN_RENDERER,
+            GENERATION_ATTEMPT_LEDGER_REPOSITORY,
+            GENERATION_POLICY_REPOSITORY,
+            CONTENT_MODERATION_PORT,
           ],
           provide: IMAGE_GENERATION_RUN_SERVICE,
           useFactory: (
@@ -131,6 +160,9 @@ export class GenerationModule {
             images: ImageGenerationPort,
             media: MediaLifecycleService,
             renderer: DesignRenderer,
+            attempts: GenerationAttemptLedgerRepository,
+            policies: GenerationPolicyRepository,
+            moderation: ContentModerationPort,
           ): ImageGenerationRunService =>
             new ImageGenerationRunService(
               runs,
@@ -143,6 +175,9 @@ export class GenerationModule {
                 // motivo `generation-disabled`, en lugar de gastar cada variante
                 // contra un gateway que sólo sabe rechazar.
                 generationEnabled: openAi.enabled,
+                attempts,
+                moderation,
+                policies,
               },
             ),
         },

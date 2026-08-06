@@ -38,9 +38,26 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
   reserve(reservation: GenerationRunReservation): Promise<void> {
     this.#runs.set(reservation.id, {
       ...reservation,
+      admission: {
+        mode: "provider",
+        pricingVersion: "test-pricing",
+        referenceCostMicrousd: 0,
+        reservedCostMicrousd: 0,
+      },
       cancelledAt: null,
       completedAt: null,
       estimatedCostUsd: null,
+      cost: {
+        imageInputTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        pricingVersion: "test-pricing",
+        reservedMicrousd: 0,
+        settledMicrousd: 0,
+        textInputTokens: 0,
+        totalTokens: 0,
+        unconfirmedMicrousd: 0,
+      },
       plan: null,
       resolution: null,
       startedAt: null,

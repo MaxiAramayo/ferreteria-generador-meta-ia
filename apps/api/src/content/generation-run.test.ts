@@ -11,6 +11,7 @@ import type {
   GenerationRunListFilter,
   GenerationRunRecord,
   GenerationRunRepository,
+  GenerationPolicyRepository,
   GenerationRunRequestRepository,
   GenerationRunRequestResult,
   GenerationRunWriteOutcome,
@@ -31,6 +32,7 @@ import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { GenerationRunService } from "./generation-run.service.ts";
 
@@ -152,7 +154,16 @@ class FakeBriefs implements ContentBriefRunRepository {
 
 class FakeRequests implements GenerationRunRequestRepository {
   lastInput: RequestGenerationRunInput | undefined;
-  result: GenerationRunRequestResult = { runId: "", status: "accepted" };
+  result: GenerationRunRequestResult = {
+    admission: {
+      mode: "provider",
+      pricingVersion: "test-pricing",
+      referenceCostMicrousd: 53_000,
+      reservedCostMicrousd: 213_000,
+    },
+    runId: "",
+    status: "accepted",
+  };
 
   request(
     input: RequestGenerationRunInput,
@@ -160,7 +171,11 @@ class FakeRequests implements GenerationRunRequestRepository {
     this.lastInput = input;
     return Promise.resolve(
       this.result.status === "accepted"
-        ? { runId: input.id, status: "accepted" }
+        ? {
+            admission: this.result.admission,
+            runId: input.id,
+            status: "accepted",
+          }
         : this.result,
     );
   }
@@ -171,11 +186,28 @@ function runRecord(
 ): GenerationRunRecord {
   const variantIds = [randomUUID(), randomUUID()];
   return {
+    admission: {
+      mode: "provider",
+      pricingVersion: "test-pricing",
+      referenceCostMicrousd: 106_000,
+      reservedCostMicrousd: 426_000,
+    },
     actorMembershipId: membershipId,
     cancelledAt: null,
     completedAt: null,
     contentBriefRunId: briefRunId,
     estimatedCostUsd: null,
+    cost: {
+      imageInputTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      pricingVersion: "test-pricing",
+      reservedMicrousd: 426_000,
+      settledMicrousd: 0,
+      textInputTokens: 0,
+      totalTokens: 0,
+      unconfirmedMicrousd: 0,
+    },
     format: "feed",
     id: randomUUID(),
     organizationId,
@@ -332,6 +364,7 @@ async function serviceFor(
   requests: FakeRequests,
   runs: FakeRuns,
   briefs: FakeBriefs = new FakeBriefs(),
+  policies?: GenerationPolicyRepository,
 ): Promise<GenerationRunService> {
   const testingModule = await Test.createTestingModule({
     providers: [
@@ -340,6 +373,9 @@ async function serviceFor(
       { provide: GENERATION_RUN_REPOSITORY, useValue: runs },
       { provide: CONTENT_BRIEF_RUN_REPOSITORY, useValue: briefs },
       { provide: ReliableOperationService, useValue: reliableOperationService },
+      ...(policies === undefined
+        ? []
+        : [{ provide: GENERATION_POLICY_REPOSITORY, useValue: policies }]),
     ],
   }).compile();
   return testingModule.get(GenerationRunService);
@@ -372,6 +408,62 @@ test("el pedido reserva el lote y toma el alcance de la sesión", async () => {
   assert.equal(input.variantIds.length, 3);
   assert.equal(new Set(input.variantIds).size, 3);
   assert.equal(accepted.runId, input.id);
+});
+
+test("preflight expone admisión y uso sin reservar ni llamar al proveedor", async () => {
+  let preflightCalls = 0;
+  const policies: GenerationPolicyRepository = {
+    find: (): Promise<never> => Promise.reject(new Error("no usado")),
+    preflight: (input) => {
+      preflightCalls += 1;
+      assert.equal(input.organizationId, organizationId);
+      assert.equal(input.actorMembershipId, membershipId);
+      assert.equal(input.size, "1024x1536");
+      assert.equal(input.variants, 2);
+      return Promise.resolve({
+        admission: {
+          mode: "deterministic",
+          reason: "user-daily-limit",
+        },
+        model: "gpt-image-2",
+        quality: "medium",
+        size: "1024x1536",
+        usage: {
+          alertActive: false,
+          committedMicrousd: 402_000,
+          monthUtc: "2026-08",
+          monthlyBudgetMicrousd: 20_000_000,
+          organizationAttemptsRemaining: 18,
+          reservedMicrousd: 402_000,
+          settledMicrousd: 0,
+          unconfirmedMicrousd: 0,
+          userAttemptsRemaining: 0,
+        },
+        variants: 2,
+      });
+    },
+    update: (): Promise<never> => Promise.reject(new Error("no usado")),
+  };
+  const requests = new FakeRequests();
+  const service = await serviceFor(
+    requests,
+    new FakeRuns(),
+    new FakeBriefs(),
+    policies,
+  );
+
+  const preflight = await service.preflight(actor, {
+    contentBriefRunId: briefRunId,
+    format: "feed",
+  });
+
+  assert.deepEqual(preflight.admission, {
+    mode: "deterministic",
+    reason: "user-daily-limit",
+  });
+  assert.equal(preflight.usage.reservedMicrousd, 402_000);
+  assert.equal(preflightCalls, 1);
+  assert.equal(requests.lastInput, undefined);
 });
 
 test("el sujeto por defecto es el conservador", async () => {

@@ -174,6 +174,16 @@ enum GenerationVariantStatus {
   @@map("generation_variant_status")
 }
 
+enum GenerationAttemptStatus {
+  reserved
+  in_flight
+  settled
+  unconfirmed
+  released
+
+  @@map("generation_attempt_status")
+}
+
 enum KnowledgeRemoteStatus {
   not_uploaded @map("not_uploaded")
   uploaded     @map("uploaded")
@@ -203,6 +213,9 @@ model Organization {
   contentBriefRuns       ContentBriefRun[]
   generationRuns         GenerationRun[]
   generationRunVariants  GenerationRunVariant[]
+  generationPolicies     GenerationPolicy[]
+  generationAttempts     GenerationAttempt[]
+  generationBudgetAlerts GenerationBudgetAlert[]
   locations              Location[]
   mediaAssets            MediaAsset[]
   memberships            OrganizationMembership[]
@@ -317,6 +330,7 @@ model OrganizationMembership {
   actedConfigurationEvents     OrganizationConfigurationEvent[]
   contentBriefRuns             ContentBriefRun[]
   generationRuns               GenerationRun[]
+  generationAttempts           GenerationAttempt[]
   createdMedia                 MediaAsset[]
   createdPublications          Publication[]
   createdRevisions             PublicationRevision[]
@@ -709,12 +723,18 @@ model GenerationRun {
   resolutionDetail    String?             @map("resolution_detail") @db.VarChar(300)
   totalTokens         Int                 @default(0) @map("total_tokens")
   estimatedCostUsd    Decimal?            @map("estimated_cost_usd") @db.Decimal(12, 6)
+  admissionMode       String              @default("provider") @map("admission_mode") @db.VarChar(20)
+  admissionReason     String?             @map("admission_reason") @db.VarChar(80)
+  pricingVersion      String?             @default("openai-gpt-image-2-standard-2026-08-05") @map("pricing_version") @db.VarChar(80)
+  referenceCostMicrousd Int               @default(0) @map("reference_cost_microusd")
+  reservedCostMicrousd  Int               @default(0) @map("reserved_cost_microusd")
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   actor           OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   contentBriefRun ContentBriefRun        @relation(fields: [organizationId, contentBriefRunId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   variants        GenerationRunVariant[]
+  attempts        GenerationAttempt[]
 
   @@unique([organizationId, id], map: "generation_runs_organization_id_key")
   @@index([organizationId, requestedAt(sort: Desc), id], map: "generation_runs_org_requested_idx")
@@ -762,12 +782,87 @@ model GenerationRunVariant {
   run          GenerationRun @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   mediaAsset   MediaAsset?   @relation(fields: [organizationId, mediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   composedAsset MediaAsset?  @relation("GenerationComposedMedia", fields: [organizationId, composedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  generationAttempts GenerationAttempt[]
 
   @@unique([organizationId, id], map: "generation_run_variants_organization_id_key")
   @@unique([organizationId, runId, position], map: "generation_run_variants_position_key")
   @@index([organizationId, mediaAssetId], map: "generation_run_variants_asset_idx")
   @@index([organizationId, composedMediaAssetId], map: "generation_run_variants_composed_asset_idx")
   @@map("generation_run_variants")
+}
+
+model GenerationPolicy {
+  id                            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId                String   @map("organization_id") @db.Uuid
+  enabled                       Boolean  @default(false)
+  organizationDailyAttemptLimit Int      @default(20) @map("organization_daily_attempt_limit")
+  userDailyAttemptLimit         Int      @default(8) @map("user_daily_attempt_limit")
+  monthlyBudgetMicrousd         Int      @default(20000000) @map("monthly_budget_microusd")
+  warningThresholdPercent       Int      @default(80) @map("warning_threshold_percent")
+  timeZone                      String   @default("UTC") @map("time_zone") @db.VarChar(40)
+  originalRetentionDays         Int      @default(90) @map("original_retention_days")
+  referenceRetentionDays        Int      @default(30) @map("reference_retention_days")
+  generatedOrphanRetentionHours Int      @default(24) @map("generated_orphan_retention_hours")
+  version                       Int      @default(1)
+  createdAt                     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId], map: "generation_policies_organization_key")
+  @@map("generation_policies")
+}
+
+model GenerationAttempt {
+  id                    String                  @id @db.Uuid
+  organizationId        String                  @map("organization_id") @db.Uuid
+  actorMembershipId     String                  @map("actor_membership_id") @db.Uuid
+  runId                 String                  @map("run_id") @db.Uuid
+  variantId             String                  @map("variant_id") @db.Uuid
+  attemptNumber         Int                     @map("attempt_number")
+  status                GenerationAttemptStatus
+  model                 String                  @db.VarChar(120)
+  quality               String                  @db.VarChar(20)
+  size                  String                  @db.VarChar(30)
+  pricingVersion        String                  @map("pricing_version") @db.VarChar(80)
+  reservedMicrousd      Int                     @map("reserved_microusd")
+  settledMicrousd       Int                     @default(0) @map("settled_microusd")
+  inputTokens           Int                     @default(0) @map("input_tokens")
+  textInputTokens       Int                     @default(0) @map("text_input_tokens")
+  imageInputTokens      Int                     @default(0) @map("image_input_tokens")
+  outputTokens          Int                     @default(0) @map("output_tokens")
+  totalTokens           Int                     @default(0) @map("total_tokens")
+  requestId             String?                 @map("request_id") @db.VarChar(120)
+  reservedAt            DateTime                @map("reserved_at") @db.Timestamptz(3)
+  startedAt             DateTime?               @map("started_at") @db.Timestamptz(3)
+  completedAt           DateTime?               @map("completed_at") @db.Timestamptz(3)
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  run          GenerationRun          @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  variant      GenerationRunVariant   @relation(fields: [organizationId, variantId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, variantId, attemptNumber], map: "generation_attempts_variant_number_key")
+  @@index([organizationId, reservedAt, status], map: "generation_attempts_org_day_idx")
+  @@index([organizationId, actorMembershipId, reservedAt, status], map: "generation_attempts_actor_day_idx")
+  @@index([organizationId, runId, status], map: "generation_attempts_run_status_idx")
+  @@map("generation_attempts")
+}
+
+model GenerationBudgetAlert {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  monthUtc         String   @map("month_utc") @db.Char(7)
+  thresholdPercent Int      @map("threshold_percent")
+  committedMicrousd Int     @map("committed_microusd")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, monthUtc], map: "generation_budget_alerts_organization_month_key")
+  @@map("generation_budget_alerts")
 }
 
 model IdempotencyRecord {

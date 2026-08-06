@@ -7,6 +7,8 @@
  * respuesta del proveedor y el detalle interno de cada error.
  */
 
+import type { GenerationAdmissionResponse } from "./generation-policy.ts";
+
 export type GenerationRunStatusResponse =
   "pending" | "running" | "completed" | "failed" | "cancelled";
 
@@ -86,6 +88,17 @@ export type GenerationRunPlanResponse = {
 export type GenerationRunUsageResponse = {
   estimatedCostUsd: number | null;
   totalTokens: number;
+  cost: {
+    imageInputTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    pricingVersion: string | null;
+    reservedMicrousd: number;
+    settledMicrousd: number;
+    textInputTokens: number;
+    totalTokens: number;
+    unconfirmedMicrousd: number;
+  };
 };
 
 export type GenerationRunResponse = {
@@ -107,6 +120,7 @@ export type GenerationRunResponse = {
 };
 
 export type GenerationRunAcceptedResponse = {
+  admission: GenerationAdmissionResponse;
   runId: string;
   status: "pending";
 };

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   ApprovalSnapshotRecord,
   ApprovalSnapshotRepository,
@@ -684,6 +686,28 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
     this.#database = database;
   }
 
+  async auditRetention(input: {
+    readonly at: string;
+    readonly mediaAssetId: string;
+    readonly organizationId: string;
+    readonly outcome: "deleted" | "failed" | "skipped";
+    readonly reason: string;
+  }): Promise<void> {
+    await this.#database.auditEvent.create({
+      data: {
+        actorMembershipId: null,
+        entityId: input.mediaAssetId,
+        entityType: "media-asset",
+        id: randomUUID(),
+        metadata: { reason: input.reason },
+        occurredAt: new Date(input.at),
+        operation: "media.retention:sweep",
+        organizationId: input.organizationId,
+        outcome: input.outcome === "deleted" ? "success" : "failure",
+      },
+    });
+  }
+
   async findById(
     scope: OrganizationScope,
     mediaAssetId: string,
@@ -719,6 +743,26 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
     return Object.freeze(mediaAssets.map(mapMediaAsset));
   }
 
+  async findExpiredUnreferenced(input: {
+    readonly expiredBefore: string;
+    readonly limit: number;
+  }): Promise<readonly { id: string; organizationId: string }[]> {
+    const rows = await this.#database.mediaAsset.findMany({
+      orderBy: [{ retentionUntil: "asc" }, { id: "asc" }],
+      select: { id: true, organizationId: true },
+      take: input.limit,
+      where: {
+        composedVariants: { none: {} },
+        generationVariants: { none: {} },
+        renderedRevisions: { none: {} },
+        retentionUntil: { lte: new Date(input.expiredBefore) },
+        revisions: { none: {} },
+        status: "available",
+      },
+    });
+    return Object.freeze(rows.map((row) => Object.freeze(row)));
+  }
+
   async reserveUpload(
     input: ReserveMediaUploadInput,
   ): Promise<MediaUploadReservation> {
@@ -742,6 +786,10 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
           origin: input.origin,
           originalFileName: input.originalFileName,
           ownerMembershipId: input.ownerMembershipId,
+          retentionUntil:
+            input.retentionUntil === undefined
+              ? null
+              : new Date(input.retentionUntil),
           storageProvider: input.storageProvider,
         },
         skipDuplicates: true,
@@ -756,14 +804,31 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
       if (asset === null) {
         return Object.freeze({ status: "not-found" });
       }
-      if (
-        created.count === 0 &&
-        asset.status === "failed" &&
+      const requestedRetention =
+        input.retentionUntil === undefined
+          ? null
+          : new Date(input.retentionUntil);
+      const sameReservation =
         asset.origin === input.origin &&
         asset.originalFileName === input.originalFileName &&
         asset.ownerMembershipId === input.ownerMembershipId &&
-        asset.storageProvider === input.storageProvider
+        asset.storageProvider === input.storageProvider;
+      if (
+        created.count === 0 &&
+        sameReservation &&
+        asset.status !== "deleted" &&
+        asset.status !== "pending_deletion" &&
+        requestedRetention !== null &&
+        (asset.retentionUntil === null ||
+          requestedRetention > asset.retentionUntil)
       ) {
+        asset = await transaction.mediaAsset.update({
+          data: { retentionUntil: requestedRetention },
+          select: mediaAssetSelection,
+          where: { id: asset.id },
+        });
+      }
+      if (created.count === 0 && asset.status === "failed" && sameReservation) {
         const reset = await transaction.mediaAsset.updateMany({
           data: {
             failureCode: null,
@@ -867,7 +932,14 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
       const current = await transaction.mediaAsset.findFirst({
         select: {
           ...mediaAssetSelection,
-          _count: { select: { revisions: true } },
+          _count: {
+            select: {
+              composedVariants: true,
+              generationVariants: true,
+              renderedRevisions: true,
+              revisions: true,
+            },
+          },
         },
         where: {
           id: input.mediaAssetId,
@@ -887,7 +959,12 @@ export class PrismaMediaAssetRepository implements MediaAssetRepository {
       if (current.status !== "available" || current.storageKey === null) {
         return Object.freeze({ status: "invalid-state" });
       }
-      if (current._count.revisions > 0) {
+      if (
+        current._count.revisions > 0 ||
+        current._count.renderedRevisions > 0 ||
+        current._count.generationVariants > 0 ||
+        current._count.composedVariants > 0
+      ) {
         return Object.freeze({ status: "in-use" });
       }
       const requestedAt = new Date(input.requestedAt);

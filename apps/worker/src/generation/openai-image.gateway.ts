@@ -55,8 +55,10 @@ function usageFrom(
   }
   return Object.freeze({
     estimatedCostUsd: null,
+    imageInputTokens: usage.imageInputTokens ?? 0,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
+    textInputTokens: usage.textInputTokens ?? 0,
     totalTokens: usage.totalTokens,
   });
 }
@@ -111,6 +113,9 @@ export class OpenAIImageGenerationGateway implements ImageGenerationPort {
       quality: command.quality,
       references,
       size: command.size,
+      ...(command.safetyIdentifier === undefined
+        ? {}
+        : { safetyIdentifier: command.safetyIdentifier }),
     });
   }
 
@@ -130,6 +135,10 @@ export class OpenAIImageGenerationGateway implements ImageGenerationPort {
         "content-invalid",
         "La respuesta no contiene una imagen.",
         true,
+        {
+          requestId: response.requestId,
+          usage: usageFrom(response.usage),
+        },
       );
     }
     const bytes = new Uint8Array(Buffer.from(response.encodedImage, "base64"));
@@ -145,6 +154,10 @@ export class OpenAIImageGenerationGateway implements ImageGenerationPort {
         "content-invalid",
         "La imagen devuelta no se puede decodificar.",
         true,
+        {
+          requestId: response.requestId,
+          usage: usageFrom(response.usage),
+        },
       );
     }
 

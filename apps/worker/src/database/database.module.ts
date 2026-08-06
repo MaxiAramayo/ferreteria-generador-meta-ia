@@ -5,6 +5,8 @@ import {
   PrismaCommercialToolAuditRepository,
   PrismaContentBriefRunRepository,
   PrismaGenerationRunRepository,
+  PrismaGenerationPolicyRepository,
+  PrismaGenerationAttemptLedgerRepository,
   PrismaKnowledgeDocumentRepository,
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
@@ -14,6 +16,8 @@ import type {
   CommercialToolAuditPort,
   ContentBriefRunRepository,
   GenerationRunRepository,
+  GenerationPolicyRepository,
+  GenerationAttemptLedgerRepository,
   KnowledgeDocumentRepository,
   MediaAssetRepository,
   OutboxRepository,
@@ -28,6 +32,8 @@ import {
   COMMERCIAL_TOOL_AUDIT_REPOSITORY,
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
+  GENERATION_ATTEMPT_LEDGER_REPOSITORY,
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
@@ -41,6 +47,8 @@ export class DatabaseModule {
         COMMERCIAL_TOOL_AUDIT_REPOSITORY,
         CONTENT_BRIEF_RUN_REPOSITORY,
         GENERATION_RUN_REPOSITORY,
+        GENERATION_POLICY_REPOSITORY,
+        GENERATION_ATTEMPT_LEDGER_REPOSITORY,
         KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         OUTBOX_REPOSITORY,
@@ -49,6 +57,20 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: GENERATION_POLICY_REPOSITORY,
+          useFactory: (database: DatabaseClient): GenerationPolicyRepository =>
+            new PrismaGenerationPolicyRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: GENERATION_ATTEMPT_LEDGER_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): GenerationAttemptLedgerRepository =>
+            new PrismaGenerationAttemptLedgerRepository(database),
+        },
         {
           provide: WORKER_DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>

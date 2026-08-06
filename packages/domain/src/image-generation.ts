@@ -94,6 +94,8 @@ interface ImageRequestBase {
   readonly prompt: string;
   readonly quality: ImageGenerationQuality;
   readonly size: ImageGenerationSize;
+  /** Identificador irreversible del actor para controles de abuso del proveedor. */
+  readonly safetyIdentifier?: string;
 }
 
 /** Generación nueva: no admite referencias. */
@@ -109,9 +111,21 @@ export interface EditImageCommand extends ImageRequestBase {
 
 export interface ImageGenerationUsage {
   readonly estimatedCostUsd: number | null;
+  readonly imageInputTokens: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly textInputTokens: number;
   readonly totalTokens: number;
+}
+
+/**
+ * Datos de facturación que Images puede haber devuelto aunque la imagen no sea
+ * utilizable. Viajan en el fallo para que el caso de uso liquide el ledger sin
+ * persistir ni exponer el contenido rechazado.
+ */
+export interface ImageGenerationAccounting {
+  readonly requestId: string | null;
+  readonly usage: ImageGenerationUsage | null;
 }
 
 export interface GeneratedImage {
@@ -149,6 +163,7 @@ export type ImageGenerationFailureCode =
  * termina en un log.
  */
 export class ImageGenerationError extends Error {
+  readonly accounting: ImageGenerationAccounting | null;
   readonly code: ImageGenerationFailureCode;
   readonly detail: string;
   readonly retryable: boolean;
@@ -157,8 +172,10 @@ export class ImageGenerationError extends Error {
     code: ImageGenerationFailureCode,
     detail: string,
     retryable: boolean,
+    accounting: ImageGenerationAccounting | null = null,
   ) {
     super("La generación de imagen no pudo completarse.");
+    this.accounting = accounting;
     this.code = code;
     this.detail = detail;
     this.name = "ImageGenerationError";

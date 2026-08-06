@@ -32,6 +32,7 @@ import {
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";
+import { PrismaGenerationPolicyRepository } from "./generation-governance-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -1065,6 +1066,21 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
     ).mediaAssetId,
     mediaAssetId,
   );
+  await database.publicationRevision.update({
+    data: {
+      renderedAt: new Date("2026-07-28T12:30:00.000Z"),
+      renderedMediaAssetId: replacementMediaAssetId,
+    },
+    where: { id: revisionId },
+  });
+  assert.deepEqual(
+    await repository.beginDeletion({
+      mediaAssetId: replacementMediaAssetId,
+      organizationId,
+      requestedAt: new Date().toISOString(),
+    }),
+    { status: "in-use" },
+  );
   assert.deepEqual(
     (
       await database.approvalSnapshot.findUniqueOrThrow({
@@ -1120,6 +1136,12 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
     requestedAt: new Date().toISOString(),
   });
   assert.equal(pendingDeletion.status, "ready");
+  await assert.rejects(
+    database.publicationRevision.update({
+      data: { renderedMediaAssetId: deletableMediaAssetId },
+      where: { id: revisionId },
+    }),
+  );
   await assert.rejects(
     database.publicationRevisionMedia.create({
       data: {
@@ -3133,6 +3155,10 @@ async function generationFixture(): Promise<{
   await database.organizationMembership.create({
     data: { id: membershipId, organizationId, roles: ["editor"], userId },
   });
+  await database.generationPolicy.update({
+    data: { enabled: true },
+    where: { organizationId },
+  });
   await database.contentBriefRun.create({
     data: {
       actorMembershipId: membershipId,
@@ -3158,6 +3184,93 @@ async function generationFixture(): Promise<{
   });
   return { briefRunId, membershipId, organizationId };
 }
+
+test("una organización nueva nace con política deshabilitada y CAS administrable", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización nueva",
+      id: organizationId,
+      legalName: "Organización nueva",
+      slug: `new-generation-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Administradora nueva",
+      email: `${userId}@new-generation.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["admin"], userId },
+  });
+  const policies = new PrismaGenerationPolicyRepository(database);
+  const created = await policies.find({
+    actorMembershipId: membershipId,
+    at: "2026-08-06T12:00:00.000Z",
+    organizationId,
+  });
+  assert.ok(created !== null);
+  assert.equal(created.policy.enabled, false);
+
+  const update = {
+    enabled: true,
+    expectedVersion: created.policy.version,
+    generatedOrphanRetentionHours: 24,
+    monthlyBudgetMicrousd: 20_000_000,
+    organizationDailyAttemptLimit: 20,
+    originalRetentionDays: 90,
+    referenceRetentionDays: 30,
+    userDailyAttemptLimit: 8,
+    warningThresholdPercent: 80,
+  } as const;
+  assert.equal(
+    (
+      await policies.update({
+        actorMembershipId: membershipId,
+        at: "2026-08-06T12:01:00.000Z",
+        organizationId,
+        update,
+      })
+    ).status,
+    "updated",
+  );
+  assert.equal(
+    (
+      await policies.update({
+        actorMembershipId: membershipId,
+        at: "2026-08-06T12:02:00.000Z",
+        organizationId,
+        update,
+      })
+    ).status,
+    "conflict",
+  );
+
+  await database.generationBudgetAlert.create({
+    data: {
+      committedMicrousd: 16_000_000,
+      id: randomUUID(),
+      monthUtc: "2026-08",
+      organizationId,
+      thresholdPercent: 80,
+    },
+  });
+  await assert.rejects(
+    database.generationBudgetAlert.create({
+      data: {
+        committedMicrousd: 18_000_000,
+        id: randomUUID(),
+        monthUtc: "2026-08",
+        organizationId,
+        thresholdPercent: 90,
+      },
+    }),
+  );
+});
 
 test("el lote de generación conserva su ciclo de vida y sus variantes", async () => {
   const { briefRunId, membershipId, organizationId } =
@@ -3368,6 +3481,66 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
   assert.equal(variantAt(completed, 2).status, "discarded");
   assert.equal(variantAt(completed, 2).failure, null);
 
+  const mediaRepository = new PrismaMediaAssetRepository(database);
+  assert.deepEqual(
+    await mediaRepository.beginDeletion({
+      mediaAssetId,
+      organizationId,
+      requestedAt: "2026-08-04T12:00:00.000Z",
+    }),
+    { status: "in-use" },
+  );
+  assert.deepEqual(
+    await mediaRepository.beginDeletion({
+      mediaAssetId: composedAssetId,
+      organizationId,
+      requestedAt: "2026-08-04T12:00:00.000Z",
+    }),
+    { status: "in-use" },
+  );
+  const deletingAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      id: deletingAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: "deleting.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/deleting-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/deleting-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+  assert.equal(
+    (
+      await mediaRepository.beginDeletion({
+        mediaAssetId: deletingAssetId,
+        organizationId,
+        requestedAt: "2026-08-04T12:00:00.000Z",
+      })
+    ).status,
+    "ready",
+  );
+  await assert.rejects(
+    database.generationRunVariant.update({
+      data: { mediaAssetId: deletingAssetId },
+      where: { id: variantIds[0] ?? "" },
+    }),
+  );
+  await assert.rejects(
+    database.generationRunVariant.update({
+      data: { composedMediaAssetId: deletingAssetId },
+      where: { id: variantIds[0] ?? "" },
+    }),
+  );
+
   // Cerrar dos veces no reescribe un lote ya terminado.
   assert.deepEqual(
     await repository.complete(
@@ -3547,6 +3720,12 @@ test("el pedido de generación reserva, encola y no factura dos lotes", async ()
   };
 
   assert.deepEqual(await requests.request(input), {
+    admission: {
+      mode: "provider",
+      pricingVersion: "openai-gpt-image-2-standard-2026-08-05",
+      referenceCostMicrousd: 82_000,
+      reservedCostMicrousd: 402_000,
+    },
     runId: input.id,
     status: "accepted",
   });
@@ -3566,7 +3745,16 @@ test("el pedido de generación reserva, encola y no factura dos lotes", async ()
       id: randomUUID(),
       variantIds: [randomUUID(), randomUUID()],
     }),
-    { runId: input.id, status: "accepted" },
+    {
+      admission: {
+        mode: "provider",
+        pricingVersion: "openai-gpt-image-2-standard-2026-08-05",
+        referenceCostMicrousd: 82_000,
+        reservedCostMicrousd: 402_000,
+      },
+      runId: input.id,
+      status: "accepted",
+    },
   );
   assert.equal(
     await database.generationRun.count({ where: { organizationId } }),
@@ -3783,6 +3971,86 @@ test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async ()
     await database.generationRunVariant.count({ where: { organizationId } }),
     2,
   );
+});
+
+test("dos pedidos concurrentes no sobreasignan la cuota diaria del usuario", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  await database.generationPolicy.update({
+    data: { userDailyAttemptLimit: 2 },
+    where: { organizationId },
+  });
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const request = (
+    suffix: string,
+  ): ReturnType<PrismaGenerationRunRequestRepository["request"]> =>
+    requests.request({
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: randomUUID(),
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        `content.generation:quota-${suffix}`,
+      ),
+      requestedAt: "2026-08-06T23:59:59.000Z",
+      subjectKind: "generic",
+      variantIds: [randomUUID(), randomUUID()],
+    });
+
+  const admissions = (await Promise.all([request("a"), request("b")]))
+    .map((result) => {
+      assert.equal(result.status, "accepted");
+      return result.admission;
+    })
+    .toSorted((left, right) => left.mode.localeCompare(right.mode));
+  assert.equal(admissions[0]?.mode, "deterministic");
+  assert.deepEqual(admissions[0], {
+    mode: "deterministic",
+    reason: "user-daily-limit",
+  });
+  assert.equal(admissions[1]?.mode, "provider");
+  assert.equal(
+    await database.generationAttempt.count({ where: { organizationId } }),
+    2,
+  );
+});
+
+test("la cuota diaria se reinicia exactamente en la medianoche UTC", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  await database.generationPolicy.update({
+    data: { userDailyAttemptLimit: 1 },
+    where: { organizationId },
+  });
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const requestAt = (
+    requestedAt: string,
+  ): ReturnType<PrismaGenerationRunRequestRepository["request"]> =>
+    requests.request({
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: randomUUID(),
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.generation:utc-boundary",
+      ),
+      requestedAt,
+      subjectKind: "generic",
+      variantIds: [randomUUID()],
+    });
+
+  const beforeMidnight = await requestAt("2026-08-06T23:59:59.999Z");
+  const afterMidnight = await requestAt("2026-08-07T00:00:00.000Z");
+  assert.equal(beforeMidnight.status, "accepted");
+  assert.equal(afterMidnight.status, "accepted");
+  assert.equal(beforeMidnight.admission.mode, "provider");
+  assert.equal(afterMidnight.admission.mode, "provider");
 });
 
 test("una variante determinista sale sin base y con pieza compuesta", async () => {

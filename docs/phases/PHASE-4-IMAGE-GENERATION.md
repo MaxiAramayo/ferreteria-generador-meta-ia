@@ -898,8 +898,8 @@ sobrescribir el material previamente generado.
 
 ## P4-T07 — Aplicar seguridad, cuotas y control de costos
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA (2026-08-06)
 - Dependencias: `P4-T04`
 - Riesgo: Alto
 
@@ -916,18 +916,18 @@ mostrarse con seguridad.
 
 ### Criterios de aceptación
 
-- [ ] Se estima y muestra costo antes de generar cuando sea posible.
-- [ ] Límites diarios y mensuales se aplican en servidor.
-- [ ] Una carrera concurrente no excede silenciosamente el presupuesto.
-- [ ] Solicitudes o resultados bloqueados conservan motivo seguro y auditable.
-- [ ] No se persisten más datos de referencia de los necesarios.
-- [ ] Un administrador puede desactivar generación sin detener el resto del sistema.
+- [x] Se estima y muestra costo antes de generar cuando sea posible.
+- [x] Límites diarios y mensuales se aplican en servidor.
+- [x] Una carrera concurrente no excede silenciosamente el presupuesto.
+- [x] Solicitudes o resultados bloqueados conservan motivo seguro y auditable.
+- [x] No se persisten más datos de referencia de los necesarios.
+- [x] Un administrador puede desactivar generación sin detener el resto del sistema.
 
 ### Verificación obligatoria
 
-- [ ] Tests de cuota al límite y concurrencia.
-- [ ] Simular alerta y corte de presupuesto.
-- [ ] Revisar escenarios de contenido prohibido y privacidad.
+- [x] Tests de cuota al límite y concurrencia.
+- [x] Simular alerta y corte de presupuesto.
+- [x] Revisar escenarios de contenido prohibido y privacidad.
 
 ### Fuera de alcance
 
@@ -935,37 +935,42 @@ mostrarse con seguridad.
 
 ### Notas de progreso
 
-- Registrado por `P4-T04`: una variante que sube su imagen y cuya escritura se
-  rechaza —el lote se canceló mientras el proveedor respondía— deja un activo sin
-  nada que lo referencie. No se borra en el momento a propósito: el identificador
-  se deriva del contenido, así que otra variante o lote de la misma organización
-  puede estar apuntando al mismo archivo, y un borrado ciego rompería esa
-  referencia. Corresponde una barrida de retención que compruebe referencias
-  antes de borrar.
-- Registrado por `P4-T04`: `estimatedCostUsd` sigue en `null` en el lote. El uso
-  en tokens sí se conserva y se suma; falta la tabla de precios de imágenes.
-- Registrado por `P4-T04`: la palanca `generation-disabled` ya funciona de punta
-  a punta y sale de `openAi.enabled`. Falta que un administrador pueda accionarla
-  sin reiniciar el proceso, que es el criterio de esta tarea.
-- Registrado por `P4-T05`: una variante deja ahora **dos** activos, la base y la
-  pieza compuesta, y el identificador de la pieza se deriva del hash de
-  composición y de la organización. La barrida de retención tiene que comprobar
-  las dos referencias antes de borrar; el índice
-  `generation_run_variants_composed_asset_idx` es la consulta que necesita.
-- Riesgo preexistente detectado al revisar `P4-T04`: la ingesta de entradas
-  visuales deriva el identificador del activo con
-  `deterministicMediaId("visual-input:original", sha256)`, sin la organización.
-  Como `media_assets.id` es clave primaria global, dos organizaciones que suban
-  la misma foto —el caso probable es la foto de producto que un fabricante le da
-  a varios comercios— derivan el mismo identificador y la segunda choca contra el
-  activo de la primera. La comprobación de propiedad lo rechaza, así que no hay
-  filtración, pero convierte en fallo lo que debería ser un activo propio.
-  Cambiar el namespace rompería la idempotencia de las cargas ya existentes, así
-  que la corrección necesita decidir qué hacer con ellas.
+- 2026-08-06: implementación completa. `ADR-015` fija la política versionada,
+  reserva atómica, ledger en micro-USD, recuperación ambigua, moderación doble
+  fail-closed y retención de huérfanos.
+- Las organizaciones existentes se backfillean habilitadas con 20/8 intentos,
+  USD 20 mensuales, alerta al 80% y UTC. Una organización nueva recibe una
+  política deshabilitada pero administrable; la configuración del proveedor
+  sigue siendo una condición adicional del worker.
+- La API expone política, CAS y preflight; el panel muestra gasto liquidado,
+  reservado y no confirmado, cuotas restantes, alerta, conflicto y el corte
+  UTC. El lote idempotente conserva su snapshot original de admisión.
+- El worker liquida Images antes de moderar, guardar o componer. Prompt e imagen
+  pasan por `omni-moderation-latest`, Images recibe moderación automática y un
+  identificador irreversible sin PII.
+- El barrido horario procesa lotes acotados de medios vencidos sin referencias.
+  Los guards de PostgreSQL cubren adjuntos, renders, bases y composiciones y se
+  serializan con `beginDeletion`.
+- Los riesgos heredados quedaron cerrados: `estimatedCostUsd` se calcula desde
+  costo liquidado más no confirmado; la palanca vive en política dinámica; y
+  los IDs nuevos `visual-input:v2` incluyen organización sin reescribir IDs
+  históricos.
+- Verificaciones pendientes: ninguna.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm verify`: salió en 0; incluye stack, plan, formato, build, lint,
+  TypeScript estricto, unit/integration suites, baseline y smoke sin llamadas
+  reales a OpenAI.
+- `pnpm db:test`: salió en 0; aplicó desde base vacía, ejecutó aislamiento y
+  concurrencia, revirtió `20260805010000_generation_governance`, reaplicó y
+  volvió a verificar.
+- Cobertura focalizada: CAS/autorización, preflight sin reserva, cuota
+  concurrente, frontera UTC, alerta mensual única, moderación previa/posterior,
+  costo previo a persistencia, retención no superpuesta y guards de las cuatro
+  relaciones de medios.
+- No se llamó a OpenAI, no se modificó producción y no se ejecutó ningún smoke
+  facturable.
 
 ## P4-T08 — Aprobar calidad visual y factual
 

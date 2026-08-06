@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-05
+Actualizado: 2026-08-06
 
 ## Fase activa
 
@@ -27,6 +27,14 @@ worker la resuelve con concurrencia acotada y reintento por variante, y una
 cancelación impide promover el resultado tardío aunque el proveedor ya haya
 respondido.
 
+`P4-T07` quedó cerrada el 2026-08-06. La generación ahora se admite mediante
+política versionada y reservas transaccionales; cada intento conserva estado,
+tokens por modalidad y costo exacto en micro-USD aunque falle después de
+Images. El worker aplica moderación previa y posterior fail-closed, consulta la
+habilitación dinámicamente y barre huérfanos vencidos sin borrar medios
+referenciados. Configuración expone cuotas, presupuesto, alerta, retenciones y
+uso mensual con CAS y cortes UTC.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -46,9 +54,9 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T07` — seguridad, cuotas y control de costos. Su dependencia
-`P4-T04` está completa. `P4-T06` también está habilitada, pero depende además de
-`P4-T05`, que acaba de cerrar.
+Iniciar `P4-T06` — edición, comparación y selección de variantes. Sus
+dependencias `P4-T04` y `P4-T05` están completas. Al cerrarla quedará habilitada
+`P4-T08`, que ya tiene completa su otra dependencia, `P4-T07`.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
@@ -69,7 +77,7 @@ continuar:
 - **`banner-fb`, `destacada` y la región `left_column` no componen.** Un lote
   que los pida se rechaza antes de gastar.
 
-`P4-T04` dejó tres cosas registradas:
+`P4-T04` dejó dos cosas registradas para `P4-T06`:
 
 - el transporte del lote es el outbox transaccional sobre PostgreSQL y no
   BullMQ. La plataforma no tiene BullMQ desde `P2-T06` y no se agregó una
@@ -78,8 +86,6 @@ continuar:
   lectura de bytes. Hoy un sujeto `branded` sin foto aprobada se resuelve con
   render determinista y un sujeto `generic` sí se genera. Corresponde a
   `P4-T06`;
-- `estimatedCostUsd` sigue en `null`; el uso en tokens sí se conserva y se suma
-  al lote. Corresponde a `P4-T07`.
 
 `P4-T03` quedó cerrada el 2026-08-03. El usuario habilitó GPT Image en la
 organización y el smoke real generó y editó contra staging: ambas imágenes en

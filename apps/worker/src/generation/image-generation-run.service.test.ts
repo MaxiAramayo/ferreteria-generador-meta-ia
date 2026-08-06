@@ -9,12 +9,15 @@ import type {
 } from "@aramayo/design-engine";
 import {
   ImageGenerationError,
+  type ContentModerationPort,
+  type ContentModerationResult,
   type ContentBriefRunRecord,
   type ContentBriefRunRepository,
   type ContentBrief,
   type GenerateImageCommand,
   type GeneratedImage,
   type GenerationRunRecord,
+  type GenerationAttemptLedgerRepository,
   type GenerationVariantRecord,
   type ImageGenerationPort,
   type MediaAssetRecord,
@@ -182,8 +185,10 @@ class StubImages implements ImageGenerationPort {
       sha256: outcome.sha256 ?? String(index).repeat(64).slice(0, 64),
       usage: {
         estimatedCostUsd: null,
+        imageInputTokens: 0,
         inputTokens: 10,
         outputTokens: 90,
+        textInputTokens: 10,
         totalTokens: 100,
       },
       width: 1024,
@@ -271,6 +276,79 @@ class StubMedia {
   }
 }
 
+class StubAttemptLedger implements GenerationAttemptLedgerRepository {
+  readonly events: string[] = [];
+  #attempt = 0;
+
+  auditModeration(
+    input: Parameters<GenerationAttemptLedgerRepository["auditModeration"]>[0],
+  ): Promise<void> {
+    this.events.push(`moderation:${input.phase}:${input.outcome}`);
+    return Promise.resolve();
+  }
+
+  begin(): Promise<
+    Awaited<ReturnType<GenerationAttemptLedgerRepository["begin"]>>
+  > {
+    this.#attempt += 1;
+    this.events.push("attempt:in-flight");
+    return Promise.resolve({
+      attemptId: `attempt-${String(this.#attempt)}`,
+      attemptNumber: 1,
+      status: "started",
+    });
+  }
+
+  markUnconfirmed(): Promise<void> {
+    this.events.push("attempt:unconfirmed");
+    return Promise.resolve();
+  }
+
+  recoverInFlight(): Promise<void> {
+    this.events.push("attempt:recovered");
+    return Promise.resolve();
+  }
+
+  releaseRunReservations(): Promise<void> {
+    this.events.push("attempt:released");
+    return Promise.resolve();
+  }
+
+  settle(): Promise<void> {
+    this.events.push("attempt:settled");
+    return Promise.resolve();
+  }
+}
+
+class StubModeration implements ContentModerationPort {
+  readonly events: string[] = [];
+  readonly #outputStatus: "allowed" | "rejected";
+
+  constructor(outputStatus: "allowed" | "rejected") {
+    this.#outputStatus = outputStatus;
+  }
+
+  moderateImage(): Promise<ContentModerationResult> {
+    this.events.push("output");
+    return Promise.resolve({
+      categories: this.#outputStatus === "rejected" ? ["violence"] : [],
+      model: "omni-moderation-latest",
+      requestId: "mod-output",
+      status: this.#outputStatus,
+    });
+  }
+
+  moderateText(): Promise<ContentModerationResult> {
+    this.events.push("input");
+    return Promise.resolve({
+      categories: [],
+      model: "omni-moderation-latest",
+      requestId: "mod-input",
+      status: "allowed",
+    });
+  }
+}
+
 async function reservedRun(
   runs: InMemoryGenerationRunRepository,
   subjectKind: "branded" | "generic" = "generic",
@@ -293,8 +371,10 @@ function service(
   media: StubMedia = new StubMedia(),
   briefs: ContentBriefRunRepository = new StubBriefRuns(),
   overrides: Partial<{
+    attempts: GenerationAttemptLedgerRepository;
     concurrency: number;
     maxAttempts: number;
+    moderation: ContentModerationPort;
     renderer: DesignRenderer;
   }> = {},
 ): ImageGenerationRunService {
@@ -307,6 +387,12 @@ function service(
     {
       concurrency: overrides.concurrency ?? 1,
       maxAttempts: overrides.maxAttempts ?? 3,
+      ...(overrides.attempts === undefined
+        ? {}
+        : { attempts: overrides.attempts }),
+      ...(overrides.moderation === undefined
+        ? {}
+        : { moderation: overrides.moderation }),
       // Sin espera real las pruebas de reintento no tardan.
       sleep: (): Promise<void> => Promise.resolve(),
     },
@@ -771,6 +857,119 @@ test("una pieza que no se pudo renderizar no se atribuye al proveedor", async ()
   // Y no se reintenta contra el proveedor: un render que falla no se arregla
   // pidiendo otra imagen.
   assert.equal(images.requests.length, 2);
+});
+
+test("liquida el costo antes de la moderación final y no persiste una imagen marcada", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const images = new StubImages([{}, {}]);
+  const media = new StubMedia();
+  const attempts = new StubAttemptLedger();
+  const moderation = new StubModeration("rejected");
+
+  const result = await service(runs, images, media, new StubBriefRuns(), {
+    attempts,
+    moderation,
+  }).execute({ organizationId, runId });
+
+  assert.deepEqual(result, { runId, status: "failed" });
+  assert.equal(images.requests.length, 2);
+  assert.equal(media.uploads.length, 0);
+  assert.deepEqual(moderation.events, ["input", "output", "output"]);
+  assert.deepEqual(attempts.events, [
+    "moderation:input:allowed",
+    "attempt:in-flight",
+    "attempt:settled",
+    "moderation:output:rejected",
+    "attempt:in-flight",
+    "attempt:settled",
+    "moderation:output:rejected",
+  ]);
+  const run = await loadRun(runs);
+  assert.ok(
+    run.variants.every(
+      (variant) => variant.failure?.code === "moderation-rejected",
+    ),
+  );
+});
+
+test("liquida el usage aunque la respuesta de Images no contenga una imagen utilizable", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const accounting = {
+    requestId: "req_invalid",
+    usage: {
+      estimatedCostUsd: null,
+      imageInputTokens: 0,
+      inputTokens: 10,
+      outputTokens: 90,
+      textInputTokens: 10,
+      totalTokens: 100,
+    },
+  } as const;
+  const images = new StubImages([
+    {
+      error: new ImageGenerationError(
+        "content-invalid",
+        "La respuesta no contiene una imagen.",
+        false,
+        accounting,
+      ),
+    },
+    {
+      error: new ImageGenerationError(
+        "content-invalid",
+        "La respuesta no contiene una imagen.",
+        false,
+        accounting,
+      ),
+    },
+  ]);
+  const attempts = new StubAttemptLedger();
+
+  const result = await service(
+    runs,
+    images,
+    new StubMedia(),
+    new StubBriefRuns(),
+    { attempts },
+  ).execute({ organizationId, runId });
+
+  assert.deepEqual(result, { runId, status: "failed" });
+  assert.deepEqual(attempts.events, [
+    "attempt:in-flight",
+    "attempt:settled",
+    "attempt:in-flight",
+    "attempt:settled",
+  ]);
+});
+
+test("si la moderación previa no está disponible falla cerrado sin llamar al proveedor", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const images = new StubImages([{}, {}]);
+  const attempts = new StubAttemptLedger();
+  const unavailableModeration: ContentModerationPort = {
+    moderateImage: (): Promise<never> =>
+      Promise.reject(new Error("moderation unavailable")),
+    moderateText: (): Promise<never> =>
+      Promise.reject(new Error("moderation unavailable")),
+  };
+
+  const result = await service(
+    runs,
+    images,
+    new StubMedia(),
+    new StubBriefRuns(),
+    { attempts, moderation: unavailableModeration },
+  ).execute({ organizationId, runId });
+
+  assert.deepEqual(result, { runId, status: "failed" });
+  assert.equal(images.requests.length, 0);
+  assert.deepEqual(attempts.events, [
+    "moderation:input:unavailable",
+    "attempt:released",
+  ]);
 });
 
 test("sin generación habilitada el lote no intenta ninguna llamada", async () => {

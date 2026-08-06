@@ -19,6 +19,7 @@ export interface UploadMediaCommand {
   readonly origin: MediaAssetOrigin;
   readonly originalFileName: string;
   readonly ownerMembershipId: string;
+  readonly retentionUntil?: string;
 }
 
 export interface DeleteMediaCommand {
@@ -80,6 +81,9 @@ export class MediaLifecycleService {
       origin: command.origin,
       originalFileName: validatedUpload.originalFileName,
       ownerMembershipId: command.ownerMembershipId,
+      ...(command.retentionUntil === undefined
+        ? {}
+        : { retentionUntil: command.retentionUntil }),
       storageProvider: "cloudinary",
     });
     if (reservation.status === "not-found") {

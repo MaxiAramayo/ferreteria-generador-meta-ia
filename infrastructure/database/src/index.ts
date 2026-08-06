@@ -23,3 +23,7 @@ export {
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";
+export {
+  PrismaGenerationAttemptLedgerRepository,
+  PrismaGenerationPolicyRepository,
+} from "./generation-governance-repository.ts";

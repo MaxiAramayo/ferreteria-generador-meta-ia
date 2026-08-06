@@ -4,6 +4,7 @@ import test from "node:test";
 import type {
   BeginMediaDeletionResult,
   CompleteMediaUploadInput,
+  ExpiredMediaAssetCandidate,
   FailMediaUploadInput,
   MediaAssetRecord,
   MediaAssetRepository,
@@ -20,6 +21,7 @@ import {
   MediaLifecycleService,
   type UploadMediaCommand,
 } from "./media-lifecycle.service.ts";
+import { MediaRetentionSweepService } from "./media-retention-sweep.service.ts";
 
 const inspection: MediaInspection = {
   byteSize: 1024,
@@ -96,6 +98,20 @@ class FakeMediaStorage implements MediaStorage {
 }
 
 class FakeMediaRepository implements MediaAssetRepository {
+  readonly retentionAudits: string[] = [];
+  expiredCandidates: readonly ExpiredMediaAssetCandidate[] = [];
+
+  auditRetention(
+    input: Parameters<MediaAssetRepository["auditRetention"]>[0],
+  ): Promise<void> {
+    this.retentionAudits.push(`${input.outcome}:${input.mediaAssetId}`);
+    return Promise.resolve();
+  }
+
+  findExpiredUnreferenced(): Promise<readonly ExpiredMediaAssetCandidate[]> {
+    return Promise.resolve(this.expiredCandidates);
+  }
+
   beginDeletionResult: BeginMediaDeletionResult = {
     asset: { ...asset("available"), status: "pending_deletion" },
     status: "ready",
@@ -204,6 +220,31 @@ test("repetir una carga disponible devuelve el activo sin subir de nuevo", async
   assert.equal(storage.storeCalls, 0);
 });
 
+test("reutilizar el mismo activo admite extender su retención", async () => {
+  const repository = new FakeMediaRepository();
+  repository.reservation = {
+    asset: {
+      ...asset("available"),
+      retentionUntil: "2026-07-29T12:00:00.000Z",
+    },
+    status: "existing",
+  };
+  const storage = new FakeMediaStorage();
+  const service = new MediaLifecycleService(
+    repository,
+    new FakeMediaInspector(),
+    storage,
+  );
+
+  const result = await service.upload({
+    ...uploadCommand(),
+    retentionUntil: "2026-07-30T12:00:00.000Z",
+  });
+
+  assert.equal(result.status, "available");
+  assert.equal(storage.storeCalls, 0);
+});
+
 test("un fallo remoto deja error seguro persistido y reintentable", async () => {
   const repository = new FakeMediaRepository();
   const storage = new FakeMediaStorage();
@@ -264,4 +305,28 @@ test("la eliminación remota ausente igual confirma el estado local", async () =
 
   assert.equal(deleted.status, "deleted");
   assert.equal(storage.deleteCalls, 1);
+});
+
+test("el barrido elimina sólo candidatos vencidos y no se superpone", async () => {
+  const repository = new FakeMediaRepository();
+  repository.expiredCandidates = [
+    { id: "media-1", organizationId: "organization-1" },
+  ];
+  const storage = new FakeMediaStorage();
+  const lifecycle = new MediaLifecycleService(
+    repository,
+    new FakeMediaInspector(),
+    storage,
+  );
+  const sweep = new MediaRetentionSweepService(repository, lifecycle);
+
+  const [first, overlapping] = await Promise.all([
+    sweep.sweep(new Date("2026-07-29T13:00:00.000Z")),
+    sweep.sweep(new Date("2026-07-29T13:00:00.000Z")),
+  ]);
+
+  assert.equal(first, 1);
+  assert.equal(overlapping, 0);
+  assert.equal(storage.deleteCalls, 1);
+  assert.deepEqual(repository.retentionAudits, ["deleted:media-1"]);
 });

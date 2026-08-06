@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260805000000_generation_run_compositions";
+const latestMigrationName = "20260805010000_generation_governance";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -163,6 +163,9 @@ async function verifyDatabase(): Promise<void> {
         generation_runs_table: string | null;
         generation_source_exists: boolean;
         generation_variants_table: string | null;
+        generation_attempts_table: string | null;
+        generation_policies_table: string | null;
+        admission_mode_exists: boolean;
         idempotency_table: string | null;
         knowledge_documents_table: string | null;
         knowledge_versions_table: string | null;
@@ -176,6 +179,15 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.content_brief_runs')::text AS "brief_runs_table",
             to_regclass('public.generation_runs')::text AS "generation_runs_table",
             to_regclass('public.generation_run_variants')::text AS "generation_variants_table",
+            to_regclass('public.generation_attempts')::text AS "generation_attempts_table",
+            to_regclass('public.generation_policies')::text AS "generation_policies_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'generation_runs'
+                AND column_name = 'admission_mode'
+            ) AS "admission_mode_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -247,12 +259,14 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparece la pieza
-      // compuesta de cada variante y todo lo anterior queda intacto, incluido
-      // el lote de generación con sus variantes y el vínculo entre revisión y
-      // ejecución de brief.
-      assert.equal(rollbackEvidence.composition_hash_exists, false);
-      assert.equal(rollbackEvidence.generation_source_exists, false);
+      // La reversión afecta sólo a la última migración: desaparecen política,
+      // ledger y snapshot de admisión; la composición de P4-T06 y todo lo
+      // anterior quedan intactos.
+      assert.equal(rollbackEvidence.admission_mode_exists, false);
+      assert.equal(rollbackEvidence.generation_attempts_table, null);
+      assert.equal(rollbackEvidence.generation_policies_table, null);
+      assert.equal(rollbackEvidence.composition_hash_exists, true);
+      assert.equal(rollbackEvidence.generation_source_exists, true);
       assert.equal(rollbackEvidence.generation_runs_table, "generation_runs");
       assert.equal(
         rollbackEvidence.generation_variants_table,

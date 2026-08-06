@@ -3,6 +3,7 @@ import type {
   GenerationRunCancellationResponse,
   GenerationRunListResponse,
   GenerationRunResponse,
+  GenerationPreflightResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
@@ -38,6 +39,16 @@ export class GenerationRunController {
 
   constructor(service: GenerationRunService) {
     this.#service = service;
+  }
+
+  @Post("preflight")
+  @HttpCode(200)
+  @RequirePermission("content:edit")
+  preflight(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Body() body: RequestGenerationRunDto,
+  ): Promise<GenerationPreflightResponse> {
+    return this.#service.preflight(session.actor, body);
   }
 
   @Post()

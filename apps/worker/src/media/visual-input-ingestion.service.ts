@@ -15,6 +15,8 @@
  */
 
 import {
+  generationPolicyDefaults,
+  type GenerationPolicyRepository,
   type MediaAssetRecord,
   type PreparedVisualArtifact,
   type VisualInputMimeType,
@@ -47,15 +49,29 @@ function extensionFor(mimeType: VisualInputMimeType): string {
   return mimeType === "image/png" ? "png" : "jpg";
 }
 
+function retentionAfter(at: Date, days: number): string {
+  at = new Date(at);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString();
+}
+
 export class VisualInputIngestionService {
   readonly #media: Pick<MediaLifecycleService, "upload">;
+  readonly #clock: () => Date;
+  readonly #policies: GenerationPolicyRepository | null;
   readonly #preparer: VisualInputPreparer;
 
   constructor(
     preparer: VisualInputPreparer,
     media: Pick<MediaLifecycleService, "upload">,
+    dependencies: Readonly<{
+      clock?: () => Date;
+      policies?: GenerationPolicyRepository;
+    }> = {},
   ) {
+    this.#clock = dependencies.clock ?? ((): Date => new Date());
     this.#media = media;
+    this.#policies = dependencies.policies ?? null;
     this.#preparer = preparer;
   }
 
@@ -76,11 +92,16 @@ export class VisualInputIngestionService {
     }
 
     const { original, reference, sourceSha256 } = preparation.prepared;
+    const retention = await this.#retention(command);
     const originalAsset = await this.#store(
       command,
       original,
-      deterministicMediaId("visual-input:original", sourceSha256),
+      deterministicMediaId(
+        "visual-input:v2:original",
+        `${command.organizationId}:${sourceSha256}`,
+      ),
       "original",
+      retentionAfter(this.#clock(), retention.originalDays),
     );
 
     // Cuando la foto no supera el tope, el derivado son los mismos bytes que el
@@ -99,11 +120,42 @@ export class VisualInputIngestionService {
       reference: await this.#store(
         command,
         reference,
-        deterministicMediaId("visual-input:reference", original.sha256),
+        deterministicMediaId(
+          "visual-input:v2:reference",
+          `${command.organizationId}:${original.sha256}`,
+        ),
         "referencia",
+        retentionAfter(this.#clock(), retention.referenceDays),
       ),
       status: "ingested" as const,
     });
+  }
+
+  async #retention(command: IngestVisualInputCommand): Promise<
+    Readonly<{
+      originalDays: number;
+      referenceDays: number;
+    }>
+  > {
+    if (this.#policies === null) {
+      return {
+        originalDays: generationPolicyDefaults.originalRetentionDays,
+        referenceDays: generationPolicyDefaults.referenceRetentionDays,
+      };
+    }
+    const snapshot = await this.#policies.find({
+      actorMembershipId: command.ownerMembershipId,
+      at: this.#clock().toISOString(),
+      organizationId: command.organizationId,
+    });
+    return {
+      originalDays:
+        snapshot?.policy.originalRetentionDays ??
+        generationPolicyDefaults.originalRetentionDays,
+      referenceDays:
+        snapshot?.policy.referenceRetentionDays ??
+        generationPolicyDefaults.referenceRetentionDays,
+    };
   }
 
   /**
@@ -117,6 +169,7 @@ export class VisualInputIngestionService {
     artifact: PreparedVisualArtifact,
     mediaAssetId: string,
     kind: string,
+    retentionUntil: string,
   ): Promise<MediaAssetRecord> {
     return this.#media.upload({
       bytes: artifact.bytes,
@@ -126,6 +179,7 @@ export class VisualInputIngestionService {
       origin: "uploaded",
       originalFileName: `${command.role}-${kind}-${artifact.sha256.slice(0, 16)}.${extensionFor(artifact.mimeType)}`,
       ownerMembershipId: command.ownerMembershipId,
+      retentionUntil,
     });
   }
 }
