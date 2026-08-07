@@ -39,6 +39,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "image:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/worker smoke:image",
+    "image-quality:eval": "pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker eval:image-quality",
     "infra:clean": "node tools/local-infrastructure/cli.ts clean",
     "infra:config": "node tools/local-infrastructure/cli.ts config",
     "infra:down": "node tools/local-infrastructure/cli.ts down",

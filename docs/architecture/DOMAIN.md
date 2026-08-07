@@ -204,6 +204,21 @@ Una reserva ocupa cuota y presupuesto. El intento diario se consume al entrar
 `unconfirmed` conserva la reserva máxima. El presupuesto comprometido suma los
 tres componentes y se calcula por mes UTC.
 
+### ImageQualityBaseline
+
+La promoción de un prompt, perfil, modelo o composición exige una baseline de
+calidad versionada. Sus verificaciones factuales son binarias: producto, precio,
+stock, CTA y disclaimer deben coincidir con el snapshot; un fallo no puede
+compensarse con estética. La identidad automática incluye el hash de composición
+de cada perfil y formato.
+
+El estado humano es `pending | approved | rejected`. `approved` sólo es válido
+con la muestra completa, puntuaciones dentro de los umbrales, cero hallazgos
+críticos y ambos roles (`business-owner`, `visual-reviewer`). El gate rechaza un
+estado aprobado incompleto. La decisión propuesta y el procedimiento están en
+[`ADR-017`](decisions/ADR-017-IMAGE-QUALITY-GATE.md) y la rúbrica en
+[`IMAGE-QUALITY-EVALUATION.md`](../operations/IMAGE-QUALITY-EVALUATION.md).
+
 ### ProviderConnection
 
 Conexión cifrada con OpenAI, Meta, Cloudinary o sistema comercial. Expone estado

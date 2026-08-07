@@ -1008,7 +1008,7 @@ mostrarse con seguridad.
 ## P4-T08 — Aprobar calidad visual y factual
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P4-T06`, `P4-T07`
 - Riesgo: Alto
 
@@ -1025,18 +1025,18 @@ legibilidad y seguridad antes de habilitar la integración Meta.
 
 ### Criterios de aceptación
 
-- [ ] La rúbrica separa calidad estética de exactitud comercial.
-- [ ] Precio, stock, producto, CTA y disclaimers se comparan con snapshot.
-- [ ] Se incluyen herramientas, lubricantes, ofertas y mensajes institucionales.
-- [ ] Ningún resultado crítico puede autoaprobarse.
-- [ ] Umbrales y responsables de aprobación están definidos.
-- [ ] Regresiones bloquean cambios de prompt, perfil o modelo.
+- [x] La rúbrica separa calidad estética de exactitud comercial.
+- [x] Precio, stock, producto, CTA y disclaimers se comparan con snapshot.
+- [x] Se incluyen herramientas, lubricantes, ofertas y mensajes institucionales.
+- [x] Ningún resultado crítico puede autoaprobarse.
+- [x] Umbrales y responsables de aprobación están definidos.
+- [x] Regresiones bloquean cambios de prompt, perfil o modelo.
 
 ### Verificación obligatoria
 
 - [ ] Ejecutar evaluación completa y guardar resultados.
 - [ ] Revisión humana ciega de una muestra acordada.
-- [ ] Introducir una pieza con error factual y confirmar rechazo.
+- [x] Introducir una pieza con error factual y confirmar rechazo.
 
 ### Fuera de alcance
 
@@ -1044,7 +1044,33 @@ legibilidad y seguridad antes de habilitar la integración Meta.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-07: se implementó la preevaluación automática sin red. El dataset
+  `image-quality/2026-08-07.1` cubre 18 combinaciones —seis perfiles por
+  `feed`, `cuadrado` e `historia`— y las cuatro categorías exigidas. Los datos
+  son sintéticos y no representan precio ni stock real de Aramayo.
+- Los checks binarios de producto, precio, stock, CTA y disclaimer se mantienen
+  separados de la rúbrica estética. Los 18 casos automáticos aprobaron con cero
+  fallos bloqueantes; una prueba introduce un precio incorrecto y confirma el
+  rechazo.
+- `ADR-017` propone que ninguna corrida se autoapruebe. La muestra humana
+  propuesta
+  es de 12 resultados reales (`feed` e `historia` por perfil), con responsable
+  comercial y visual, seis criterios, cero hallazgos críticos, mínimo 3 por
+  criterio, 4 por caso y 4,2 para la muestra.
+- La baseline queda ligada a dataset, prompt, perfil, modelo, composición y hash
+  por caso. La corrida automática permanece bloqueada con
+  `human-review-pending`, que es el estado correcto mientras no se acuerde y
+  ejecute la muestra ciega.
+- Verificaciones ejecutadas hasta ahora: `pnpm verify` completo en verde,
+  unitarias de dominio en verde (122) y
+  `pnpm image-quality:eval -- --write` con 18/18 casos. La corrida de control
+  sin `--write` terminó en el bloqueo esperado `human-review-pending`. No se
+  llamó a OpenAI ni se consumió presupuesto.
+- Pendiente: acordar la muestra propuesta, generar sus 12 bases reales en
+  staging, preparar el paquete ciego y obtener ambas revisiones. Antes hace
+  falta incorporar una foto aprobada de producto de lubricentro: las fotos
+  vigentes son contexto del local y el arnés las rechaza como sustituto. Tras la
+  revisión se debe ejecutar otra vez `pnpm verify` antes del cierre.
 
 ### Evidencia de cierre
 

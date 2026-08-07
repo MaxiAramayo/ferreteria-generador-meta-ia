@@ -302,6 +302,20 @@ Los prompts de diez briefs representativos están congelados en
 `apps/worker/src/visual/visual-prompt-baseline.json` y se regeneran con
 `pnpm visual:snapshot`.
 
+### Puerta de calidad de imagen
+
+`P4-T08` no delega la aprobación a Images ni a otro modelo. La baseline local
+compara de forma binaria producto, precio, stock, CTA y disclaimer contra el
+snapshot, y exige los hashes técnicos aprobados. Los resultados reales del
+proveedor se someten después a una muestra ciega con responsable comercial y
+visual. Modelo, prompt, perfil, composición y dataset forman parte de la
+identidad; cambiar uno obliga a repetir la evaluación.
+
+Los graders con entrada de imagen que ofrece OpenAI pueden aportar una señal en
+el futuro, pero no son autoridad para datos comerciales ni reemplazan el veto
+humano. El contrato, la rúbrica y el comando están en
+[`IMAGE-QUALITY-EVALUATION.md`](../operations/IMAGE-QUALITY-EVALUATION.md).
+
 ## Credenciales y costo
 
 - `OPENAI_API_KEY` solo en servidor/worker.

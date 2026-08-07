@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-06
+Actualizado: 2026-08-07
 
 ## Fase activa
 
@@ -41,6 +41,15 @@ de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
 revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
 versionada conserva todas las alternativas y su auditoría (`ADR-016`).
 
+`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local ya cubre
+18 casos —seis perfiles por tres formatos— y compara producto, precio, stock,
+CTA y disclaimer contra snapshots sintéticos. La baseline automática está en
+verde, pero el gate permanece bloqueado por diseño: falta acordar y ejecutar una
+muestra ciega de 12 resultados reales con responsable comercial y visual
+(`ADR-017`). La muestra no puede generarse completa hasta incorporar una foto
+aprobada de producto de lubricentro; las existentes son sólo contexto del
+local. No se llamó a OpenAI durante esta preparación.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -60,9 +69,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T08` — aprobar calidad visual y factual. Sus dependencias `P4-T06`
-y `P4-T07` están completas; corresponde definir dataset, rúbrica, responsables
-y umbrales antes de habilitar la integración Meta.
+Continuar `P4-T08` — aprobar calidad visual y factual. Dataset, rúbrica,
+responsables, umbrales y baseline automática ya están definidos. El próximo
+paso es acordar la muestra propuesta (`feed` e `historia` por cada uno de los
+seis perfiles), incorporar la referencia faltante de producto de lubricentro,
+generar los 12 resultados reales en staging con presupuesto explícito y
+completar la revisión ciega. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

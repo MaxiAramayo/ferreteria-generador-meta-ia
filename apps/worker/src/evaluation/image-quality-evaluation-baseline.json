@@ -1,0 +1,955 @@
+{
+  "cases": [
+    {
+      "caseId": "ferreteria-producto-limpio-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "ae9b32a415e3856163cfe13b0c130e00995d9809de64cee05ff6afeb823ee407",
+      "format": "feed",
+      "passed": true,
+      "profileId": "ferreteria-producto-limpio"
+    },
+    {
+      "caseId": "ferreteria-producto-limpio-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "67a8ecd8ab23892f345c6df938618b0bd9cb48bd02c1a69cc9ed58fa6db5df33",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "ferreteria-producto-limpio"
+    },
+    {
+      "caseId": "ferreteria-producto-limpio-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "a8285df0c7c2c945a00e6f96238242caad99a4c8253e17ef1e0ee45f8c5c09b9",
+      "format": "historia",
+      "passed": true,
+      "profileId": "ferreteria-producto-limpio"
+    },
+    {
+      "caseId": "lubricentro-producto-limpio-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "2da7f5a88d795180614d7a2520cc34e23076dd9ee563a5da00af38af1477b744",
+      "format": "feed",
+      "passed": true,
+      "profileId": "lubricentro-producto-limpio"
+    },
+    {
+      "caseId": "lubricentro-producto-limpio-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "068ffb93aee20fd53c672845092155f53a31189c5167b08c87bb698b75ecc936",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "lubricentro-producto-limpio"
+    },
+    {
+      "caseId": "lubricentro-producto-limpio-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "c8a9260df2bcaa09625b52bc7727328d5779762bd4b98f677c8a0f1db19dcaf9",
+      "format": "historia",
+      "passed": true,
+      "profileId": "lubricentro-producto-limpio"
+    },
+    {
+      "caseId": "ferreteria-taller-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "05ecf040c8e61f1471790f4d6530b64d921e51cb7890da96a4d034c22e4f2884",
+      "format": "feed",
+      "passed": true,
+      "profileId": "ferreteria-taller"
+    },
+    {
+      "caseId": "ferreteria-taller-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "c76dd8aec2cee592d66374afb40bdb37487713a5de3a829220a8aeebc47b6608",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "ferreteria-taller"
+    },
+    {
+      "caseId": "ferreteria-taller-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "b803636c71c33c17c4da7615cecea3c16834718566d8b1c7facd93102dd802bf",
+      "format": "historia",
+      "passed": true,
+      "profileId": "ferreteria-taller"
+    },
+    {
+      "caseId": "ferreteria-obra-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "9e83f5daf49d70ce7755ce34dcef2e0d65463e148b1b4c57c1085b619d329622",
+      "format": "feed",
+      "passed": true,
+      "profileId": "ferreteria-obra"
+    },
+    {
+      "caseId": "ferreteria-obra-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "7557d73b0ba9a47a63e5ea0e7b02751b9186e7cb55c11e76435537f5ac6e5209",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "ferreteria-obra"
+    },
+    {
+      "caseId": "ferreteria-obra-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "712c859bf75ac5b76ee8d9d6ba28f9b56272f335af68ff3152f4c385d37b187d",
+      "format": "historia",
+      "passed": true,
+      "profileId": "ferreteria-obra"
+    },
+    {
+      "caseId": "lubricentro-servicio-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "41b35a09c8becc9d0ff6151ace1356b52284992414352979a8116a71b26bd12e",
+      "format": "feed",
+      "passed": true,
+      "profileId": "lubricentro-servicio"
+    },
+    {
+      "caseId": "lubricentro-servicio-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "aab58edb759175674fa513fcf6e70a5fae2fb56b3ffcf1a84a0a4dda258dea37",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "lubricentro-servicio"
+    },
+    {
+      "caseId": "lubricentro-servicio-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "0216f3118d0557436e30f89ba3228c528621038f4f9492b714c5d71041956829",
+      "format": "historia",
+      "passed": true,
+      "profileId": "lubricentro-servicio"
+    },
+    {
+      "caseId": "promocion-estacional-feed",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "a5ed0695c051573a63027c4db09580d719cf8bab2c4b22b7d88c6c1a3c6c9367",
+      "format": "feed",
+      "passed": true,
+      "profileId": "promocion-estacional"
+    },
+    {
+      "caseId": "promocion-estacional-cuadrado",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "63f84f8aae70805bed027718ad023ea1a9a358fe44b46b0fbaeaf4ae6d4c693f",
+      "format": "cuadrado",
+      "passed": true,
+      "profileId": "promocion-estacional"
+    },
+    {
+      "caseId": "promocion-estacional-historia",
+      "checks": [
+        {
+          "blocking": true,
+          "detail": "Los productos deben coincidir exactamente con el snapshot factual.",
+          "group": "factual",
+          "name": "product",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El precio visible y su ausencia deben coincidir con el snapshot.",
+          "group": "factual",
+          "name": "price",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El stock no puede inferirse ni omitir un enunciado sustentado.",
+          "group": "factual",
+          "name": "stock",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El CTA debe ser exactamente la acción aprobada.",
+          "group": "factual",
+          "name": "call-to-action",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "La vigencia, condición o advertencia debe coincidir con el snapshot.",
+          "group": "factual",
+          "name": "disclaimer",
+          "passed": true
+        },
+        {
+          "blocking": true,
+          "detail": "El perfil y formato deben conservar una composición técnica aprobada.",
+          "group": "technical",
+          "name": "approved-composition-baseline",
+          "passed": true
+        }
+      ],
+      "compositionHash": "c28dfe5c8538ee0c7f0132150a6004f7cd91a1af17458efcd7d1b59a855a050b",
+      "format": "historia",
+      "passed": true,
+      "profileId": "promocion-estacional"
+    }
+  ],
+  "compositionVersion": "visual-composition/2026-08-05.1",
+  "datasetVersion": "image-quality/2026-08-07.1",
+  "generatedAt": "2026-08-07T14:23:14.006Z",
+  "humanReview": {
+    "assessments": [],
+    "reviewedAt": null,
+    "reviewerRoles": [],
+    "sampleCaseIds": [
+      "ferreteria-producto-limpio-feed",
+      "ferreteria-producto-limpio-historia",
+      "lubricentro-producto-limpio-feed",
+      "lubricentro-producto-limpio-historia",
+      "ferreteria-taller-feed",
+      "ferreteria-taller-historia",
+      "ferreteria-obra-feed",
+      "ferreteria-obra-historia",
+      "lubricentro-servicio-feed",
+      "lubricentro-servicio-historia",
+      "promocion-estacional-feed",
+      "promocion-estacional-historia"
+    ],
+    "status": "pending"
+  },
+  "metrics": {
+    "blockingFailures": 0,
+    "caseSuccess": 1,
+    "cases": 18,
+    "factualSuccess": 1,
+    "technicalSuccess": 1
+  },
+  "model": "gpt-image-2",
+  "profileVersion": "visual-profile/2026-08-03.2",
+  "promptVersion": "visual-prompt/2026-08-03.2"
+}
