@@ -49,8 +49,12 @@ quedó preparada de forma ciega en `output/image-quality-review/`. La corrida
 liquidó USD 0,657 según el uso informado por Images. La inspección preliminar
 detectó un fallo crítico: las piezas Wega `A03` y `A04` perdieron la marca y el
 código del envase, y `A04` agregó un filtro blanco genérico. El gate sigue
-bloqueado; falta registrar la revisión humana y corregir la composición del
-producto real antes de poder aprobar (`ADR-017`).
+bloqueado. El usuario rechazó además el filtro visual repetido y las escenas
+complejas con geometría inventada. El rediseño propuesto prioriza fotos propias,
+activos autorizados y representaciones de categoría claramente rotuladas;
+define tres familias mínimas y vuelve obligatorio el anclaje visible en Frías
+para piezas comerciales. Está documentado en
+[`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
 
 ## Resumen
 
@@ -71,12 +75,13 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P4-T08` — aprobar calidad visual y factual. Dataset, rúbrica,
-responsables, umbrales, baseline automática y primera muestra real ya están
-definidos. El próximo paso es registrar el rechazo humano de la muestra actual,
-corregir el camino que debe componer la foto real del producto sin reinterpretar
-su marca ni su código, volver a componer o generar la muestra invalidada y
-repetir la revisión ciega. Meta continúa bloqueada.
+Continuar `P4-T08` — aprobar calidad visual y factual. Antes de otra corrida
+masiva se debe acordar el contrato visual del plan de mejora, implementar y
+revisar dos prototipos de `Producto + precio`, `Problema + solución` y `Surtido
+real`, y recién entonces recomponer la muestra. El trabajo incluye corregir el
+camino que debe componer la foto real del producto sin reinterpretar su marca,
+incorporar representaciones ilustrativas explícitas y neutralizar el prompt que
+hoy produce una estética repetida de IA. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

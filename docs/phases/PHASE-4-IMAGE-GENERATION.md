@@ -1085,6 +1085,14 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   `A04` agregó un filtro blanco genérico. La hoja ciega permanece sin firmar y
   la tarea abierta. El próximo cambio debe componer el producto real de forma
   determinista en lugar de pedirle al modelo que reinterprete su etiqueta.
+- 2026-08-07: el usuario rechazó además la apariencia general de IA, el filtro
+  cinematográfico repetido y los errores de geometría en vehículos, ladrillos,
+  discos, productos y fachadas. Aprobó explorar fotos propias, activos
+  autorizados de fabricantes y representaciones de categoría, siempre que no se
+  presenten como el producto exacto. El plan de rediseño, las tres familias
+  mínimas, el anclaje visible en Frías y el prompt v3 quedaron documentados en
+  [`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](../operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
+  No se paga otra muestra masiva antes de aprobar dos prototipos por familia.
 
 ### Evidencia de cierre
 

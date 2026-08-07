@@ -2,6 +2,12 @@
 
 Estado: en implementación por `P4-T08`.
 
+La primera muestra fue rechazada y el rediseño propuesto de activos, formatos,
+prompt y criterios humanos se documenta en
+[`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](IMAGE-CREATIVE-IMPROVEMENT-PLAN.md). No se
+debe generar otra muestra completa hasta aprobar dos prototipos por cada una de
+las tres familias mínimas allí definidas.
+
 ## Propósito
 
 La puerta separa dos preguntas que no se compensan entre sí:
