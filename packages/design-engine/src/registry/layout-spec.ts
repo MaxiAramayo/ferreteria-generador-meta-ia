@@ -26,6 +26,7 @@ export type ContentFieldKey =
   | "branch"
   | "callToAction"
   | "category"
+  | "disclaimer"
   | "icon"
   | "items"
   | "phone"

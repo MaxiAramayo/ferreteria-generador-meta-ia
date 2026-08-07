@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-06
+Actualizado: 2026-08-07
 
 ## Fase activa
 
@@ -41,6 +41,26 @@ de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
 revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
 versionada conserva todas las alternativas y su auditoría (`ADR-016`).
 
+`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local cubre 18
+casos —seis perfiles por tres formatos— y compara producto, precio, stock, CTA y
+disclaimer contra snapshots sintéticos. El usuario aportó y autorizó una foto de
+los filtros Wega FCI 1101C, y la muestra real de 12 piezas se generó en staging y
+quedó preparada de forma ciega en `output/image-quality-review/`. La corrida
+liquidó USD 0,657 según el uso informado por Images. La inspección preliminar
+detectó un fallo crítico: las piezas Wega `A03` y `A04` perdieron la marca y el
+código del envase, y `A04` agregó un filtro blanco genérico. El gate sigue
+bloqueado. El usuario rechazó además el filtro visual repetido y las escenas
+complejas con geometría inventada. El rediseño propuesto prioriza fotos propias,
+activos autorizados y representaciones de categoría claramente rotuladas;
+define tres familias mínimas y vuelve obligatorio el anclaje visible en Frías
+para piezas comerciales. Está documentado en
+[`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
+La siguiente muestra ya no será de 12: el negocio la limitó a tres historias y
+tres posts. Los seis prototipos code-native ya fueron renderizados con activos
+propios, casos sin marca, `EN FRÍAS`, explicación, precio sintético rotulado y
+CTA; no consumieron IA. Remotion quedó documentado como opción futura para
+Reels deterministas, pendiente de confirmar su licencia antes de instalarlo.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -60,9 +80,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T08` — aprobar calidad visual y factual. Sus dependencias `P4-T06`
-y `P4-T07` están completas; corresponde definir dataset, rúbrica, responsables
-y umbrales antes de habilitar la integración Meta.
+Continuar `P4-T08` — aprobar calidad visual y factual. El próximo paso es que el
+negocio revise los seis prototipos de `Producto + precio`, `Problema + solución`
+y `Surtido real`. Después se reemplazan los precios sintéticos por tres precios
+con fuente vigente y, sólo si algún caso realmente necesita generación, se
+ejecuta una muestra paga máxima de seis salidas. Todavía queda neutralizar el
+prompt que produce la estética repetida de IA. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
@@ -113,9 +136,9 @@ de la organización además de la biblioteca congelada.
   almacena ubicación ni datos de cámara. Se conserva la orientación aplicada a
   los píxeles, el color se normaliza a sRGB y se guardan los dos SHA-256 —el de
   los bytes recibidos y el del archivo normalizado— para no perder trazabilidad;
-- faltan fotos propias de lubricante clasificadas como material de producto: las
-  de lubricentro son del local, así que `lubricentro-producto-limpio` hoy sólo
-  puede resolverse con render determinista;
+- la muestra humana ya dispone de una foto de producto Wega autorizada por el
+  usuario. El dataset automático conserva el caso sintético de lubricante; no se
+  debe usar la foto de filtros como evidencia de un lubricante;
 - las tres fotos de la gata pasan la preparación como `mascot_photo`, pero
   todavía no están persistidas: la ingesta necesita PostgreSQL y una membresía
   real, así que subirlas es una operación de datos y no de código. La biblioteca

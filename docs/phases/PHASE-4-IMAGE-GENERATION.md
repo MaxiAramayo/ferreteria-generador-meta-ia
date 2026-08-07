@@ -1008,7 +1008,7 @@ mostrarse con seguridad.
 ## P4-T08 — Aprobar calidad visual y factual
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P4-T06`, `P4-T07`
 - Riesgo: Alto
 
@@ -1025,18 +1025,18 @@ legibilidad y seguridad antes de habilitar la integración Meta.
 
 ### Criterios de aceptación
 
-- [ ] La rúbrica separa calidad estética de exactitud comercial.
-- [ ] Precio, stock, producto, CTA y disclaimers se comparan con snapshot.
-- [ ] Se incluyen herramientas, lubricantes, ofertas y mensajes institucionales.
-- [ ] Ningún resultado crítico puede autoaprobarse.
-- [ ] Umbrales y responsables de aprobación están definidos.
-- [ ] Regresiones bloquean cambios de prompt, perfil o modelo.
+- [x] La rúbrica separa calidad estética de exactitud comercial.
+- [x] Precio, stock, producto, CTA y disclaimers se comparan con snapshot.
+- [x] Se incluyen herramientas, lubricantes, ofertas y mensajes institucionales.
+- [x] Ningún resultado crítico puede autoaprobarse.
+- [x] Umbrales y responsables de aprobación están definidos.
+- [x] Regresiones bloquean cambios de prompt, perfil o modelo.
 
 ### Verificación obligatoria
 
 - [ ] Ejecutar evaluación completa y guardar resultados.
 - [ ] Revisión humana ciega de una muestra acordada.
-- [ ] Introducir una pieza con error factual y confirmar rechazo.
+- [x] Introducir una pieza con error factual y confirmar rechazo.
 
 ### Fuera de alcance
 
@@ -1044,7 +1044,76 @@ legibilidad y seguridad antes de habilitar la integración Meta.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-07: se implementó la preevaluación automática sin red. El dataset
+  `image-quality/2026-08-07.1` cubre 18 combinaciones —seis perfiles por
+  `feed`, `cuadrado` e `historia`— y las cuatro categorías exigidas. Los datos
+  son sintéticos y no representan precio ni stock real de Aramayo.
+- Los checks binarios de producto, precio, stock, CTA y disclaimer se mantienen
+  separados de la rúbrica estética. Los 18 casos automáticos aprobaron con cero
+  fallos bloqueantes; una prueba introduce un precio incorrecto y confirma el
+  rechazo.
+- `ADR-017` propone que ninguna corrida se autoapruebe. La propuesta original
+  fue de 12 resultados reales; la decisión del negocio del 2026-08-07 la
+  reemplazó por seis: tres casos comerciales sin marca en `feed` e `historia`.
+  Se mantienen responsable comercial y visual, seis criterios, cero hallazgos
+  críticos, mínimo 3 por criterio, 4 por caso y 4,2 para la muestra.
+- La baseline queda ligada a dataset, prompt, perfil, modelo, composición y hash
+  de overlay por caso. La corrida automática permanece bloqueada con
+  `human-review-pending`, que es el estado correcto mientras no se acuerde y
+  ejecute la muestra ciega.
+- Verificaciones ejecutadas hasta ahora: `pnpm verify` completo en verde,
+  unitarias de dominio en verde (122) y
+  `pnpm image-quality:eval -- --write` con 18/18 casos. La corrida de control
+  sin `--write` terminó en el bloqueo esperado `human-review-pending`. No se
+  llamó a OpenAI ni se consumió presupuesto.
+- Pendiente: registrar las dos revisiones humanas, corregir la fidelidad del
+  producto Wega, repetir la muestra invalidada y ejecutar `pnpm verify` antes
+  del cierre.
+- 2026-08-07: el usuario aportó la foto del filtro Wega FCI 1101C y confirmó que
+  el negocio tiene permiso para usar las marcas de los productos. El dataset
+  automático conserva el lubricante sintético para no perder esa cobertura; la
+  muestra humana usa el brief y snapshot específicos del filtro, sin precio ni
+  stock inventados.
+- Se agregó una corrida manual protegida por ambiente staging y confirmación
+  explícita de costo de salida. Preparó 12 bases reales y el paquete ciego
+  `A01`–`A12` en `output/image-quality-review/`; los 12 request ID y el uso
+  quedaron en el manifiesto ignorado por Git. Images informó un costo liquidado
+  total de USD 0,657, frente a USD 0,492 de salida estimada; la diferencia
+  corresponde a tokens de entrada de las referencias.
+- La inspección preliminar rechazó la fidelidad del Wega: `A03` y `A04`
+  conservaron sólo la paleta general de la caja, eliminaron marca/código y
+  `A04` agregó un filtro blanco genérico. La hoja ciega permanece sin firmar y
+  la tarea abierta. El próximo cambio debe componer el producto real de forma
+  determinista en lugar de pedirle al modelo que reinterprete su etiqueta.
+- 2026-08-07: el usuario rechazó además la apariencia general de IA, el filtro
+  cinematográfico repetido y los errores de geometría en vehículos, ladrillos,
+  discos, productos y fachadas. Aprobó explorar fotos propias, activos
+  autorizados de fabricantes y representaciones de categoría, siempre que no se
+  presenten como el producto exacto. El plan de rediseño, las tres familias
+  mínimas, el anclaje visible en Frías y el prompt v3 quedaron documentados en
+  [`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](../operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
+  Esa propuesta inicial quedó reemplazada por una sola pareja de prototipos por
+  familia: tres posts y tres historias en total.
+- 2026-08-07: esa cantidad se redujo por decisión del usuario a seis piezas
+  totales: tres posts y tres historias, una pareja por cada familia. Se
+  implementaron variantes code-native de `Producto + precio`, `Problema +
+  solución` y `Surtido real`, con logo grande, `EN FRÍAS`, explicación, precio,
+  CTA y disclaimer deterministas. `pnpm image-creative:prototype` exportó las
+  seis piezas usando exclusivamente fotos propias y cero llamadas de IA. Los
+  precios están marcados `PRECIO SINTÉTICO · NO PUBLICAR` hasta contar con una
+  fuente comercial vigente.
+- La próxima muestra paga también queda limitada a seis resultados. Conserva
+  la matriz automática local de 18 casos, pero selecciona sólo tres perfiles
+  comerciales con precio, cada uno en `feed` e `historia`. El costo de salida de
+  referencia baja de USD 0,492 a USD 0,246 más tokens de entrada.
+- Se documentó en `ADR-018` una vía futura para Reels code-native con Remotion y
+  cero tokens de IA. No se instaló la dependencia: antes debe confirmarse qué
+  licencia comercial corresponde al tamaño del equipo y al render automatizado.
+- Verificaciones de esta iteración: `pnpm image-creative:prototype` exportó 6/6
+  PNG; `pnpm image-quality:eval -- --write` mantuvo 18/18 casos automáticos y
+  actualizó la muestra pendiente a 6; `pnpm verify` completó stack, plan,
+  formato, build, lint, tipos, pruebas, baseline y smoke en verde. No se llamó a
+  OpenAI, no se publicó contenido y no se instaló Remotion.
 
 ### Evidencia de cierre
 

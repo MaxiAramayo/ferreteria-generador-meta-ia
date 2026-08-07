@@ -49,6 +49,11 @@
 - [`operations/SECRETS.md`](operations/SECRETS.md): almacenamiento, cifrado y
   rotación.
 - [`operations/TESTING.md`](operations/TESTING.md)
+- [`operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md):
+  estrategia propuesta para activos reales, imágenes ilustrativas, formatos de
+  producto, anclaje local y prompt visual v3.
+- [`operations/IMAGE-QUALITY-EVALUATION.md`](operations/IMAGE-QUALITY-EVALUATION.md):
+  dataset, rúbrica, muestra real y gate de calidad de Fase 4.
 - [`operations/RELIABLE_OPERATIONS.md`](operations/RELIABLE_OPERATIONS.md):
   idempotencia, auditoría, outbox, leases y retención.
 - [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md)
