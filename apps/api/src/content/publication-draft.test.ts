@@ -302,6 +302,10 @@ class InMemoryMediaAssetRepository implements MediaAssetRepository {
     availableMedia,
   ]);
 
+  auditRetention(): Promise<void> {
+    return Promise.resolve();
+  }
+
   beginDeletion(): Promise<BeginMediaDeletionResult> {
     throw new Error("Not used by publication draft tests.");
   }
@@ -344,6 +348,10 @@ class InMemoryMediaAssetRepository implements MediaAssetRepository {
           asset.id === requestedMediaAssetId,
       ) ?? null,
     );
+  }
+
+  findExpiredUnreferenced(): Promise<readonly []> {
+    return Promise.resolve([]);
   }
 
   reserveUpload(): Promise<MediaUploadReservation> {

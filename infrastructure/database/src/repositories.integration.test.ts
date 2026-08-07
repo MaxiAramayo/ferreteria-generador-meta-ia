@@ -29,9 +29,11 @@ import {
   PrismaContentBriefRunRepository,
 } from "./content-brief-run-repository.ts";
 import {
+  PrismaGenerationRunEditorialRepository,
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";
+import { PrismaGenerationPolicyRepository } from "./generation-governance-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -1065,6 +1067,21 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
     ).mediaAssetId,
     mediaAssetId,
   );
+  await database.publicationRevision.update({
+    data: {
+      renderedAt: new Date("2026-07-28T12:30:00.000Z"),
+      renderedMediaAssetId: replacementMediaAssetId,
+    },
+    where: { id: revisionId },
+  });
+  assert.deepEqual(
+    await repository.beginDeletion({
+      mediaAssetId: replacementMediaAssetId,
+      organizationId,
+      requestedAt: new Date().toISOString(),
+    }),
+    { status: "in-use" },
+  );
   assert.deepEqual(
     (
       await database.approvalSnapshot.findUniqueOrThrow({
@@ -1120,6 +1137,12 @@ test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias"
     requestedAt: new Date().toISOString(),
   });
   assert.equal(pendingDeletion.status, "ready");
+  await assert.rejects(
+    database.publicationRevision.update({
+      data: { renderedMediaAssetId: deletableMediaAssetId },
+      where: { id: revisionId },
+    }),
+  );
   await assert.rejects(
     database.publicationRevisionMedia.create({
       data: {
@@ -3133,6 +3156,10 @@ async function generationFixture(): Promise<{
   await database.organizationMembership.create({
     data: { id: membershipId, organizationId, roles: ["editor"], userId },
   });
+  await database.generationPolicy.update({
+    data: { enabled: true },
+    where: { organizationId },
+  });
   await database.contentBriefRun.create({
     data: {
       actorMembershipId: membershipId,
@@ -3158,6 +3185,93 @@ async function generationFixture(): Promise<{
   });
   return { briefRunId, membershipId, organizationId };
 }
+
+test("una organización nueva nace con política deshabilitada y CAS administrable", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización nueva",
+      id: organizationId,
+      legalName: "Organización nueva",
+      slug: `new-generation-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Administradora nueva",
+      email: `${userId}@new-generation.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["admin"], userId },
+  });
+  const policies = new PrismaGenerationPolicyRepository(database);
+  const created = await policies.find({
+    actorMembershipId: membershipId,
+    at: "2026-08-06T12:00:00.000Z",
+    organizationId,
+  });
+  assert.ok(created !== null);
+  assert.equal(created.policy.enabled, false);
+
+  const update = {
+    enabled: true,
+    expectedVersion: created.policy.version,
+    generatedOrphanRetentionHours: 24,
+    monthlyBudgetMicrousd: 20_000_000,
+    organizationDailyAttemptLimit: 20,
+    originalRetentionDays: 90,
+    referenceRetentionDays: 30,
+    userDailyAttemptLimit: 8,
+    warningThresholdPercent: 80,
+  } as const;
+  assert.equal(
+    (
+      await policies.update({
+        actorMembershipId: membershipId,
+        at: "2026-08-06T12:01:00.000Z",
+        organizationId,
+        update,
+      })
+    ).status,
+    "updated",
+  );
+  assert.equal(
+    (
+      await policies.update({
+        actorMembershipId: membershipId,
+        at: "2026-08-06T12:02:00.000Z",
+        organizationId,
+        update,
+      })
+    ).status,
+    "conflict",
+  );
+
+  await database.generationBudgetAlert.create({
+    data: {
+      committedMicrousd: 16_000_000,
+      id: randomUUID(),
+      monthUtc: "2026-08",
+      organizationId,
+      thresholdPercent: 80,
+    },
+  });
+  await assert.rejects(
+    database.generationBudgetAlert.create({
+      data: {
+        committedMicrousd: 18_000_000,
+        id: randomUUID(),
+        monthUtc: "2026-08",
+        organizationId,
+        thresholdPercent: 90,
+      },
+    }),
+  );
+});
 
 test("el lote de generación conserva su ciclo de vida y sus variantes", async () => {
   const { briefRunId, membershipId, organizationId } =
@@ -3229,10 +3343,46 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
     },
   });
 
+  // La pieza compuesta es un activo distinto de la base: la base prueba qué
+  // generó el modelo y la pieza es lo que se publica.
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: composedAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 740_000n,
+      checksumSha256: randomHash(),
+      height: 1350,
+      mimeType: "image/png",
+      originalFileName: "pieza.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/pieza-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/pieza-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+
+  const composition = {
+    compositionHash: "c".repeat(64),
+    height: 1350,
+    layout: "composicion-tercio-inferior",
+    mediaAssetId: composedAssetId,
+    overlayHash: "d".repeat(64),
+    sha256: "e".repeat(64),
+    theme: "taller",
+    version: "visual-composition/2026-08-05.1",
+    width: 1080,
+  };
+
   assert.deepEqual(
     await repository.completeVariant(
       {
         attempts: 1,
+        composition,
         height: 1536,
         latencyMilliseconds: 4_200,
         mediaAssetId,
@@ -3278,6 +3428,7 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
     await repository.completeVariant(
       {
         attempts: 1,
+        composition,
         height: 1536,
         latencyMilliseconds: 100,
         mediaAssetId,
@@ -3330,6 +3481,66 @@ test("el lote de generación conserva su ciclo de vida y sus variantes", async (
   // presentarla como fallo sugeriría un problema del proveedor que no ocurrió.
   assert.equal(variantAt(completed, 2).status, "discarded");
   assert.equal(variantAt(completed, 2).failure, null);
+
+  const mediaRepository = new PrismaMediaAssetRepository(database);
+  assert.deepEqual(
+    await mediaRepository.beginDeletion({
+      mediaAssetId,
+      organizationId,
+      requestedAt: "2026-08-04T12:00:00.000Z",
+    }),
+    { status: "in-use" },
+  );
+  assert.deepEqual(
+    await mediaRepository.beginDeletion({
+      mediaAssetId: composedAssetId,
+      organizationId,
+      requestedAt: "2026-08-04T12:00:00.000Z",
+    }),
+    { status: "in-use" },
+  );
+  const deletingAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      id: deletingAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: "deleting.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/deleting-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/deleting-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+  assert.equal(
+    (
+      await mediaRepository.beginDeletion({
+        mediaAssetId: deletingAssetId,
+        organizationId,
+        requestedAt: "2026-08-04T12:00:00.000Z",
+      })
+    ).status,
+    "ready",
+  );
+  await assert.rejects(
+    database.generationRunVariant.update({
+      data: { mediaAssetId: deletingAssetId },
+      where: { id: variantIds[0] ?? "" },
+    }),
+  );
+  await assert.rejects(
+    database.generationRunVariant.update({
+      data: { composedMediaAssetId: deletingAssetId },
+      where: { id: variantIds[0] ?? "" },
+    }),
+  );
 
   // Cerrar dos veces no reescribe un lote ya terminado.
   assert.deepEqual(
@@ -3415,6 +3626,19 @@ test("cancelar un lote impide promover el resultado tardío", async () => {
     await repository.completeVariant(
       {
         attempts: 1,
+        // La composición no llega a escribirse: el lote ya está cancelado y la
+        // escritura entera se descarta.
+        composition: {
+          compositionHash: "f".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId,
+          overlayHash: "0".repeat(64),
+          sha256: "1".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
         height: 1536,
         latencyMilliseconds: 5_000,
         mediaAssetId,
@@ -3497,6 +3721,12 @@ test("el pedido de generación reserva, encola y no factura dos lotes", async ()
   };
 
   assert.deepEqual(await requests.request(input), {
+    admission: {
+      mode: "provider",
+      pricingVersion: "openai-gpt-image-2-standard-2026-08-05",
+      referenceCostMicrousd: 82_000,
+      reservedCostMicrousd: 402_000,
+    },
     runId: input.id,
     status: "accepted",
   });
@@ -3516,7 +3746,16 @@ test("el pedido de generación reserva, encola y no factura dos lotes", async ()
       id: randomUUID(),
       variantIds: [randomUUID(), randomUUID()],
     }),
-    { runId: input.id, status: "accepted" },
+    {
+      admission: {
+        mode: "provider",
+        pricingVersion: "openai-gpt-image-2-standard-2026-08-05",
+        referenceCostMicrousd: 82_000,
+        reservedCostMicrousd: 402_000,
+      },
+      runId: input.id,
+      status: "accepted",
+    },
   );
   assert.equal(
     await database.generationRun.count({ where: { organizationId } }),
@@ -3581,6 +3820,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
   const { briefRunId, membershipId, organizationId } =
     await generationFixture();
 
+  const invalidLifecycleRunId = randomUUID();
   // Un lote pendiente no puede tener instante de cierre.
   await assert.rejects(
     database.generationRun.create({
@@ -3589,7 +3829,8 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
         completedAt: new Date("2026-08-03T15:00:00.000Z"),
         contentBriefRunId: briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: invalidLifecycleRunId,
+        lineageRootId: invalidLifecycleRunId,
         organizationId,
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
         status: "pending",
@@ -3597,6 +3838,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
     }),
   );
 
+  const invalidPlanRunId = randomUUID();
   // El plan es indivisible: perfil sin hash no permite comparar dos lotes.
   await assert.rejects(
     database.generationRun.create({
@@ -3605,7 +3847,8 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
         completedAt: new Date("2026-08-03T15:00:00.000Z"),
         contentBriefRunId: briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: invalidPlanRunId,
+        lineageRootId: invalidPlanRunId,
         organizationId,
         profileId: "ferreteria-producto-limpio",
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
@@ -3621,6 +3864,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
       contentBriefRunId: briefRunId,
       format: "feed",
       id: runId,
+      lineageRootId: runId,
       organizationId,
       requestedAt: new Date("2026-08-03T15:00:00.000Z"),
       status: "pending",
@@ -3658,13 +3902,15 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
   // Un lote no puede citar una ejecución de brief ajena: la clave foránea es
   // compuesta por organización.
   const other = await generationFixture();
+  const crossTenantRunId = randomUUID();
   await assert.rejects(
     database.generationRun.create({
       data: {
         actorMembershipId: membershipId,
         contentBriefRunId: other.briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: crossTenantRunId,
+        lineageRootId: crossTenantRunId,
         organizationId,
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
         status: "pending",
@@ -3732,5 +3978,537 @@ test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async ()
   assert.equal(
     await database.generationRunVariant.count({ where: { organizationId } }),
     2,
+  );
+});
+
+test("dos pedidos concurrentes no sobreasignan la cuota diaria del usuario", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  await database.generationPolicy.update({
+    data: { userDailyAttemptLimit: 2 },
+    where: { organizationId },
+  });
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const request = (
+    suffix: string,
+  ): ReturnType<PrismaGenerationRunRequestRepository["request"]> =>
+    requests.request({
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: randomUUID(),
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        `content.generation:quota-${suffix}`,
+      ),
+      requestedAt: "2026-08-06T23:59:59.000Z",
+      subjectKind: "generic",
+      variantIds: [randomUUID(), randomUUID()],
+    });
+
+  const admissions = (await Promise.all([request("a"), request("b")]))
+    .map((result) => {
+      assert.equal(result.status, "accepted");
+      return result.admission;
+    })
+    .toSorted((left, right) => left.mode.localeCompare(right.mode));
+  assert.equal(admissions[0]?.mode, "deterministic");
+  assert.deepEqual(admissions[0], {
+    mode: "deterministic",
+    reason: "user-daily-limit",
+  });
+  assert.equal(admissions[1]?.mode, "provider");
+  assert.equal(
+    await database.generationAttempt.count({ where: { organizationId } }),
+    2,
+  );
+});
+
+test("la cuota diaria se reinicia exactamente en la medianoche UTC", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  await database.generationPolicy.update({
+    data: { userDailyAttemptLimit: 1 },
+    where: { organizationId },
+  });
+  const requests = new PrismaGenerationRunRequestRepository(database);
+  const requestAt = (
+    requestedAt: string,
+  ): ReturnType<PrismaGenerationRunRequestRepository["request"]> =>
+    requests.request({
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: randomUUID(),
+      organizationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.generation:utc-boundary",
+      ),
+      requestedAt,
+      subjectKind: "generic",
+      variantIds: [randomUUID()],
+    });
+
+  const beforeMidnight = await requestAt("2026-08-06T23:59:59.999Z");
+  const afterMidnight = await requestAt("2026-08-07T00:00:00.000Z");
+  assert.equal(beforeMidnight.status, "accepted");
+  assert.equal(afterMidnight.status, "accepted");
+  assert.equal(beforeMidnight.admission.mode, "provider");
+  assert.equal(afterMidnight.admission.mode, "provider");
+});
+
+test("una variante determinista sale sin base y con pieza compuesta", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const repository = new PrismaGenerationRunRepository(database);
+  const runId = randomUUID();
+  const variantIds = [randomUUID(), randomUUID()];
+
+  await repository.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: runId,
+    organizationId,
+    requestedAt: "2026-08-05T12:00:00.000Z",
+    subjectKind: "branded",
+    variantIds,
+  });
+
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: composedAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 640_000n,
+      checksumSha256: randomHash(),
+      height: 1350,
+      mimeType: "image/png",
+      originalFileName: "pieza-determinista.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/deterministica-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/deterministica-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+
+  assert.deepEqual(
+    await repository.completeDeterministicVariant(
+      {
+        composition: {
+          compositionHash: "a".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: composedAssetId,
+          overlayHash: "b".repeat(64),
+          sha256: "c".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        organizationId,
+        runId,
+        variantId: variantIds[0] ?? "",
+      },
+      "2026-08-05T12:00:10.000Z",
+    ),
+    { status: "written" },
+  );
+
+  // Las demás no se intentaron: una pieza determinista es siempre la misma, así
+  // que pedir copias idénticas no tendría sentido.
+  await repository.discardPendingVariants({
+    discardedAt: "2026-08-05T12:00:11.000Z",
+    organizationId,
+    runId,
+  });
+
+  const record = await repository.findById({ id: runId, organizationId });
+  assert.ok(record !== null);
+  const [first, second] = record.variants;
+  assert.ok(first !== undefined && second !== undefined);
+
+  assert.equal(first.status, "succeeded");
+  assert.equal(first.source, "deterministic");
+  // No hubo proveedor: no hay base, ni hash de base, ni modelo.
+  assert.equal(first.mediaAssetId, null);
+  assert.equal(first.sha256, null);
+  assert.equal(first.model, null);
+  assert.ok(first.composition !== null);
+  assert.equal(first.composition.mediaAssetId, composedAssetId);
+  assert.equal(first.composition.layout, "composicion-tercio-inferior");
+  assert.equal(second.status, "discarded");
+});
+
+test("E2E generar-editar-comparar-seleccionar conserva genealogía y auditoría", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runs = new PrismaGenerationRunRepository(database);
+  const editorial = new PrismaGenerationRunEditorialRepository(database);
+  const parentRunId = randomUUID();
+  const parentVariantId = randomUUID();
+  await runs.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: parentRunId,
+    organizationId,
+    requestedAt: "2026-08-06T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds: [parentVariantId],
+  });
+
+  const baseAssetId = randomUUID();
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.createMany({
+    data: [
+      {
+        byteSize: 600_000n,
+        checksumSha256: "1".repeat(64),
+        height: 1536,
+        id: baseAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "base-edicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${baseAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${baseAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1024,
+      },
+      {
+        byteSize: 640_000n,
+        checksumSha256: "2".repeat(64),
+        height: 1350,
+        id: composedAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "pieza-edicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${composedAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${composedAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+    ],
+  });
+  await runs.completeVariant(
+    {
+      attempts: 1,
+      composition: {
+        compositionHash: "3".repeat(64),
+        height: 1350,
+        layout: "composicion-tercio-inferior",
+        mediaAssetId: composedAssetId,
+        overlayHash: "4".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-08-05.1",
+        width: 1080,
+      },
+      height: 1536,
+      latencyMilliseconds: 2_000,
+      mediaAssetId: baseAssetId,
+      model: "gpt-image-2",
+      organizationId,
+      requestId: "request-parent",
+      runId: parentRunId,
+      sha256: "1".repeat(64),
+      status: "succeeded",
+      variantId: parentVariantId,
+      width: 1024,
+    },
+    "2026-08-06T12:00:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: 0.04,
+      id: parentRunId,
+      organizationId,
+      plan: {
+        format: "feed",
+        profileId: "ferreteria-producto-limpio",
+        profileVersion: "visual-profile/2026-08-03.2",
+        promptHash: "5".repeat(64),
+        promptVersion: "visual-prompt/2026-08-03.2",
+      },
+      resolution: null,
+      status: "completed",
+      totalTokens: 100,
+    },
+    "2026-08-06T12:00:06.000Z",
+  );
+
+  const childRunId = randomUUID();
+  const childVariantId = randomUUID();
+  const editOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:edit",
+  );
+  const edited = await editorial.requestEdit({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    edit: {
+      instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+      kind: "visual",
+      parentRunId,
+      parentVariantId,
+    },
+    format: "feed",
+    id: childRunId,
+    organizationId,
+    reliableOperation: editOperation,
+    requestedAt: "2026-08-06T12:10:00.000Z",
+    subjectKind: "generic",
+    variantIds: [childVariantId],
+  });
+  assert.equal(edited.status, "accepted");
+  const child = await runs.findById({ id: childRunId, organizationId });
+  assert.ok(child);
+  assert.equal(child.lineageRootId, parentRunId);
+  assert.deepEqual(child.edit, {
+    instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+    kind: "visual",
+    parentRunId,
+    parentVariantId,
+  });
+  await runs.completeVariant(
+    {
+      attempts: 1,
+      composition: {
+        compositionHash: "6".repeat(64),
+        height: 1350,
+        layout: "composicion-tercio-inferior",
+        mediaAssetId: composedAssetId,
+        overlayHash: "4".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-08-05.1",
+        width: 1080,
+      },
+      height: 1536,
+      latencyMilliseconds: 1_500,
+      mediaAssetId: baseAssetId,
+      model: "gpt-image-2",
+      organizationId,
+      requestId: "request-child",
+      runId: childRunId,
+      sha256: "1".repeat(64),
+      status: "succeeded",
+      variantId: childVariantId,
+      width: 1024,
+    },
+    "2026-08-06T12:10:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: 0.05,
+      id: childRunId,
+      organizationId,
+      plan: {
+        format: "feed",
+        profileId: "ferreteria-producto-limpio",
+        profileVersion: "visual-profile/2026-08-03.2",
+        promptHash: "7".repeat(64),
+        promptVersion: "visual-edit/2026-08-06.1",
+      },
+      resolution: null,
+      status: "completed",
+      totalTokens: 120,
+    },
+    "2026-08-06T12:10:06.000Z",
+  );
+  const comparison = await runs.list({
+    limit: 10,
+    lineageRootId: parentRunId,
+    organizationId,
+    page: 1,
+  });
+  assert.equal(comparison.total, 2);
+  assert.deepEqual(
+    comparison.items.map((record) => record.plan?.promptVersion).toSorted(),
+    ["visual-edit/2026-08-06.1", "visual-prompt/2026-08-03.2"],
+  );
+  assert.notEqual(
+    comparison.items[0]?.variants[0]?.composition?.compositionHash,
+    comparison.items[1]?.variants[0]?.composition?.compositionHash,
+  );
+
+  const selectionOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:select-variant",
+  );
+  assert.deepEqual(
+    await editorial.selectVariant({
+      actorMembershipId: membershipId,
+      expectedSelectionVersion: 0,
+      organizationId,
+      reliableOperation: selectionOperation,
+      runId: parentRunId,
+      selectedAt: "2026-08-06T12:11:00.000Z",
+      variantId: parentVariantId,
+    }),
+    {
+      selectedVariantId: parentVariantId,
+      selectionVersion: 1,
+      status: "selected",
+    },
+  );
+  const selectedParent = await runs.findById({
+    id: parentRunId,
+    organizationId,
+  });
+  assert.ok(selectedParent);
+  assert.equal(selectedParent.selectedVariantId, parentVariantId);
+  assert.equal(selectedParent.variants.length, 1);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        operation: {
+          in: ["content.generation:edit", "content.generation:select-variant"],
+        },
+        organizationId,
+      },
+    }),
+    2,
+  );
+});
+
+test("la base rechaza una variante que salió sin pieza o con pieza a medias", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runId = randomUUID();
+
+  await database.generationRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: runId,
+      lineageRootId: runId,
+      organizationId,
+      requestedAt: new Date("2026-08-05T12:00:00.000Z"),
+      startedAt: new Date("2026-08-05T12:00:01.000Z"),
+      status: "running",
+    },
+  });
+
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      id: mediaAssetId,
+      organizationId,
+      origin: "generated",
+      byteSize: 512_000n,
+      checksumSha256: randomHash(),
+      height: 1536,
+      mimeType: "image/png",
+      originalFileName: "base.png",
+      ownerMembershipId: membershipId,
+      secureUrl: `https://media.invalid/base-${randomUUID()}.png`,
+      status: "available",
+      storageKey: `generated/base-${randomUUID()}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1024,
+    },
+  });
+
+  // Una pieza sobre una variante que no salió no describe nada: una fallida no
+  // tiene qué componer y una descartada nunca se intentó.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 1,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedHeight: 1350,
+        composedMediaAssetId: mediaAssetId,
+        composedSha256: "c".repeat(64),
+        composedWidth: 1080,
+        compositionHash: "d".repeat(64),
+        compositionLayout: "composicion-tercio-inferior",
+        compositionOverlayHash: "e".repeat(64),
+        compositionTheme: "taller",
+        compositionVersion: "visual-composition/2026-08-05.1",
+        failureCode: "rate-limit",
+        failureCorrection: "Reintentá el lote en unos minutos.",
+        failureDetail: "El proveedor limitó la tasa.",
+        id: randomUUID(),
+        organizationId,
+        position: 0,
+        runId,
+        status: "failed",
+      },
+    }),
+  );
+
+  // Y una composición a medias no permitiría comparar dos piezas ni saber con
+  // qué reglas se armó, que es para lo que se guarda.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 1,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedMediaAssetId: mediaAssetId,
+        compositionHash: "b".repeat(64),
+        height: 1536,
+        id: randomUUID(),
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        position: 1,
+        runId,
+        sha256: "a".repeat(64),
+        status: "succeeded",
+        width: 1024,
+      },
+    }),
+  );
+
+  // Una variante determinista no puede arrastrar base ni modelo: la pieza es
+  // enteramente del motor.
+  await assert.rejects(
+    database.generationRunVariant.create({
+      data: {
+        attempts: 0,
+        completedAt: new Date("2026-08-05T12:00:10.000Z"),
+        composedHeight: 1350,
+        composedMediaAssetId: mediaAssetId,
+        composedSha256: "c".repeat(64),
+        composedWidth: 1080,
+        compositionHash: "d".repeat(64),
+        compositionLayout: "composicion-tercio-inferior",
+        compositionOverlayHash: "e".repeat(64),
+        compositionTheme: "taller",
+        compositionVersion: "visual-composition/2026-08-05.1",
+        height: 1536,
+        id: randomUUID(),
+        mediaAssetId,
+        model: "gpt-image-1",
+        organizationId,
+        position: 2,
+        runId,
+        sha256: "a".repeat(64),
+        source: "deterministic",
+        status: "succeeded",
+        width: 1024,
+      },
+    }),
   );
 });

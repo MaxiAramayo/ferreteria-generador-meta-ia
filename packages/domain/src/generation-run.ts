@@ -15,6 +15,11 @@
  */
 
 import type { ImageGenerationFailureCode } from "./image-generation.ts";
+import type {
+  GenerationAdmission,
+  GenerationAdmissionReason,
+  GenerationAttemptUsage,
+} from "./generation-governance.ts";
 import type { OrganizationScope } from "./persistence.ts";
 import type { PaginatedRecords } from "./publication-draft.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
@@ -34,7 +39,36 @@ export const generationRunLimits = Object.freeze({
    */
   variantsMaximum: 4,
   variantsMinimum: 1,
+  editInstructionMaximum: 600,
+  editInstructionMinimum: 8,
 });
+
+export const generationEditKinds = ["visual", "factual"] as const;
+export type GenerationEditKind = (typeof generationEditKinds)[number];
+
+export interface GenerationRunEdit {
+  readonly instruction: string;
+  readonly kind: GenerationEditKind;
+  readonly parentRunId: string;
+  readonly parentVariantId: string;
+}
+
+/**
+ * Guardia deliberadamente conservadora para el camino visual.
+ *
+ * No intenta comprender lenguaje natural. Detecta las categorías que nunca se
+ * pueden cambiar sólo enviando píxeles al proveedor: precio, disponibilidad,
+ * promoción, horario o identidad del producto. Ante duda se exige el camino
+ * factual, que vuelve a construir y validar evidencia.
+ */
+const factualEditSignal =
+  /(?:\bprecio\b|\bimporte\b|\bvalor\b|\bstock\b|\bdisponib|\bpromoci|\boferta\b|\bdescuento\b|\bvigencia\b|\bhorario\b|\bsku\b|\bmodelo\b|\bmarca\b|(?:cambi|reemplaz|sustitu)[a-záéíóúñ]*\s+(?:el\s+)?producto|\botro producto\b|\bnuevo producto\b|\$\s*\d|\d\s*%)/iu;
+
+export function generationEditNeedsFactualRevalidation(
+  instruction: string,
+): boolean {
+  return factualEditSignal.test(instruction);
+}
 
 /**
  * Estados del lote.
@@ -107,9 +141,22 @@ export type GenerationVariantStatus =
  * la ingesta de entradas visuales en `P4-T02`. `detail` lo escribimos nosotros
  * y nunca arrastra el mensaje del proveedor, que puede traer el prompt
  * reflejado o una URL temporal.
+ *
+ * Casi todos los motivos son del proveedor de imágenes, pero no todos:
+ * `composition-failed` es nuestro. La imagen puede haber llegado bien y aun así
+ * la pieza no componerse —el navegador que renderiza se cayó, el documento no
+ * se pudo armar—, y presentarlo como un fallo de OpenAI mandaría a reintentar
+ * contra el lugar equivocado.
  */
+export type GenerationVariantFailureCode =
+  | ImageGenerationFailureCode
+  | GenerationAdmissionReason
+  | "composition-failed"
+  | "moderation-rejected"
+  | "moderation-unavailable";
+
 export interface GenerationVariantFailure {
-  readonly code: ImageGenerationFailureCode;
+  readonly code: GenerationVariantFailureCode;
   readonly correction: string;
   readonly detail: string;
 }
@@ -117,6 +164,12 @@ export interface GenerationVariantFailure {
 export interface GenerationVariantRecord {
   readonly attempts: number;
   readonly completedAt: string | null;
+  /**
+   * Pieza compuesta con la capa de marca. Toda variante que salió la tiene: se
+   * escribe junto al resultado, porque componer necesita los bytes de la base
+   * y esos bytes sólo existen mientras la generación está en curso.
+   */
+  readonly composition: GenerationVariantComposition | null;
   readonly failure: GenerationVariantFailure | null;
   readonly height: number | null;
   readonly id: string;
@@ -128,6 +181,7 @@ export interface GenerationVariantRecord {
   readonly model: string | null;
   readonly requestId: string | null;
   readonly sha256: string | null;
+  readonly source: GenerationVariantSource;
   readonly status: GenerationVariantStatus;
   readonly width: number | null;
 }
@@ -186,15 +240,31 @@ export interface GenerationRunReservation {
  * lado del outbox. Anotarlo al reservar sería adivinar cuál va a ejecutar.
  */
 export interface GenerationRunRecord extends GenerationRunReservation {
+  readonly admission: GenerationAdmission;
   readonly cancelledAt: string | null;
   readonly completedAt: string | null;
   readonly estimatedCostUsd: number | null;
+  readonly edit: GenerationRunEdit | null;
+  /** Raíz estable que permite consultar toda la genealogía sin recursión. */
+  readonly lineageRootId: string;
   readonly plan: GenerationRunPlan | null;
   readonly resolution: GenerationRunResolution | null;
   readonly startedAt: string | null;
   readonly status: GenerationRunStatus;
+  readonly selectedAt: string | null;
+  readonly selectedByMembershipId: string | null;
+  readonly selectedVariantId: string | null;
+  readonly selectionVersion: number;
   readonly totalTokens: number;
+  readonly cost: GenerationRunCost;
   readonly variants: readonly GenerationVariantRecord[];
+}
+
+export interface GenerationRunCost extends GenerationAttemptUsage {
+  readonly pricingVersion: string | null;
+  readonly reservedMicrousd: number;
+  readonly settledMicrousd: number;
+  readonly unconfirmedMicrousd: number;
 }
 
 /**
@@ -278,6 +348,7 @@ interface GenerationVariantCompletionBase {
 export type GenerationVariantCompletion =
   | (GenerationVariantCompletionBase &
       Readonly<{
+        composition: GenerationVariantComposition;
         height: number;
         mediaAssetId: string;
         model: string;
@@ -290,6 +361,52 @@ export type GenerationVariantCompletion =
         failure: GenerationVariantFailure;
         status: "failed";
       }>);
+
+/**
+ * De dónde salió la variante.
+ *
+ * `deterministic` es la pieza que produce el motor de marca sin imagen
+ * generada: el brief pidió plantilla, la generación está apagada o no hay foto
+ * aprobada. No gastó una llamada al proveedor, así que no tiene base ni modelo,
+ * pero sí es una pieza terminada. Presentarla como pendiente o como fallida
+ * sugeriría un problema que no ocurrió.
+ */
+export const generationVariantSources = ["generated", "deterministic"] as const;
+
+export type GenerationVariantSource = (typeof generationVariantSources)[number];
+
+/**
+ * Pieza compuesta con la capa de marca (`P4-T05`).
+ *
+ * Es un activo distinto de la base: la base prueba qué generó el modelo y la
+ * pieza es lo que se publica. `compositionHash` cubre versión, pieza, tema,
+ * formato, copy y base, así que dos composiciones iguales se reconocen sin
+ * comparar píxeles; `overlayHash` cubre sólo la capa determinista, que es lo
+ * que permite ver si dos variantes comparten el mismo texto sobre bases
+ * distintas.
+ */
+export interface GenerationVariantComposition {
+  readonly compositionHash: string;
+  readonly height: number;
+  readonly layout: string;
+  readonly mediaAssetId: string;
+  readonly overlayHash: string;
+  readonly sha256: string;
+  readonly theme: string;
+  readonly version: string;
+  readonly width: number;
+}
+
+/**
+ * Variante que sale sin proveedor: se resuelve y se compone en una sola
+ * escritura, porque no hay nada intermedio que conservar si algo falla.
+ */
+export interface GenerationDeterministicVariantWrite {
+  readonly composition: GenerationVariantComposition;
+  readonly organizationId: string;
+  readonly runId: string;
+  readonly variantId: string;
+}
 
 /** Lo que agrega el lote cuando termina. */
 export interface GenerationRunCompletion {
@@ -326,16 +443,51 @@ export type GenerationRunCancellationOutcome =
 export interface GenerationRunListFilter extends OrganizationScope {
   readonly actorMembershipId?: string;
   readonly contentBriefRunId?: string;
+  readonly lineageRootId?: string;
   readonly limit: number;
   readonly page: number;
 }
 
 export interface RequestGenerationRunInput extends GenerationRunReservation {
+  readonly edit?: null;
   readonly reliableOperation: ReliableMutationContext;
 }
 
+export interface RequestGenerationRunEditInput extends Omit<
+  RequestGenerationRunInput,
+  "edit"
+> {
+  readonly edit: GenerationRunEdit;
+}
+
+export type GenerationVariantSelectionResult =
+  | Readonly<{
+      selectedVariantId: string;
+      selectionVersion: number;
+      status: "selected";
+    }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{ selectionVersion: number; status: "version-conflict" }>
+  | Readonly<{ status: "variant-unavailable" }>;
+
+export interface SelectGenerationVariantInput {
+  readonly actorMembershipId: string;
+  readonly expectedSelectionVersion: number;
+  readonly organizationId: string;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly runId: string;
+  readonly selectedAt: string;
+  readonly variantId: string;
+}
+
 export type GenerationRunRequestResult =
-  | Readonly<{ runId: string; status: "accepted" }>
+  | Readonly<{
+      admission: GenerationAdmission;
+      runId: string;
+      status: "accepted";
+    }>
   | Readonly<{ status: "idempotency-conflict" }>
   | Readonly<{ retryAfter: string; status: "in-progress" }>;
 
@@ -361,6 +513,16 @@ export interface GenerationRunRequestRepository {
   ): Promise<GenerationRunRequestResult>;
 }
 
+/** Mutaciones editoriales separadas de las escrituras del worker. */
+export interface GenerationRunEditorialRepository {
+  requestEdit(
+    input: RequestGenerationRunEditInput,
+  ): Promise<GenerationRunRequestResult>;
+  selectVariant(
+    input: SelectGenerationVariantInput,
+  ): Promise<GenerationVariantSelectionResult>;
+}
+
 export interface GenerationRunRepository {
   cancel(input: {
     readonly cancelledAt: string;
@@ -380,6 +542,20 @@ export interface GenerationRunRepository {
     completion: GenerationVariantCompletion,
     completedAt: string,
   ): Promise<GenerationRunWriteOutcome>;
+  /**
+   * Resuelve una variante que no gastó proveedor: la pieza sale del motor de
+   * marca y se escribe junto con su composición.
+   */
+  completeDeterministicVariant(
+    write: GenerationDeterministicVariantWrite,
+    completedAt: string,
+  ): Promise<GenerationRunWriteOutcome>;
+  /** Descarta las variantes que quedaron sin intentar al cerrar el lote. */
+  discardPendingVariants(input: {
+    readonly discardedAt: string;
+    readonly organizationId: string;
+    readonly runId: string;
+  }): Promise<void>;
   findById(
     scope: OrganizationScope & { readonly id: string },
   ): Promise<GenerationRunRecord | null>;

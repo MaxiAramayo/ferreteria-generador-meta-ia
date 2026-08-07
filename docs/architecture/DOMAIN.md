@@ -79,6 +79,23 @@ restricción de base impide el estado híbrido: generado conserva brief sin
 rechazo, rechazado conserva motivo sin brief. Si el historial no puede
 escribirse, no se entrega brief.
 
+### GenerationRun y GenerationRunVariant
+
+`GenerationRun` es un lote de variantes y también la unidad append-only de una
+edición. Un lote raíz se apunta a sí mismo con `lineageRootId`; un hijo conserva
+además `parentRunId`, `parentVariantId`, clase `visual | factual` e instrucción.
+La base impide raíces con datos de edición e hijos incompletos.
+
+Una edición visual conserva el `ContentBriefRun` y exige una variante padre
+exitosa, generada y compuesta. Una edición factual exige un brief generado,
+posterior y distinto: cambiar precio, producto o promoción nunca se resuelve
+sólo modificando píxeles.
+
+Cada ejecución puede apuntar a una variante exitosa mediante
+`selectedVariantId`. `selectionVersion` protege carreras y la selección conserva
+actor y fecha. El puntero no cambia el estado de las variantes ni elimina las no
+seleccionadas; seleccionar tampoco equivale a aprobar.
+
 ### Publication
 
 Representa una intención editorial completa. Contiene brief, recursos,
@@ -146,11 +163,46 @@ Solo PNG y JPEG decodificables, de hasta 8 MiB, 8192 píxeles por dimensión y
 la extensión deben coincidir con el contenido detectado. `available` conserva
 propietario, origen, SHA-256, bytes, dimensiones, clave, versión y URL HTTPS.
 
+La lectura para edición sólo existe detrás del puerto del worker. El activo se
+resuelve dentro del tenant y debe seguir `available`; los bytes recuperados se
+inspeccionan otra vez y deben coincidir con SHA-256, tipo, tamaño y dimensiones
+persistidos antes de alcanzar Images.
+
 El borrado ocurre en dos fases. Antes de contactar al proveedor, la base bloquea
 activos referenciados o dentro de retención y marca los demás como
 `pending_deletion`; un reintento puede continuar esa eliminación sin volver a
 decidir sobre otro activo. Adjuntar una revisión exige estado `available` y se
 serializa contra la decisión de borrado mediante locks de fila.
+
+La misma regla cubre `renderedMediaAssetId`, la base y la composición de una
+variante. Un activo con cualquiera de esas referencias no puede comenzar su
+borrado. La retención no vence una referencia: el barrido sólo elimina
+huérfanos vencidos.
+
+Los IDs deterministas nuevos de entradas visuales usan el namespace
+`visual-input:v2` e incluyen `organizationId`. Los IDs históricos no se
+reescriben y siguen resolviendo igual.
+
+### GenerationPolicy y GenerationAttempt
+
+`GenerationPolicy` pertenece a una organización y se modifica con versión
+esperada. Fija habilitación, cuotas diarias por organización y membresía,
+presupuesto mensual, umbral de alerta, UTC y ventanas de retención. Las
+organizaciones existentes comienzan habilitadas con la política piloto; una
+nueva comienza deshabilitada.
+
+Cada intento tiene una sola transición monetaria válida:
+
+```text
+reserved -> in_flight -> settled
+                   \-> unconfirmed
+reserved -> released
+```
+
+Una reserva ocupa cuota y presupuesto. El intento diario se consume al entrar
+`in_flight`; `settled` usa el costo calculado desde tokens por modalidad y
+`unconfirmed` conserva la reserva máxima. El presupuesto comprometido suma los
+tres componentes y se calcula por mes UTC.
 
 ### ProviderConnection
 

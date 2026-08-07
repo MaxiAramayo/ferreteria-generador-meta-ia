@@ -8,16 +8,22 @@ import type {
   ContentBriefRunRecord,
   ContentBriefRunRepository,
   GenerationRunCancellationOutcome,
+  GenerationRunEditorialRepository,
   GenerationRunListFilter,
   GenerationRunRecord,
   GenerationRunRepository,
+  GenerationPolicyRepository,
   GenerationRunRequestRepository,
   GenerationRunRequestResult,
   GenerationRunWriteOutcome,
+  MediaAssetRecord,
   OrganizationScope,
   PaginatedRecords,
   ReliableMutationContext,
   RequestGenerationRunInput,
+  RequestGenerationRunEditInput,
+  SelectGenerationVariantInput,
+  GenerationVariantSelectionResult,
 } from "@aramayo/domain";
 import {
   BadRequestException,
@@ -30,7 +36,10 @@ import { ReliableOperationService } from "../audit/reliable-operation.service.ts
 import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_RUN_EDITORIAL_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
+  MEDIA_ASSET_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { GenerationRunService } from "./generation-run.service.ts";
 
@@ -117,23 +126,28 @@ function briefRun(
 }
 
 class FakeBriefs implements ContentBriefRunRepository {
-  #record: ContentBriefRunRecord | null;
+  #records: readonly ContentBriefRunRecord[];
 
-  constructor(record: ContentBriefRunRecord | null = briefRun()) {
-    this.#record = record;
+  constructor(
+    records:
+      | ContentBriefRunRecord
+      | readonly ContentBriefRunRecord[]
+      | null = briefRun(),
+  ) {
+    this.#records =
+      records === null ? [] : Array.isArray(records) ? records : [records];
   }
 
   findById(
     scope: OrganizationScope & { readonly id: string },
   ): Promise<ContentBriefRunRecord | null> {
-    if (
-      this.#record === null ||
-      scope.organizationId !== this.#record.organizationId ||
-      scope.id !== this.#record.id
-    ) {
-      return Promise.resolve(null);
-    }
-    return Promise.resolve(this.#record);
+    return Promise.resolve(
+      this.#records.find(
+        (record) =>
+          scope.organizationId === record.organizationId &&
+          scope.id === record.id,
+      ) ?? null,
+    );
   }
 
   cancel(): Promise<never> {
@@ -150,9 +164,50 @@ class FakeBriefs implements ContentBriefRunRepository {
   }
 }
 
+class FakeEditorial implements GenerationRunEditorialRepository {
+  lastEdit: RequestGenerationRunEditInput | undefined;
+  lastSelection: SelectGenerationVariantInput | undefined;
+
+  requestEdit(
+    input: RequestGenerationRunEditInput,
+  ): Promise<GenerationRunRequestResult> {
+    this.lastEdit = input;
+    return Promise.resolve({
+      admission: {
+        mode: "provider",
+        pricingVersion: "test-pricing",
+        referenceCostMicrousd: 53_000,
+        reservedCostMicrousd: 213_000,
+      },
+      runId: input.id,
+      status: "accepted",
+    });
+  }
+
+  selectVariant(
+    input: SelectGenerationVariantInput,
+  ): Promise<GenerationVariantSelectionResult> {
+    this.lastSelection = input;
+    return Promise.resolve({
+      selectedVariantId: input.variantId,
+      selectionVersion: input.expectedSelectionVersion + 1,
+      status: "selected",
+    });
+  }
+}
+
 class FakeRequests implements GenerationRunRequestRepository {
   lastInput: RequestGenerationRunInput | undefined;
-  result: GenerationRunRequestResult = { runId: "", status: "accepted" };
+  result: GenerationRunRequestResult = {
+    admission: {
+      mode: "provider",
+      pricingVersion: "test-pricing",
+      referenceCostMicrousd: 53_000,
+      reservedCostMicrousd: 213_000,
+    },
+    runId: "",
+    status: "accepted",
+  };
 
   request(
     input: RequestGenerationRunInput,
@@ -160,7 +215,11 @@ class FakeRequests implements GenerationRunRequestRepository {
     this.lastInput = input;
     return Promise.resolve(
       this.result.status === "accepted"
-        ? { runId: input.id, status: "accepted" }
+        ? {
+            admission: this.result.admission,
+            runId: input.id,
+            status: "accepted",
+          }
         : this.result,
     );
   }
@@ -171,25 +230,49 @@ function runRecord(
 ): GenerationRunRecord {
   const variantIds = [randomUUID(), randomUUID()];
   return {
+    admission: {
+      mode: "provider",
+      pricingVersion: "test-pricing",
+      referenceCostMicrousd: 106_000,
+      reservedCostMicrousd: 426_000,
+    },
     actorMembershipId: membershipId,
     cancelledAt: null,
     completedAt: null,
     contentBriefRunId: briefRunId,
+    edit: null,
     estimatedCostUsd: null,
+    cost: {
+      imageInputTokens: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      pricingVersion: "test-pricing",
+      reservedMicrousd: 426_000,
+      settledMicrousd: 0,
+      textInputTokens: 0,
+      totalTokens: 0,
+      unconfirmedMicrousd: 0,
+    },
     format: "feed",
     id: randomUUID(),
+    lineageRootId: "30000000-0000-4000-8000-000000000007",
     organizationId,
     plan: null,
     requestedAt: "2026-08-03T12:00:00.000Z",
     resolution: null,
     startedAt: null,
     status: "pending",
+    selectedAt: null,
+    selectedByMembershipId: null,
+    selectedVariantId: null,
+    selectionVersion: 0,
     subjectKind: "branded",
     totalTokens: 0,
     variantIds,
     variants: variantIds.map((id, index) => ({
       attempts: 0,
       completedAt: null,
+      composition: null,
       failure: null,
       height: null,
       id,
@@ -199,6 +282,7 @@ function runRecord(
       model: null,
       requestId: null,
       sha256: null,
+      source: "generated" as const,
       status: "pending" as const,
       width: null,
     })),
@@ -254,6 +338,14 @@ class FakeRuns implements GenerationRunRepository {
 
   completeVariant(): Promise<never> {
     throw new Error("La API no cierra variantes.");
+  }
+
+  completeDeterministicVariant(): Promise<never> {
+    throw new Error("La API no compone piezas.");
+  }
+
+  discardPendingVariants(): Promise<never> {
+    throw new Error("La API no descarta variantes.");
   }
 
   start(): Promise<GenerationRunWriteOutcome> {
@@ -322,14 +414,52 @@ async function serviceFor(
   requests: FakeRequests,
   runs: FakeRuns,
   briefs: FakeBriefs = new FakeBriefs(),
+  policies?: GenerationPolicyRepository,
+  editorial: GenerationRunEditorialRepository = new FakeEditorial(),
 ): Promise<GenerationRunService> {
   const testingModule = await Test.createTestingModule({
     providers: [
       GenerationRunService,
       { provide: GENERATION_RUN_REQUEST_REPOSITORY, useValue: requests },
+      {
+        provide: GENERATION_RUN_EDITORIAL_REPOSITORY,
+        useValue: editorial,
+      },
       { provide: GENERATION_RUN_REPOSITORY, useValue: runs },
       { provide: CONTENT_BRIEF_RUN_REPOSITORY, useValue: briefs },
+      {
+        provide: MEDIA_ASSET_REPOSITORY,
+        useValue: {
+          findAvailableByIds: (
+            _scope: OrganizationScope,
+            mediaAssetIds: readonly string[],
+          ): Promise<readonly MediaAssetRecord[]> =>
+            Promise.resolve(
+              mediaAssetIds.map((id) => ({
+                checksumSha256: "c".repeat(64),
+                createdAt: "2026-08-03T12:00:00.000Z",
+                height: 1350,
+                id,
+                mimeType: "image/png" as const,
+                organizationId,
+                origin: "generated" as const,
+                originalFileName: "composition.png",
+                ownerMembershipId: membershipId,
+                secureUrl: `https://media.invalid/${id}.png`,
+                status: "available" as const,
+                storageKey: id,
+                storageProvider: "cloudinary" as const,
+                storageVersion: 1,
+                updatedAt: "2026-08-03T12:00:00.000Z",
+                width: 1080,
+              })),
+            ),
+        },
+      },
       { provide: ReliableOperationService, useValue: reliableOperationService },
+      ...(policies === undefined
+        ? []
+        : [{ provide: GENERATION_POLICY_REPOSITORY, useValue: policies }]),
     ],
   }).compile();
   return testingModule.get(GenerationRunService);
@@ -337,6 +467,42 @@ async function serviceFor(
 
 function harness(): Promise<GenerationRunService> {
   return serviceFor(new FakeRequests(), new FakeRuns());
+}
+
+function completedRun(): GenerationRunRecord {
+  const base = runRecord();
+  const first = base.variants[0];
+  assert.ok(first !== undefined);
+  return {
+    ...base,
+    completedAt: "2026-08-03T12:05:00.000Z",
+    status: "completed",
+    variants: [
+      {
+        ...first,
+        attempts: 1,
+        completedAt: "2026-08-03T12:04:00.000Z",
+        composition: {
+          compositionHash: "1".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: "88888888-8888-4888-8888-888888888888",
+          overlayHash: "2".repeat(64),
+          sha256: "3".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        height: 1536,
+        mediaAssetId: "99999999-9999-4999-8999-999999999999",
+        model: "gpt-image-2",
+        sha256: "4".repeat(64),
+        status: "succeeded",
+        width: 1024,
+      },
+      ...base.variants.slice(1),
+    ],
+  };
 }
 
 test("el pedido reserva el lote y toma el alcance de la sesión", async () => {
@@ -362,6 +528,62 @@ test("el pedido reserva el lote y toma el alcance de la sesión", async () => {
   assert.equal(input.variantIds.length, 3);
   assert.equal(new Set(input.variantIds).size, 3);
   assert.equal(accepted.runId, input.id);
+});
+
+test("preflight expone admisión y uso sin reservar ni llamar al proveedor", async () => {
+  let preflightCalls = 0;
+  const policies: GenerationPolicyRepository = {
+    find: (): Promise<never> => Promise.reject(new Error("no usado")),
+    preflight: (input) => {
+      preflightCalls += 1;
+      assert.equal(input.organizationId, organizationId);
+      assert.equal(input.actorMembershipId, membershipId);
+      assert.equal(input.size, "1024x1536");
+      assert.equal(input.variants, 2);
+      return Promise.resolve({
+        admission: {
+          mode: "deterministic",
+          reason: "user-daily-limit",
+        },
+        model: "gpt-image-2",
+        quality: "medium",
+        size: "1024x1536",
+        usage: {
+          alertActive: false,
+          committedMicrousd: 402_000,
+          monthUtc: "2026-08",
+          monthlyBudgetMicrousd: 20_000_000,
+          organizationAttemptsRemaining: 18,
+          reservedMicrousd: 402_000,
+          settledMicrousd: 0,
+          unconfirmedMicrousd: 0,
+          userAttemptsRemaining: 0,
+        },
+        variants: 2,
+      });
+    },
+    update: (): Promise<never> => Promise.reject(new Error("no usado")),
+  };
+  const requests = new FakeRequests();
+  const service = await serviceFor(
+    requests,
+    new FakeRuns(),
+    new FakeBriefs(),
+    policies,
+  );
+
+  const preflight = await service.preflight(actor, {
+    contentBriefRunId: briefRunId,
+    format: "feed",
+  });
+
+  assert.deepEqual(preflight.admission, {
+    mode: "deterministic",
+    reason: "user-daily-limit",
+  });
+  assert.equal(preflight.usage.reservedMicrousd, 402_000);
+  assert.equal(preflightCalls, 1);
+  assert.equal(requests.lastInput, undefined);
 });
 
 test("el sujeto por defecto es el conservador", async () => {
@@ -528,6 +750,65 @@ test("la consulta expone progreso y no expone el hash del prompt", async () => {
   assert.equal(response.usage.totalTokens, 200);
 });
 
+test("la variante expone su pieza compuesta y no el hash de la base", async () => {
+  const runs = new FakeRuns();
+  const base = runRecord();
+  const [first] = base.variants;
+  assert.ok(first !== undefined);
+  const record = runs.add({
+    ...base,
+    status: "completed",
+    variants: [
+      {
+        ...first,
+        composition: {
+          compositionHash: "1".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: "88888888-8888-4888-8888-888888888888",
+          overlayHash: "2".repeat(64),
+          sha256: "3".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        height: 1536,
+        mediaAssetId: "99999999-9999-4999-8999-999999999999",
+        model: "gpt-image-1",
+        sha256: "4".repeat(64),
+        status: "succeeded" as const,
+        width: 1024,
+      },
+      ...base.variants.slice(1),
+    ],
+  });
+  const service = await serviceFor(new FakeRequests(), runs);
+
+  const response = await service.findById(actor, record.id);
+  const variant = response.variants[0];
+  assert.ok(variant !== undefined);
+  const composition = variant.composition;
+  assert.ok(composition !== null);
+
+  // La pieza es lo que se publica, así que su activo y sus medidas salen.
+  assert.equal(composition.layout, "composicion-tercio-inferior");
+  assert.equal(composition.width, 1080);
+  assert.equal(composition.height, 1350);
+  assert.equal(
+    composition.mediaAssetId,
+    "88888888-8888-4888-8888-888888888888",
+  );
+  // El hash de composición sale porque es lo que permite comparar variantes.
+  assert.equal(composition.compositionHash, "1".repeat(64));
+  // El de la base, el de la pieza y el modelo no: no le sirven a quien revisa.
+  assert.ok(!Object.hasOwn(composition, "sha256"));
+  assert.ok(!Object.hasOwn(composition, "overlayHash"));
+  assert.ok(!Object.hasOwn(variant, "sha256"));
+  assert.ok(!Object.hasOwn(variant, "model"));
+  // De dónde salió sí, porque distingue lo que gastó proveedor de lo que no.
+  assert.equal(variant.source, "generated");
+});
+
 test("el detalle interno de un fallo no sale por la API", async () => {
   const runs = new FakeRuns();
   const base = runRecord();
@@ -632,4 +913,136 @@ test("una sesión sin permiso de edición no pide ni cancela lotes", async () =>
     ),
   );
   await assert.rejects(() => service.cancel(readOnly, randomUUID()));
+});
+
+test("una edición visual crea un lote hijo y no cambia el brief", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+
+  const accepted = await service.requestEdit(
+    actor,
+    parent.id,
+    {
+      instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+      kind: "visual",
+      parentVariantId: source.id,
+      variants: 2,
+    },
+    "generation-edit-visual-0001",
+  );
+
+  assert.equal(accepted.status, "pending");
+  const visualEdit = editorial.lastEdit;
+  assert.ok(visualEdit);
+  assert.equal(visualEdit.contentBriefRunId, parent.contentBriefRunId);
+  assert.deepEqual(visualEdit.edit, {
+    instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+    kind: "visual",
+    parentRunId: parent.id,
+    parentVariantId: source.id,
+  });
+});
+
+test("precio, producto o promoción obligan a un brief nuevo", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+  const revalidatedBriefId = "30000000-0000-4000-8000-000000000099";
+  const revalidated = briefRun({
+    id: revalidatedBriefId,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+  });
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs([briefRun(), revalidated]),
+    undefined,
+    editorial,
+  );
+
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          instruction: "Cambiá el precio a $ 25.000.",
+          kind: "visual",
+          parentVariantId: source.id,
+        },
+        "generation-edit-invalid-0001",
+      ),
+    ConflictException,
+  );
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          instruction: "Cambiá el precio informado.",
+          kind: "factual",
+          parentVariantId: source.id,
+        },
+        "generation-edit-invalid-0002",
+      ),
+    ConflictException,
+  );
+
+  await service.requestEdit(
+    actor,
+    parent.id,
+    {
+      contentBriefRunId: revalidatedBriefId,
+      instruction: "Cambiá el precio informado con evidencia vigente.",
+      kind: "factual",
+      parentVariantId: source.id,
+    },
+    "generation-edit-factual-0001",
+  );
+  const factualEdit = editorial.lastEdit;
+  assert.ok(factualEdit);
+  assert.equal(factualEdit.contentBriefRunId, revalidatedBriefId);
+  assert.equal(factualEdit.edit.kind, "factual");
+});
+
+test("seleccionar conserva la variante y avanza la versión auditable", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+
+  const selected = await service.selectVariant(
+    actor,
+    parent.id,
+    { expectedSelectionVersion: 0, variantId: source.id },
+    "generation-select-0001",
+  );
+
+  assert.deepEqual(selected, {
+    runId: parent.id,
+    selectedVariantId: source.id,
+    selectionVersion: 1,
+  });
+  assert.equal(editorial.lastSelection?.runId, parent.id);
 });

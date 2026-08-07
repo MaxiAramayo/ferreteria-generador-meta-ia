@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { DESIGN_SCHEMA_VERSION } from "../contracts/document.ts";
+import {
+  DESIGN_SCHEMA_VERSION,
+  inlineAssetLimits,
+} from "../contracts/document.ts";
 import type { DesignIssue, DesignIssueCode } from "./issues.ts";
 import { parseDesignDocument } from "./parse-document.ts";
 
@@ -283,6 +286,82 @@ test("una referencia de activo con ruta local o sin HTTPS se rechaza", () => {
     }),
     "media[0].reference.source",
     "invalid-value",
+  );
+});
+
+test("un activo embebido se acepta sólo como mapa de bits en base64", () => {
+  const document = validDocument();
+  const png =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  const accepted = parseDesignDocument({
+    ...document,
+    media: [
+      {
+        alt: "Base generada",
+        reference: { dataUrl: png, source: "inline" },
+      },
+    ],
+  });
+
+  assert.ok(accepted.ok);
+  assert.deepEqual(accepted.document.media[0]?.reference, {
+    dataUrl: png,
+    source: "inline",
+  });
+
+  // Un SVG embebido ejecuta script dentro del render: no entra aunque sea una
+  // imagen y aunque venga en base64.
+  assertIssue(
+    parseInvalid({
+      ...document,
+      media: [
+        {
+          alt: "Base generada",
+          reference: {
+            dataUrl: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+            source: "inline",
+          },
+        },
+      ],
+    }),
+    "media[0].reference.dataUrl",
+    "invalid-format",
+  );
+
+  // Tampoco entra una URL de datos sin codificar.
+  assertIssue(
+    parseInvalid({
+      ...document,
+      media: [
+        {
+          alt: "Base generada",
+          reference: {
+            dataUrl: "data:image/png,%89PNG",
+            source: "inline",
+          },
+        },
+      ],
+    }),
+    "media[0].reference.dataUrl",
+    "invalid-format",
+  );
+
+  assertIssue(
+    parseInvalid({
+      ...document,
+      media: [
+        {
+          alt: "Base generada",
+          reference: {
+            dataUrl: `data:image/png;base64,${"A".repeat(inlineAssetLimits.dataUrlMaximum)}`,
+            source: "inline",
+          },
+        },
+      ],
+    }),
+    "media[0].reference.dataUrl",
+    "too-long",
   );
 });
 

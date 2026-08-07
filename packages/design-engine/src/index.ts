@@ -22,6 +22,7 @@
 export {
   contentLimits,
   DESIGN_SCHEMA_VERSION,
+  inlineAssetLimits,
   mediaDefaults,
   mediaLimits,
   type AssetReference,
@@ -72,11 +73,23 @@ export { ICON_NAMES, isIconName, type IconName } from "./registry/icons.ts";
 export type {
   BannerLayoutId,
   CarouselLayoutId,
+  ComposedLayoutId,
   HighlightLayoutId,
   LayoutId,
   PublicationLayoutId,
   StoryLayoutId,
 } from "./registry/layout-id.ts";
+export {
+  COMPOSED_TITLE_BUDGET,
+  composedDescriptorMinimumHeight,
+  composedPanelRect,
+  composedPanelShowsDescriptor,
+  composedPanelShowsSubtitle,
+  composedSubtitleMinimumHeight,
+  composedTitleToken,
+  type ComposedPanelRect,
+  type ComposedRegion,
+} from "./layouts/composed-geometry.ts";
 export type {
   ContentFieldKey,
   LayoutFamily,
@@ -103,9 +116,11 @@ export {
   type AssetResolutionOptions,
 } from "./assets/asset-resolver.ts";
 export {
+  composedPanelColors,
   THEME_COLOR_ROLES,
   THEMES,
   themeFor,
+  type ComposedPanelColors,
   type Theme,
   type ThemeColors,
 } from "./themes/theme-colors.ts";
@@ -128,7 +143,13 @@ export {
 } from "./themes/themes.ts";
 export {
   COLORS,
+  CONTRAST_THRESHOLDS,
+  contrastRatio,
+  flatten,
   FONT_ROLES,
+  meetsContrast,
+  parseColor,
+  relativeLuminance,
   FONT_WEIGHTS,
   isFontRole,
   RADII,
@@ -138,6 +159,7 @@ export {
   TYPE_SCALE,
   TYPOGRAPHY,
   withAlpha,
+  type ColorChannels,
   type ColorToken,
   type FontFamilyToken,
   type FontRole,

@@ -17,7 +17,8 @@
     "snapshot:visual": "node src/visual/visual-snapshot-cli.ts",
     "typecheck": "tsc --project tsconfig.json",
     "test": "node --test \"src/**/*.test.ts\"",
-    "smoke:image": "node ../../tools/run-with-env.mjs node src/generation/image-smoke.ts"
+    "smoke:image": "node ../../tools/run-with-env.mjs node src/generation/image-smoke.ts",
+    "review:composition": "node src/visual/composition-review.ts"
   },
   "dependencies": {
     "@aramayo/brand-knowledge": "workspace:*",

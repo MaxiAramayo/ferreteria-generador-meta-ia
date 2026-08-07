@@ -7,6 +7,8 @@
  * respuesta del proveedor y el detalle interno de cada error.
  */
 
+import type { GenerationAdmissionResponse } from "./generation-policy.ts";
+
 export type GenerationRunStatusResponse =
   "pending" | "running" | "completed" | "failed" | "cancelled";
 
@@ -29,10 +31,39 @@ export type GenerationVariantResponse = {
   height: number | null;
   id: string;
   index: number;
-  /** Activo con la imagen; sólo existe si la variante salió. */
+  /** Activo con la base generada; nulo en una pieza sin imagen del modelo. */
   mediaAssetId: string | null;
+  /** Pieza compuesta con la capa de marca; presente si la variante salió. */
+  composition: GenerationVariantCompositionResponse | null;
+  /** De dónde salió: `generated` gastó proveedor, `deterministic` no. */
+  source: string;
   status: GenerationVariantStatusResponse;
   width: number | null;
+};
+
+/**
+ * Pieza compuesta: es lo que se publica.
+ *
+ * `compositionHash` sale porque es lo que permite comparar dos variantes sin
+ * mirar píxeles, que es justo lo que necesita el panel. El hash de la base y el
+ * modelo siguen sin salir: no le sirven a quien revisa.
+ */
+export type GenerationVariantCompositionResponse = {
+  compositionHash: string;
+  height: number;
+  layout: string;
+  mediaAssetId: string;
+  previewUrl: string;
+  theme: string;
+  version: string;
+  width: number;
+};
+
+export type GenerationRunEditResponse = {
+  instruction: string;
+  kind: "visual" | "factual";
+  parentRunId: string;
+  parentVariantId: string;
 };
 
 /** Progreso del lote, para que la espera sea legible sin contar a mano. */
@@ -65,6 +96,17 @@ export type GenerationRunPlanResponse = {
 export type GenerationRunUsageResponse = {
   estimatedCostUsd: number | null;
   totalTokens: number;
+  cost: {
+    imageInputTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    pricingVersion: string | null;
+    reservedMicrousd: number;
+    settledMicrousd: number;
+    textInputTokens: number;
+    totalTokens: number;
+    unconfirmedMicrousd: number;
+  };
 };
 
 export type GenerationRunResponse = {
@@ -73,6 +115,8 @@ export type GenerationRunResponse = {
   contentBriefRunId: string;
   format: string;
   id: string;
+  edit: GenerationRunEditResponse | null;
+  lineageRootId: string;
   /** Nulo mientras el lote no se ejecutó: todavía no eligió perfil ni prompt. */
   plan: GenerationRunPlanResponse | null;
   progress: GenerationRunProgressResponse;
@@ -80,12 +124,17 @@ export type GenerationRunResponse = {
   resolution: GenerationRunResolutionResponse | null;
   startedAt: string | null;
   status: GenerationRunStatusResponse;
+  selectedAt: string | null;
+  selectedByMembershipId: string | null;
+  selectedVariantId: string | null;
+  selectionVersion: number;
   subjectKind: string;
   usage: GenerationRunUsageResponse;
   variants: readonly GenerationVariantResponse[];
 };
 
 export type GenerationRunAcceptedResponse = {
+  admission: GenerationAdmissionResponse;
   runId: string;
   status: "pending";
 };
@@ -100,4 +149,10 @@ export type GenerationRunListResponse = {
 export type GenerationRunCancellationResponse = {
   runId: string;
   status: GenerationRunStatusResponse;
+};
+
+export type GenerationVariantSelectionResponse = {
+  runId: string;
+  selectedVariantId: string;
+  selectionVersion: number;
 };

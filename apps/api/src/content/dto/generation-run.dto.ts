@@ -1,4 +1,5 @@
 import {
+  generationEditKinds,
   generationRunLimits,
   visualFormatIds,
   visualSubjectKinds,
@@ -8,9 +9,12 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
   Min,
+  MaxLength,
+  MinLength,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
 
@@ -79,4 +83,42 @@ export class GenerationRunHistoryQueryDto {
   @IsOptional()
   @IsUUID()
   contentBriefRunId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  lineageRootId?: string;
+}
+
+export class RequestGenerationEditDto {
+  @IsIn([...generationEditKinds])
+  kind!: string;
+
+  @IsString()
+  @MinLength(generationRunLimits.editInstructionMinimum)
+  @MaxLength(generationRunLimits.editInstructionMaximum)
+  instruction!: string;
+
+  @IsUUID()
+  parentVariantId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  contentBriefRunId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(generationRunLimits.variantsMinimum)
+  @Max(generationRunLimits.variantsMaximum)
+  variants?: number;
+}
+
+export class SelectGenerationVariantDto {
+  @IsUUID()
+  variantId!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  expectedSelectionVersion!: number;
 }

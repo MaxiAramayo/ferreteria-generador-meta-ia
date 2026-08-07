@@ -52,6 +52,20 @@ export type StoryLayoutId =
   | "historia-resena"
   | "historia-oferta-diaria";
 
+/**
+ * Piezas de composición: base generada por IA más capa de marca (`P4-T05`).
+ *
+ * No vienen de la línea base congelada, así que su nombre describe la región
+ * que la capa determinista ocupa. Esa región es la misma que el prompt visual
+ * le pide al modelo dejar tranquila, y es lo que distingue a estas piezas de
+ * las del catálogo: acá el fondo lo produce un modelo y la composición tiene
+ * que caer exactamente donde se lo reservó.
+ */
+export type ComposedLayoutId =
+  | "composicion-tercio-inferior"
+  | "composicion-banda-superior"
+  | "composicion-circulo-central";
+
 export type BannerLayoutId = "banner-marca";
 
 export type HighlightLayoutId = "destacada-cover";
@@ -59,6 +73,7 @@ export type HighlightLayoutId = "destacada-cover";
 export type LayoutId =
   | BannerLayoutId
   | CarouselLayoutId
+  | ComposedLayoutId
   | HighlightLayoutId
   | PublicationLayoutId
   | StoryLayoutId;

@@ -12,6 +12,7 @@ import {
 } from "./cloudinary-media-storage.ts";
 import { SharpMediaInspector } from "./media-inspector.ts";
 import { MediaLifecycleService } from "./media-lifecycle.service.ts";
+import { MediaRetentionSweepService } from "./media-retention-sweep.service.ts";
 import {
   MEDIA_ASSET_REPOSITORY,
   MEDIA_INSPECTOR,
@@ -48,6 +49,15 @@ export class MediaModule {
             storage: MediaStorage,
           ): MediaLifecycleService =>
             new MediaLifecycleService(repository, inspector, storage),
+        },
+        {
+          inject: [MEDIA_ASSET_REPOSITORY, MediaLifecycleService],
+          provide: MediaRetentionSweepService,
+          useFactory: (
+            repository: MediaAssetRepository,
+            lifecycle: MediaLifecycleService,
+          ): MediaRetentionSweepService =>
+            new MediaRetentionSweepService(repository, lifecycle),
         },
       ],
     };

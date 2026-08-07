@@ -9,15 +9,20 @@
  */
 
 import {
+  generationPricingVersion,
   generationRunTopic,
+  imageSizeForFormat,
   type DeterministicVisualReason,
   type GenerationRunCancellationOutcome,
+  type GenerationAdmission,
   type GenerationRunCompletion,
+  type GenerationRunEditorialRepository,
   type GenerationRunListFilter,
   type GenerationRunRecord,
   type GenerationRunRepository,
   type GenerationRunRequestRepository,
   type GenerationRunRequestResult,
+  type GenerationVariantSelectionResult,
   type GenerationRunReservation,
   type GenerationRunStatus,
   type GenerationRunWriteOutcome,
@@ -27,6 +32,10 @@ import {
   type OrganizationScope,
   type PaginatedRecords,
   type RequestGenerationRunInput,
+  type RequestGenerationRunEditInput,
+  type SelectGenerationVariantInput,
+  type GenerationDeterministicVariantWrite,
+  type GenerationVariantSource,
   type SafeJsonObject,
   type VisualFormatId,
   type VisualProfileId,
@@ -38,7 +47,9 @@ import { Prisma } from "./generated/prisma/client.ts";
 import {
   claimReliableOperation,
   commitReliableOperation,
+  discardReliableOperationClaim,
 } from "./reliable-operation-repository.ts";
+import { reserveInitialGenerationAttempts } from "./generation-governance-repository.ts";
 
 /** Estados en los que el lote todavía admite escrituras del worker. */
 const openStatuses = ["pending", "running"] as const;
@@ -46,6 +57,15 @@ const openStatuses = ["pending", "running"] as const;
 const variantSelection = {
   attempts: true,
   completedAt: true,
+  composedHeight: true,
+  composedMediaAssetId: true,
+  composedSha256: true,
+  composedWidth: true,
+  compositionHash: true,
+  compositionLayout: true,
+  compositionOverlayHash: true,
+  compositionTheme: true,
+  compositionVersion: true,
   failureCode: true,
   failureCorrection: true,
   failureDetail: true,
@@ -57,11 +77,14 @@ const variantSelection = {
   position: true,
   requestId: true,
   sha256: true,
+  source: true,
   status: true,
   width: true,
 } satisfies Prisma.GenerationRunVariantSelect;
 
 const runSelection = {
+  admissionMode: true,
+  admissionReason: true,
   actorMembershipId: true,
   cancelledAt: true,
   completedAt: true,
@@ -70,6 +93,9 @@ const runSelection = {
   estimatedCostUsd: true,
   format: true,
   id: true,
+  editInstruction: true,
+  editKind: true,
+  lineageRootId: true,
   organizationId: true,
   profileId: true,
   profileVersion: true,
@@ -77,10 +103,32 @@ const runSelection = {
   promptVersion: true,
   requestedAt: true,
   resolutionDetail: true,
+  pricingVersion: true,
+  referenceCostMicrousd: true,
+  reservedCostMicrousd: true,
   startedAt: true,
   status: true,
   subjectKind: true,
+  parentRunId: true,
+  parentVariantId: true,
+  selectedAt: true,
+  selectedByMembershipId: true,
+  selectedVariantId: true,
+  selectionVersion: true,
   totalTokens: true,
+  attempts: {
+    select: {
+      imageInputTokens: true,
+      inputTokens: true,
+      outputTokens: true,
+      pricingVersion: true,
+      reservedMicrousd: true,
+      settledMicrousd: true,
+      status: true,
+      textInputTokens: true,
+      totalTokens: true,
+    },
+  },
   variants: { orderBy: { position: "asc" }, select: variantSelection },
 } satisfies Prisma.GenerationRunSelect;
 
@@ -95,6 +143,22 @@ function toVariant(row: GenerationRunVariantRow): GenerationVariantRecord {
   return {
     attempts: row.attempts,
     completedAt: row.completedAt?.toISOString() ?? null,
+    // La composición es indivisible y la base lo garantiza: o están los nueve
+    // campos o no está ninguno, así que alcanza con mirar uno para decidir.
+    composition:
+      row.compositionHash === null || row.composedMediaAssetId === null
+        ? null
+        : {
+            compositionHash: row.compositionHash,
+            height: row.composedHeight ?? 0,
+            layout: row.compositionLayout ?? "",
+            mediaAssetId: row.composedMediaAssetId,
+            overlayHash: row.compositionOverlayHash ?? "",
+            sha256: row.composedSha256 ?? "",
+            theme: row.compositionTheme ?? "",
+            version: row.compositionVersion ?? "",
+            width: row.composedWidth ?? 0,
+          },
     failure:
       row.failureCode === null
         ? null
@@ -111,21 +175,79 @@ function toVariant(row: GenerationRunVariantRow): GenerationVariantRecord {
     model: row.model,
     requestId: row.requestId,
     sha256: row.sha256,
+    source: row.source as GenerationVariantSource,
     status: row.status,
     width: row.width,
   };
 }
 
 function toRecord(row: GenerationRunRow): GenerationRunRecord {
+  let reservedMicrousd = 0;
+  let settledMicrousd = 0;
+  let unconfirmedMicrousd = 0;
+  let inputTokens = 0;
+  let textInputTokens = 0;
+  let imageInputTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  for (const attempt of row.attempts) {
+    inputTokens += attempt.inputTokens;
+    textInputTokens += attempt.textInputTokens;
+    imageInputTokens += attempt.imageInputTokens;
+    outputTokens += attempt.outputTokens;
+    totalTokens += attempt.totalTokens;
+    if (attempt.status === "settled")
+      settledMicrousd += attempt.settledMicrousd;
+    else if (attempt.status === "unconfirmed")
+      unconfirmedMicrousd += attempt.reservedMicrousd;
+    else if (attempt.status === "reserved" || attempt.status === "in_flight")
+      reservedMicrousd += attempt.reservedMicrousd;
+  }
+  const admission =
+    row.admissionMode === "provider"
+      ? {
+          mode: "provider" as const,
+          pricingVersion: row.pricingVersion ?? generationPricingVersion,
+          referenceCostMicrousd: row.referenceCostMicrousd,
+          reservedCostMicrousd: row.reservedCostMicrousd,
+        }
+      : {
+          mode: "deterministic" as const,
+          reason: row.admissionReason as Exclude<
+            GenerationRunRecord["admission"],
+            { mode: "provider" }
+          >["reason"],
+        };
   return {
+    admission,
     actorMembershipId: row.actorMembershipId,
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     contentBriefRunId: row.contentBriefRunId,
     estimatedCostUsd:
-      row.estimatedCostUsd === null ? null : row.estimatedCostUsd.toNumber(),
+      row.admissionMode === "deterministic" ||
+      row.pricingVersion === generationPricingVersion
+        ? (settledMicrousd + unconfirmedMicrousd) / 1_000_000
+        : row.attempts.length === 0
+          ? row.estimatedCostUsd === null
+            ? null
+            : row.estimatedCostUsd.toNumber()
+          : (settledMicrousd + unconfirmedMicrousd) / 1_000_000,
     format: row.format as VisualFormatId,
     id: row.id,
+    edit:
+      row.editKind === null ||
+      row.editInstruction === null ||
+      row.parentRunId === null ||
+      row.parentVariantId === null
+        ? null
+        : {
+            instruction: row.editInstruction,
+            kind: row.editKind as "visual" | "factual",
+            parentRunId: row.parentRunId,
+            parentVariantId: row.parentVariantId,
+          },
+    lineageRootId: row.lineageRootId,
     organizationId: row.organizationId,
     // El plan es indivisible y la base lo garantiza: o están los cuatro campos
     // o no está ninguno, así que alcanza con mirar uno para decidir.
@@ -151,7 +273,22 @@ function toRecord(row: GenerationRunRow): GenerationRunRecord {
     startedAt: row.startedAt?.toISOString() ?? null,
     status: row.status,
     subjectKind: row.subjectKind as VisualSubjectKind,
-    totalTokens: row.totalTokens,
+    selectedAt: row.selectedAt?.toISOString() ?? null,
+    selectedByMembershipId: row.selectedByMembershipId,
+    selectedVariantId: row.selectedVariantId,
+    selectionVersion: row.selectionVersion,
+    totalTokens: row.attempts.length === 0 ? row.totalTokens : totalTokens,
+    cost: {
+      imageInputTokens,
+      inputTokens,
+      outputTokens,
+      pricingVersion: row.pricingVersion,
+      reservedMicrousd,
+      settledMicrousd,
+      textInputTokens,
+      totalTokens,
+      unconfirmedMicrousd,
+    },
     variantIds: row.variants.map((variant) => variant.id),
     variants: row.variants.map(toVariant),
   };
@@ -164,6 +301,31 @@ function replayedRunId(responseBody: SafeJsonObject): string {
     throw new TypeError("responseBody.runId no conserva texto.");
   }
   return runId;
+}
+
+function admissionFromRow(
+  row: Readonly<{
+    admissionMode: string;
+    admissionReason: string | null;
+    pricingVersion: string | null;
+    referenceCostMicrousd: number;
+    reservedCostMicrousd: number;
+  }>,
+): GenerationAdmission {
+  return row.admissionMode === "provider"
+    ? {
+        mode: "provider",
+        pricingVersion: row.pricingVersion ?? generationPricingVersion,
+        referenceCostMicrousd: row.referenceCostMicrousd,
+        reservedCostMicrousd: row.reservedCostMicrousd,
+      }
+    : {
+        mode: "deterministic",
+        reason: (row.admissionReason ?? "generation-disabled") as Exclude<
+          GenerationAdmission,
+          { mode: "provider" }
+        >["reason"],
+      };
 }
 
 /**
@@ -213,14 +375,27 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
         input.reliableOperation.claim,
       );
       switch (claim.status) {
-        case "replayed":
+        case "replayed": {
           // El lote que devuelve el reintento es el de la respuesta guardada, no
           // el que este intento acaba de sortear: es lo que impide que la misma
           // clave idempotente termine facturando dos lotes.
+          const replayedId = replayedRunId(claim.responseBody);
+          const replayed = await transaction.generationRun.findUniqueOrThrow({
+            select: {
+              admissionMode: true,
+              admissionReason: true,
+              pricingVersion: true,
+              referenceCostMicrousd: true,
+              reservedCostMicrousd: true,
+            },
+            where: { id: replayedId },
+          });
           return {
-            runId: replayedRunId(claim.responseBody),
+            admission: admissionFromRow(replayed),
+            runId: replayedId,
             status: "accepted" as const,
           };
+        }
         case "request-conflict":
           return { status: "idempotency-conflict" as const };
         case "in-progress":
@@ -238,11 +413,16 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
           contentBriefRunId: input.contentBriefRunId,
           format: input.format,
           id: input.id,
+          editInstruction: null,
+          editKind: null,
+          lineageRootId: input.id,
           organizationId: input.organizationId,
           requestedAt: new Date(input.requestedAt),
           status: "pending",
           subjectKind: input.subjectKind,
           totalTokens: 0,
+          admissionMode: "provider",
+          pricingVersion: generationPricingVersion,
           // La organización de la variante no se declara: Prisma la deriva del
           // lote, que es justamente lo que impide que una variante termine
           // colgando de otra organización.
@@ -256,6 +436,35 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
             })),
           },
         },
+      });
+
+      const admission = await reserveInitialGenerationAttempts(transaction, {
+        actorMembershipId: input.actorMembershipId,
+        at: new Date(input.requestedAt),
+        organizationId: input.organizationId,
+        quality: "medium",
+        runId: input.id,
+        size: imageSizeForFormat(input.format),
+        variantIds: input.variantIds,
+      });
+      await transaction.generationRun.update({
+        data:
+          admission.mode === "provider"
+            ? {
+                admissionMode: "provider",
+                admissionReason: null,
+                pricingVersion: admission.pricingVersion,
+                referenceCostMicrousd: admission.referenceCostMicrousd,
+                reservedCostMicrousd: admission.reservedCostMicrousd,
+              }
+            : {
+                admissionMode: "deterministic",
+                admissionReason: admission.reason,
+                pricingVersion: null,
+                referenceCostMicrousd: 0,
+                reservedCostMicrousd: 0,
+              },
+        where: { id: input.id },
       });
 
       const committed = await commitReliableOperation(transaction, {
@@ -283,7 +492,7 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
           operation: input.reliableOperation.claim.operation,
           organizationId: input.organizationId,
           recordId: claim.recordId,
-          responseBody: { runId: input.id },
+          responseBody: { admission, runId: input.id },
           responseStatus: 202,
         },
         outbox: [
@@ -301,7 +510,308 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
       if (!committed) {
         throw new Error("No se pudo confirmar el pedido idempotente.");
       }
-      return { runId: input.id, status: "accepted" as const };
+      return { admission, runId: input.id, status: "accepted" as const };
+    });
+  }
+}
+
+/**
+ * Edición y selección pertenecen al editor, no al worker. Se mantienen en un
+ * puerto separado para que las escrituras de finalización no puedan crear
+ * genealogía ni decidir una variante por accidente.
+ */
+export class PrismaGenerationRunEditorialRepository implements GenerationRunEditorialRepository {
+  readonly #database: DatabaseClient;
+
+  constructor(database: DatabaseClient) {
+    this.#database = database;
+  }
+
+  async requestEdit(
+    input: RequestGenerationRunEditInput,
+  ): Promise<GenerationRunRequestResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed": {
+          const runId = replayedRunId(claim.responseBody);
+          const replayed = await transaction.generationRun.findUniqueOrThrow({
+            select: {
+              admissionMode: true,
+              admissionReason: true,
+              pricingVersion: true,
+              referenceCostMicrousd: true,
+              reservedCostMicrousd: true,
+            },
+            where: { id: runId },
+          });
+          return {
+            admission: admissionFromRow(replayed),
+            runId,
+            status: "accepted" as const,
+          };
+        }
+        case "request-conflict":
+          return { status: "idempotency-conflict" as const };
+        case "in-progress":
+          return {
+            retryAfter: claim.retryAfter,
+            status: "in-progress" as const,
+          };
+        case "claimed":
+          break;
+      }
+
+      const parent = await transaction.generationRun.findFirst({
+        select: {
+          lineageRootId: true,
+          status: true,
+          variants: {
+            select: { mediaAssetId: true, source: true, status: true },
+            where: { id: input.edit.parentVariantId },
+          },
+        },
+        where: {
+          id: input.edit.parentRunId,
+          organizationId: input.organizationId,
+        },
+      });
+      const [parentVariant] = parent?.variants ?? [];
+      if (
+        parent === null ||
+        parent.status !== "completed" ||
+        parentVariant?.status !== "succeeded" ||
+        (input.edit.kind === "visual" &&
+          (parentVariant.source !== "generated" ||
+            parentVariant.mediaAssetId === null))
+      ) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return { status: "idempotency-conflict" as const };
+      }
+
+      await transaction.generationRun.create({
+        data: {
+          actorMembershipId: input.actorMembershipId,
+          contentBriefRunId: input.contentBriefRunId,
+          editInstruction: input.edit.instruction,
+          editKind: input.edit.kind,
+          format: input.format,
+          id: input.id,
+          lineageRootId: parent.lineageRootId,
+          organizationId: input.organizationId,
+          parentRunId: input.edit.parentRunId,
+          parentVariantId: input.edit.parentVariantId,
+          requestedAt: new Date(input.requestedAt),
+          status: "pending",
+          subjectKind: input.subjectKind,
+          totalTokens: 0,
+          admissionMode: "provider",
+          pricingVersion: generationPricingVersion,
+          variants: {
+            create: input.variantIds.map((variantId, position) => ({
+              attempts: 0,
+              id: variantId,
+              latencyMilliseconds: 0,
+              position,
+              status: "pending" as const,
+            })),
+          },
+        },
+      });
+
+      const admission = await reserveInitialGenerationAttempts(transaction, {
+        actorMembershipId: input.actorMembershipId,
+        at: new Date(input.requestedAt),
+        organizationId: input.organizationId,
+        quality: "medium",
+        runId: input.id,
+        size: imageSizeForFormat(input.format),
+        variantIds: input.variantIds,
+      });
+      await transaction.generationRun.update({
+        data:
+          admission.mode === "provider"
+            ? {
+                admissionMode: "provider",
+                admissionReason: null,
+                pricingVersion: admission.pricingVersion,
+                referenceCostMicrousd: admission.referenceCostMicrousd,
+                reservedCostMicrousd: admission.reservedCostMicrousd,
+              }
+            : {
+                admissionMode: "deterministic",
+                admissionReason: admission.reason,
+                pricingVersion: null,
+                referenceCostMicrousd: 0,
+                reservedCostMicrousd: 0,
+              },
+        where: { id: input.id },
+      });
+
+      const committed = await commitReliableOperation(transaction, {
+        audit: {
+          actorMembershipId: input.actorMembershipId,
+          entityId: input.id,
+          entityType: "generation-run",
+          eventId: input.reliableOperation.auditEventId,
+          metadata: {
+            changeKind: input.edit.kind,
+            instructionLength: input.edit.instruction.length,
+            parentRunId: input.edit.parentRunId,
+            parentVariantId: input.edit.parentVariantId,
+            variants: input.variantIds.length,
+          },
+          occurredAt: input.reliableOperation.occurredAt,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          outcome: "success",
+        },
+        idempotency: {
+          actorMembershipId: input.actorMembershipId,
+          expiresAt: input.reliableOperation.completedExpiresAt,
+          keyHash: input.reliableOperation.claim.keyHash,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          recordId: claim.recordId,
+          responseBody: { admission, runId: input.id },
+          responseStatus: 202,
+        },
+        outbox: [
+          {
+            aggregateId: input.id,
+            aggregateType: "generation-run",
+            availableAt: input.reliableOperation.occurredAt,
+            eventId: input.reliableOperation.outboxEventId,
+            organizationId: input.organizationId,
+            payload: { runId: input.id },
+            topic: generationRunTopic,
+          },
+        ],
+      });
+      if (!committed) throw new Error("No se pudo confirmar la edición.");
+      return { admission, runId: input.id, status: "accepted" as const };
+    });
+  }
+
+  async selectVariant(
+    input: SelectGenerationVariantInput,
+  ): Promise<GenerationVariantSelectionResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed": {
+          const selectedVariantId = claim.responseBody["selectedVariantId"];
+          const selectionVersion = claim.responseBody["selectionVersion"];
+          if (
+            typeof selectedVariantId !== "string" ||
+            typeof selectionVersion !== "number"
+          ) {
+            throw new TypeError(
+              "La respuesta idempotente de selección es inválida.",
+            );
+          }
+          return { selectedVariantId, selectionVersion, status: "selected" };
+        }
+        case "request-conflict":
+          return { status: "idempotency-conflict" };
+        case "in-progress":
+          return { retryAfter: claim.retryAfter, status: "in-progress" };
+        case "claimed":
+          break;
+      }
+
+      const run = await transaction.generationRun.findFirst({
+        select: {
+          selectionVersion: true,
+          variants: {
+            select: { status: true },
+            where: { id: input.variantId },
+          },
+        },
+        where: { id: input.runId, organizationId: input.organizationId },
+      });
+      if (run === null) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return { status: "not-found" };
+      }
+      if (run.selectionVersion !== input.expectedSelectionVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return {
+          selectionVersion: run.selectionVersion,
+          status: "version-conflict",
+        };
+      }
+      if (run.variants[0]?.status !== "succeeded") {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return { status: "variant-unavailable" };
+      }
+      const nextVersion = run.selectionVersion + 1;
+      const updated = await transaction.generationRun.updateMany({
+        data: {
+          selectedAt: new Date(input.selectedAt),
+          selectedByMembershipId: input.actorMembershipId,
+          selectedVariantId: input.variantId,
+          selectionVersion: nextVersion,
+        },
+        where: {
+          id: input.runId,
+          organizationId: input.organizationId,
+          selectionVersion: input.expectedSelectionVersion,
+        },
+      });
+      if (updated.count !== 1) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        const current = await transaction.generationRun.findUniqueOrThrow({
+          select: { selectionVersion: true },
+          where: { id: input.runId },
+        });
+        return {
+          selectionVersion: current.selectionVersion,
+          status: "version-conflict",
+        };
+      }
+      const committed = await commitReliableOperation(transaction, {
+        audit: {
+          actorMembershipId: input.actorMembershipId,
+          entityId: input.runId,
+          entityType: "generation-run",
+          eventId: input.reliableOperation.auditEventId,
+          metadata: {
+            selectedVariantId: input.variantId,
+            selectionVersion: nextVersion,
+          },
+          occurredAt: input.reliableOperation.occurredAt,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          outcome: "success",
+        },
+        idempotency: {
+          actorMembershipId: input.actorMembershipId,
+          expiresAt: input.reliableOperation.completedExpiresAt,
+          keyHash: input.reliableOperation.claim.keyHash,
+          operation: input.reliableOperation.claim.operation,
+          organizationId: input.organizationId,
+          recordId: claim.recordId,
+          responseBody: {
+            selectedVariantId: input.variantId,
+            selectionVersion: nextVersion,
+          },
+          responseStatus: 200,
+        },
+        outbox: [],
+      });
+      if (!committed) throw new Error("No se pudo confirmar la selección.");
+      return {
+        selectedVariantId: input.variantId,
+        selectionVersion: nextVersion,
+        status: "selected",
+      };
     });
   }
 }
@@ -327,11 +837,16 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
         contentBriefRunId: reservation.contentBriefRunId,
         format: reservation.format,
         id: reservation.id,
+        editInstruction: null,
+        editKind: null,
+        lineageRootId: reservation.id,
         organizationId: reservation.organizationId,
         requestedAt: new Date(reservation.requestedAt),
         status: "pending",
         subjectKind: reservation.subjectKind,
         totalTokens: 0,
+        admissionMode: "provider",
+        pricingVersion: generationPricingVersion,
         variants: {
           create: reservation.variantIds.map((variantId, position) => ({
             attempts: 0,
@@ -388,6 +903,15 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
     const outcome =
       completion.status === "succeeded"
         ? {
+            composedHeight: completion.composition.height,
+            composedMediaAssetId: completion.composition.mediaAssetId,
+            composedSha256: completion.composition.sha256,
+            composedWidth: completion.composition.width,
+            compositionHash: completion.composition.compositionHash,
+            compositionLayout: completion.composition.layout,
+            compositionOverlayHash: completion.composition.overlayHash,
+            compositionTheme: completion.composition.theme,
+            compositionVersion: completion.composition.version,
             failureCode: null,
             failureCorrection: null,
             failureDetail: null,
@@ -398,6 +922,15 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
             width: completion.width,
           }
         : {
+            composedHeight: null,
+            composedMediaAssetId: null,
+            composedSha256: null,
+            composedWidth: null,
+            compositionHash: null,
+            compositionLayout: null,
+            compositionOverlayHash: null,
+            compositionTheme: null,
+            compositionVersion: null,
             failureCode: completion.failure.code,
             failureCorrection: completion.failure.correction,
             failureDetail: completion.failure.detail,
@@ -435,27 +968,124 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
     });
   }
 
+  /**
+   * Resuelve una variante que no gastó proveedor.
+   *
+   * La pieza es enteramente del motor de marca, así que el resultado y su
+   * composición se escriben juntos: no hay nada intermedio que valga la pena
+   * conservar si algo falla en el medio.
+   */
+  async completeDeterministicVariant(
+    write: GenerationDeterministicVariantWrite,
+    completedAt: string,
+  ): Promise<GenerationRunWriteOutcome> {
+    const { composition } = write;
+    const updated = await this.#database.generationRunVariant.updateMany({
+      data: {
+        completedAt: new Date(completedAt),
+        composedHeight: composition.height,
+        composedMediaAssetId: composition.mediaAssetId,
+        composedSha256: composition.sha256,
+        composedWidth: composition.width,
+        compositionHash: composition.compositionHash,
+        compositionLayout: composition.layout,
+        compositionOverlayHash: composition.overlayHash,
+        compositionTheme: composition.theme,
+        compositionVersion: composition.version,
+        source: "deterministic",
+        status: "succeeded",
+      },
+      where: {
+        id: write.variantId,
+        organizationId: write.organizationId,
+        run: { is: { status: { in: [...openStatuses] } } },
+        runId: write.runId,
+        status: "pending",
+      },
+    });
+    if (updated.count === 1) {
+      return { status: "written" };
+    }
+    return explainMissingWrite(this.#database, {
+      id: write.runId,
+      organizationId: write.organizationId,
+    });
+  }
+
+  /**
+   * Descarta lo que quedó sin intentar.
+   *
+   * Una variante que nunca se pidió no gastó nada, así que se cierra como
+   * `discarded` y no como fallida: presentarla como fallo sugeriría un problema
+   * del proveedor que no ocurrió.
+   */
+  async discardPendingVariants(input: {
+    readonly discardedAt: string;
+    readonly organizationId: string;
+    readonly runId: string;
+  }): Promise<void> {
+    await this.#database.generationRunVariant.updateMany({
+      data: {
+        completedAt: new Date(input.discardedAt),
+        status: "discarded",
+      },
+      where: {
+        organizationId: input.organizationId,
+        runId: input.runId,
+        status: "pending",
+      },
+    });
+  }
+
   async complete(
     completion: GenerationRunCompletion,
     completedAt: string,
   ): Promise<GenerationRunWriteOutcome> {
     const outcome = await this.#database.$transaction(async (transaction) => {
+      const attempts = await transaction.generationAttempt.findMany({
+        select: {
+          reservedMicrousd: true,
+          settledMicrousd: true,
+          status: true,
+          totalTokens: true,
+        },
+        where: {
+          organizationId: completion.organizationId,
+          runId: completion.id,
+        },
+      });
+      const ledgerTotalTokens = attempts.reduce(
+        (sum, attempt) => sum + attempt.totalTokens,
+        0,
+      );
+      const ledgerCostMicrousd = attempts.reduce((sum, attempt) => {
+        if (attempt.status === "settled") return sum + attempt.settledMicrousd;
+        if (attempt.status === "unconfirmed")
+          return sum + attempt.reservedMicrousd;
+        return sum;
+      }, 0);
       const updated = await transaction.generationRun.updateMany({
         data: {
           completedAt: new Date(completedAt),
           deterministicReason:
             completion.resolution?.deterministicReason ?? null,
           estimatedCostUsd:
-            completion.estimatedCostUsd === null
-              ? null
-              : new Prisma.Decimal(completion.estimatedCostUsd.toFixed(6)),
+            attempts.length > 0
+              ? new Prisma.Decimal((ledgerCostMicrousd / 1_000_000).toFixed(6))
+              : completion.resolution?.deterministicReason !== null &&
+                  completion.resolution?.deterministicReason !== undefined
+                ? new Prisma.Decimal(0)
+                : completion.estimatedCostUsd === null
+                  ? null
+                  : new Prisma.Decimal(completion.estimatedCostUsd.toFixed(6)),
           profileId: completion.plan?.profileId ?? null,
           profileVersion: completion.plan?.profileVersion ?? null,
           promptHash: completion.plan?.promptHash ?? null,
           promptVersion: completion.plan?.promptVersion ?? null,
           resolutionDetail: completion.resolution?.detail ?? null,
           status: completion.status,
-          totalTokens: completion.totalTokens,
+          totalTokens:
+            attempts.length > 0 ? ledgerTotalTokens : completion.totalTokens,
         },
         where: {
           id: completion.id,
@@ -475,6 +1105,14 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
           organizationId: completion.organizationId,
           runId: completion.id,
           status: "pending",
+        },
+      });
+      await transaction.generationAttempt.updateMany({
+        data: { completedAt: new Date(completedAt), status: "released" },
+        where: {
+          organizationId: completion.organizationId,
+          runId: completion.id,
+          status: "reserved",
         },
       });
       return { status: "written" as const };
@@ -523,6 +1161,17 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
           status: "pending",
         },
       });
+      await transaction.generationAttempt.updateMany({
+        data: {
+          completedAt: new Date(input.cancelledAt),
+          status: "released",
+        },
+        where: {
+          organizationId: input.organizationId,
+          runId: input.id,
+          status: "reserved",
+        },
+      });
       return true;
     });
     if (cancelled) {
@@ -562,6 +1211,9 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
       ...(filter.contentBriefRunId === undefined
         ? {}
         : { contentBriefRunId: filter.contentBriefRunId }),
+      ...(filter.lineageRootId === undefined
+        ? {}
+        : { lineageRootId: filter.lineageRootId }),
     };
     const [rows, total] = await Promise.all([
       this.#database.generationRun.findMany({

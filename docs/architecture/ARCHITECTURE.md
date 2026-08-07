@@ -143,6 +143,18 @@ referencias y retención dentro de una transacción, elimina en Cloudinary y só
 entonces confirma `deleted`. Una respuesta remota ambigua conserva el estado
 reintentable.
 
+La retención se asigna al reservar: originales y derivados preparados toman la
+política de su organización; bases y composiciones generadas reciben la ventana
+de huérfanos. El worker ejecuta un barrido horario, acotado y no superpuesto,
+que consulta únicamente vencidos sin referencias. Crear un adjunto, render,
+base o composición bloquea la fila del medio y exige `available`, por lo que se
+serializa contra `beginDeletion` en PostgreSQL.
+
+Una edición visual recupera la base generada de la variante elegida mediante
+`MediaStorage.read()`. El worker no confía sólo en la URL remota: vuelve a
+decodificar los bytes y exige coincidencia de tipo, tamaño, dimensiones y
+SHA-256 con PostgreSQL antes de usar la imagen como referencia de Images.
+
 ## Recuperación de conocimiento
 
 La recuperación documental combina dos controles independientes. PostgreSQL
@@ -201,6 +213,36 @@ una sección declarada no confiable, nunca concatenado en las instrucciones. Cad
 plan conserva perfil, versión y hash, y el fallback determinista distingue por
 qué no hubo generación.
 
+## Gobernanza de generación
+
+La admisión y el costo siguen
+[`ADR-015`](decisions/ADR-015-GENERATION-GOVERNANCE.md). La API reserva el
+primer intento de todas las variantes en la misma transacción que crea el lote
+y su outbox. El worker consulta la política vigente antes de generar y cada
+retry entra nuevamente por el ledger. La configuración del proveedor es una
+condición adicional: una política habilitada no inventa una credencial ausente.
+
+El ledger persiste `reserved`, `in_flight`, `settled`, `unconfirmed` y
+`released`. Reservas activas, costo liquidado y costo no confirmado forman el
+gasto comprometido. Esta separación conserva el costo aunque fallen moderación,
+almacenamiento o composición, y permite liberar en una cancelación sólo los
+intentos que nunca alcanzaron al proveedor.
+
+## Genealogía editorial de generación
+
+La edición y selección siguen
+[`ADR-016`](decisions/ADR-016-GENERATION-EDIT-LINEAGE.md). Una edición crea un
+`GenerationRun` hijo con raíz, ejecución padre, variante padre, clase e
+instrucción explícitas; nunca sobrescribe el lote anterior. Los cambios
+visuales conservan el brief y usan Images con la composición verificada como
+referencia. Los factuales exigen primero otro `ContentBriefRun` generado y
+posterior, de modo que precio, producto o promoción vuelven a pasar por la
+frontera de evidencia.
+
+La variante elegida es un puntero versionado en el lote. Seleccionar usa
+idempotencia, auditoría y compare-and-swap, conserva todas las variantes y no
+implica aprobación ni publicación.
+
 ## Frontend
 
 El compositor se diseña por composición:
@@ -220,6 +262,12 @@ Variantes explícitas:
 - `AICreativeComposer`
 - `RecurringStoryComposer`
 - `ProductPromotionComposer`
+
+`AICreativeComposer` delega las variantes a un workspace cohesivo. La UI hace
+visibles como acciones distintas generar, cambiar imagen, cambiar datos o
+producto, comparar y seleccionar. El estado compara hasta dos resultados con
+su versión de prompt, perfil, costo y hash; una variante fallida muestra el
+motivo y no renderiza acciones no disponibles.
 
 El provider es el único que conoce persistencia y sincronización. Los
 subcomponentes consumen una interfaz con `state`, `actions` y `meta`.

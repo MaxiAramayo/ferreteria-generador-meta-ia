@@ -102,7 +102,7 @@ export interface BuildVisualPromptInput {
  * además el diámetro; para reservar espacio alcanza con los cuatro márgenes,
  * que ya contienen ese recorte.
  */
-function canvasFor(format: VisualFormatId): VisualCanvas {
+export function canvasFor(format: VisualFormatId): VisualCanvas {
   const design = formatFor(toDesignFormatId(format));
   return Object.freeze({
     height: design.height,

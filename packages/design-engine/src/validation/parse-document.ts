@@ -1,6 +1,7 @@
 import {
   contentLimits,
   DESIGN_SCHEMA_VERSION,
+  inlineAssetLimits,
   mediaDefaults,
   mediaLimits,
   type AssetReference,
@@ -74,6 +75,19 @@ const textFieldKeys: readonly ContentFieldKey[] = contentFieldKeys.filter(
 );
 
 const assetIdPattern = /^[a-z0-9][a-z0-9/_-]{2,127}$/u;
+
+/**
+ * Activo embebido: sólo mapa de bits en base64, y sólo de los tipos aprobados.
+ * `image/svg+xml` queda deliberadamente afuera —un SVG ejecuta script dentro
+ * del render— igual que cualquier `data:` sin `;base64`.
+ *
+ * La lista de tipos sale del contrato para que agregar uno no exija recordar
+ * que además hay una expresión regular que lo repite.
+ */
+const inlineDataUrlPattern = new RegExp(
+  `^data:(?:${inlineAssetLimits.mimeTypes.join("|")});base64,[A-Za-z0-9+/]+={0,2}$`,
+  "u",
+);
 
 function asRecord(
   value: unknown,
@@ -199,6 +213,35 @@ function parseAssetReference(
     }
 
     return Object.freeze({ assetId, source: "brand-library" });
+  }
+
+  if (record["source"] === "inline") {
+    collectUnknownKeys(
+      record,
+      new Set(["dataUrl", "source"]),
+      `${path}.`,
+      issues,
+    );
+    const dataUrl = record["dataUrl"];
+
+    if (typeof dataUrl !== "string") {
+      issues.push(issue("invalid-type", `${path}.dataUrl`));
+      return undefined;
+    }
+
+    if (dataUrl.length > inlineAssetLimits.dataUrlMaximum) {
+      issues.push(issue("too-long", `${path}.dataUrl`));
+      return undefined;
+    }
+
+    // El tipo se comprueba contra la lista aprobada y no contra «cualquier
+    // imagen»: un `data:` con SVG ejecutaría scripts dentro del render.
+    if (!inlineDataUrlPattern.test(dataUrl)) {
+      issues.push(issue("invalid-format", `${path}.dataUrl`));
+      return undefined;
+    }
+
+    return Object.freeze({ dataUrl, source: "inline" });
   }
 
   if (record["source"] === "remote") {

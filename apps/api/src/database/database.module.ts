@@ -6,7 +6,9 @@ import {
   PrismaContentBriefRequestRepository,
   PrismaContentBriefRunRepository,
   PrismaGenerationRunRepository,
+  PrismaGenerationRunEditorialRepository,
   PrismaGenerationRunRequestRepository,
+  PrismaGenerationPolicyRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaOrganizationConfigurationRepository,
@@ -21,7 +23,9 @@ import type {
   ContentBriefRequestRepository,
   ContentBriefRunRepository,
   GenerationRunRepository,
+  GenerationRunEditorialRepository,
   GenerationRunRequestRepository,
+  GenerationPolicyRepository,
   IdentityRepository,
   MediaAssetRepository,
   OrganizationConfigurationRepository,
@@ -40,7 +44,9 @@ import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   DATABASE_CLIENT,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_RUN_EDITORIAL_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
+  GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -59,8 +65,10 @@ export class DatabaseModule {
         APPROVAL_SNAPSHOT_REPOSITORY,
         CONTENT_BRIEF_REQUEST_REPOSITORY,
         CONTENT_BRIEF_RUN_REPOSITORY,
+        GENERATION_RUN_EDITORIAL_REPOSITORY,
         GENERATION_RUN_REPOSITORY,
         GENERATION_RUN_REQUEST_REPOSITORY,
+        GENERATION_POLICY_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
@@ -73,6 +81,20 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: GENERATION_RUN_EDITORIAL_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): GenerationRunEditorialRepository =>
+            new PrismaGenerationRunEditorialRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: GENERATION_POLICY_REPOSITORY,
+          useFactory: (database: DatabaseClient): GenerationPolicyRepository =>
+            new PrismaGenerationPolicyRepository(database),
+        },
         {
           provide: DATABASE_CLIENT,
           useFactory: (): DatabaseClient =>

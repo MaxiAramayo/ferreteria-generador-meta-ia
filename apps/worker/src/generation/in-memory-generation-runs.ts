@@ -16,6 +16,7 @@ import {
   type GenerationRunRepository,
   type GenerationRunReservation,
   type GenerationRunWriteOutcome,
+  type GenerationDeterministicVariantWrite,
   type GenerationVariantCompletion,
   type GenerationVariantRecord,
   type OrganizationScope,
@@ -34,14 +35,41 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
     return [...this.#runs.values()];
   }
 
+  seed(record: GenerationRunRecord): void {
+    this.#runs.set(record.id, record);
+  }
+
   reserve(reservation: GenerationRunReservation): Promise<void> {
     this.#runs.set(reservation.id, {
       ...reservation,
+      admission: {
+        mode: "provider",
+        pricingVersion: "test-pricing",
+        referenceCostMicrousd: 0,
+        reservedCostMicrousd: 0,
+      },
       cancelledAt: null,
       completedAt: null,
       estimatedCostUsd: null,
+      edit: null,
+      lineageRootId: reservation.id,
+      cost: {
+        imageInputTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        pricingVersion: "test-pricing",
+        reservedMicrousd: 0,
+        settledMicrousd: 0,
+        textInputTokens: 0,
+        totalTokens: 0,
+        unconfirmedMicrousd: 0,
+      },
       plan: null,
       resolution: null,
+      selectedAt: null,
+      selectedByMembershipId: null,
+      selectedVariantId: null,
+      selectionVersion: 0,
       startedAt: null,
       status: "pending",
       totalTokens: 0,
@@ -53,10 +81,12 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
         id,
         index,
         latencyMilliseconds: 0,
+        composition: null,
         mediaAssetId: null,
         model: null,
         requestId: null,
         sha256: null,
+        source: "generated" as const,
         status: "pending" as const,
         width: null,
       })),
@@ -110,6 +140,69 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
       ),
     });
     return Promise.resolve({ status: "written" });
+  }
+
+  /**
+   * Resuelve una variante que no gastó proveedor: la pieza sale del motor de
+   * marca y se escribe junto con su composición.
+   */
+  completeDeterministicVariant(
+    write: GenerationDeterministicVariantWrite,
+    completedAt: string,
+  ): Promise<GenerationRunWriteOutcome> {
+    const existing = this.#find(write.runId, write.organizationId);
+    if (existing === null) {
+      return Promise.resolve({ status: "not-found" });
+    }
+    if (!isOpen(existing)) {
+      return Promise.resolve(this.#refuse(existing));
+    }
+    const target = existing.variants.find(
+      (variant) => variant.id === write.variantId,
+    );
+    if (target === undefined || target.status !== "pending") {
+      return Promise.resolve({ reason: "not-open", status: "discarded" });
+    }
+    this.#runs.set(existing.id, {
+      ...existing,
+      variants: existing.variants.map((variant) =>
+        variant.id === write.variantId
+          ? {
+              ...variant,
+              completedAt,
+              composition: write.composition,
+              source: "deterministic" as const,
+              status: "succeeded" as const,
+            }
+          : variant,
+      ),
+    });
+    return Promise.resolve({ status: "written" });
+  }
+
+  /** Cierra como descartadas las variantes que nunca se intentaron. */
+  discardPendingVariants(input: {
+    readonly discardedAt: string;
+    readonly organizationId: string;
+    readonly runId: string;
+  }): Promise<void> {
+    const existing = this.#find(input.runId, input.organizationId);
+    if (existing === null) {
+      return Promise.resolve();
+    }
+    this.#runs.set(existing.id, {
+      ...existing,
+      variants: existing.variants.map((variant) =>
+        variant.status === "pending"
+          ? {
+              ...variant,
+              completedAt: input.discardedAt,
+              status: "discarded" as const,
+            }
+          : variant,
+      ),
+    });
+    return Promise.resolve();
   }
 
   complete(
@@ -188,7 +281,9 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
           (filter.actorMembershipId === undefined ||
             run.actorMembershipId === filter.actorMembershipId) &&
           (filter.contentBriefRunId === undefined ||
-            run.contentBriefRunId === filter.contentBriefRunId),
+            run.contentBriefRunId === filter.contentBriefRunId) &&
+          (filter.lineageRootId === undefined ||
+            run.lineageRootId === filter.lineageRootId),
       )
       .toSorted((left, right) =>
         right.requestedAt.localeCompare(left.requestedAt),
@@ -232,6 +327,7 @@ function applyVariant(
   if (completion.status === "succeeded") {
     return {
       ...shared,
+      composition: completion.composition,
       failure: null,
       height: completion.height,
       mediaAssetId: completion.mediaAssetId,

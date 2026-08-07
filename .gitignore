@@ -20,3 +20,9 @@ output/
 
 # Prisma Client se regenera durante build desde el schema versionado.
 infrastructure/database/src/generated/
+
+# Piezas compuestas de la suite visual: se regeneran con `pnpm
+# composition:snapshot` en menos de un minuto y pesan 15 MB. Lo que se versiona
+# es el manifiesto, que es contra lo que la revisión compara: hash de la base,
+# de la capa determinista, de la pieza y el contraste medido.
+apps/worker/composition-reference/*.png

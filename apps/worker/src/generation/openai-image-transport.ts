@@ -33,6 +33,7 @@ export interface OpenAIImageTransportRequest {
     name: string;
   }>[];
   readonly size: string;
+  readonly safetyIdentifier?: string;
 }
 
 export interface OpenAIImageTransportResponse {
@@ -41,7 +42,9 @@ export interface OpenAIImageTransportResponse {
   readonly requestId: string | null;
   readonly usage: Readonly<{
     inputTokens: number;
+    imageInputTokens?: number;
     outputTokens: number;
+    textInputTokens?: number;
     totalTokens: number;
   }> | null;
 }
@@ -141,11 +144,15 @@ export class OfficialOpenAIImagesTransport implements OpenAIImagesTransport {
         .generate({
           background: request.background,
           model: request.model,
+          moderation: "auto",
           n: 1,
           output_format: "png",
           prompt: request.prompt,
           quality: request.quality,
           size: request.size,
+          ...(request.safetyIdentifier === undefined
+            ? {}
+            : { user: request.safetyIdentifier }),
         })
         .withResponse();
       return responseFrom(data, requestId ?? null);
@@ -175,6 +182,9 @@ export class OfficialOpenAIImagesTransport implements OpenAIImagesTransport {
           prompt: request.prompt,
           quality: request.quality,
           size: request.size,
+          ...(request.safetyIdentifier === undefined
+            ? {}
+            : { user: request.safetyIdentifier }),
         })
         .withResponse();
       return responseFrom(data, requestId ?? null);
@@ -189,6 +199,10 @@ function responseFrom(
     data?: readonly Readonly<{ b64_json?: string }>[];
     usage?: Readonly<{
       input_tokens?: number;
+      input_tokens_details?: Readonly<{
+        image_tokens?: number;
+        text_tokens?: number;
+      }>;
       output_tokens?: number;
       total_tokens?: number;
     }>;
@@ -204,7 +218,9 @@ function responseFrom(
         ? null
         : Object.freeze({
             inputTokens: usage.input_tokens ?? 0,
+            imageInputTokens: usage.input_tokens_details?.image_tokens ?? 0,
             outputTokens: usage.output_tokens ?? 0,
+            textInputTokens: usage.input_tokens_details?.text_tokens ?? 0,
             totalTokens: usage.total_tokens ?? 0,
           }),
   });

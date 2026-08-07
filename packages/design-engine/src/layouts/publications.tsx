@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 
+import { describeReference } from "../assets/asset-resolver.ts";
 import { Icon } from "../primitives/icon.tsx";
 import { Photo } from "../primitives/photo.tsx";
 import { Text } from "../primitives/text.tsx";
@@ -155,15 +156,14 @@ export function ProductoMosaico(props: LayoutProps): ReactElement {
             />
           </div>
         ) : (
-          photos.map((asset) => (
+          photos.map((asset, position) => (
             <Photo
               asset={asset}
               assetBaseUrl={context.assetBaseUrl}
-              key={
-                asset.reference.source === "brand-library"
-                  ? asset.reference.assetId
-                  : asset.reference.url
-              }
+              // La ranura identifica a la foto. La referencia no sirve: un
+              // activo embebido lleva la imagen entera y dos ranuras pueden
+              // repetir el mismo activo sin que eso sea un error.
+              key={`${describeReference(asset.reference)}-${String(position)}`}
               radius={RADII.icon}
               style={{ height: "100%", width: "100%" }}
             />

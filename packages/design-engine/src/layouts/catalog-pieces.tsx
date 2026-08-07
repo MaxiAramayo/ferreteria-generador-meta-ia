@@ -13,6 +13,7 @@ import {
   Header,
   IconBadge,
   PhotoScrim,
+  PriceBlock,
   ProductImage,
 } from "./kit.tsx";
 import { footerBranch, mediaAt, type LayoutProps } from "./layout-context.ts";
@@ -28,8 +29,6 @@ import { footerBranch, mediaAt, type LayoutProps } from "./layout-context.ts";
  * mostrando el número o invitando a consultarlo, sin dejar un hueco.
  */
 
-const consultPriceLabel = "Consultá precio";
-
 function safeAreaStyle(props: LayoutProps): React.CSSProperties {
   return {
     display: "flex",
@@ -42,67 +41,6 @@ function safeAreaStyle(props: LayoutProps): React.CSSProperties {
     position: "relative",
     zIndex: 10,
   };
-}
-
-/**
- * Bloque de precio.
- *
- * Sin precio no desaparece: ocupa el mismo lugar con la invitación a
- * consultarlo, de modo que la jerarquía de la pieza no cambia según el dato
- * disponible.
- */
-function PriceBlock({
-  color,
-  mutedColor,
-  price,
-  previousPrice,
-  validity,
-}: {
-  readonly color: string;
-  readonly mutedColor: string;
-  readonly price: string | undefined;
-  readonly previousPrice?: string | undefined;
-  readonly validity?: string | undefined;
-}): ReactElement {
-  return (
-    <div data-price="" data-role="precio">
-      {previousPrice === undefined || price === undefined ? null : (
-        <div
-          style={{
-            color: mutedColor,
-            fontFamily: TYPOGRAPHY.body.cssStack,
-            fontSize: 44,
-            fontWeight: FONT_WEIGHTS.bold,
-            textDecoration: "line-through",
-          }}
-        >
-          {previousPrice}
-        </div>
-      )}
-      {price === undefined ? (
-        <Text as="div" color={color} token="h2">
-          {consultPriceLabel}
-        </Text>
-      ) : (
-        <Text as="div" color={color} token="hero">
-          {price}
-        </Text>
-      )}
-      {validity === undefined ? null : (
-        <div
-          style={{
-            color: mutedColor,
-            fontFamily: TYPOGRAPHY.body.cssStack,
-            fontSize: 26,
-            fontWeight: FONT_WEIGHTS.semibold,
-            marginTop: SPACING.xxs,
-          }}
-        >
-          {validity}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**

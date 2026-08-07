@@ -120,3 +120,36 @@ export const THEME_COLOR_ROLES: readonly (keyof ThemeColors)[] = Object.freeze([
 export function themeFor(themeId: ThemeId): Theme {
   return THEMES[themeId];
 }
+
+export interface ComposedPanelColors {
+  readonly background: string;
+  readonly muted: string;
+  readonly text: string;
+}
+
+/**
+ * Paleta del panel de composición (`P4-T05`).
+ *
+ * El panel no hereda el fondo del tema y esa es la decisión, no un descuido: el
+ * tema `promo` pinta el lienzo de rojo, y su texto blanco encima mide 4,19:1 y
+ * su texto atenuado 2,97:1. Sobre un lienzo entero, con la pieza como fondo,
+ * eso pasa; sobre el bloque que lleva el precio y el llamado a la acción, no.
+ *
+ * El panel usa siempre el par tinta/papel del tono, que mide 15,43:1, y deja
+ * que el tema siga decidiendo lo que sí es identidad: el acento de la etiqueta
+ * y el color del botón. La marca se reconoce igual y el dato comercial se lee
+ * siempre.
+ */
+export function composedPanelColors(theme: Theme): ComposedPanelColors {
+  return theme.tone === "light"
+    ? Object.freeze({
+        background: COLORS.paper,
+        muted: withAlpha(COLORS.ink, 0.72),
+        text: COLORS.ink,
+      })
+    : Object.freeze({
+        background: COLORS.ink,
+        muted: withAlpha(COLORS.paper, 0.78),
+        text: COLORS.paper,
+      });
+}

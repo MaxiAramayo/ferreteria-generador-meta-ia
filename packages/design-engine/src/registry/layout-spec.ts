@@ -10,7 +10,12 @@ import type { LayoutId } from "./layout-id.ts";
  */
 
 export type LayoutFamily =
-  "banner" | "carrusel" | "destacada" | "historia" | "publicacion";
+  | "banner"
+  | "carrusel"
+  | "composicion"
+  | "destacada"
+  | "historia"
+  | "publicacion";
 
 /**
  * Campos de texto que un layout puede mostrar. Son los campos editables del

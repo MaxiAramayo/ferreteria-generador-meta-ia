@@ -2,6 +2,7 @@
 
 import type {
   BrandThemeId,
+  GenerationPolicyResponse,
   LocationConfigurationResponse,
   OrganizationConfigurationResponse,
 } from "@aramayo/contracts";
@@ -20,10 +21,17 @@ import {
 import {
   loadConfiguration,
   saveBrandConfiguration,
+  saveGenerationPolicy,
   saveLocationConfiguration,
   type ConfigurationLoadResult,
   type ConfigurationSaveResult,
+  type GenerationPolicySaveResult,
 } from "../../lib/organization-configuration-api";
+
+type ConfigurationNotice = Readonly<{
+  kind: "conflict" | "error" | "success";
+  message: string;
+}>;
 
 type ConfigurationState =
   | Readonly<{ kind: "loading" }>
@@ -33,14 +41,16 @@ type ConfigurationState =
   | Readonly<{
       canEdit: boolean;
       configuration: OrganizationConfigurationResponse;
+      generationPolicy: GenerationPolicyResponse | null;
       kind: "ready";
-      notice?: string;
+      notice?: ConfigurationNotice | undefined;
       saving: boolean;
     }>;
 
 interface ConfigurationActions {
   readonly reload: () => void;
   readonly saveBrand: (form: HTMLFormElement) => void;
+  readonly saveGenerationPolicy: (form: HTMLFormElement) => void;
   readonly saveLocation: (
     location: LocationConfigurationResponse,
     form: HTMLFormElement,
@@ -76,6 +86,11 @@ function resultState(result: ConfigurationLoadResult): ConfigurationState {
 function stringField(form: FormData, field: string): string {
   const value = form.get(field);
   return typeof value === "string" ? value : "";
+}
+
+function numberField(form: FormData, field: string): number | null {
+  const parsed = Number(stringField(form, field));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function themeField(form: FormData): BrandThemeId {
@@ -125,31 +140,80 @@ function ConfigurationProvider({
 
   const applySaveResult = useCallback((result: ConfigurationSaveResult) => {
     startTransition(() => {
-      switch (result.kind) {
-        case "saved":
-          setState({
-            canEdit: true,
-            configuration: result.configuration,
-            kind: "ready",
-            notice: "Cambios guardados y auditados.",
-            saving: false,
-          });
-          return;
-        case "conflict":
-          setState({
-            kind: "error",
-            message:
-              "La configuración cambió en otra sesión. Recargá antes de editar.",
-          });
-          return;
-        case "forbidden":
-          setState({ kind: "forbidden" });
-          return;
-        case "error":
-          setState(result);
-      }
+      setState((current) => {
+        if (result.kind === "forbidden") return { kind: "forbidden" };
+        if (current.kind !== "ready") return current;
+        switch (result.kind) {
+          case "saved":
+            return {
+              ...current,
+              configuration: result.configuration,
+              notice: {
+                kind: "success",
+                message: "Cambios guardados y auditados.",
+              },
+              saving: false,
+            };
+          case "conflict":
+            return {
+              ...current,
+              notice: {
+                kind: "conflict",
+                message:
+                  "La configuración cambió en otra sesión. Recargá antes de editar.",
+              },
+              saving: false,
+            };
+          case "error":
+            return {
+              ...current,
+              notice: { kind: "error", message: result.message },
+              saving: false,
+            };
+        }
+      });
     });
   }, []);
+
+  const applyPolicySaveResult = useCallback(
+    (result: GenerationPolicySaveResult) => {
+      startTransition(() => {
+        setState((current) => {
+          if (result.kind === "forbidden") return { kind: "forbidden" };
+          if (current.kind !== "ready") return current;
+          switch (result.kind) {
+            case "saved":
+              return {
+                ...current,
+                generationPolicy: result.generationPolicy,
+                notice: {
+                  kind: "success",
+                  message: "Política de generación guardada y auditada.",
+                },
+                saving: false,
+              };
+            case "conflict":
+              return {
+                ...current,
+                notice: {
+                  kind: "conflict",
+                  message:
+                    "La política cambió en otra sesión. Recargá para ver la versión vigente.",
+                },
+                saving: false,
+              };
+            case "error":
+              return {
+                ...current,
+                notice: { kind: "error", message: result.message },
+                saving: false,
+              };
+          }
+        });
+      });
+    },
+    [],
+  );
 
   const saveBrand = useCallback(
     (form: HTMLFormElement) => {
@@ -161,6 +225,7 @@ function ConfigurationProvider({
       setState({
         canEdit: state.canEdit,
         configuration: state.configuration,
+        generationPolicy: state.generationPolicy,
         kind: "ready",
         saving: true,
       });
@@ -187,6 +252,7 @@ function ConfigurationProvider({
       setState({
         canEdit: state.canEdit,
         configuration: state.configuration,
+        generationPolicy: state.generationPolicy,
         kind: "ready",
         saving: true,
       });
@@ -205,10 +271,84 @@ function ConfigurationProvider({
     [apiBaseUrl, applySaveResult, state],
   );
 
+  const savePolicy = useCallback(
+    (form: HTMLFormElement) => {
+      if (
+        state.kind !== "ready" ||
+        !state.canEdit ||
+        state.generationPolicy === null
+      ) {
+        setState({ kind: "forbidden" });
+        return;
+      }
+      const formData = new FormData(form);
+      const monthlyBudgetUsd = numberField(formData, "monthlyBudgetUsd");
+      const organizationDailyAttemptLimit = numberField(
+        formData,
+        "organizationDailyAttemptLimit",
+      );
+      const userDailyAttemptLimit = numberField(
+        formData,
+        "userDailyAttemptLimit",
+      );
+      const warningThresholdPercent = numberField(
+        formData,
+        "warningThresholdPercent",
+      );
+      const originalRetentionDays = numberField(
+        formData,
+        "originalRetentionDays",
+      );
+      const referenceRetentionDays = numberField(
+        formData,
+        "referenceRetentionDays",
+      );
+      const generatedOrphanRetentionHours = numberField(
+        formData,
+        "generatedOrphanRetentionHours",
+      );
+      if (
+        monthlyBudgetUsd === null ||
+        organizationDailyAttemptLimit === null ||
+        userDailyAttemptLimit === null ||
+        warningThresholdPercent === null ||
+        originalRetentionDays === null ||
+        referenceRetentionDays === null ||
+        generatedOrphanRetentionHours === null
+      ) {
+        setState({
+          ...state,
+          notice: {
+            kind: "error",
+            message: "Revisá los valores numéricos de la política.",
+          },
+        });
+        return;
+      }
+      setState({ ...state, notice: undefined, saving: true });
+      void saveGenerationPolicy(apiBaseUrl, state.generationPolicy, {
+        enabled: formData.get("enabled") === "on",
+        generatedOrphanRetentionHours,
+        monthlyBudgetMicrousd: Math.round(monthlyBudgetUsd * 1_000_000),
+        organizationDailyAttemptLimit,
+        originalRetentionDays,
+        referenceRetentionDays,
+        userDailyAttemptLimit,
+        warningThresholdPercent,
+      }).then(applyPolicySaveResult);
+    },
+    [apiBaseUrl, applyPolicySaveResult, state],
+  );
+
   return (
     <ConfigurationContext
       value={{
-        actions: { reload, saveBrand, saveLocation },
+        actions: {
+          reload,
+          saveBrand,
+          saveGenerationPolicy: savePolicy,
+          saveLocation,
+        },
         meta: { apiBaseUrl },
         state,
       }}
@@ -455,6 +595,218 @@ function LocationForm({
   );
 }
 
+function usd(microusd: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+    style: "currency",
+  }).format(microusd / 1_000_000);
+}
+
+function GenerationUsageCard({
+  generationPolicy,
+}: {
+  readonly generationPolicy: GenerationPolicyResponse;
+}) {
+  const usage = generationPolicy.usage;
+  const usagePercent = Math.min(
+    100,
+    Math.round(
+      (usage.committedMicrousd / Math.max(1, usage.monthlyBudgetMicrousd)) *
+        100,
+    ),
+  );
+  return (
+    <aside
+      aria-labelledby="generation-usage-title"
+      className="generation-usage"
+    >
+      <p className="configuration-eyebrow">Mes UTC {usage.monthUtc}</p>
+      <h3 id="generation-usage-title">Uso comprometido</h3>
+      <p className="generation-usage-total">
+        {usd(usage.committedMicrousd)}{" "}
+        <span>de {usd(usage.monthlyBudgetMicrousd)}</span>
+      </p>
+      <progress
+        aria-label="Porcentaje del presupuesto mensual comprometido"
+        max={100}
+        value={usagePercent}
+      >
+        {usagePercent}%
+      </progress>
+      <dl>
+        <div>
+          <dt>Liquidado</dt>
+          <dd>{usd(usage.settledMicrousd)}</dd>
+        </div>
+        <div>
+          <dt>Reservado</dt>
+          <dd>{usd(usage.reservedMicrousd)}</dd>
+        </div>
+        <div>
+          <dt>No confirmado</dt>
+          <dd>{usd(usage.unconfirmedMicrousd)}</dd>
+        </div>
+        <div>
+          <dt>Intentos organización</dt>
+          <dd>{usage.organizationAttemptsRemaining} restantes hoy</dd>
+        </div>
+        <div>
+          <dt>Intentos de tu usuario</dt>
+          <dd>{usage.userAttemptsRemaining} restantes hoy</dd>
+        </div>
+      </dl>
+      {usage.alertActive ? (
+        <p className="generation-alert" role="status">
+          Alerta activa: el gasto comprometido cruzó el umbral mensual.
+        </p>
+      ) : null}
+    </aside>
+  );
+}
+
+function GenerationPolicyForm({
+  disabled,
+  generationPolicy,
+}: {
+  readonly disabled: boolean;
+  readonly generationPolicy: GenerationPolicyResponse;
+}) {
+  const { actions } = useConfiguration();
+  function submit(event: SyntheticEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    actions.saveGenerationPolicy(event.currentTarget);
+  }
+  return (
+    <section className="generation-policy-layout">
+      <form
+        className="configuration-form"
+        key={generationPolicy.version}
+        onSubmit={submit}
+      >
+        <div className="configuration-section-heading">
+          <div>
+            <p className="configuration-eyebrow">Generación administrada</p>
+            <h2>Política, cuotas y retención</h2>
+          </div>
+          <span>v{generationPolicy.version}</span>
+        </div>
+        <p className="configuration-policy-note">
+          Las cuotas diarias se cortan a las 00:00 UTC. Si una solicitud no
+          entra, se registra y usa composición determinista sin llamar a OpenAI.
+        </p>
+        <div className="configuration-grid">
+          <label className="configuration-toggle configuration-wide">
+            <input
+              defaultChecked={generationPolicy.enabled}
+              disabled={disabled}
+              name="enabled"
+              type="checkbox"
+            />
+            Habilitar generación con proveedor
+          </label>
+          <label>
+            Intentos por organización / día
+            <input
+              defaultValue={generationPolicy.organizationDailyAttemptLimit}
+              disabled={disabled}
+              min={1}
+              name="organizationDailyAttemptLimit"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Intentos por usuario / día
+            <input
+              defaultValue={generationPolicy.userDailyAttemptLimit}
+              disabled={disabled}
+              min={1}
+              name="userDailyAttemptLimit"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Presupuesto mensual (USD)
+            <input
+              defaultValue={(
+                generationPolicy.monthlyBudgetMicrousd / 1_000_000
+              ).toFixed(2)}
+              disabled={disabled}
+              min="0.10"
+              name="monthlyBudgetUsd"
+              required
+              step="0.01"
+              type="number"
+            />
+          </label>
+          <label>
+            Umbral de alerta (%)
+            <input
+              defaultValue={generationPolicy.warningThresholdPercent}
+              disabled={disabled}
+              max={100}
+              min={1}
+              name="warningThresholdPercent"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Retención de originales (días)
+            <input
+              defaultValue={generationPolicy.originalRetentionDays}
+              disabled={disabled}
+              min={1}
+              name="originalRetentionDays"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Derivados preparados (días)
+            <input
+              defaultValue={generationPolicy.referenceRetentionDays}
+              disabled={disabled}
+              min={1}
+              name="referenceRetentionDays"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Generados huérfanos (horas)
+            <input
+              defaultValue={generationPolicy.generatedOrphanRetentionHours}
+              disabled={disabled}
+              min={1}
+              name="generatedOrphanRetentionHours"
+              required
+              step={1}
+              type="number"
+            />
+          </label>
+          <label>
+            Zona horaria de cuotas
+            <input disabled readOnly value={generationPolicy.timeZone} />
+          </label>
+        </div>
+        <button className="configuration-button" disabled={disabled}>
+          Guardar política
+        </button>
+      </form>
+      <GenerationUsageCard generationPolicy={generationPolicy} />
+    </section>
+  );
+}
+
 function ReadyView({
   state,
 }: {
@@ -480,9 +832,18 @@ function ReadyView({
         </p>
       ) : null}
       {state.notice === undefined ? null : (
-        <p className="configuration-success" role="status">
-          {state.notice}
+        <p
+          className={`configuration-notice configuration-notice-${state.notice.kind}`}
+          role={state.notice.kind === "error" ? "alert" : "status"}
+        >
+          {state.notice.message}
         </p>
+      )}
+      {state.generationPolicy === null ? null : (
+        <GenerationPolicyForm
+          disabled={disabled}
+          generationPolicy={state.generationPolicy}
+        />
       )}
       <BrandForm configuration={state.configuration} disabled={disabled} />
       <section className="configuration-locations">

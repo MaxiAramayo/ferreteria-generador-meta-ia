@@ -3,6 +3,8 @@ import type {
   GenerationRunCancellationResponse,
   GenerationRunListResponse,
   GenerationRunResponse,
+  GenerationVariantSelectionResponse,
+  GenerationPreflightResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
@@ -23,7 +25,9 @@ import {
 } from "../identity/identity.decorators.ts";
 import {
   GenerationRunHistoryQueryDto,
+  RequestGenerationEditDto,
   RequestGenerationRunDto,
+  SelectGenerationVariantDto,
 } from "./dto/generation-run.dto.ts";
 import { GenerationRunService } from "./generation-run.service.ts";
 
@@ -38,6 +42,16 @@ export class GenerationRunController {
 
   constructor(service: GenerationRunService) {
     this.#service = service;
+  }
+
+  @Post("preflight")
+  @HttpCode(200)
+  @RequirePermission("content:edit")
+  preflight(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Body() body: RequestGenerationRunDto,
+  ): Promise<GenerationPreflightResponse> {
+    return this.#service.preflight(session.actor, body);
   }
 
   @Post()
@@ -73,9 +87,54 @@ export class GenerationRunController {
         ? {}
         : { contentBriefRunId: query.contentBriefRunId }),
       ...(query.limit === undefined ? {} : { limit: query.limit }),
+      ...(query.lineageRootId === undefined
+        ? {}
+        : { lineageRootId: query.lineageRootId }),
       ...(query.mine === undefined ? {} : { mine: query.mine }),
       ...(query.page === undefined ? {} : { page: query.page }),
     });
+  }
+
+  @Post(":runId/edits")
+  @HttpCode(202)
+  @RequirePermission("content:edit")
+  requestEdit(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("runId", new ParseUUIDPipe()) runId: string,
+    @Body() body: RequestGenerationEditDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<GenerationRunAcceptedResponse> {
+    return this.#service.requestEdit(
+      session.actor,
+      runId,
+      {
+        instruction: body.instruction,
+        kind: body.kind,
+        parentVariantId: body.parentVariantId,
+        ...(body.contentBriefRunId === undefined
+          ? {}
+          : { contentBriefRunId: body.contentBriefRunId }),
+        ...(body.variants === undefined ? {} : { variants: body.variants }),
+      },
+      idempotencyKey,
+    );
+  }
+
+  @Post(":runId/selection")
+  @HttpCode(200)
+  @RequirePermission("content:edit")
+  selectVariant(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("runId", new ParseUUIDPipe()) runId: string,
+    @Body() body: SelectGenerationVariantDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<GenerationVariantSelectionResponse> {
+    return this.#service.selectVariant(
+      session.actor,
+      runId,
+      body,
+      idempotencyKey,
+    );
   }
 
   @Get(":runId")
