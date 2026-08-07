@@ -29,6 +29,7 @@ import {
   PrismaContentBriefRunRepository,
 } from "./content-brief-run-repository.ts";
 import {
+  PrismaGenerationRunEditorialRepository,
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";
@@ -3819,6 +3820,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
   const { briefRunId, membershipId, organizationId } =
     await generationFixture();
 
+  const invalidLifecycleRunId = randomUUID();
   // Un lote pendiente no puede tener instante de cierre.
   await assert.rejects(
     database.generationRun.create({
@@ -3827,7 +3829,8 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
         completedAt: new Date("2026-08-03T15:00:00.000Z"),
         contentBriefRunId: briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: invalidLifecycleRunId,
+        lineageRootId: invalidLifecycleRunId,
         organizationId,
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
         status: "pending",
@@ -3835,6 +3838,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
     }),
   );
 
+  const invalidPlanRunId = randomUUID();
   // El plan es indivisible: perfil sin hash no permite comparar dos lotes.
   await assert.rejects(
     database.generationRun.create({
@@ -3843,7 +3847,8 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
         completedAt: new Date("2026-08-03T15:00:00.000Z"),
         contentBriefRunId: briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: invalidPlanRunId,
+        lineageRootId: invalidPlanRunId,
         organizationId,
         profileId: "ferreteria-producto-limpio",
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
@@ -3859,6 +3864,7 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
       contentBriefRunId: briefRunId,
       format: "feed",
       id: runId,
+      lineageRootId: runId,
       organizationId,
       requestedAt: new Date("2026-08-03T15:00:00.000Z"),
       status: "pending",
@@ -3896,13 +3902,15 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
   // Un lote no puede citar una ejecución de brief ajena: la clave foránea es
   // compuesta por organización.
   const other = await generationFixture();
+  const crossTenantRunId = randomUUID();
   await assert.rejects(
     database.generationRun.create({
       data: {
         actorMembershipId: membershipId,
         contentBriefRunId: other.briefRunId,
         format: "feed",
-        id: randomUUID(),
+        id: crossTenantRunId,
+        lineageRootId: crossTenantRunId,
         organizationId,
         requestedAt: new Date("2026-08-03T15:00:00.000Z"),
         status: "pending",
@@ -4140,6 +4148,248 @@ test("una variante determinista sale sin base y con pieza compuesta", async () =
   assert.equal(second.status, "discarded");
 });
 
+test("E2E generar-editar-comparar-seleccionar conserva genealogía y auditoría", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runs = new PrismaGenerationRunRepository(database);
+  const editorial = new PrismaGenerationRunEditorialRepository(database);
+  const parentRunId = randomUUID();
+  const parentVariantId = randomUUID();
+  await runs.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: parentRunId,
+    organizationId,
+    requestedAt: "2026-08-06T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds: [parentVariantId],
+  });
+
+  const baseAssetId = randomUUID();
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.createMany({
+    data: [
+      {
+        byteSize: 600_000n,
+        checksumSha256: "1".repeat(64),
+        height: 1536,
+        id: baseAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "base-edicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${baseAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${baseAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1024,
+      },
+      {
+        byteSize: 640_000n,
+        checksumSha256: "2".repeat(64),
+        height: 1350,
+        id: composedAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "pieza-edicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${composedAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${composedAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+    ],
+  });
+  await runs.completeVariant(
+    {
+      attempts: 1,
+      composition: {
+        compositionHash: "3".repeat(64),
+        height: 1350,
+        layout: "composicion-tercio-inferior",
+        mediaAssetId: composedAssetId,
+        overlayHash: "4".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-08-05.1",
+        width: 1080,
+      },
+      height: 1536,
+      latencyMilliseconds: 2_000,
+      mediaAssetId: baseAssetId,
+      model: "gpt-image-2",
+      organizationId,
+      requestId: "request-parent",
+      runId: parentRunId,
+      sha256: "1".repeat(64),
+      status: "succeeded",
+      variantId: parentVariantId,
+      width: 1024,
+    },
+    "2026-08-06T12:00:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: 0.04,
+      id: parentRunId,
+      organizationId,
+      plan: {
+        format: "feed",
+        profileId: "ferreteria-producto-limpio",
+        profileVersion: "visual-profile/2026-08-03.2",
+        promptHash: "5".repeat(64),
+        promptVersion: "visual-prompt/2026-08-03.2",
+      },
+      resolution: null,
+      status: "completed",
+      totalTokens: 100,
+    },
+    "2026-08-06T12:00:06.000Z",
+  );
+
+  const childRunId = randomUUID();
+  const childVariantId = randomUUID();
+  const editOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:edit",
+  );
+  const edited = await editorial.requestEdit({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    edit: {
+      instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+      kind: "visual",
+      parentRunId,
+      parentVariantId,
+    },
+    format: "feed",
+    id: childRunId,
+    organizationId,
+    reliableOperation: editOperation,
+    requestedAt: "2026-08-06T12:10:00.000Z",
+    subjectKind: "generic",
+    variantIds: [childVariantId],
+  });
+  assert.equal(edited.status, "accepted");
+  const child = await runs.findById({ id: childRunId, organizationId });
+  assert.ok(child);
+  assert.equal(child.lineageRootId, parentRunId);
+  assert.deepEqual(child.edit, {
+    instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+    kind: "visual",
+    parentRunId,
+    parentVariantId,
+  });
+  await runs.completeVariant(
+    {
+      attempts: 1,
+      composition: {
+        compositionHash: "6".repeat(64),
+        height: 1350,
+        layout: "composicion-tercio-inferior",
+        mediaAssetId: composedAssetId,
+        overlayHash: "4".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-08-05.1",
+        width: 1080,
+      },
+      height: 1536,
+      latencyMilliseconds: 1_500,
+      mediaAssetId: baseAssetId,
+      model: "gpt-image-2",
+      organizationId,
+      requestId: "request-child",
+      runId: childRunId,
+      sha256: "1".repeat(64),
+      status: "succeeded",
+      variantId: childVariantId,
+      width: 1024,
+    },
+    "2026-08-06T12:10:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: 0.05,
+      id: childRunId,
+      organizationId,
+      plan: {
+        format: "feed",
+        profileId: "ferreteria-producto-limpio",
+        profileVersion: "visual-profile/2026-08-03.2",
+        promptHash: "7".repeat(64),
+        promptVersion: "visual-edit/2026-08-06.1",
+      },
+      resolution: null,
+      status: "completed",
+      totalTokens: 120,
+    },
+    "2026-08-06T12:10:06.000Z",
+  );
+  const comparison = await runs.list({
+    limit: 10,
+    lineageRootId: parentRunId,
+    organizationId,
+    page: 1,
+  });
+  assert.equal(comparison.total, 2);
+  assert.deepEqual(
+    comparison.items.map((record) => record.plan?.promptVersion).toSorted(),
+    ["visual-edit/2026-08-06.1", "visual-prompt/2026-08-03.2"],
+  );
+  assert.notEqual(
+    comparison.items[0]?.variants[0]?.composition?.compositionHash,
+    comparison.items[1]?.variants[0]?.composition?.compositionHash,
+  );
+
+  const selectionOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:select-variant",
+  );
+  assert.deepEqual(
+    await editorial.selectVariant({
+      actorMembershipId: membershipId,
+      expectedSelectionVersion: 0,
+      organizationId,
+      reliableOperation: selectionOperation,
+      runId: parentRunId,
+      selectedAt: "2026-08-06T12:11:00.000Z",
+      variantId: parentVariantId,
+    }),
+    {
+      selectedVariantId: parentVariantId,
+      selectionVersion: 1,
+      status: "selected",
+    },
+  );
+  const selectedParent = await runs.findById({
+    id: parentRunId,
+    organizationId,
+  });
+  assert.ok(selectedParent);
+  assert.equal(selectedParent.selectedVariantId, parentVariantId);
+  assert.equal(selectedParent.variants.length, 1);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        operation: {
+          in: ["content.generation:edit", "content.generation:select-variant"],
+        },
+        organizationId,
+      },
+    }),
+    2,
+  );
+});
+
 test("la base rechaza una variante que salió sin pieza o con pieza a medias", async () => {
   const { briefRunId, membershipId, organizationId } =
     await generationFixture();
@@ -4151,6 +4401,7 @@ test("la base rechaza una variante que salió sin pieza o con pieza a medias", a
       contentBriefRunId: briefRunId,
       format: "feed",
       id: runId,
+      lineageRootId: runId,
       organizationId,
       requestedAt: new Date("2026-08-05T12:00:00.000Z"),
       startedAt: new Date("2026-08-05T12:00:01.000Z"),

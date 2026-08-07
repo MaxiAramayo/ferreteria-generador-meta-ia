@@ -79,6 +79,23 @@ restricción de base impide el estado híbrido: generado conserva brief sin
 rechazo, rechazado conserva motivo sin brief. Si el historial no puede
 escribirse, no se entrega brief.
 
+### GenerationRun y GenerationRunVariant
+
+`GenerationRun` es un lote de variantes y también la unidad append-only de una
+edición. Un lote raíz se apunta a sí mismo con `lineageRootId`; un hijo conserva
+además `parentRunId`, `parentVariantId`, clase `visual | factual` e instrucción.
+La base impide raíces con datos de edición e hijos incompletos.
+
+Una edición visual conserva el `ContentBriefRun` y exige una variante padre
+exitosa, generada y compuesta. Una edición factual exige un brief generado,
+posterior y distinto: cambiar precio, producto o promoción nunca se resuelve
+sólo modificando píxeles.
+
+Cada ejecución puede apuntar a una variante exitosa mediante
+`selectedVariantId`. `selectionVersion` protege carreras y la selección conserva
+actor y fecha. El puntero no cambia el estado de las variantes ni elimina las no
+seleccionadas; seleccionar tampoco equivale a aprobar.
+
 ### Publication
 
 Representa una intención editorial completa. Contiene brief, recursos,
@@ -145,6 +162,11 @@ Solo PNG y JPEG decodificables, de hasta 8 MiB, 8192 píxeles por dimensión y
 40 millones de píxeles totales pueden quedar disponibles. El tipo declarado y
 la extensión deben coincidir con el contenido detectado. `available` conserva
 propietario, origen, SHA-256, bytes, dimensiones, clave, versión y URL HTTPS.
+
+La lectura para edición sólo existe detrás del puerto del worker. El activo se
+resuelve dentro del tenant y debe seguir `available`; los bytes recuperados se
+inspeccionan otra vez y deben coincidir con SHA-256, tipo, tamaño y dimensiones
+persistidos antes de alcanzar Images.
 
 El borrado ocurre en dos fases. Antes de contactar al proveedor, la base bloquea
 activos referenciados o dentro de retención y marca los demás como

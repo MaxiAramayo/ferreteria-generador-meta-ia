@@ -226,6 +226,20 @@ costo que el proveedor ya produjo.
 Fuentes: [Moderation](https://developers.openai.com/api/docs/guides/moderation),
 [Images API](https://developers.openai.com/api/reference/resources/images).
 
+### Edición visual con referencia
+
+`visual-edit/2026-08-06.1` es la instrucción versionada para los hijos visuales.
+El worker lee la base generada del padre desde almacenamiento, verifica nuevamente
+sus bytes contra PostgreSQL y llama a Images en modo edición. La instrucción de
+la persona viaja como dato no confiable; el bloque fijo prohíbe cambiar logo,
+texto comercial, producto, precio o promoción. Si la instrucción pide uno de
+esos cambios, la API la deriva al camino factual antes de contactar al
+proveedor.
+
+El camino factual crea primero otro `ContentBriefRun` y usa generación nueva.
+No se cambió el modelo ni la tabla de precios: ambas rutas continúan bajo la
+política versionada vigente y registran intentos, uso y costo por separado.
+
 ### Perfiles visuales y política de prompts
 
 `P4-T01` define el prompt de imagen antes de que exista la llamada. La autoridad

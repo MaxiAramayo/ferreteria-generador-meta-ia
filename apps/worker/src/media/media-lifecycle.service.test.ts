@@ -80,6 +80,10 @@ class FakeMediaStorage implements MediaStorage {
     return "https://res.cloudinary.com/test/image/upload/v1/producto.png";
   }
 
+  read(): Promise<Uint8Array> {
+    return Promise.resolve(new Uint8Array([1, 2, 3]));
+  }
+
   store(): Promise<StoredMediaObject> {
     this.storeCalls += 1;
     return this.storeError === undefined
@@ -100,6 +104,7 @@ class FakeMediaStorage implements MediaStorage {
 class FakeMediaRepository implements MediaAssetRepository {
   readonly retentionAudits: string[] = [];
   expiredCandidates: readonly ExpiredMediaAssetCandidate[] = [];
+  findResult: MediaAssetRecord | null = null;
 
   auditRetention(
     input: Parameters<MediaAssetRepository["auditRetention"]>[0],
@@ -163,7 +168,7 @@ class FakeMediaRepository implements MediaAssetRepository {
   }
 
   findById(): Promise<MediaAssetRecord | null> {
-    return Promise.resolve(null);
+    return Promise.resolve(this.findResult);
   }
 
   findAvailableByIds(): Promise<readonly MediaAssetRecord[]> {
@@ -218,6 +223,24 @@ test("repetir una carga disponible devuelve el activo sin subir de nuevo", async
 
   assert.equal((await service.upload(uploadCommand())).status, "available");
   assert.equal(storage.storeCalls, 0);
+});
+
+test("leer un activo verifica bytes, tipo, medidas y hash antes de editar", async () => {
+  const repository = new FakeMediaRepository();
+  repository.findResult = asset("available");
+  const service = new MediaLifecycleService(
+    repository,
+    new FakeMediaInspector(),
+    new FakeMediaStorage(),
+  );
+
+  const result = await service.read({
+    mediaAssetId: "media-1",
+    organizationId: "organization-1",
+  });
+
+  assert.equal(result.sha256, "a".repeat(64));
+  assert.deepEqual([...result.bytes], [1, 2, 3]);
 });
 
 test("reutilizar el mismo activo admite extender su retención", async () => {

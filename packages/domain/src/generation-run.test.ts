@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, test } from "node:test";
 
 import {
   generationRunLimits,
   generationRunOutcome,
+  generationEditNeedsFactualRevalidation,
   generationRunProgress,
   generationRunStatuses,
   generationVariantStatuses,
@@ -100,6 +101,23 @@ describe("ciclo de vida de la ejecución de generación", () => {
       }
     }
   });
+});
+
+test("la edición visual deriva cambios comerciales a revalidación factual", () => {
+  for (const instruction of [
+    "Cambiá el precio a $ 25.000",
+    "Mostrá otro producto en oferta",
+    "Agregá un descuento del 10 %",
+    "Actualizá el stock disponible",
+  ]) {
+    assert.equal(generationEditNeedsFactualRevalidation(instruction), true);
+  }
+  assert.equal(
+    generationEditNeedsFactualRevalidation(
+      "Usá una luz más cálida y mové el producto hacia la derecha",
+    ),
+    false,
+  );
 });
 
 describe("progreso del lote", () => {

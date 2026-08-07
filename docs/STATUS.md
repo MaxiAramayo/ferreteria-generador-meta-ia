@@ -35,6 +35,12 @@ habilitación dinámicamente y barre huérfanos vencidos sin borrar medios
 referenciados. Configuración expone cuotas, presupuesto, alerta, retenciones y
 uso mensual con CAS y cortes UTC.
 
+`P4-T06` quedó cerrada el 2026-08-06. Cada cambio crea un `GenerationRun` hijo
+append-only: el visual conserva el brief y edita la base generada del padre después
+de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
+revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
+versionada conserva todas las alternativas y su auditoría (`ADR-016`).
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -54,9 +60,9 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T06` — edición, comparación y selección de variantes. Sus
-dependencias `P4-T04` y `P4-T05` están completas. Al cerrarla quedará habilitada
-`P4-T08`, que ya tiene completa su otra dependencia, `P4-T07`.
+Iniciar `P4-T08` — aprobar calidad visual y factual. Sus dependencias `P4-T06`
+y `P4-T07` están completas; corresponde definir dataset, rúbrica, responsables
+y umbrales antes de habilitar la integración Meta.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

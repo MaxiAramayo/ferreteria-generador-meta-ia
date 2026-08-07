@@ -8,6 +8,7 @@ import type {
   ContentBriefRunRecord,
   ContentBriefRunRepository,
   GenerationRunCancellationOutcome,
+  GenerationRunEditorialRepository,
   GenerationRunListFilter,
   GenerationRunRecord,
   GenerationRunRepository,
@@ -15,10 +16,14 @@ import type {
   GenerationRunRequestRepository,
   GenerationRunRequestResult,
   GenerationRunWriteOutcome,
+  MediaAssetRecord,
   OrganizationScope,
   PaginatedRecords,
   ReliableMutationContext,
   RequestGenerationRunInput,
+  RequestGenerationRunEditInput,
+  SelectGenerationVariantInput,
+  GenerationVariantSelectionResult,
 } from "@aramayo/domain";
 import {
   BadRequestException,
@@ -31,8 +36,10 @@ import { ReliableOperationService } from "../audit/reliable-operation.service.ts
 import {
   CONTENT_BRIEF_RUN_REPOSITORY,
   GENERATION_RUN_REPOSITORY,
+  GENERATION_RUN_EDITORIAL_REPOSITORY,
   GENERATION_RUN_REQUEST_REPOSITORY,
   GENERATION_POLICY_REPOSITORY,
+  MEDIA_ASSET_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { GenerationRunService } from "./generation-run.service.ts";
 
@@ -119,23 +126,28 @@ function briefRun(
 }
 
 class FakeBriefs implements ContentBriefRunRepository {
-  #record: ContentBriefRunRecord | null;
+  #records: readonly ContentBriefRunRecord[];
 
-  constructor(record: ContentBriefRunRecord | null = briefRun()) {
-    this.#record = record;
+  constructor(
+    records:
+      | ContentBriefRunRecord
+      | readonly ContentBriefRunRecord[]
+      | null = briefRun(),
+  ) {
+    this.#records =
+      records === null ? [] : Array.isArray(records) ? records : [records];
   }
 
   findById(
     scope: OrganizationScope & { readonly id: string },
   ): Promise<ContentBriefRunRecord | null> {
-    if (
-      this.#record === null ||
-      scope.organizationId !== this.#record.organizationId ||
-      scope.id !== this.#record.id
-    ) {
-      return Promise.resolve(null);
-    }
-    return Promise.resolve(this.#record);
+    return Promise.resolve(
+      this.#records.find(
+        (record) =>
+          scope.organizationId === record.organizationId &&
+          scope.id === record.id,
+      ) ?? null,
+    );
   }
 
   cancel(): Promise<never> {
@@ -149,6 +161,38 @@ class FakeBriefs implements ContentBriefRunRepository {
   }
   reserve(): Promise<void> {
     return Promise.resolve();
+  }
+}
+
+class FakeEditorial implements GenerationRunEditorialRepository {
+  lastEdit: RequestGenerationRunEditInput | undefined;
+  lastSelection: SelectGenerationVariantInput | undefined;
+
+  requestEdit(
+    input: RequestGenerationRunEditInput,
+  ): Promise<GenerationRunRequestResult> {
+    this.lastEdit = input;
+    return Promise.resolve({
+      admission: {
+        mode: "provider",
+        pricingVersion: "test-pricing",
+        referenceCostMicrousd: 53_000,
+        reservedCostMicrousd: 213_000,
+      },
+      runId: input.id,
+      status: "accepted",
+    });
+  }
+
+  selectVariant(
+    input: SelectGenerationVariantInput,
+  ): Promise<GenerationVariantSelectionResult> {
+    this.lastSelection = input;
+    return Promise.resolve({
+      selectedVariantId: input.variantId,
+      selectionVersion: input.expectedSelectionVersion + 1,
+      status: "selected",
+    });
   }
 }
 
@@ -196,6 +240,7 @@ function runRecord(
     cancelledAt: null,
     completedAt: null,
     contentBriefRunId: briefRunId,
+    edit: null,
     estimatedCostUsd: null,
     cost: {
       imageInputTokens: 0,
@@ -210,12 +255,17 @@ function runRecord(
     },
     format: "feed",
     id: randomUUID(),
+    lineageRootId: "30000000-0000-4000-8000-000000000007",
     organizationId,
     plan: null,
     requestedAt: "2026-08-03T12:00:00.000Z",
     resolution: null,
     startedAt: null,
     status: "pending",
+    selectedAt: null,
+    selectedByMembershipId: null,
+    selectedVariantId: null,
+    selectionVersion: 0,
     subjectKind: "branded",
     totalTokens: 0,
     variantIds,
@@ -365,13 +415,47 @@ async function serviceFor(
   runs: FakeRuns,
   briefs: FakeBriefs = new FakeBriefs(),
   policies?: GenerationPolicyRepository,
+  editorial: GenerationRunEditorialRepository = new FakeEditorial(),
 ): Promise<GenerationRunService> {
   const testingModule = await Test.createTestingModule({
     providers: [
       GenerationRunService,
       { provide: GENERATION_RUN_REQUEST_REPOSITORY, useValue: requests },
+      {
+        provide: GENERATION_RUN_EDITORIAL_REPOSITORY,
+        useValue: editorial,
+      },
       { provide: GENERATION_RUN_REPOSITORY, useValue: runs },
       { provide: CONTENT_BRIEF_RUN_REPOSITORY, useValue: briefs },
+      {
+        provide: MEDIA_ASSET_REPOSITORY,
+        useValue: {
+          findAvailableByIds: (
+            _scope: OrganizationScope,
+            mediaAssetIds: readonly string[],
+          ): Promise<readonly MediaAssetRecord[]> =>
+            Promise.resolve(
+              mediaAssetIds.map((id) => ({
+                checksumSha256: "c".repeat(64),
+                createdAt: "2026-08-03T12:00:00.000Z",
+                height: 1350,
+                id,
+                mimeType: "image/png" as const,
+                organizationId,
+                origin: "generated" as const,
+                originalFileName: "composition.png",
+                ownerMembershipId: membershipId,
+                secureUrl: `https://media.invalid/${id}.png`,
+                status: "available" as const,
+                storageKey: id,
+                storageProvider: "cloudinary" as const,
+                storageVersion: 1,
+                updatedAt: "2026-08-03T12:00:00.000Z",
+                width: 1080,
+              })),
+            ),
+        },
+      },
       { provide: ReliableOperationService, useValue: reliableOperationService },
       ...(policies === undefined
         ? []
@@ -383,6 +467,42 @@ async function serviceFor(
 
 function harness(): Promise<GenerationRunService> {
   return serviceFor(new FakeRequests(), new FakeRuns());
+}
+
+function completedRun(): GenerationRunRecord {
+  const base = runRecord();
+  const first = base.variants[0];
+  assert.ok(first !== undefined);
+  return {
+    ...base,
+    completedAt: "2026-08-03T12:05:00.000Z",
+    status: "completed",
+    variants: [
+      {
+        ...first,
+        attempts: 1,
+        completedAt: "2026-08-03T12:04:00.000Z",
+        composition: {
+          compositionHash: "1".repeat(64),
+          height: 1350,
+          layout: "composicion-tercio-inferior",
+          mediaAssetId: "88888888-8888-4888-8888-888888888888",
+          overlayHash: "2".repeat(64),
+          sha256: "3".repeat(64),
+          theme: "taller",
+          version: "visual-composition/2026-08-05.1",
+          width: 1080,
+        },
+        height: 1536,
+        mediaAssetId: "99999999-9999-4999-8999-999999999999",
+        model: "gpt-image-2",
+        sha256: "4".repeat(64),
+        status: "succeeded",
+        width: 1024,
+      },
+      ...base.variants.slice(1),
+    ],
+  };
 }
 
 test("el pedido reserva el lote y toma el alcance de la sesión", async () => {
@@ -793,4 +913,136 @@ test("una sesión sin permiso de edición no pide ni cancela lotes", async () =>
     ),
   );
   await assert.rejects(() => service.cancel(readOnly, randomUUID()));
+});
+
+test("una edición visual crea un lote hijo y no cambia el brief", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+
+  const accepted = await service.requestEdit(
+    actor,
+    parent.id,
+    {
+      instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+      kind: "visual",
+      parentVariantId: source.id,
+      variants: 2,
+    },
+    "generation-edit-visual-0001",
+  );
+
+  assert.equal(accepted.status, "pending");
+  const visualEdit = editorial.lastEdit;
+  assert.ok(visualEdit);
+  assert.equal(visualEdit.contentBriefRunId, parent.contentBriefRunId);
+  assert.deepEqual(visualEdit.edit, {
+    instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+    kind: "visual",
+    parentRunId: parent.id,
+    parentVariantId: source.id,
+  });
+});
+
+test("precio, producto o promoción obligan a un brief nuevo", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+  const revalidatedBriefId = "30000000-0000-4000-8000-000000000099";
+  const revalidated = briefRun({
+    id: revalidatedBriefId,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+  });
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs([briefRun(), revalidated]),
+    undefined,
+    editorial,
+  );
+
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          instruction: "Cambiá el precio a $ 25.000.",
+          kind: "visual",
+          parentVariantId: source.id,
+        },
+        "generation-edit-invalid-0001",
+      ),
+    ConflictException,
+  );
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          instruction: "Cambiá el precio informado.",
+          kind: "factual",
+          parentVariantId: source.id,
+        },
+        "generation-edit-invalid-0002",
+      ),
+    ConflictException,
+  );
+
+  await service.requestEdit(
+    actor,
+    parent.id,
+    {
+      contentBriefRunId: revalidatedBriefId,
+      instruction: "Cambiá el precio informado con evidencia vigente.",
+      kind: "factual",
+      parentVariantId: source.id,
+    },
+    "generation-edit-factual-0001",
+  );
+  const factualEdit = editorial.lastEdit;
+  assert.ok(factualEdit);
+  assert.equal(factualEdit.contentBriefRunId, revalidatedBriefId);
+  assert.equal(factualEdit.edit.kind, "factual");
+});
+
+test("seleccionar conserva la variante y avanza la versión auditable", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+
+  const selected = await service.selectVariant(
+    actor,
+    parent.id,
+    { expectedSelectionVersion: 0, variantId: source.id },
+    "generation-select-0001",
+  );
+
+  assert.deepEqual(selected, {
+    runId: parent.id,
+    selectedVariantId: source.id,
+    selectionVersion: 1,
+  });
+  assert.equal(editorial.lastSelection?.runId, parent.id);
 });

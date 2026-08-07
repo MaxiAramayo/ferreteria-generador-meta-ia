@@ -837,8 +837,8 @@ Desviaciones:
 
 ## P4-T06 — Implementar variantes y edición conversacional
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETADA (2026-08-06)
 - Dependencias: `P3-T09`, `P4-T05`
 - Riesgo: Medio
 
@@ -855,24 +855,42 @@ sobrescribir el material previamente generado.
 
 ### Criterios de aceptación
 
-- [ ] Cada edición crea una ejecución nueva.
-- [ ] El usuario distingue cambio visual de cambio factual del brief.
-- [ ] Modificar precio, producto o promoción exige revalidar evidencia.
-- [ ] Se pueden comparar prompt, perfil, costo y resultado.
-- [ ] Seleccionar una variante no borra las demás.
-- [ ] Acciones no disponibles no se exponen en variantes fallidas.
+- [x] Cada edición crea una ejecución nueva.
+- [x] El usuario distingue cambio visual de cambio factual del brief.
+- [x] Modificar precio, producto o promoción exige revalidar evidencia.
+- [x] Se pueden comparar prompt, perfil, costo y resultado.
+- [x] Seleccionar una variante no borra las demás.
+- [x] Acciones no disponibles no se exponen en variantes fallidas.
 
 ### Verificación obligatoria
 
-- [ ] E2E generar–editar–comparar–seleccionar.
-- [ ] Prueba de cambio factual que obliga a revalidar.
-- [ ] Confirmar historial y auditoría completos.
+- [x] E2E generar–editar–comparar–seleccionar.
+- [x] Prueba de cambio factual que obliga a revalidar.
+- [x] Confirmar historial y auditoría completos.
 
 ### Fuera de alcance
 
 - Aprendizaje automático desde elecciones del usuario.
 
 ### Notas de progreso
+
+- 2026-08-06 — Implementación completa. `ADR-016` fija genealogía append-only,
+  separación visual/factual y selección versionada. La UI permite generar,
+  editar, comparar y seleccionar; una variante fallida no ofrece acciones que
+  no puede completar.
+- La edición visual lee la base generada del padre, comprueba nuevamente bytes, tipo,
+  tamaño, dimensiones y SHA-256, y usa Images edit con
+  `visual-edit/2026-08-06.1`. La factual exige primero otro `ContentBriefRun`
+  generado y posterior.
+- La selección usa idempotencia, compare-and-swap y auditoría. Conserva todas
+  las variantes y no aprueba, programa ni publica.
+
+- 2026-08-06 — Inicio de implementación. La edición se modela como una ejecución
+  hija append-only ligada a la ejecución y variante de origen. El cambio visual
+  reutiliza una base verificada; el factual exige primero un `ContentBriefRun`
+  nuevo y generado. La selección será una mutación idempotente y auditable con
+  control de concurrencia, sin eliminar variantes. Se verificarán dominio,
+  contrato/API, worker, UI, integración PostgreSQL, E2E y `pnpm verify`.
 
 - Registrado por `P4-T05`: recomponer una variante ya guardada necesita los
   bytes de su base, y la composición hoy sólo ocurre mientras la generación está
@@ -894,7 +912,22 @@ sobrescribir el material previamente generado.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm verify`: salió en 0; incluye stack, plan, formato, build, lint,
+  TypeScript estricto, 537 pruebas automáticas —536 aprobadas y una omitida—,
+  baseline y smoke sin llamadas reales a OpenAI.
+- `pnpm db:test`: salió en 0; aplicó las migraciones desde una base vacía,
+  ejecutó el E2E generar–editar–comparar–seleccionar, verificó genealogía y dos
+  eventos de auditoría, revirtió
+  `20260806000000_generation_edit_lineage`, reaplicó y volvió a probar.
+- Cobertura focalizada: cambio factual exige otro brief generado; edición
+  visual usa la referencia verificada sin regenerar el padre; selección CAS no
+  borra variantes; acciones se derivan del estado real de cada variante.
+- El panel, API, worker, PostgreSQL y Redis arrancaron localmente. Playwright
+  verificó la ruta protegida y la disponibilidad del panel; no se alteraron
+  credenciales para forzar una sesión y el flujo autenticado quedó cubierto por
+  las suites de API, web e integración.
+- No se llamó a OpenAI, no se modificó producción y no se ejecutó ningún smoke
+  facturable.
 
 ## P4-T07 — Aplicar seguridad, cuotas y control de costos
 

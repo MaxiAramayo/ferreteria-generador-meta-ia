@@ -1,10 +1,12 @@
 import type { CloudinaryCredentials } from "@aramayo/configuration";
-import type {
-  MediaDeliveryVariant,
-  MediaStorage,
-  StoredMediaObject,
-  StoreMediaInput,
-  SupportedMediaMimeType,
+import {
+  mediaUploadPolicy,
+  type MediaDeliveryVariant,
+  type MediaStorage,
+  type ReadMediaObjectInput,
+  type StoredMediaObject,
+  type StoreMediaInput,
+  type SupportedMediaMimeType,
 } from "@aramayo/domain";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -16,6 +18,7 @@ export interface CloudinaryGateway {
     options: Readonly<Record<string, unknown>>,
   ): string;
   destroy(publicId: string): Promise<unknown>;
+  download(url: string): Promise<Uint8Array>;
   upload(bytes: Uint8Array, publicId: string): Promise<unknown>;
 }
 
@@ -56,6 +59,26 @@ class OfficialCloudinaryGateway implements CloudinaryGateway {
         },
       );
     });
+  }
+
+  async download(url: string): Promise<Uint8Array> {
+    const response = await fetch(url, {
+      headers: { accept: "image/png,image/jpeg" },
+      redirect: "error",
+    });
+    if (!response.ok) throw new Error("Cloudinary download failed.");
+    const declaredLength = Number(response.headers.get("content-length") ?? 0);
+    if (
+      Number.isFinite(declaredLength) &&
+      declaredLength > mediaUploadPolicy.maximumByteSize
+    ) {
+      throw new Error("Cloudinary object exceeds the media limit.");
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > mediaUploadPolicy.maximumByteSize) {
+      throw new Error("Cloudinary object exceeds the media limit.");
+    }
+    return bytes;
   }
 
   upload(bytes: Uint8Array, publicId: string): Promise<unknown> {
@@ -188,6 +211,19 @@ export class CloudinaryMediaStorage implements MediaStorage {
     });
   }
 
+  async read(input: ReadMediaObjectInput): Promise<Uint8Array> {
+    const url = this.deliveryUrl(input, "original");
+    try {
+      return await this.#gateway.download(url);
+    } catch {
+      throw new MediaLifecycleError(
+        "provider-failed",
+        "Cloudinary no pudo devolver la imagen guardada.",
+        true,
+      );
+    }
+  }
+
   async delete(storageKey: string): Promise<"deleted" | "not-found"> {
     let rawResponse: unknown;
     try {
@@ -282,6 +318,16 @@ export class DisabledMediaStorage implements MediaStorage {
       "provider-disabled",
       "Cloudinary no está configurado en este ambiente.",
       false,
+    );
+  }
+
+  read(): Promise<Uint8Array> {
+    return Promise.reject(
+      new MediaLifecycleError(
+        "provider-disabled",
+        "Cloudinary no está configurado en este ambiente.",
+        false,
+      ),
     );
   }
 

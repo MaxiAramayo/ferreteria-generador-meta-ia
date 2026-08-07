@@ -133,6 +133,8 @@ export {
   type VisualDirection,
 } from "./content-brief.ts";
 export {
+  generationEditKinds,
+  generationEditNeedsFactualRevalidation,
   generationRunLimits,
   generationRunOutcome,
   generationRunProgress,
@@ -149,6 +151,8 @@ export {
   type GenerationRunPlan,
   type GenerationRunProgress,
   type GenerationRunRecord,
+  type GenerationRunEditorialRepository,
+  type GenerationRunEdit,
   type GenerationRunRequestRepository,
   type GenerationRunRequestResult,
   type GenerationRunRepository,
@@ -164,7 +168,11 @@ export {
   type GenerationVariantRecord,
   type GenerationVariantSource,
   type GenerationVariantStatus,
+  type GenerationEditKind,
+  type GenerationVariantSelectionResult,
+  type RequestGenerationRunEditInput,
   type RequestGenerationRunInput,
+  type SelectGenerationVariantInput,
 } from "./generation-run.ts";
 export {
   type ApprovalSnapshotRecord,
@@ -221,6 +229,7 @@ export {
   type MediaUploadReservation,
   type MediaValidationErrorCode,
   type ReserveMediaUploadInput,
+  type ReadMediaObjectInput,
   type StoredMediaObject,
   type StoreMediaInput,
   type SupportedMediaMimeType,

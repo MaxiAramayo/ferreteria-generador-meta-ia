@@ -1392,3 +1392,188 @@ a {
   background: color-mix(in srgb, var(--workspace-paper) 25%, transparent);
   padding: 0.1rem 0.3rem;
 }
+
+.generation-workspace {
+  background: #f3eee5;
+  color: var(--workspace-ink);
+  display: grid;
+  gap: 1.5rem;
+  grid-column: 1 / -1;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.generation-workspace-heading {
+  align-items: end;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(16rem, 1fr) minmax(22rem, 1.4fr);
+}
+
+.generation-controls {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(8rem, 1fr));
+}
+
+.generation-controls label,
+.generation-edit-form label {
+  display: grid;
+  font-size: 0.75rem;
+  font-weight: 800;
+  gap: 0.35rem;
+  text-transform: uppercase;
+}
+
+.generation-controls select,
+.generation-edit-form textarea {
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 35%, transparent);
+  color: inherit;
+  min-height: 2.8rem;
+  padding: 0.65rem;
+}
+
+.generation-controls .workspace-primary-action {
+  grid-column: 1 / -1;
+}
+
+.generation-edit-form {
+  background: #ffffff;
+  border-left: 0.45rem solid var(--workspace-rust);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.generation-empty,
+.generation-variant-placeholder {
+  border: 1px dashed color-mix(in srgb, var(--workspace-ink) 35%, transparent);
+  padding: 1.25rem;
+}
+
+.generation-lineage {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.generation-lineage > section {
+  border-top: 0.35rem solid var(--workspace-ink);
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 0.8rem;
+}
+
+.generation-lineage > section > header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.generation-lineage > section > header span {
+  background: var(--workspace-safety);
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 0.25rem 0.45rem;
+  text-transform: uppercase;
+}
+
+.generation-lineage > section > header small {
+  margin-left: auto;
+}
+
+.generation-variant-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+}
+
+.generation-variant-card {
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 20%, transparent);
+  display: grid;
+  overflow: hidden;
+}
+
+.generation-variant-card > img,
+.generation-comparison img {
+  aspect-ratio: 4 / 5;
+  background: #d9d3ca;
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.generation-variant-card > div:not(.generation-variant-placeholder) {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.generation-variant-card dl {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.generation-variant-card dl div {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.generation-variant-card dt {
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.generation-variant-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.generation-variant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.generation-variant-actions label {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.generation-comparison {
+  border-top: 0.35rem solid var(--workspace-rust);
+  padding-top: 1rem;
+}
+
+.generation-comparison > div {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.generation-comparison article {
+  background: #ffffff;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+@media (max-width: 52rem) {
+  .generation-workspace-heading,
+  .generation-controls,
+  .generation-comparison > div {
+    grid-template-columns: 1fr;
+  }
+
+  .generation-lineage > section > header small {
+    margin-left: 0;
+    width: 100%;
+  }
+}

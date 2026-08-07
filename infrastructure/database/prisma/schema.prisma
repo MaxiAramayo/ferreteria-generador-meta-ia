@@ -429,9 +429,9 @@ model Location {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  brand           Brand             @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  publications    Publication[]
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  brand            Brand             @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publications     Publication[]
   contentBriefRuns ContentBriefRun[]
 
   @@unique([organizationId, name], map: "locations_organization_name_key")
@@ -570,10 +570,10 @@ model MediaAsset {
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  owner             OrganizationMembership     @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  revisions         PublicationRevisionMedia[]
-  renderedRevisions PublicationRevision[]      @relation("PublicationRenderedMedia")
+  organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  owner              OrganizationMembership     @relation(fields: [organizationId, ownerMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  revisions          PublicationRevisionMedia[]
+  renderedRevisions  PublicationRevision[]      @relation("PublicationRenderedMedia")
   generationVariants GenerationRunVariant[]
   composedVariants   GenerationRunVariant[]     @relation("GenerationComposedMedia")
 
@@ -656,41 +656,41 @@ model AuditEvent {
 }
 
 model ContentBriefRun {
-  id                 String               @id @db.Uuid
-  organizationId     String               @map("organization_id") @db.Uuid
-  actorMembershipId  String               @map("actor_membership_id") @db.Uuid
-  locationId         String?              @map("location_id") @db.Uuid
-  status             ContentBriefRunStatus
-  request            String               @db.VarChar(600)
-  requestHash        String               @map("request_hash") @db.Char(64)
-  requestedAt        DateTime             @map("requested_at") @db.Timestamptz(3)
-  promptVersion      String?              @map("prompt_version") @db.VarChar(80)
-  promptHash         String?              @map("prompt_hash") @db.Char(64)
-  schemaVersion      String?              @map("schema_version") @db.VarChar(80)
-  model              String               @db.VarChar(120)
-  knowledgeStatus    String               @map("knowledge_status") @db.VarChar(120)
-  toolNames          Json                 @map("tool_names")
-  toolInvocations    Json                 @map("tool_invocations")
-  evidence           Json
-  brief              Json?
-  rejectionCode      String?              @map("rejection_code") @db.VarChar(80)
-  rejectionMessage   String?              @map("rejection_message") @db.VarChar(300)
-  responseId         String?              @map("response_id") @db.VarChar(120)
-  requestId          String?              @map("request_id") @db.VarChar(120)
-  attempts           Int
-  latencyMilliseconds Int                 @map("latency_milliseconds")
-  inputTokens        Int                  @map("input_tokens")
-  cachedInputTokens  Int                  @map("cached_input_tokens")
-  outputTokens       Int                  @map("output_tokens")
-  reasoningTokens    Int                  @map("reasoning_tokens")
-  totalTokens        Int                  @map("total_tokens")
-  estimatedCostUsd   Decimal?             @map("estimated_cost_usd") @db.Decimal(12, 6)
-  completedAt        DateTime?            @map("completed_at") @db.Timestamptz(3)
-  cancelledAt        DateTime?            @map("cancelled_at") @db.Timestamptz(3)
-  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                  String                @id @db.Uuid
+  organizationId      String                @map("organization_id") @db.Uuid
+  actorMembershipId   String                @map("actor_membership_id") @db.Uuid
+  locationId          String?               @map("location_id") @db.Uuid
+  status              ContentBriefRunStatus
+  request             String                @db.VarChar(600)
+  requestHash         String                @map("request_hash") @db.Char(64)
+  requestedAt         DateTime              @map("requested_at") @db.Timestamptz(3)
+  promptVersion       String?               @map("prompt_version") @db.VarChar(80)
+  promptHash          String?               @map("prompt_hash") @db.Char(64)
+  schemaVersion       String?               @map("schema_version") @db.VarChar(80)
+  model               String                @db.VarChar(120)
+  knowledgeStatus     String                @map("knowledge_status") @db.VarChar(120)
+  toolNames           Json                  @map("tool_names")
+  toolInvocations     Json                  @map("tool_invocations")
+  evidence            Json
+  brief               Json?
+  rejectionCode       String?               @map("rejection_code") @db.VarChar(80)
+  rejectionMessage    String?               @map("rejection_message") @db.VarChar(300)
+  responseId          String?               @map("response_id") @db.VarChar(120)
+  requestId           String?               @map("request_id") @db.VarChar(120)
+  attempts            Int
+  latencyMilliseconds Int                   @map("latency_milliseconds")
+  inputTokens         Int                   @map("input_tokens")
+  cachedInputTokens   Int                   @map("cached_input_tokens")
+  outputTokens        Int                   @map("output_tokens")
+  reasoningTokens     Int                   @map("reasoning_tokens")
+  totalTokens         Int                   @map("total_tokens")
+  estimatedCostUsd    Decimal?              @map("estimated_cost_usd") @db.Decimal(12, 6)
+  completedAt         DateTime?             @map("completed_at") @db.Timestamptz(3)
+  cancelledAt         DateTime?             @map("cancelled_at") @db.Timestamptz(3)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor          OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   location       Location?              @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   revisions      PublicationRevision[]
   generationRuns GenerationRun[]
@@ -704,31 +704,40 @@ model ContentBriefRun {
 }
 
 model GenerationRun {
-  id                  String              @id @db.Uuid
-  organizationId      String              @map("organization_id") @db.Uuid
-  actorMembershipId   String              @map("actor_membership_id") @db.Uuid
-  contentBriefRunId   String              @map("content_brief_run_id") @db.Uuid
-  status              GenerationRunStatus
-  format              String              @db.VarChar(40)
-  subjectKind         String              @default("branded") @map("subject_kind") @db.VarChar(20)
-  requestedAt         DateTime            @map("requested_at") @db.Timestamptz(3)
-  startedAt           DateTime?           @map("started_at") @db.Timestamptz(3)
-  completedAt         DateTime?           @map("completed_at") @db.Timestamptz(3)
-  cancelledAt         DateTime?           @map("cancelled_at") @db.Timestamptz(3)
-  profileId           String?             @map("profile_id") @db.VarChar(80)
-  profileVersion      String?             @map("profile_version") @db.VarChar(80)
-  promptVersion       String?             @map("prompt_version") @db.VarChar(80)
-  promptHash          String?             @map("prompt_hash") @db.Char(64)
-  deterministicReason String?             @map("deterministic_reason") @db.VarChar(80)
-  resolutionDetail    String?             @map("resolution_detail") @db.VarChar(300)
-  totalTokens         Int                 @default(0) @map("total_tokens")
-  estimatedCostUsd    Decimal?            @map("estimated_cost_usd") @db.Decimal(12, 6)
-  admissionMode       String              @default("provider") @map("admission_mode") @db.VarChar(20)
-  admissionReason     String?             @map("admission_reason") @db.VarChar(80)
-  pricingVersion      String?             @default("openai-gpt-image-2-standard-2026-08-05") @map("pricing_version") @db.VarChar(80)
-  referenceCostMicrousd Int               @default(0) @map("reference_cost_microusd")
-  reservedCostMicrousd  Int               @default(0) @map("reserved_cost_microusd")
-  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                     String              @id @db.Uuid
+  organizationId         String              @map("organization_id") @db.Uuid
+  actorMembershipId      String              @map("actor_membership_id") @db.Uuid
+  contentBriefRunId      String              @map("content_brief_run_id") @db.Uuid
+  status                 GenerationRunStatus
+  format                 String              @db.VarChar(40)
+  subjectKind            String              @default("branded") @map("subject_kind") @db.VarChar(20)
+  requestedAt            DateTime            @map("requested_at") @db.Timestamptz(3)
+  startedAt              DateTime?           @map("started_at") @db.Timestamptz(3)
+  completedAt            DateTime?           @map("completed_at") @db.Timestamptz(3)
+  cancelledAt            DateTime?           @map("cancelled_at") @db.Timestamptz(3)
+  profileId              String?             @map("profile_id") @db.VarChar(80)
+  profileVersion         String?             @map("profile_version") @db.VarChar(80)
+  promptVersion          String?             @map("prompt_version") @db.VarChar(80)
+  promptHash             String?             @map("prompt_hash") @db.Char(64)
+  deterministicReason    String?             @map("deterministic_reason") @db.VarChar(80)
+  resolutionDetail       String?             @map("resolution_detail") @db.VarChar(300)
+  totalTokens            Int                 @default(0) @map("total_tokens")
+  estimatedCostUsd       Decimal?            @map("estimated_cost_usd") @db.Decimal(12, 6)
+  admissionMode          String              @default("provider") @map("admission_mode") @db.VarChar(20)
+  admissionReason        String?             @map("admission_reason") @db.VarChar(80)
+  pricingVersion         String?             @default("openai-gpt-image-2-standard-2026-08-05") @map("pricing_version") @db.VarChar(80)
+  referenceCostMicrousd  Int                 @default(0) @map("reference_cost_microusd")
+  reservedCostMicrousd   Int                 @default(0) @map("reserved_cost_microusd")
+  lineageRootId          String              @map("lineage_root_id") @db.Uuid
+  parentRunId            String?             @map("parent_run_id") @db.Uuid
+  parentVariantId        String?             @map("parent_variant_id") @db.Uuid
+  editKind               String?             @map("edit_kind") @db.VarChar(20)
+  editInstruction        String?             @map("edit_instruction") @db.VarChar(600)
+  selectedVariantId      String?             @map("selected_variant_id") @db.Uuid
+  selectedAt             DateTime?           @map("selected_at") @db.Timestamptz(3)
+  selectedByMembershipId String?             @map("selected_by_membership_id") @db.Uuid
+  selectionVersion       Int                 @default(0) @map("selection_version")
+  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   actor           OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
@@ -741,6 +750,8 @@ model GenerationRun {
   @@index([organizationId, actorMembershipId, requestedAt(sort: Desc)], map: "generation_runs_org_actor_idx")
   @@index([organizationId, contentBriefRunId, requestedAt(sort: Desc)], map: "generation_runs_org_brief_idx")
   @@index([organizationId, status, requestedAt(sort: Desc)], map: "generation_runs_open_idx")
+  @@index([organizationId, lineageRootId, requestedAt, id], map: "generation_runs_lineage_idx")
+  @@index([organizationId, parentRunId], map: "generation_runs_parent_idx")
   @@map("generation_runs")
 }
 
@@ -778,10 +789,10 @@ model GenerationRunVariant {
   compositionHash        String? @map("composition_hash") @db.Char(64)
   compositionOverlayHash String? @map("composition_overlay_hash") @db.Char(64)
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  run          GenerationRun @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  mediaAsset   MediaAsset?   @relation(fields: [organizationId, mediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  composedAsset MediaAsset?  @relation("GenerationComposedMedia", fields: [organizationId, composedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  run                GenerationRun       @relation(fields: [organizationId, runId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  mediaAsset         MediaAsset?         @relation(fields: [organizationId, mediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  composedAsset      MediaAsset?         @relation("GenerationComposedMedia", fields: [organizationId, composedMediaAssetId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   generationAttempts GenerationAttempt[]
 
   @@unique([organizationId, id], map: "generation_run_variants_organization_id_key")
@@ -814,30 +825,30 @@ model GenerationPolicy {
 }
 
 model GenerationAttempt {
-  id                    String                  @id @db.Uuid
-  organizationId        String                  @map("organization_id") @db.Uuid
-  actorMembershipId     String                  @map("actor_membership_id") @db.Uuid
-  runId                 String                  @map("run_id") @db.Uuid
-  variantId             String                  @map("variant_id") @db.Uuid
-  attemptNumber         Int                     @map("attempt_number")
-  status                GenerationAttemptStatus
-  model                 String                  @db.VarChar(120)
-  quality               String                  @db.VarChar(20)
-  size                  String                  @db.VarChar(30)
-  pricingVersion        String                  @map("pricing_version") @db.VarChar(80)
-  reservedMicrousd      Int                     @map("reserved_microusd")
-  settledMicrousd       Int                     @default(0) @map("settled_microusd")
-  inputTokens           Int                     @default(0) @map("input_tokens")
-  textInputTokens       Int                     @default(0) @map("text_input_tokens")
-  imageInputTokens      Int                     @default(0) @map("image_input_tokens")
-  outputTokens          Int                     @default(0) @map("output_tokens")
-  totalTokens           Int                     @default(0) @map("total_tokens")
-  requestId             String?                 @map("request_id") @db.VarChar(120)
-  reservedAt            DateTime                @map("reserved_at") @db.Timestamptz(3)
-  startedAt             DateTime?               @map("started_at") @db.Timestamptz(3)
-  completedAt           DateTime?               @map("completed_at") @db.Timestamptz(3)
-  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String                  @id @db.Uuid
+  organizationId    String                  @map("organization_id") @db.Uuid
+  actorMembershipId String                  @map("actor_membership_id") @db.Uuid
+  runId             String                  @map("run_id") @db.Uuid
+  variantId         String                  @map("variant_id") @db.Uuid
+  attemptNumber     Int                     @map("attempt_number")
+  status            GenerationAttemptStatus
+  model             String                  @db.VarChar(120)
+  quality           String                  @db.VarChar(20)
+  size              String                  @db.VarChar(30)
+  pricingVersion    String                  @map("pricing_version") @db.VarChar(80)
+  reservedMicrousd  Int                     @map("reserved_microusd")
+  settledMicrousd   Int                     @default(0) @map("settled_microusd")
+  inputTokens       Int                     @default(0) @map("input_tokens")
+  textInputTokens   Int                     @default(0) @map("text_input_tokens")
+  imageInputTokens  Int                     @default(0) @map("image_input_tokens")
+  outputTokens      Int                     @default(0) @map("output_tokens")
+  totalTokens       Int                     @default(0) @map("total_tokens")
+  requestId         String?                 @map("request_id") @db.VarChar(120)
+  reservedAt        DateTime                @map("reserved_at") @db.Timestamptz(3)
+  startedAt         DateTime?               @map("started_at") @db.Timestamptz(3)
+  completedAt       DateTime?               @map("completed_at") @db.Timestamptz(3)
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
@@ -852,12 +863,12 @@ model GenerationAttempt {
 }
 
 model GenerationBudgetAlert {
-  id               String   @id @db.Uuid
-  organizationId   String   @map("organization_id") @db.Uuid
-  monthUtc         String   @map("month_utc") @db.Char(7)
-  thresholdPercent Int      @map("threshold_percent")
-  committedMicrousd Int     @map("committed_microusd")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                String   @id @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  monthUtc          String   @map("month_utc") @db.Char(7)
+  thresholdPercent  Int      @map("threshold_percent")
+  committedMicrousd Int      @map("committed_microusd")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 

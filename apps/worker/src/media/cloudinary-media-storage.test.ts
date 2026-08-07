@@ -21,6 +21,8 @@ const credentials: CloudinaryCredentials = {
 
 class FakeCloudinaryGateway implements CloudinaryGateway {
   deleteResponse: unknown = { result: "ok" };
+  downloadResponse = new Uint8Array([1, 2, 3]);
+  downloadedUrl: string | undefined;
   uploadedPublicId: string | undefined;
   uploadResponse: unknown = {
     bytes: 1024,
@@ -42,6 +44,11 @@ class FakeCloudinaryGateway implements CloudinaryGateway {
 
   destroy(): Promise<unknown> {
     return Promise.resolve(this.deleteResponse);
+  }
+
+  download(url: string): Promise<Uint8Array> {
+    this.downloadedUrl = url;
+    return Promise.resolve(this.downloadResponse);
   }
 
   upload(_bytes: Uint8Array, publicId: string): Promise<unknown> {
@@ -76,6 +83,20 @@ test("Cloudinary usa una clave determinista y valida toda la respuesta", async (
     width: 1080,
   });
   assert.match(storage.deliveryUrl(stored, "editor-preview"), /\?auto$/u);
+});
+
+test("Cloudinary lee la versión original exacta del activo", async () => {
+  const gateway = new FakeCloudinaryGateway();
+  const storage = new CloudinaryMediaStorage(credentials, gateway);
+
+  const bytes = await storage.read({
+    mimeType: "image/png",
+    storageKey: "content/staging/organization-1/media-1",
+    storageVersion: 7,
+  });
+
+  assert.deepEqual([...bytes], [1, 2, 3]);
+  assert.match(gateway.downloadedUrl ?? "", /\?png$/u);
 });
 
 test("Cloudinary rechaza URLs ajenas y resultados de borrado desconocidos", async () => {

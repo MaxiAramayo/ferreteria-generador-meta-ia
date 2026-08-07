@@ -24,6 +24,7 @@ import {
   shouldPollContentBriefRun,
   type ContentBriefDisplay,
 } from "../../lib/content-brief-presentation";
+import { GenerationVariantWorkspace } from "./generation-variant-workspace";
 
 const pollIntervalMilliseconds = 2_000;
 const requestMinimum = 8;
@@ -552,6 +553,14 @@ export function AICreativeComposer({
           }}
         />
       )}
+      {run?.status === "generated" && run.brief !== null ? (
+        <GenerationVariantWorkspace
+          apiBaseUrl={apiBaseUrl}
+          briefRun={run}
+          canEdit={canEdit}
+          key={run.id}
+        />
+      ) : null}
     </section>
   );
 }

@@ -321,6 +321,12 @@ export interface StoredMediaObject {
 
 export type MediaDeliveryVariant = "editor-preview" | "meta-feed" | "original";
 
+export interface ReadMediaObjectInput {
+  readonly mimeType: SupportedMediaMimeType;
+  readonly storageKey: string;
+  readonly storageVersion: number;
+}
+
 export interface MediaStorage {
   delete(storageKey: string): Promise<"deleted" | "not-found">;
   deliveryUrl(
@@ -331,5 +337,6 @@ export interface MediaStorage {
     }>,
     variant: MediaDeliveryVariant,
   ): string;
+  read(input: ReadMediaObjectInput): Promise<Uint8Array>;
   store(input: StoreMediaInput): Promise<StoredMediaObject>;
 }

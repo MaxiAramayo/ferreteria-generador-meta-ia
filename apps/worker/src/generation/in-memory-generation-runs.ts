@@ -35,6 +35,10 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
     return [...this.#runs.values()];
   }
 
+  seed(record: GenerationRunRecord): void {
+    this.#runs.set(record.id, record);
+  }
+
   reserve(reservation: GenerationRunReservation): Promise<void> {
     this.#runs.set(reservation.id, {
       ...reservation,
@@ -47,6 +51,8 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
       cancelledAt: null,
       completedAt: null,
       estimatedCostUsd: null,
+      edit: null,
+      lineageRootId: reservation.id,
       cost: {
         imageInputTokens: 0,
         inputTokens: 0,
@@ -60,6 +66,10 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
       },
       plan: null,
       resolution: null,
+      selectedAt: null,
+      selectedByMembershipId: null,
+      selectedVariantId: null,
+      selectionVersion: 0,
       startedAt: null,
       status: "pending",
       totalTokens: 0,
@@ -271,7 +281,9 @@ export class InMemoryGenerationRunRepository implements GenerationRunRepository 
           (filter.actorMembershipId === undefined ||
             run.actorMembershipId === filter.actorMembershipId) &&
           (filter.contentBriefRunId === undefined ||
-            run.contentBriefRunId === filter.contentBriefRunId),
+            run.contentBriefRunId === filter.contentBriefRunId) &&
+          (filter.lineageRootId === undefined ||
+            run.lineageRootId === filter.lineageRootId),
       )
       .toSorted((left, right) =>
         right.requestedAt.localeCompare(left.requestedAt),

@@ -112,7 +112,10 @@ OpenAI. Deben cubrir como mínimo:
 - aislamiento del ID determinista entre organizaciones.
 
 `pnpm db:test` aplica la migración desde una base vacía, ejecuta integración,
-revierte `20260805010000_generation_governance`, la reaplica y vuelve a probar.
+revierte `20260806000000_generation_edit_lineage`, la reaplica y vuelve a
+probar. La suite cubre generar–editar–comparar–seleccionar con PostgreSQL real,
+genealogía completa, control de versión, conservación de variantes y auditoría
+de edición y selección.
 
 ## Pruebas reales controladas
 

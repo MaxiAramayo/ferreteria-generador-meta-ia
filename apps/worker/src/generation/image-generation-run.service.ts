@@ -46,6 +46,7 @@ import {
   type GenerationVariantFailure,
   type GenerationVariantFailureCode,
   type ImageGenerationPort,
+  type ImageReferenceInput,
   type ContentModerationPort,
   type VisualPromptPlan,
   type VisualReservedSpace,
@@ -61,6 +62,7 @@ import {
 } from "../visual/piece-composer.ts";
 import { visualProfileFor } from "../visual/visual-profiles.ts";
 import { buildVisualPrompt } from "../visual/visual-prompt-builder.ts";
+import { buildVisualEditPrompt } from "../visual/visual-edit-prompt.ts";
 
 export interface ExecuteGenerationRunCommand {
   readonly organizationId: string;
@@ -262,7 +264,7 @@ export class ImageGenerationRunService {
   readonly #images: ImageGenerationPort;
   readonly #maxAttempts: number;
   readonly #moderation: ContentModerationPort | null;
-  readonly #media: Pick<MediaLifecycleService, "upload">;
+  readonly #media: Pick<MediaLifecycleService, "read" | "upload">;
   readonly #renderer: DesignRenderer;
   readonly #policies: GenerationPolicyRepository | null;
   readonly #runs: GenerationRunRepository;
@@ -272,7 +274,7 @@ export class ImageGenerationRunService {
     runs: GenerationRunRepository,
     briefs: ContentBriefRunRepository,
     images: ImageGenerationPort,
-    media: Pick<MediaLifecycleService, "upload">,
+    media: Pick<MediaLifecycleService, "read" | "upload">,
     renderer: DesignRenderer,
     dependencies: GenerationRunDependencies = {},
   ) {
@@ -363,7 +365,13 @@ export class ImageGenerationRunService {
     }
 
     const generated = plan.plan;
-    const totals = await this.#runVariants(run, plan.brief, generated);
+    const editReference = await this.#editReference(run);
+    const totals = await this.#runVariants(
+      run,
+      plan.brief,
+      generated,
+      editReference,
+    );
     if (totals.cancelled) {
       return { runId: run.id, status: "discarded" };
     }
@@ -431,9 +439,14 @@ export class ImageGenerationRunService {
             references: [],
             subjectKind: run.subjectKind,
           });
-          return run.admission.mode === "deterministic" &&
+          if (
+            run.admission.mode === "deterministic" &&
             visualPlan.kind === "deterministic"
-            ? { ...visualPlan, reason: run.admission.reason }
+          ) {
+            return { ...visualPlan, reason: run.admission.reason };
+          }
+          return run.edit?.kind === "visual" && visualPlan.kind === "generated"
+            ? buildVisualEditPrompt(visualPlan, run.edit.instruction)
             : visualPlan;
         })(),
         status: "planned",
@@ -710,10 +723,41 @@ export class ImageGenerationRunService {
    * el lote de antemano: si una variante tarda el triple, las demás siguen
    * avanzando en lugar de esperar a que su turno termine.
    */
+  async #editReference(
+    run: GenerationRunRecord,
+  ): Promise<ImageReferenceInput | null> {
+    if (run.edit?.kind !== "visual") return null;
+    const parent = await this.#runs.findById({
+      id: run.edit.parentRunId,
+      organizationId: run.organizationId,
+    });
+    const source = parent?.variants.find(
+      (variant) => variant.id === run.edit?.parentVariantId,
+    );
+    if (
+      parent === null ||
+      source?.status !== "succeeded" ||
+      source.source !== "generated" ||
+      source.mediaAssetId === null
+    ) {
+      throw new Error("La base de la edición ya no está disponible.");
+    }
+    const media = await this.#media.read({
+      mediaAssetId: source.mediaAssetId,
+      organizationId: run.organizationId,
+    });
+    return {
+      bytes: media.bytes,
+      mimeType: media.mimeType,
+      name: `base-${media.sha256.slice(0, 16)}.${media.mimeType === "image/png" ? "png" : "jpg"}`,
+    };
+  }
+
   async #runVariants(
     run: GenerationRunRecord,
     brief: ContentBrief,
     plan: Extract<VisualPromptPlan, { kind: "generated" }>,
+    editReference: ImageReferenceInput | null,
   ): Promise<
     Readonly<{
       cancelled: boolean;
@@ -742,7 +786,13 @@ export class ImageGenerationRunService {
         if (variant === undefined) {
           return false;
         }
-        const completion = await this.#runVariant(run, brief, plan, variant.id);
+        const completion = await this.#runVariant(
+          run,
+          brief,
+          plan,
+          variant.id,
+          editReference,
+        );
         if (completion.status === "cancelled") {
           // Dejar de gastar en la próxima variante es el punto: no se puede
           // detener al proveedor, pero sí no pedirle nada más.
@@ -782,6 +832,7 @@ export class ImageGenerationRunService {
     brief: ContentBrief,
     plan: Extract<VisualPromptPlan, { kind: "generated" }>,
     variantId: string,
+    editReference: ImageReferenceInput | null,
   ): Promise<
     | Readonly<{
         outcome: "succeeded" | "failed";
@@ -829,17 +880,30 @@ export class ImageGenerationRunService {
         } else {
           attempts += 1;
         }
-        const image = await this.#images.generate({
-          background: "opaque",
-          kind: "generate",
-          negativeGuidance: plan.negativeGuidance,
-          prompt: plan.prompt,
-          quality: "medium",
-          safetyIdentifier: createHash("sha256")
-            .update(`${run.organizationId}:${run.actorMembershipId}`)
-            .digest("hex"),
-          size,
-        });
+        const safetyIdentifier = createHash("sha256")
+          .update(`${run.organizationId}:${run.actorMembershipId}`)
+          .digest("hex");
+        const image =
+          editReference === null
+            ? await this.#images.generate({
+                background: "opaque",
+                kind: "generate",
+                negativeGuidance: plan.negativeGuidance,
+                prompt: plan.prompt,
+                quality: "medium",
+                safetyIdentifier,
+                size,
+              })
+            : await this.#images.edit({
+                background: "opaque",
+                kind: "edit",
+                negativeGuidance: plan.negativeGuidance,
+                prompt: plan.prompt,
+                quality: "medium",
+                references: [editReference],
+                safetyIdentifier,
+                size,
+              });
         if (this.#attempts !== null && attemptId !== null) {
           if (image.usage === null) {
             await this.#attempts.markUnconfirmed({

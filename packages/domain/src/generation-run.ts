@@ -39,7 +39,36 @@ export const generationRunLimits = Object.freeze({
    */
   variantsMaximum: 4,
   variantsMinimum: 1,
+  editInstructionMaximum: 600,
+  editInstructionMinimum: 8,
 });
+
+export const generationEditKinds = ["visual", "factual"] as const;
+export type GenerationEditKind = (typeof generationEditKinds)[number];
+
+export interface GenerationRunEdit {
+  readonly instruction: string;
+  readonly kind: GenerationEditKind;
+  readonly parentRunId: string;
+  readonly parentVariantId: string;
+}
+
+/**
+ * Guardia deliberadamente conservadora para el camino visual.
+ *
+ * No intenta comprender lenguaje natural. Detecta las categorías que nunca se
+ * pueden cambiar sólo enviando píxeles al proveedor: precio, disponibilidad,
+ * promoción, horario o identidad del producto. Ante duda se exige el camino
+ * factual, que vuelve a construir y validar evidencia.
+ */
+const factualEditSignal =
+  /(?:\bprecio\b|\bimporte\b|\bvalor\b|\bstock\b|\bdisponib|\bpromoci|\boferta\b|\bdescuento\b|\bvigencia\b|\bhorario\b|\bsku\b|\bmodelo\b|\bmarca\b|(?:cambi|reemplaz|sustitu)[a-záéíóúñ]*\s+(?:el\s+)?producto|\botro producto\b|\bnuevo producto\b|\$\s*\d|\d\s*%)/iu;
+
+export function generationEditNeedsFactualRevalidation(
+  instruction: string,
+): boolean {
+  return factualEditSignal.test(instruction);
+}
 
 /**
  * Estados del lote.
@@ -215,10 +244,17 @@ export interface GenerationRunRecord extends GenerationRunReservation {
   readonly cancelledAt: string | null;
   readonly completedAt: string | null;
   readonly estimatedCostUsd: number | null;
+  readonly edit: GenerationRunEdit | null;
+  /** Raíz estable que permite consultar toda la genealogía sin recursión. */
+  readonly lineageRootId: string;
   readonly plan: GenerationRunPlan | null;
   readonly resolution: GenerationRunResolution | null;
   readonly startedAt: string | null;
   readonly status: GenerationRunStatus;
+  readonly selectedAt: string | null;
+  readonly selectedByMembershipId: string | null;
+  readonly selectedVariantId: string | null;
+  readonly selectionVersion: number;
   readonly totalTokens: number;
   readonly cost: GenerationRunCost;
   readonly variants: readonly GenerationVariantRecord[];
@@ -407,12 +443,43 @@ export type GenerationRunCancellationOutcome =
 export interface GenerationRunListFilter extends OrganizationScope {
   readonly actorMembershipId?: string;
   readonly contentBriefRunId?: string;
+  readonly lineageRootId?: string;
   readonly limit: number;
   readonly page: number;
 }
 
 export interface RequestGenerationRunInput extends GenerationRunReservation {
+  readonly edit?: null;
   readonly reliableOperation: ReliableMutationContext;
+}
+
+export interface RequestGenerationRunEditInput extends Omit<
+  RequestGenerationRunInput,
+  "edit"
+> {
+  readonly edit: GenerationRunEdit;
+}
+
+export type GenerationVariantSelectionResult =
+  | Readonly<{
+      selectedVariantId: string;
+      selectionVersion: number;
+      status: "selected";
+    }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{ selectionVersion: number; status: "version-conflict" }>
+  | Readonly<{ status: "variant-unavailable" }>;
+
+export interface SelectGenerationVariantInput {
+  readonly actorMembershipId: string;
+  readonly expectedSelectionVersion: number;
+  readonly organizationId: string;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly runId: string;
+  readonly selectedAt: string;
+  readonly variantId: string;
 }
 
 export type GenerationRunRequestResult =
@@ -444,6 +511,16 @@ export interface GenerationRunRequestRepository {
   request(
     input: RequestGenerationRunInput,
   ): Promise<GenerationRunRequestResult>;
+}
+
+/** Mutaciones editoriales separadas de las escrituras del worker. */
+export interface GenerationRunEditorialRepository {
+  requestEdit(
+    input: RequestGenerationRunEditInput,
+  ): Promise<GenerationRunRequestResult>;
+  selectVariant(
+    input: SelectGenerationVariantInput,
+  ): Promise<GenerationVariantSelectionResult>;
 }
 
 export interface GenerationRunRepository {

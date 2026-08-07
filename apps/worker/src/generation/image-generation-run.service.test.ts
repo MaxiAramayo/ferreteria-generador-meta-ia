@@ -15,6 +15,7 @@ import {
   type ContentBriefRunRepository,
   type ContentBrief,
   type GenerateImageCommand,
+  type EditImageCommand,
   type GeneratedImage,
   type GenerationRunRecord,
   type GenerationAttemptLedgerRepository,
@@ -154,6 +155,7 @@ interface ImageOutcome {
 }
 
 class StubImages implements ImageGenerationPort {
+  readonly editRequests: EditImageCommand[] = [];
   readonly requests: GenerateImageCommand[] = [];
   #outcomes: ImageOutcome[];
   #onRequest: (index: number) => Promise<void>;
@@ -195,8 +197,30 @@ class StubImages implements ImageGenerationPort {
     };
   }
 
-  edit(): Promise<GeneratedImage> {
-    throw new Error("La edición no forma parte de este lote.");
+  async edit(command: EditImageCommand): Promise<GeneratedImage> {
+    const index = this.editRequests.length;
+    this.editRequests.push(command);
+    await this.#onRequest(index);
+    const outcome = this.#outcomes[index] ?? {};
+    if (outcome.error !== undefined) throw outcome.error;
+    return {
+      bytes: Uint8Array.from([1, 2, 3]),
+      height: 1536,
+      latencyMilliseconds: 1_000,
+      mimeType: "image/png",
+      model: "gpt-image-2",
+      requestId: null,
+      sha256: outcome.sha256 ?? String(index).repeat(64).slice(0, 64),
+      usage: {
+        estimatedCostUsd: null,
+        imageInputTokens: 20,
+        inputTokens: 30,
+        outputTokens: 90,
+        textInputTokens: 10,
+        totalTokens: 120,
+      },
+      width: 1024,
+    };
   }
 }
 
@@ -248,6 +272,22 @@ class StubRenderer implements DesignRenderer {
 
 class StubMedia {
   readonly uploads: UploadMediaCommand[] = [];
+
+  read(): Promise<{
+    bytes: Uint8Array;
+    height: number;
+    mimeType: "image/png";
+    sha256: string;
+    width: number;
+  }> {
+    return Promise.resolve({
+      bytes: new Uint8Array([1, 2, 3]),
+      height: 1536,
+      mimeType: "image/png",
+      sha256: "a".repeat(64),
+      width: 1024,
+    });
+  }
 
   upload(command: UploadMediaCommand): Promise<MediaAssetRecord> {
     this.uploads.push(command);
@@ -1062,4 +1102,85 @@ test("con concurrencia mayor a uno el lote sigue resolviendo cada variante una v
   assert.equal(images.requests.length, 2);
   const run = await loadRun(runs);
   assert.ok(run.variants.every((variant) => variant.status === "succeeded"));
+});
+
+test("una ejecución hija visual lee la base y usa Images edit sin sobrescribir al padre", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const rootImages = new StubImages([
+    { sha256: "1".repeat(64) },
+    { sha256: "2".repeat(64) },
+  ]);
+  await service(runs, rootImages).execute({ organizationId, runId });
+  const parent = runs.records.find((record) => record.id === runId);
+  assert.ok(parent !== undefined);
+  const source = parent.variants[0];
+  assert.ok(source?.status === "succeeded");
+
+  const childRunId = "44444444-4444-4444-8444-444444444499";
+  const childVariantIds = [
+    "55555555-5555-4555-8555-555555555591",
+    "55555555-5555-4555-8555-555555555592",
+  ];
+  runs.seed({
+    ...parent,
+    cancelledAt: null,
+    completedAt: null,
+    edit: {
+      instruction: "Usá una luz más cálida y un fondo de taller limpio.",
+      kind: "visual",
+      parentRunId: parent.id,
+      parentVariantId: source.id,
+    },
+    id: childRunId,
+    lineageRootId: parent.id,
+    plan: null,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+    resolution: null,
+    selectedAt: null,
+    selectedByMembershipId: null,
+    selectedVariantId: null,
+    selectionVersion: 0,
+    startedAt: null,
+    status: "pending",
+    totalTokens: 0,
+    variantIds: childVariantIds,
+    variants: childVariantIds.map((id, index) => ({
+      attempts: 0,
+      completedAt: null,
+      composition: null,
+      failure: null,
+      height: null,
+      id,
+      index,
+      latencyMilliseconds: 0,
+      mediaAssetId: null,
+      model: null,
+      requestId: null,
+      sha256: null,
+      source: "generated" as const,
+      status: "pending" as const,
+      width: null,
+    })),
+  });
+  const editedImages = new StubImages([
+    { sha256: "3".repeat(64) },
+    { sha256: "4".repeat(64) },
+  ]);
+
+  const result = await service(runs, editedImages).execute({
+    organizationId,
+    runId: childRunId,
+  });
+
+  assert.equal(result.status, "completed");
+  assert.equal(editedImages.requests.length, 0);
+  assert.equal(editedImages.editRequests.length, 2);
+  assert.deepEqual(
+    [...(editedImages.editRequests[0]?.references[0].bytes ?? [])],
+    [1, 2, 3],
+  );
+  const child = runs.records.find((record) => record.id === childRunId);
+  assert.equal(child?.plan?.promptVersion, "visual-edit/2026-08-06.1");
+  assert.equal(parent.variants[0]?.sha256, "1".repeat(64));
 });

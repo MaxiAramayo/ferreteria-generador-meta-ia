@@ -28,6 +28,19 @@ export interface DeleteMediaCommand {
   readonly requestedAt: string;
 }
 
+export interface ReadMediaCommand {
+  readonly mediaAssetId: string;
+  readonly organizationId: string;
+}
+
+export interface ReadMediaResult {
+  readonly bytes: Uint8Array;
+  readonly height: number;
+  readonly mimeType: "image/jpeg" | "image/png";
+  readonly sha256: string;
+  readonly width: number;
+}
+
 function isMatchingReservation(
   asset: MediaAssetRecord,
   command: UploadMediaCommand,
@@ -185,6 +198,55 @@ export class MediaLifecycleService {
       "La carga remota existe, pero su estado local no pudo confirmarse.",
       true,
     );
+  }
+
+  async read(command: ReadMediaCommand): Promise<ReadMediaResult> {
+    const asset = await this.#repository.findById(
+      { organizationId: command.organizationId },
+      command.mediaAssetId,
+    );
+    if (
+      asset?.status !== "available" ||
+      asset.byteSize === undefined ||
+      asset.checksumSha256 === undefined ||
+      asset.height === undefined ||
+      (asset.mimeType !== "image/png" && asset.mimeType !== "image/jpeg") ||
+      asset.storageKey === undefined ||
+      asset.storageVersion === undefined ||
+      asset.width === undefined
+    ) {
+      throw new MediaLifecycleError(
+        "not-found",
+        "No se encontró una imagen disponible para editar.",
+        false,
+      );
+    }
+    const bytes = await this.#storage.read({
+      mimeType: asset.mimeType,
+      storageKey: asset.storageKey,
+      storageVersion: asset.storageVersion,
+    });
+    const inspection = await this.#inspector.inspect({ bytes });
+    if (
+      inspection.checksumSha256 !== asset.checksumSha256 ||
+      inspection.detectedMimeType !== asset.mimeType ||
+      inspection.height !== asset.height ||
+      inspection.width !== asset.width ||
+      String(inspection.byteSize) !== asset.byteSize
+    ) {
+      throw new MediaLifecycleError(
+        "provider-contract-invalid",
+        "La imagen recuperada no coincide con el activo registrado.",
+        false,
+      );
+    }
+    return {
+      bytes,
+      height: inspection.height,
+      mimeType: inspection.detectedMimeType,
+      sha256: inspection.checksumSha256,
+      width: inspection.width,
+    };
   }
 
   async delete(command: DeleteMediaCommand): Promise<MediaAssetRecord> {

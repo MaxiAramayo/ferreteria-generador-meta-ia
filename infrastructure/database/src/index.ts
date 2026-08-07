@@ -20,6 +20,7 @@ export {
   PrismaContentBriefRunRepository,
 } from "./content-brief-run-repository.ts";
 export {
+  PrismaGenerationRunEditorialRepository,
   PrismaGenerationRunRepository,
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";

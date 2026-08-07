@@ -53,9 +53,17 @@ export type GenerationVariantCompositionResponse = {
   height: number;
   layout: string;
   mediaAssetId: string;
+  previewUrl: string;
   theme: string;
   version: string;
   width: number;
+};
+
+export type GenerationRunEditResponse = {
+  instruction: string;
+  kind: "visual" | "factual";
+  parentRunId: string;
+  parentVariantId: string;
 };
 
 /** Progreso del lote, para que la espera sea legible sin contar a mano. */
@@ -107,6 +115,8 @@ export type GenerationRunResponse = {
   contentBriefRunId: string;
   format: string;
   id: string;
+  edit: GenerationRunEditResponse | null;
+  lineageRootId: string;
   /** Nulo mientras el lote no se ejecutó: todavía no eligió perfil ni prompt. */
   plan: GenerationRunPlanResponse | null;
   progress: GenerationRunProgressResponse;
@@ -114,6 +124,10 @@ export type GenerationRunResponse = {
   resolution: GenerationRunResolutionResponse | null;
   startedAt: string | null;
   status: GenerationRunStatusResponse;
+  selectedAt: string | null;
+  selectedByMembershipId: string | null;
+  selectedVariantId: string | null;
+  selectionVersion: number;
   subjectKind: string;
   usage: GenerationRunUsageResponse;
   variants: readonly GenerationVariantResponse[];
@@ -135,4 +149,10 @@ export type GenerationRunListResponse = {
 export type GenerationRunCancellationResponse = {
   runId: string;
   status: GenerationRunStatusResponse;
+};
+
+export type GenerationVariantSelectionResponse = {
+  runId: string;
+  selectedVariantId: string;
+  selectionVersion: number;
 };
