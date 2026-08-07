@@ -110,9 +110,9 @@ test("una pieza con precio factual introducido a propósito se rechaza", () => {
   const result = scoreImageQualityCase({
     actual: { ...entry.expected, price: "$ 50.900" },
     caseId: "deliberate-factual-error",
-    compositionHash: "synthetic-regression",
     expected: entry.expected,
     format: entry.format,
+    overlayHash: "synthetic-regression",
     profileId: entry.profileId,
     technicalBaselinePassed: true,
   });

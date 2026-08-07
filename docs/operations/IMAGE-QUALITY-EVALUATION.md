@@ -97,8 +97,10 @@ pnpm image-quality:eval -- --write
 
 Congela `apps/worker/src/evaluation/image-quality-evaluation-baseline.json`
 solamente si los 18 casos automáticos pasan. Una corrida posterior sin
-`--write` compara hashes y versiones contra esa baseline. Mientras la revisión
-humana esté pendiente, termina bloqueada con `human-review-pending` por diseño.
+`--write` compara hashes de overlay y versiones contra esa baseline. El overlay
+es estable entre plataformas; el PNG sintético no forma parte de su identidad.
+Mientras la revisión humana esté pendiente, termina bloqueada con
+`human-review-pending` por diseño.
 
 La revisión ciega requiere 12 PNG o JPEG reales generados en staging. Cada
 archivo se nombra con el `caseId` del dataset. No se aceptan placeholders
@@ -119,8 +121,8 @@ datos personales.
 
 La baseline queda ligada a dataset, prompt, perfil, modelo y versión de
 composición. Cambiar cualquiera invalida la puerta. Un cambio silencioso que
-conserve las versiones también se detecta mediante el hash de composición de
-cada caso. Para promover un cambio se debe volver a ejecutar la evaluación real
+conserve las versiones también se detecta mediante el hash de la capa
+determinista de cada caso. Para promover un cambio se debe volver a ejecutar la evaluación real
 y repetir la revisión ciega; copiar el estado humano anterior no es válido.
 
 La API oficial de OpenAI permite graders con imágenes de entrada y combinar

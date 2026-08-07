@@ -21,9 +21,9 @@ test("separa exactitud factual de la baseline técnica", () => {
   const result = scoreImageQualityCase({
     actual: snapshot,
     caseId: "case-1",
-    compositionHash: "hash-1",
     expected: snapshot,
     format: "feed",
+    overlayHash: "hash-1",
     profileId: "ferreteria-producto-limpio",
     technicalBaselinePassed: false,
   });
@@ -42,9 +42,9 @@ test("un precio factual incorrecto rechaza una pieza aunque lo demás apruebe", 
   const result = scoreImageQualityCase({
     actual: { ...snapshot, price: "$ 25.400" },
     caseId: "factual-regression",
-    compositionHash: "hash-1",
     expected: snapshot,
     format: "feed",
+    overlayHash: "hash-1",
     profileId: "ferreteria-producto-limpio",
     technicalBaselinePassed: true,
   });
@@ -63,9 +63,9 @@ function baseline(
   const caseResult = scoreImageQualityCase({
     actual: snapshot,
     caseId: "case-1",
-    compositionHash: "hash-1",
     expected: snapshot,
     format: "feed",
+    overlayHash: "hash-1",
     profileId: "ferreteria-producto-limpio",
     technicalBaselinePassed: true,
   });
@@ -160,7 +160,7 @@ test("un cambio silencioso de composición invalida la línea base", () => {
   const storedBaseline = baseline();
   const currentCases = storedBaseline.cases.map((entry) => ({
     ...entry,
-    compositionHash: "different-hash",
+    overlayHash: "different-hash",
   }));
 
   const failures = checkImageQualityGate({

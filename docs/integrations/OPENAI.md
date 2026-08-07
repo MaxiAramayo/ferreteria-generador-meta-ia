@@ -306,7 +306,7 @@ Los prompts de diez briefs representativos están congelados en
 
 `P4-T08` no delega la aprobación a Images ni a otro modelo. La baseline local
 compara de forma binaria producto, precio, stock, CTA y disclaimer contra el
-snapshot, y exige los hashes técnicos aprobados. Los resultados reales del
+snapshot, y exige los hashes de overlay aprobados. Los resultados reales del
 proveedor se someten después a una muestra ciega con responsable comercial y
 visual. Modelo, prompt, perfil, composición y dataset forman parte de la
 identidad; cambiar uno obliga a repetir la evaluación.

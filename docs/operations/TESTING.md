@@ -132,8 +132,10 @@ pnpm image-quality:eval
 El primer comando sólo actualiza la baseline automática; no concede aprobación
 humana. El segundo debe quedar bloqueado con `human-review-pending` hasta que la
 muestra real supere la rúbrica. Cambiar dataset, prompt, perfil, modelo,
-composición o hashes invalida la baseline. La prueba introduce además un precio
-incorrecto deliberado y confirma el rechazo.
+composición o hashes de overlay invalida la baseline. Los bytes del PNG
+sintético no forman parte de la identidad porque su codificación puede diferir
+entre macOS y Linux. La prueba introduce además un precio incorrecto deliberado
+y confirma el rechazo.
 
 La corrida real y el paquete ciego requieren activos generados en staging y no
 forman parte de CI porque consumen una API facturable. El procedimiento y los

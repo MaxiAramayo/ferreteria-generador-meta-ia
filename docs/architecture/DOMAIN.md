@@ -209,8 +209,9 @@ tres componentes y se calcula por mes UTC.
 La promoción de un prompt, perfil, modelo o composición exige una baseline de
 calidad versionada. Sus verificaciones factuales son binarias: producto, precio,
 stock, CTA y disclaimer deben coincidir con el snapshot; un fallo no puede
-compensarse con estética. La identidad automática incluye el hash de composición
-de cada perfil y formato.
+compensarse con estética. La identidad automática incluye el hash de la capa
+determinista de cada perfil y formato; no incluye los bytes del fondo sintético,
+cuya codificación puede variar entre plataformas sin cambiar la pieza.
 
 El estado humano es `pending | approved | rejected`. `approved` sólo es válido
 con la muestra completa, puntuaciones dentro de los umbrales, cero hallazgos

@@ -72,7 +72,7 @@ export interface ImageQualityCheck {
 export interface ImageQualityCaseResult {
   readonly caseId: string;
   readonly checks: readonly ImageQualityCheck[];
-  readonly compositionHash: string;
+  readonly overlayHash: string;
   readonly format: ComposedFormatId;
   readonly passed: boolean;
   readonly profileId: VisualProfileId;
@@ -146,7 +146,7 @@ export function scoreImageQualityCase(
   input: Readonly<{
     actual: ImageQualityFactualSnapshot;
     caseId: string;
-    compositionHash: string;
+    overlayHash: string;
     expected: ImageQualityFactualSnapshot;
     format: ComposedFormatId;
     profileId: VisualProfileId;
@@ -198,8 +198,8 @@ export function scoreImageQualityCase(
   return Object.freeze({
     caseId: input.caseId,
     checks,
-    compositionHash: input.compositionHash,
     format: input.format,
+    overlayHash: input.overlayHash,
     passed: checks.every((entry) => entry.passed),
     profileId: input.profileId,
   });

@@ -1058,7 +1058,7 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   comercial y visual, seis criterios, cero hallazgos críticos, mínimo 3 por
   criterio, 4 por caso y 4,2 para la muestra.
 - La baseline queda ligada a dataset, prompt, perfil, modelo, composición y hash
-  por caso. La corrida automática permanece bloqueada con
+  de overlay por caso. La corrida automática permanece bloqueada con
   `human-review-pending`, que es el estado correcto mientras no se acuerde y
   ejecute la muestra ciega.
 - Verificaciones ejecutadas hasta ahora: `pnpm verify` completo en verde,

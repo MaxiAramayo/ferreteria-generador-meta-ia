@@ -46,8 +46,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "ae9b32a415e3856163cfe13b0c130e00995d9809de64cee05ff6afeb823ee407",
       "format": "feed",
+      "overlayHash": "c11d3260c32085cf960e83b97744a4b98d9ae7a2b5fc9b28ab8062e8fd5578ec",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -97,8 +97,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "67a8ecd8ab23892f345c6df938618b0bd9cb48bd02c1a69cc9ed58fa6db5df33",
       "format": "cuadrado",
+      "overlayHash": "fc884ec7de017d1985364199ffe3ca78a7c70aefc1ae2e3ff236114879ed19b0",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -148,8 +148,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "a8285df0c7c2c945a00e6f96238242caad99a4c8253e17ef1e0ee45f8c5c09b9",
       "format": "historia",
+      "overlayHash": "53ab8cceef45aac734757c540a7122abf6f8e599c2228adb588633ecd77615eb",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -199,8 +199,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "2da7f5a88d795180614d7a2520cc34e23076dd9ee563a5da00af38af1477b744",
       "format": "feed",
+      "overlayHash": "9510f911da5cdf6181abdf9be74a54b8a7cb62552d8f34f12d2f63e0be6f9f47",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -250,8 +250,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "068ffb93aee20fd53c672845092155f53a31189c5167b08c87bb698b75ecc936",
       "format": "cuadrado",
+      "overlayHash": "e8b861aa2118ce1006d99a281eac77bae9625c838d8767265f69d90114de3748",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -301,8 +301,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "c8a9260df2bcaa09625b52bc7727328d5779762bd4b98f677c8a0f1db19dcaf9",
       "format": "historia",
+      "overlayHash": "513c62266875c9feb2b2f4f8a7859a7de92f00b955147ffe4a2750e85b28424c",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -352,8 +352,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "05ecf040c8e61f1471790f4d6530b64d921e51cb7890da96a4d034c22e4f2884",
       "format": "feed",
+      "overlayHash": "7d1d1e18ea9419e84478a1e08fde12172b14f181de341b48f0e0b95d1c989dc9",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -403,8 +403,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "c76dd8aec2cee592d66374afb40bdb37487713a5de3a829220a8aeebc47b6608",
       "format": "cuadrado",
+      "overlayHash": "51ec614d5e177c42b9b2191d6e1a8bcead3898ed503c3bd0652e5f046c3d36f7",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -454,8 +454,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "b803636c71c33c17c4da7615cecea3c16834718566d8b1c7facd93102dd802bf",
       "format": "historia",
+      "overlayHash": "c79e15bbfdb4b0486ed7b1345f5e5edd5127fe6a7eff6f8bc354a2ecf77da0b3",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -505,8 +505,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "9e83f5daf49d70ce7755ce34dcef2e0d65463e148b1b4c57c1085b619d329622",
       "format": "feed",
+      "overlayHash": "623ac80c745593e3ec26deece9a842c8f43c3906b77f59e8224224ff8bfd6f48",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -556,8 +556,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "7557d73b0ba9a47a63e5ea0e7b02751b9186e7cb55c11e76435537f5ac6e5209",
       "format": "cuadrado",
+      "overlayHash": "f087580010a0c1e903e24bd8a50de1e1fe712b68703426c0ddd1cc0f5d9fcf74",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -607,8 +607,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "712c859bf75ac5b76ee8d9d6ba28f9b56272f335af68ff3152f4c385d37b187d",
       "format": "historia",
+      "overlayHash": "487418ed577f9be29504de3ba749ef87786c678c5706be915ee09852385a4f34",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -658,8 +658,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "41b35a09c8becc9d0ff6151ace1356b52284992414352979a8116a71b26bd12e",
       "format": "feed",
+      "overlayHash": "6a43b844aff7a8c6c8f103814c51bbaf6f52450aa4ed148326cfd0225b1aed6a",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -709,8 +709,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "aab58edb759175674fa513fcf6e70a5fae2fb56b3ffcf1a84a0a4dda258dea37",
       "format": "cuadrado",
+      "overlayHash": "5cd91ae836952d94b8e911da40de8e1d161d23aa8e9045cbaa070597381934c4",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -760,8 +760,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "0216f3118d0557436e30f89ba3228c528621038f4f9492b714c5d71041956829",
       "format": "historia",
+      "overlayHash": "a5026d2506e001d2a22300beaa2eaa5fafaf861182098ada9daf41423e303464",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -811,8 +811,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "a5ed0695c051573a63027c4db09580d719cf8bab2c4b22b7d88c6c1a3c6c9367",
       "format": "feed",
+      "overlayHash": "7e16ebcc00a4213efbf88246aa4e66ae009f0494bf4bc79e7eaf67711f1b93f0",
       "passed": true,
       "profileId": "promocion-estacional"
     },
@@ -862,8 +862,8 @@
           "passed": true
         }
       ],
-      "compositionHash": "63f84f8aae70805bed027718ad023ea1a9a358fe44b46b0fbaeaf4ae6d4c693f",
       "format": "cuadrado",
+      "overlayHash": "b5b02155d01d5023ac8849011043cd3c9c16702eac57986397ddca734cb6ef4a",
       "passed": true,
       "profileId": "promocion-estacional"
     },
@@ -913,15 +913,15 @@
           "passed": true
         }
       ],
-      "compositionHash": "c28dfe5c8538ee0c7f0132150a6004f7cd91a1af17458efcd7d1b59a855a050b",
       "format": "historia",
+      "overlayHash": "32cb5f5183780c9e36ccab15c77137cf59d6a25a31d87a8d3967d798c0df0f92",
       "passed": true,
       "profileId": "promocion-estacional"
     }
   ],
   "compositionVersion": "visual-composition/2026-08-05.1",
   "datasetVersion": "image-quality/2026-08-07.1",
-  "generatedAt": "2026-08-07T14:23:14.006Z",
+  "generatedAt": "2026-08-07T14:39:37.214Z",
   "humanReview": {
     "assessments": [],
     "reviewedAt": null,

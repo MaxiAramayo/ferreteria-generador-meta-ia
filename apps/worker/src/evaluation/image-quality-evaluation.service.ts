@@ -123,11 +123,11 @@ function isImageQualityBaseline(value: unknown): value is ImageQualityBaseline {
             typeof check.name === "string" &&
             typeof check.passed === "boolean",
         ) &&
-        typeof entry.compositionHash === "string" &&
         (entry.format === "cuadrado" ||
           entry.format === "feed" ||
           entry.format === "historia") &&
         typeof entry.passed === "boolean" &&
+        typeof entry.overlayHash === "string" &&
         typeof entry.profileId === "string" &&
         visualProfileIds.some((profileId) => profileId === entry.profileId),
     )
@@ -263,9 +263,9 @@ export async function runImageQualityEvaluation(
       return scoreImageQualityCase({
         actual: actualSnapshot(entry, piece),
         caseId: entry.caseId,
-        compositionHash: piece.snapshot.compositionHash,
         expected: entry.expected,
         format: entry.format,
+        overlayHash: piece.snapshot.overlayHash,
         profileId: entry.profileId,
         technicalBaselinePassed: technicalBaselinePassed(entry, manifest),
       });

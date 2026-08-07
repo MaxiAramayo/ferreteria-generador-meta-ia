@@ -27,9 +27,12 @@ La puerta tiene dos capas independientes:
    críticos y los umbrales versionados del dominio.
 
 El dataset sintético cubre seis perfiles por tres formatos. La baseline guarda
-los hashes de composición y queda ligada a versiones de dataset, prompt,
-perfil, modelo y composición. Cualquier cambio invalida la aprobación humana y
-obliga a repetir la evaluación; el arnés no llama a OpenAI durante CI.
+los hashes de la capa determinista y queda ligada a versiones de dataset,
+prompt, perfil, modelo y composición. El hash no incorpora los bytes PNG del
+fondo sintético: libvips puede codificarlos distinto entre sistemas operativos
+sin que cambien el copy, layout o tema que se busca proteger. Cualquier cambio
+real invalida la aprobación humana y obliga a repetir la evaluación; el arnés no
+llama a OpenAI durante CI.
 
 Los graders multimodales de OpenAI se consideran una señal auxiliar posible,
 no un reemplazo del veto factual ni de la revisión humana.
