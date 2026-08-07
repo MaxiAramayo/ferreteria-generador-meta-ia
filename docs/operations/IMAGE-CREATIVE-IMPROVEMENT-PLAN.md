@@ -1,6 +1,6 @@
 # Plan de mejora visual y comercial para contenido de producto
 
-- Estado: propuesto para revisión del negocio
+- Estado: contrato visual prototipado; revisión del negocio pendiente
 - Fecha: 2026-08-07
 - Tarea activa: `P4-T08`
 - Alcance: Ferretería Aramayo, Instagram orgánico y piezas verticales aptas para
@@ -301,11 +301,17 @@ es la revisión humana acompañada por defectos concretos y verificables.
 
 ### Etapa 2 — Tres plantillas code-native
 
-- implementar `Producto + precio`, `Problema + solución` y `Surtido real`;
+- [x] implementar `Producto + precio`, `Problema + solución` y `Surtido real`;
 - agrandar el marco Aramayo/Frías;
 - crear precio, condición, vigencia y `IMAGEN ILUSTRATIVA` como primitivas
   deterministas;
 - validar 9:16 y 4:5 a tamaño móvil.
+
+La primera implementación usa tres variantes explícitas para historia
+(`historia-producto-precio`, `historia-problema-solucion` e
+`historia-surtido-real`) y sus equivalentes de feed. Logo, `EN FRÍAS`, nombre,
+uso, precio, condición, disclaimer y CTA se componen en código. Las fotografías
+son activos propios de Aramayo y no se hizo ninguna llamada de IA.
 
 ### Etapa 3 — Selector de recurso y prompt v3
 
@@ -319,15 +325,33 @@ es la revisión humana acompañada por defectos concretos y verificables.
 
 Crear, sin publicar:
 
-- tres productos/categorías reales de Aramayo;
-- las tres familias mínimas;
-- historia 9:16 y feed 4:5;
-- al menos una foto propia, un activo de fabricante y una representación
-  ilustrativa correctamente rotulada.
+- tres conceptos comerciales, uno por cada familia mínima;
+- exactamente tres historias 9:16 y tres posts 4:5: seis piezas totales, no
+  doce;
+- casos sin marca cuando la categoría, el uso y el precio puedan comunicarse
+  sin confundirlos con un SKU exacto;
+- al menos una foto propia de surtido real y representaciones de categoría
+  rotuladas como `IMAGEN ILUSTRATIVA`.
 
 La muestra se revisa primero por comprensión en teléfono y después con la
-rúbrica ciega. No se paga otra corrida masiva hasta aprobar dos prototipos por
-familia.
+rúbrica ciega. La salida local queda en `output/image-creative-prototypes/` y se
+reproduce con `pnpm image-creative:prototype`. Sus precios son sintéticos,
+aparecen como `NO PUBLICAR` y no habilitan una publicación real. No se paga otra
+corrida de imágenes antes de aprobar esta muestra de seis piezas.
+
+### Etapa 4.1 — Reels code-native
+
+Los Reels pueden reutilizar las mismas seis composiciones y animar sólo
+elementos deterministas: entrada del producto, titular, precio, CTA y cierre de
+marca. Esto evita generar un video con IA y reduce el consumo de tokens a cero
+cuando los activos de entrada ya existen.
+
+Remotion se evaluó como opción técnica porque renderiza video mediante React.
+No se agrega aún al stack: su licencia distingue entre uso individual/equipos
+pequeños y uso comercial o automatizado, por lo que primero debe confirmarse el
+tamaño del equipo y el modo de render. La decisión y la frontera propuesta se
+registran en
+[`ADR-018`](../architecture/decisions/ADR-018-REMOTION-REELS.md).
 
 ### Etapa 5 — Reabrir la evaluación `P4-T08`
 
@@ -336,6 +360,11 @@ familia.
 - generar sólo los casos que realmente necesitan IA;
 - repetir revisión comercial y visual;
 - mantener Meta bloqueada hasta superar el gate completo.
+
+La próxima muestra humana paga también queda limitada a seis resultados:
+producto genérico, problema/solución y oferta/surtido, cada uno en `feed` e
+`historia`. La matriz automática de 18 casos continúa porque es local, rápida y
+no consume proveedor.
 
 ## Criterios de aceptación del rediseño
 
@@ -355,6 +384,9 @@ familia.
 1. Firma principal: `FERRETERÍA ARAMAYO · FRÍAS` o `CONSEGUÍLO EN FRÍAS`.
 2. Regla de precios: contado, transferencia, unidad, IVA y vigencia visible.
 3. Alcance exacto de `IMAGEN ILUSTRATIVA` para productos similares.
-4. Primeros tres productos/categorías con datos vigentes para prototipar.
+4. Primeros tres productos/categorías con datos vigentes para reemplazar los
+   precios sintéticos de los prototipos.
 5. Aprobación del contexto social persistente: audiencia, voz, plataforma y
    objetivo primario.
+6. Tamaño del equipo y modalidad de render de video para resolver la licencia
+   de Remotion antes de instalarlo.

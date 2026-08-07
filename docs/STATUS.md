@@ -55,6 +55,11 @@ activos autorizados y representaciones de categoría claramente rotuladas;
 define tres familias mínimas y vuelve obligatorio el anclaje visible en Frías
 para piezas comerciales. Está documentado en
 [`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
+La siguiente muestra ya no será de 12: el negocio la limitó a tres historias y
+tres posts. Los seis prototipos code-native ya fueron renderizados con activos
+propios, casos sin marca, `EN FRÍAS`, explicación, precio sintético rotulado y
+CTA; no consumieron IA. Remotion quedó documentado como opción futura para
+Reels deterministas, pendiente de confirmar su licencia antes de instalarlo.
 
 ## Resumen
 
@@ -75,13 +80,12 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P4-T08` — aprobar calidad visual y factual. Antes de otra corrida
-masiva se debe acordar el contrato visual del plan de mejora, implementar y
-revisar dos prototipos de `Producto + precio`, `Problema + solución` y `Surtido
-real`, y recién entonces recomponer la muestra. El trabajo incluye corregir el
-camino que debe componer la foto real del producto sin reinterpretar su marca,
-incorporar representaciones ilustrativas explícitas y neutralizar el prompt que
-hoy produce una estética repetida de IA. Meta continúa bloqueada.
+Continuar `P4-T08` — aprobar calidad visual y factual. El próximo paso es que el
+negocio revise los seis prototipos de `Producto + precio`, `Problema + solución`
+y `Surtido real`. Después se reemplazan los precios sintéticos por tres precios
+con fuente vigente y, sólo si algún caso realmente necesita generación, se
+ejecuta una muestra paga máxima de seis salidas. Todavía queda neutralizar el
+prompt que produce la estética repetida de IA. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

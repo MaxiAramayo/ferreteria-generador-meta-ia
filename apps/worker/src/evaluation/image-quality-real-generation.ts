@@ -64,7 +64,7 @@ interface RealGenerationManifestCase {
 export interface GenerateImageQualityRealAssetsCommand {
   readonly gateway: ImageGenerationPort;
   readonly outputDirectory: string;
-  readonly productReferencePath: string;
+  readonly productReferencePath: string | undefined;
 }
 
 export interface ImageQualityRealGenerationResult {
@@ -84,7 +84,7 @@ export function imageQualityOutputReferenceCostMicrousd(): number {
 
 async function preparedReference(
   entry: ImageQualityDatasetEntry,
-  productReferencePath: string,
+  productReferencePath: string | undefined,
 ): Promise<
   Readonly<{
     input: VisualPromptReference;
@@ -101,6 +101,11 @@ async function preparedReference(
 
   let sourceBytes: Uint8Array;
   if (requirement.source === "provided-file") {
+    if (productReferencePath === undefined) {
+      throw new Error(
+        `El caso ${entry.caseId} requiere una foto aprobada provista por archivo.`,
+      );
+    }
     sourceBytes = new Uint8Array(await readFile(productReferencePath));
   } else {
     const asset = BRAND_ASSETS.find(

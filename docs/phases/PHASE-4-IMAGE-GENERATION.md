@@ -1052,11 +1052,11 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   separados de la rúbrica estética. Los 18 casos automáticos aprobaron con cero
   fallos bloqueantes; una prueba introduce un precio incorrecto y confirma el
   rechazo.
-- `ADR-017` propone que ninguna corrida se autoapruebe. La muestra humana
-  propuesta
-  es de 12 resultados reales (`feed` e `historia` por perfil), con responsable
-  comercial y visual, seis criterios, cero hallazgos críticos, mínimo 3 por
-  criterio, 4 por caso y 4,2 para la muestra.
+- `ADR-017` propone que ninguna corrida se autoapruebe. La propuesta original
+  fue de 12 resultados reales; la decisión del negocio del 2026-08-07 la
+  reemplazó por seis: tres casos comerciales sin marca en `feed` e `historia`.
+  Se mantienen responsable comercial y visual, seis criterios, cero hallazgos
+  críticos, mínimo 3 por criterio, 4 por caso y 4,2 para la muestra.
 - La baseline queda ligada a dataset, prompt, perfil, modelo, composición y hash
   de overlay por caso. La corrida automática permanece bloqueada con
   `human-review-pending`, que es el estado correcto mientras no se acuerde y
@@ -1092,7 +1092,28 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   presenten como el producto exacto. El plan de rediseño, las tres familias
   mínimas, el anclaje visible en Frías y el prompt v3 quedaron documentados en
   [`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](../operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
-  No se paga otra muestra masiva antes de aprobar dos prototipos por familia.
+  Esa propuesta inicial quedó reemplazada por una sola pareja de prototipos por
+  familia: tres posts y tres historias en total.
+- 2026-08-07: esa cantidad se redujo por decisión del usuario a seis piezas
+  totales: tres posts y tres historias, una pareja por cada familia. Se
+  implementaron variantes code-native de `Producto + precio`, `Problema +
+  solución` y `Surtido real`, con logo grande, `EN FRÍAS`, explicación, precio,
+  CTA y disclaimer deterministas. `pnpm image-creative:prototype` exportó las
+  seis piezas usando exclusivamente fotos propias y cero llamadas de IA. Los
+  precios están marcados `PRECIO SINTÉTICO · NO PUBLICAR` hasta contar con una
+  fuente comercial vigente.
+- La próxima muestra paga también queda limitada a seis resultados. Conserva
+  la matriz automática local de 18 casos, pero selecciona sólo tres perfiles
+  comerciales con precio, cada uno en `feed` e `historia`. El costo de salida de
+  referencia baja de USD 0,492 a USD 0,246 más tokens de entrada.
+- Se documentó en `ADR-018` una vía futura para Reels code-native con Remotion y
+  cero tokens de IA. No se instaló la dependencia: antes debe confirmarse qué
+  licencia comercial corresponde al tamaño del equipo y al render automatizado.
+- Verificaciones de esta iteración: `pnpm image-creative:prototype` exportó 6/6
+  PNG; `pnpm image-quality:eval -- --write` mantuvo 18/18 casos automáticos y
+  actualizó la muestra pendiente a 6; `pnpm verify` completó stack, plan,
+  formato, build, lint, tipos, pruebas, baseline y smoke en verde. No se llamó a
+  OpenAI, no se publicó contenido y no se instaló Remotion.
 
 ### Evidencia de cierre
 

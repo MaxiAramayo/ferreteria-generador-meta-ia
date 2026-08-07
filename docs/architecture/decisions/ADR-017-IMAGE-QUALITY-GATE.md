@@ -1,6 +1,6 @@
 # ADR-017: puerta factual determinista y revisión visual humana
 
-- Estado: propuesto; pendiente de acordar muestra y umbrales con el negocio
+- Estado: propuesto; muestra de seis y umbrales acordados, revisión pendiente
 - Fecha: 2026-08-07
 - Tarea: `P4-T08`
 
@@ -34,6 +34,12 @@ sin que cambien el copy, layout o tema que se busca proteger. Cualquier cambio
 real invalida la aprobación humana y obliga a repetir la evaluación; el arnés no
 llama a OpenAI durante CI.
 
+La matriz automática conserva sus 18 casos porque corre localmente y no consume
+proveedor. La revisión humana paga se limita a seis salidas: tres casos
+comerciales sin marca, cada uno en `feed` e `historia`. Cada caso debe permitir
+evaluar producto o categoría, uso y precio; reproducir una marca no forma parte
+del criterio cuando el modo visual es representativo.
+
 Los graders multimodales de OpenAI se consideran una señal auxiliar posible,
 no un reemplazo del veto factual ni de la revisión humana.
 
@@ -44,6 +50,9 @@ no un reemplazo del veto factual ni de la revisión humana.
   esté pendiente, rechazada o incompleta.
 - Los resultados reales se generan sólo en staging y con presupuesto explícito;
   los commits ejecutan únicamente la preevaluación local.
+- Reducir la muestra humana de 12 a 6 no reduce la matriz automática ni los
+  umbrales: elimina perfiles duplicados de la corrida paga y mantiene dos
+  formatos por cada uno de los tres conceptos elegidos.
 - La clave ciega se mantiene separada de las imágenes hasta terminar la
   puntuación.
 - Meta no puede habilitarse mientras `P4-T08` permanezca abierta.

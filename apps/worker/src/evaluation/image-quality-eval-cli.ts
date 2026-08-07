@@ -75,7 +75,10 @@ function withPreservedHumanReview(
   previous: ImageQualityBaseline | null,
 ): ImageQualityBaseline {
   const humanReview: ImageQualityHumanReview =
-    previous !== null && sameAutomaticIdentity(previous, current)
+    previous !== null &&
+    sameAutomaticIdentity(previous, current) &&
+    JSON.stringify(previous.humanReview.sampleCaseIds) ===
+      JSON.stringify(current.humanReview.sampleCaseIds)
       ? previous.humanReview
       : current.humanReview;
   return Object.freeze({ ...current, humanReview });
@@ -314,11 +317,6 @@ async function main(): Promise<void> {
   let generatedAssetsDirectory: string | null = null;
   if (generateReal) {
     const productReference = argumentValue("product-reference");
-    if (productReference === null) {
-      throw new Error(
-        "--generate-real requiere --product-reference=/ruta/a/la/foto aprobada.",
-      );
-    }
     const referenceCost = imageQualityOutputReferenceCostMicrousd();
     const approvedCost = approvedOutputBudgetMicrousd();
     if (approvedCost < referenceCost) {
@@ -329,14 +327,15 @@ async function main(): Promise<void> {
     const integration = requiredStagingIntegration();
     generatedAssetsDirectory = realAssetsDirectory();
     process.stdout.write(
-      `Muestra real: 12 salidas medium; costo de salida estimado USD ${(referenceCost / 1_000_000).toFixed(3)} más tokens de entrada.\n`,
+      `Muestra real: ${String(imageQualityHumanSampleCaseIds.length)} salidas medium; costo de salida estimado USD ${(referenceCost / 1_000_000).toFixed(3)} más tokens de entrada.\n`,
     );
     const result = await generateImageQualityRealAssets({
       gateway: new OpenAIImageGenerationGateway(
         new OfficialOpenAIImagesTransport(integration.credentials),
       ),
       outputDirectory: generatedAssetsDirectory,
-      productReferencePath: resolve(productReference),
+      productReferencePath:
+        productReference === null ? undefined : resolve(productReference),
     });
     process.stdout.write(
       result.settledCostMicrousd === null
@@ -349,7 +348,7 @@ async function main(): Promise<void> {
     const assetsDirectory = generatedAssetsDirectory ?? reviewAssetsDirectory();
     if (assetsDirectory === null) {
       throw new Error(
-        "--review-bundle requiere --review-assets=/directorio con los 12 resultados reales del proveedor.",
+        `--review-bundle requiere --review-assets=/directorio con los ${String(imageQualityHumanSampleCaseIds.length)} resultados reales del proveedor.`,
       );
     }
     await writeBlindReviewBundle(assetsDirectory);

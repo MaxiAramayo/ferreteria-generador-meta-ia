@@ -12,6 +12,7 @@ import {
   imageQualityDataset,
   imageQualityEvaluationFormats,
   imageQualityHumanSampleCaseIds,
+  imageQualityHumanSampleProfileIds,
   imageQualityHumanReviewDataset,
 } from "./image-quality-evaluation-dataset.ts";
 import {
@@ -126,10 +127,10 @@ test("una pieza con precio factual introducido a propósito se rechaza", () => {
   );
 });
 
-test("la muestra ciega toma dos piezas por perfil sin duplicados", () => {
-  assert.equal(imageQualityHumanSampleCaseIds.length, 12);
-  assert.equal(new Set(imageQualityHumanSampleCaseIds).size, 12);
-  for (const profileId of visualProfileIds) {
+test("la muestra ciega toma tres casos sin marca en feed e historia", () => {
+  assert.equal(imageQualityHumanSampleCaseIds.length, 6);
+  assert.equal(new Set(imageQualityHumanSampleCaseIds).size, 6);
+  for (const profileId of imageQualityHumanSampleProfileIds) {
     assert.equal(
       imageQualityHumanSampleCaseIds.filter((caseId) =>
         caseId.startsWith(`${profileId}-`),
@@ -139,22 +140,17 @@ test("la muestra ciega toma dos piezas por perfil sin duplicados", () => {
   }
 });
 
-test("la muestra humana usa la referencia aprobada del Wega FCI 1101C", () => {
-  const filterCases = imageQualityHumanReviewDataset().filter(
-    (entry) => entry.profileId === "lubricentro-producto-limpio",
-  );
-  assert.equal(filterCases.length, 2);
-  for (const entry of filterCases) {
-    assert.equal(entry.category, "filter");
-    assert.equal(entry.brief.title, "Filtro Wega FCI 1101C");
-    assert.equal(entry.reference.assetId, "tenant/wega-fci-1101c");
-    assert.equal(entry.reference.source, "provided-file");
+test("la muestra humana usa referencias genéricas aprobadas y conserva precio", () => {
+  const reviewDataset = imageQualityHumanReviewDataset();
+  assert.equal(reviewDataset.length, 6);
+  for (const entry of reviewDataset) {
+    assert.equal(entry.reference.source, "brand-library");
     assert.equal(entry.reference.status, "available");
-    assert.equal(entry.expected.price, null);
-    assert.deepEqual(entry.expected.stockStatements, []);
+    assert.notEqual(entry.reference.assetId, null);
+    assert.notEqual(entry.expected.price, null);
   }
 });
 
 test("la corrida real declara el costo de salida antes de contactar al proveedor", () => {
-  assert.equal(imageQualityOutputReferenceCostMicrousd(), 492_000);
+  assert.equal(imageQualityOutputReferenceCostMicrousd(), 246_000);
 });

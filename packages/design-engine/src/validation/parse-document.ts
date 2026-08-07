@@ -58,6 +58,7 @@ const contentFieldKeys: readonly ContentFieldKey[] = [
   "branch",
   "callToAction",
   "category",
+  "disclaimer",
   "icon",
   "items",
   "phone",

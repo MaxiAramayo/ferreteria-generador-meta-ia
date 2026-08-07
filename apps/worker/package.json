@@ -9,6 +9,7 @@
     "dev:types": "tsc --project tsconfig.build.json --watch",
     "eval:brief": "node ../../tools/run-with-env.mjs node src/evaluation/brief-eval-cli.ts",
     "eval:image-quality": "node src/evaluation/image-quality-eval-cli.ts",
+    "prototype:image-creatives": "node src/evaluation/image-creative-prototype-cli.ts",
     "smoke:brief": "node ../../tools/run-with-env.mjs node src/brief/brief-smoke.ts",
     "smoke:cloudinary": "node ../../tools/run-with-env.mjs node src/media/cloudinary-smoke.ts",
     "smoke:commercial": "node ../../tools/run-with-env.mjs node src/catalog/commercial-smoke.ts",

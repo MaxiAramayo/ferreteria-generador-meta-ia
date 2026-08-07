@@ -921,7 +921,7 @@
   ],
   "compositionVersion": "visual-composition/2026-08-05.1",
   "datasetVersion": "image-quality/2026-08-07.2",
-  "generatedAt": "2026-08-07T22:12:18.990Z",
+  "generatedAt": "2026-08-07T23:12:40.049Z",
   "humanReview": {
     "assessments": [],
     "reviewedAt": null,
@@ -929,14 +929,8 @@
     "sampleCaseIds": [
       "ferreteria-producto-limpio-feed",
       "ferreteria-producto-limpio-historia",
-      "lubricentro-producto-limpio-feed",
-      "lubricentro-producto-limpio-historia",
-      "ferreteria-taller-feed",
-      "ferreteria-taller-historia",
       "ferreteria-obra-feed",
       "ferreteria-obra-historia",
-      "lubricentro-servicio-feed",
-      "lubricentro-servicio-historia",
       "promocion-estacional-feed",
       "promocion-estacional-historia"
     ],

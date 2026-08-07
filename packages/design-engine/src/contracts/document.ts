@@ -66,6 +66,8 @@ export interface DesignContent {
   readonly branch?: string;
   readonly callToAction?: string;
   readonly category?: string;
+  /** Aclaración comercial visible, por ejemplo «Imagen ilustrativa». */
+  readonly disclaimer?: string;
   readonly icon?: IconName;
   readonly items?: readonly string[];
   readonly phone?: string;

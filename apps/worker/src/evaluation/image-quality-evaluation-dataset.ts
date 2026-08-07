@@ -140,40 +140,6 @@ const lubricantBrief: ContentBrief = Object.freeze({
   visualDirection: "clean_product",
 });
 
-const wegaFilterBrief: ContentBrief = Object.freeze({
-  brand: "lubricentro",
-  callToAction: Object.freeze({
-    kind: "whatsapp",
-    label: "Consultanos por WhatsApp",
-  }),
-  caption:
-    "Filtro Wega FCI 1101C. Consultanos por WhatsApp para confirmar la aplicación correcta antes de comprar.",
-  creativeProposal:
-    "Presentar el filtro Wega FCI 1101C de la foto aprobada, sin confundirlo con los otros códigos visibles en la toma.",
-  missingInformation: Object.freeze([]),
-  objective: "product",
-  products: Object.freeze([
-    Object.freeze({
-      evidenceId: "FILTER-1",
-      externalProductId: "evaluation-wega-fci-1101c",
-      label: "Filtro Wega FCI 1101C",
-    }),
-  ]),
-  requiresHumanApproval: false,
-  subtitle: "Confirmá la aplicación para tu vehículo",
-  title: "Filtro Wega FCI 1101C",
-  verifiedFacts: Object.freeze([]),
-  visualDirection: "clean_product",
-});
-
-const wegaFilterExpected = snapshot({
-  callToAction: "Consultanos por WhatsApp",
-  disclaimer: null,
-  price: null,
-  productExternalIds: ["evaluation-wega-fci-1101c"],
-  stockStatements: [],
-});
-
 const workshopBrief: ContentBrief = Object.freeze({
   brand: "ferreteria",
   callToAction: Object.freeze({
@@ -430,9 +396,21 @@ export function imageQualityDataset(): readonly ImageQualityDatasetEntry[] {
   );
 }
 
-/** Dos formatos por perfil: variedad suficiente sin revelar el caso al revisor. */
+/**
+ * Tres casos comerciales sin marca, cada uno en feed e historia.
+ *
+ * La matriz automática conserva sus 18 casos locales. La muestra paga se
+ * limita a seis resultados y prioriza que producto, uso y precio puedan
+ * evaluarse sin depender de reproducir una marca.
+ */
+export const imageQualityHumanSampleProfileIds = Object.freeze([
+  "ferreteria-producto-limpio",
+  "ferreteria-obra",
+  "promocion-estacional",
+] as const satisfies readonly VisualProfileId[]);
+
 export const imageQualityHumanSampleCaseIds: readonly string[] = Object.freeze(
-  fixtures.flatMap(({ profileId }) => [
+  imageQualityHumanSampleProfileIds.flatMap((profileId) => [
     `${profileId}-feed`,
     `${profileId}-historia`,
   ]),
@@ -441,31 +419,13 @@ export const imageQualityHumanSampleCaseIds: readonly string[] = Object.freeze(
 /**
  * Casos que efectivamente ve la revisión humana.
  *
- * La matriz automática conserva el lubricante sintético exigido por la tarea.
- * Para el perfil de producto del Lubricentro, la muestra real usa en cambio el
- * producto que el negocio entregó y autorizó: Wega FCI 1101C. Mezclar esa foto
- * con el brief de lubricante haría imposible evaluar fidelidad de producto.
+ * Todos usan referencias disponibles en la biblioteca aprobada. La referencia
+ * puede ser genérica: el gate evalúa que la categoría sea reconocible y que el
+ * overlay determinista comunique producto, uso y precio sin inventar marca.
  */
 export function imageQualityHumanReviewDataset(): readonly ImageQualityDatasetEntry[] {
   const sampleIds = new Set(imageQualityHumanSampleCaseIds);
   return Object.freeze(
-    imageQualityDataset()
-      .filter((entry) => sampleIds.has(entry.caseId))
-      .map((entry) =>
-        entry.profileId === "lubricentro-producto-limpio"
-          ? Object.freeze({
-              ...entry,
-              brief: wegaFilterBrief,
-              category: "filter" as const,
-              expected: wegaFilterExpected,
-              reference: Object.freeze({
-                assetId: "tenant/wega-fci-1101c",
-                role: "product_photo" as const,
-                source: "provided-file" as const,
-                status: "available" as const,
-              }),
-            })
-          : entry,
-      ),
+    imageQualityDataset().filter((entry) => sampleIds.has(entry.caseId)),
   );
 }

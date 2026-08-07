@@ -34,6 +34,9 @@ export type CarouselLayoutId =
   | "carrusel-lubricentro-turno";
 
 export type StoryLayoutId =
+  | "historia-producto-precio"
+  | "historia-problema-solucion"
+  | "historia-surtido-real"
   | "historia-producto"
   | "historia-precio-dia"
   | "historia-turno-lubricentro"

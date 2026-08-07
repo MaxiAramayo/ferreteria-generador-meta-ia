@@ -39,10 +39,12 @@ export {
   BulletList,
   consultPriceLabel,
   Cta,
+  Disclaimer,
   Eyebrow,
   Footer,
   Header,
   IconBadge,
+  LocalHeader,
   PhotoScrim,
   PriceBlock,
   ProductImage,
@@ -54,6 +56,11 @@ export {
   ComposicionCirculoCentral,
   ComposicionTercioInferior,
 } from "./layouts/composed-pieces.tsx";
+export {
+  HistoriaProblemaSolucion,
+  HistoriaProductoPrecio,
+  HistoriaSurtidoReal,
+} from "./layouts/commercial-stories.tsx";
 export {
   footerBranch,
   mediaAt,

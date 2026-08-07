@@ -8,10 +8,12 @@ import { RADII, SPACING, STROKES } from "../tokens/space.ts";
 import { FONT_WEIGHTS, TYPOGRAPHY } from "../tokens/typography.ts";
 import {
   Cta,
+  Disclaimer,
   Eyebrow,
   Footer,
   Header,
   IconBadge,
+  LocalHeader,
   PhotoScrim,
   PriceBlock,
   ProductImage,
@@ -51,15 +53,17 @@ export function ProductoPrecio(props: LayoutProps): ReactElement {
 
   return (
     <div style={safeAreaStyle(props)}>
-      <Header
-        eyebrow={content.badge ?? content.category ?? "Precio"}
-        theme={theme}
-      />
+      <LocalHeader context={context} theme={theme} />
+      <div style={{ marginTop: SPACING.lg }}>
+        <Eyebrow theme={theme}>
+          {content.badge ?? content.category ?? "Producto y precio"}
+        </Eyebrow>
+      </div>
       <ProductImage
         asset={mediaAt(document, 0)}
         context={context}
         fallbackIcon="productos"
-        style={{ height: 560, marginTop: SPACING.xl, width: "100%" }}
+        style={{ height: 500, marginTop: SPACING.lg, width: "100%" }}
         theme={theme}
       />
       <div
@@ -103,12 +107,21 @@ export function ProductoPrecio(props: LayoutProps): ReactElement {
           paddingTop: SPACING.xl,
         }}
       >
-        <Cta theme={theme}>
-          {content.callToAction ??
-            (content.price === undefined
-              ? "Consultá precio por WhatsApp"
-              : "Reservá por WhatsApp")}
-        </Cta>
+        <div>
+          <Cta theme={theme}>
+            {content.callToAction ??
+              (content.price === undefined
+                ? "Consultá precio por WhatsApp"
+                : "Reservá por WhatsApp")}
+          </Cta>
+          {content.disclaimer === undefined ? null : (
+            <div style={{ marginTop: SPACING.sm }}>
+              <Disclaimer color={theme.colors.muted}>
+                {content.disclaimer}
+              </Disclaimer>
+            </div>
+          )}
+        </div>
         <Footer
           branch={footerBranch(content, context, theme)}
           context={context}
@@ -251,11 +264,13 @@ export function ProblemaSolucion(props: LayoutProps): ReactElement {
 
   return (
     <div style={safeAreaStyle(props)}>
-      <Header
-        eyebrow={content.badge ?? content.category ?? "Solución"}
-        theme={theme}
-      />
-      <div style={{ marginTop: SPACING.xl }}>
+      <LocalHeader context={context} theme={theme} />
+      <div style={{ marginTop: SPACING.lg }}>
+        <Eyebrow theme={theme}>
+          {content.badge ?? content.category ?? "Problema y solución"}
+        </Eyebrow>
+      </div>
+      <div style={{ marginTop: SPACING.lg }}>
         <Eyebrow theme={theme}>El problema</Eyebrow>
         <Text
           as="h1"
@@ -273,7 +288,7 @@ export function ProblemaSolucion(props: LayoutProps): ReactElement {
           borderRadius: RADII.card,
           display: "flex",
           gap: SPACING.md,
-          marginTop: SPACING.xl,
+          marginTop: SPACING.lg,
           padding: SPACING.lg,
         }}
       >
@@ -286,7 +301,12 @@ export function ProblemaSolucion(props: LayoutProps): ReactElement {
         asset={mediaAt(document, 0)}
         context={context}
         fallbackIcon={content.icon ?? "productos"}
-        style={{ flex: 1, marginTop: SPACING.xl, minHeight: 0, width: "100%" }}
+        style={{
+          flex: 1,
+          marginTop: SPACING.lg,
+          minHeight: 260,
+          width: "100%",
+        }}
         theme={theme}
       />
       {steps.length === 0 ? null : (
@@ -334,9 +354,27 @@ export function ProblemaSolucion(props: LayoutProps): ReactElement {
           marginTop: SPACING.xl,
         }}
       >
-        <Cta theme={theme}>
+        <div>
+          <PriceBlock
+            color={theme.colors.primary}
+            compact
+            mutedColor={theme.colors.muted}
+            price={content.price}
+            validity={content.validity}
+          />
+          {content.disclaimer === undefined ? null : (
+            <div style={{ marginTop: SPACING.xs }}>
+              <Disclaimer color={theme.colors.muted}>
+                {content.disclaimer}
+              </Disclaimer>
+            </div>
+          )}
+        </div>
+        <Cta compact theme={theme}>
           {content.callToAction ?? "Consultá cómo resolverlo"}
         </Cta>
+      </div>
+      <div style={{ marginTop: SPACING.md }}>
         <Footer
           branch={footerBranch(content, context, theme)}
           context={context}
