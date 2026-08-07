@@ -1066,11 +1066,25 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   `pnpm image-quality:eval -- --write` con 18/18 casos. La corrida de control
   sin `--write` terminó en el bloqueo esperado `human-review-pending`. No se
   llamó a OpenAI ni se consumió presupuesto.
-- Pendiente: acordar la muestra propuesta, generar sus 12 bases reales en
-  staging, preparar el paquete ciego y obtener ambas revisiones. Antes hace
-  falta incorporar una foto aprobada de producto de lubricentro: las fotos
-  vigentes son contexto del local y el arnés las rechaza como sustituto. Tras la
-  revisión se debe ejecutar otra vez `pnpm verify` antes del cierre.
+- Pendiente: registrar las dos revisiones humanas, corregir la fidelidad del
+  producto Wega, repetir la muestra invalidada y ejecutar `pnpm verify` antes
+  del cierre.
+- 2026-08-07: el usuario aportó la foto del filtro Wega FCI 1101C y confirmó que
+  el negocio tiene permiso para usar las marcas de los productos. El dataset
+  automático conserva el lubricante sintético para no perder esa cobertura; la
+  muestra humana usa el brief y snapshot específicos del filtro, sin precio ni
+  stock inventados.
+- Se agregó una corrida manual protegida por ambiente staging y confirmación
+  explícita de costo de salida. Preparó 12 bases reales y el paquete ciego
+  `A01`–`A12` en `output/image-quality-review/`; los 12 request ID y el uso
+  quedaron en el manifiesto ignorado por Git. Images informó un costo liquidado
+  total de USD 0,657, frente a USD 0,492 de salida estimada; la diferencia
+  corresponde a tokens de entrada de las referencias.
+- La inspección preliminar rechazó la fidelidad del Wega: `A03` y `A04`
+  conservaron sólo la paleta general de la caja, eliminaron marca/código y
+  `A04` agregó un filtro blanco genérico. La hoja ciega permanece sin firmar y
+  la tarea abierta. El próximo cambio debe componer el producto real de forma
+  determinista en lugar de pedirle al modelo que reinterprete su etiqueta.
 
 ### Evidencia de cierre
 

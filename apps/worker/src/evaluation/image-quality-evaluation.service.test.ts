@@ -12,11 +12,13 @@ import {
   imageQualityDataset,
   imageQualityEvaluationFormats,
   imageQualityHumanSampleCaseIds,
+  imageQualityHumanReviewDataset,
 } from "./image-quality-evaluation-dataset.ts";
 import {
   readImageQualityBaseline,
   runImageQualityEvaluation,
 } from "./image-quality-evaluation.service.ts";
+import { imageQualityOutputReferenceCostMicrousd } from "./image-quality-real-generation.ts";
 
 const evaluation = runImageQualityEvaluation("2026-08-07T12:00:00.000Z");
 
@@ -135,4 +137,24 @@ test("la muestra ciega toma dos piezas por perfil sin duplicados", () => {
       2,
     );
   }
+});
+
+test("la muestra humana usa la referencia aprobada del Wega FCI 1101C", () => {
+  const filterCases = imageQualityHumanReviewDataset().filter(
+    (entry) => entry.profileId === "lubricentro-producto-limpio",
+  );
+  assert.equal(filterCases.length, 2);
+  for (const entry of filterCases) {
+    assert.equal(entry.category, "filter");
+    assert.equal(entry.brief.title, "Filtro Wega FCI 1101C");
+    assert.equal(entry.reference.assetId, "tenant/wega-fci-1101c");
+    assert.equal(entry.reference.source, "provided-file");
+    assert.equal(entry.reference.status, "available");
+    assert.equal(entry.expected.price, null);
+    assert.deepEqual(entry.expected.stockStatements, []);
+  }
+});
+
+test("la corrida real declara el costo de salida antes de contactar al proveedor", () => {
+  assert.equal(imageQualityOutputReferenceCostMicrousd(), 492_000);
 });

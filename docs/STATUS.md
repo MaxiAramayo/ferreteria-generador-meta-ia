@@ -41,14 +41,16 @@ de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
 revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
 versionada conserva todas las alternativas y su auditoría (`ADR-016`).
 
-`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local ya cubre
-18 casos —seis perfiles por tres formatos— y compara producto, precio, stock,
-CTA y disclaimer contra snapshots sintéticos. La baseline automática está en
-verde, pero el gate permanece bloqueado por diseño: falta acordar y ejecutar una
-muestra ciega de 12 resultados reales con responsable comercial y visual
-(`ADR-017`). La muestra no puede generarse completa hasta incorporar una foto
-aprobada de producto de lubricentro; las existentes son sólo contexto del
-local. No se llamó a OpenAI durante esta preparación.
+`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local cubre 18
+casos —seis perfiles por tres formatos— y compara producto, precio, stock, CTA y
+disclaimer contra snapshots sintéticos. El usuario aportó y autorizó una foto de
+los filtros Wega FCI 1101C, y la muestra real de 12 piezas se generó en staging y
+quedó preparada de forma ciega en `output/image-quality-review/`. La corrida
+liquidó USD 0,657 según el uso informado por Images. La inspección preliminar
+detectó un fallo crítico: las piezas Wega `A03` y `A04` perdieron la marca y el
+código del envase, y `A04` agregó un filtro blanco genérico. El gate sigue
+bloqueado; falta registrar la revisión humana y corregir la composición del
+producto real antes de poder aprobar (`ADR-017`).
 
 ## Resumen
 
@@ -70,11 +72,11 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 ## Próxima tarea
 
 Continuar `P4-T08` — aprobar calidad visual y factual. Dataset, rúbrica,
-responsables, umbrales y baseline automática ya están definidos. El próximo
-paso es acordar la muestra propuesta (`feed` e `historia` por cada uno de los
-seis perfiles), incorporar la referencia faltante de producto de lubricentro,
-generar los 12 resultados reales en staging con presupuesto explícito y
-completar la revisión ciega. Meta continúa bloqueada.
+responsables, umbrales, baseline automática y primera muestra real ya están
+definidos. El próximo paso es registrar el rechazo humano de la muestra actual,
+corregir el camino que debe componer la foto real del producto sin reinterpretar
+su marca ni su código, volver a componer o generar la muestra invalidada y
+repetir la revisión ciega. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
@@ -125,9 +127,9 @@ de la organización además de la biblioteca congelada.
   almacena ubicación ni datos de cámara. Se conserva la orientación aplicada a
   los píxeles, el color se normaliza a sRGB y se guardan los dos SHA-256 —el de
   los bytes recibidos y el del archivo normalizado— para no perder trazabilidad;
-- faltan fotos propias de lubricante clasificadas como material de producto: las
-  de lubricentro son del local, así que `lubricentro-producto-limpio` hoy sólo
-  puede resolverse con render determinista;
+- la muestra humana ya dispone de una foto de producto Wega autorizada por el
+  usuario. El dataset automático conserva el caso sintético de lubricante; no se
+  debe usar la foto de filtros como evidencia de un lubricante;
 - las tres fotos de la gata pasan la preparación como `mascot_photo`, pero
   todavía no están persistidas: la ingesta necesita PostgreSQL y una membresía
   real, así que subirlas es una operación de datos y no de código. La biblioteca

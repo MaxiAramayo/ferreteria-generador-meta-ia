@@ -19,7 +19,7 @@ import {
   type CompositionBackground,
 } from "../visual/composition-snapshot-cases.ts";
 
-export const imageQualityDatasetVersion = "image-quality/2026-08-07.1";
+export const imageQualityDatasetVersion = "image-quality/2026-08-07.2";
 
 export const imageQualityEvaluationFormats = [
   "feed",
@@ -28,7 +28,7 @@ export const imageQualityEvaluationFormats = [
 ] as const satisfies readonly VisualFormatId[];
 
 export type ImageQualityCategory =
-  "institutional" | "lubricant" | "offer" | "tool";
+  "filter" | "institutional" | "lubricant" | "offer" | "tool";
 
 export interface ImageQualityDatasetEntry {
   readonly background: CompositionBackground;
@@ -44,6 +44,7 @@ export interface ImageQualityDatasetEntry {
 export interface ImageQualityReferenceRequirement {
   readonly assetId: string | null;
   readonly role: VisualReferenceRole;
+  readonly source: "brand-library" | "provided-file";
   readonly status: "available" | "missing";
 }
 
@@ -137,6 +138,40 @@ const lubricantBrief: ContentBrief = Object.freeze({
     }),
   ]),
   visualDirection: "clean_product",
+});
+
+const wegaFilterBrief: ContentBrief = Object.freeze({
+  brand: "lubricentro",
+  callToAction: Object.freeze({
+    kind: "whatsapp",
+    label: "Consultanos por WhatsApp",
+  }),
+  caption:
+    "Filtro Wega FCI 1101C. Consultanos por WhatsApp para confirmar la aplicación correcta antes de comprar.",
+  creativeProposal:
+    "Presentar el filtro Wega FCI 1101C de la foto aprobada, sin confundirlo con los otros códigos visibles en la toma.",
+  missingInformation: Object.freeze([]),
+  objective: "product",
+  products: Object.freeze([
+    Object.freeze({
+      evidenceId: "FILTER-1",
+      externalProductId: "evaluation-wega-fci-1101c",
+      label: "Filtro Wega FCI 1101C",
+    }),
+  ]),
+  requiresHumanApproval: false,
+  subtitle: "Confirmá la aplicación para tu vehículo",
+  title: "Filtro Wega FCI 1101C",
+  verifiedFacts: Object.freeze([]),
+  visualDirection: "clean_product",
+});
+
+const wegaFilterExpected = snapshot({
+  callToAction: "Consultanos por WhatsApp",
+  disclaimer: null,
+  price: null,
+  productExternalIds: ["evaluation-wega-fci-1101c"],
+  stockStatements: [],
 });
 
 const workshopBrief: ContentBrief = Object.freeze({
@@ -279,6 +314,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: "stock-herramientas-electricas",
       role: "product_photo",
+      source: "brand-library",
       status: "available",
     },
   },
@@ -296,6 +332,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: null,
       role: "product_photo",
+      source: "provided-file",
       status: "missing",
     },
   },
@@ -313,6 +350,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: "brand/interior-herramientas",
       role: "store_context",
+      source: "brand-library",
       status: "available",
     },
   },
@@ -330,6 +368,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: "brand/frente-central",
       role: "store_context",
+      source: "brand-library",
       status: "available",
     },
   },
@@ -347,6 +386,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: "brand/lubricentro-fosa",
       role: "store_context",
+      source: "brand-library",
       status: "available",
     },
   },
@@ -364,6 +404,7 @@ const fixtures: readonly ProfileFixture[] = Object.freeze([
     reference: {
       assetId: "stock-herramientas-electricas",
       role: "product_photo",
+      source: "brand-library",
       status: "available",
     },
   },
@@ -396,3 +437,35 @@ export const imageQualityHumanSampleCaseIds: readonly string[] = Object.freeze(
     `${profileId}-historia`,
   ]),
 );
+
+/**
+ * Casos que efectivamente ve la revisión humana.
+ *
+ * La matriz automática conserva el lubricante sintético exigido por la tarea.
+ * Para el perfil de producto del Lubricentro, la muestra real usa en cambio el
+ * producto que el negocio entregó y autorizó: Wega FCI 1101C. Mezclar esa foto
+ * con el brief de lubricante haría imposible evaluar fidelidad de producto.
+ */
+export function imageQualityHumanReviewDataset(): readonly ImageQualityDatasetEntry[] {
+  const sampleIds = new Set(imageQualityHumanSampleCaseIds);
+  return Object.freeze(
+    imageQualityDataset()
+      .filter((entry) => sampleIds.has(entry.caseId))
+      .map((entry) =>
+        entry.profileId === "lubricentro-producto-limpio"
+          ? Object.freeze({
+              ...entry,
+              brief: wegaFilterBrief,
+              category: "filter" as const,
+              expected: wegaFilterExpected,
+              reference: Object.freeze({
+                assetId: "tenant/wega-fci-1101c",
+                role: "product_photo" as const,
+                source: "provided-file" as const,
+                status: "available" as const,
+              }),
+            })
+          : entry,
+      ),
+  );
+}

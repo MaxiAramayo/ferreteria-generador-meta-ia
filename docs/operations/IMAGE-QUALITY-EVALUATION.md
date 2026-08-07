@@ -16,15 +16,16 @@ queda aprobada hasta superar la revisión humana ciega.
 
 ## Dataset versionado
 
-`image-quality/2026-08-07.1` contiene 18 casos sintéticos: los seis perfiles
+`image-quality/2026-08-07.2` contiene 18 casos sintéticos: los seis perfiles
 visuales por `feed`, `cuadrado` e `historia`. La matriz incluye herramientas,
 lubricantes, ofertas y mensajes institucionales. Sus identificadores, precios y
 stocks son ficticios y no se pueden reutilizar como información comercial.
 Cada perfil declara además la referencia aprobada con la que debe producirse la
-muestra. `lubricentro-producto-limpio` permanece en `missing`: la biblioteca sólo
-tiene fotos de contexto del local, no una foto de producto apta. El CLI bloquea
-el paquete ciego hasta registrar esa referencia; una escena sin el envase real
-no puede usarse para aprobar fidelidad.
+muestra. El dataset automático conserva el lubricante sintético requerido por la
+matriz. La muestra humana de `lubricentro-producto-limpio` usa un brief separado
+para el filtro Wega FCI 1101C y una foto aportada por el usuario el 2026-08-07;
+así la referencia no se mezcla con un producto distinto. El usuario confirmó
+permiso del negocio para usar las marcas de los productos.
 
 El snapshot de cada caso fija:
 
@@ -47,9 +48,8 @@ sintética.
 
 ## Rúbrica humana ciega
 
-La muestra propuesta contiene 12 resultados reales: `feed` e `historia` de
-cada perfil. Antes de ejecutarla, el responsable comercial debe acordar la
-muestra. Los archivos se presentan como `A01` a `A12`; perfil, formato, categoría
+La muestra acordada contiene 12 resultados reales: `feed` e `historia` de cada
+perfil. Los archivos se presentan como `A01` a `A12`; perfil, formato, categoría
 y snapshot quedan en una clave separada que no se abre hasta terminar las
 puntuaciones.
 
@@ -104,8 +104,20 @@ Mientras la revisión humana esté pendiente, termina bloqueada con
 
 La revisión ciega requiere 12 PNG o JPEG reales generados en staging. Cada
 archivo se nombra con el `caseId` del dataset. No se aceptan placeholders
-sintéticos como evidencia humana. Antes se debe incorporar una foto aprobada de
-producto de lubricentro y cambiar su requisito del dataset a `available`:
+sintéticos como evidencia humana. Para generar las bases y componer el paquete
+en una sola corrida:
+
+```bash
+NODE_ENV=staging node tools/run-with-env.mjs pnpm image-quality:eval -- \
+  --generate-real \
+  --product-reference=/ruta/a/la/foto-aprobada.jpeg \
+  --approved-output-cost-usd=0.50
+```
+
+El monto confirma sólo el costo de salida de referencia que se muestra antes de
+contactar al proveedor. Una edición suma tokens de entrada de la imagen; el
+manifiesto registra el costo liquidado informado. Para recomponer un lote real
+ya existente:
 
 ```bash
 pnpm image-quality:eval -- --review-bundle \
@@ -116,6 +128,12 @@ La salida ignorada por Git queda en `output/image-quality-review/`. El reporte
 automático de cada corrida queda en `output/image-quality-evaluation/report.json`.
 No se deben versionar binarios, secretos, prompts completos ni referencias con
 datos personales.
+
+La primera corrida real se ejecutó el 2026-08-07: generó 12/12 bases, conservó
+12 request ID y liquidó USD 0,657. La inspección preliminar detectó un hallazgo
+crítico en `A03` y `A04`: la referencia Wega perdió marca y código, y `A04`
+incorporó un filtro blanco genérico. La muestra queda como evidencia de rechazo;
+no habilita el gate y su hoja humana todavía no está firmada.
 
 ## Invalidez y promoción
 

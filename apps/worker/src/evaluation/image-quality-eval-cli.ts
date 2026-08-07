@@ -4,16 +4,22 @@ import { fileURLToPath } from "node:url";
 
 import { ARAMAYO_BRAND_PROFILE } from "@aramayo/brand-knowledge";
 import {
+  parseOpenAiIntegration,
+  type OpenAIIntegration,
+} from "@aramayo/configuration";
+import {
   checkImageQualityGate,
   type ImageQualityBaseline,
   type ImageQualityHumanReview,
 } from "@aramayo/domain";
 
+import { OfficialOpenAIImagesTransport } from "../generation/openai-image-transport.ts";
+import { OpenAIImageGenerationGateway } from "../generation/openai-image.gateway.ts";
 import { createPlaywrightRenderer } from "../rendering/playwright-renderer.ts";
 import { renderContextFor } from "../rendering/render-document.ts";
 import {
-  imageQualityDataset,
   imageQualityHumanSampleCaseIds,
+  imageQualityHumanReviewDataset,
 } from "./image-quality-evaluation-dataset.ts";
 import {
   composeImageQualityCaseWithBase,
@@ -21,6 +27,10 @@ import {
   readImageQualityBaseline,
   runImageQualityEvaluation,
 } from "./image-quality-evaluation.service.ts";
+import {
+  generateImageQualityRealAssets,
+  imageQualityOutputReferenceCostMicrousd,
+} from "./image-quality-real-generation.ts";
 
 const outputDirectoryUrl = new URL(
   "../../../../output/image-quality-evaluation/",
@@ -28,6 +38,10 @@ const outputDirectoryUrl = new URL(
 );
 const reviewDirectoryUrl = new URL(
   "../../../../output/image-quality-review/",
+  import.meta.url,
+);
+const realAssetsRootUrl = new URL(
+  "../../../../output/image-quality-real/",
   import.meta.url,
 );
 
@@ -85,6 +99,52 @@ function reviewAssetsDirectory(): string | null {
   return supplied.length === 0 ? null : resolve(supplied);
 }
 
+function argumentValue(name: string): string | null {
+  const prefix = `--${name}=`;
+  const argument = process.argv.find((entry) => entry.startsWith(prefix));
+  if (argument === undefined) return null;
+  const supplied = argument.slice(prefix.length).trim();
+  return supplied.length === 0 ? null : supplied;
+}
+
+function requiredStagingIntegration(): Extract<
+  OpenAIIntegration,
+  { readonly enabled: true }
+> {
+  if (process.env["NODE_ENV"] !== "staging") {
+    throw new Error("La muestra real sólo admite NODE_ENV=staging.");
+  }
+  const integration = parseOpenAiIntegration(
+    process.env,
+    "image-quality-evaluation",
+  );
+  if (!integration.enabled) {
+    throw new Error(
+      "La muestra real requiere OPENAI_API_KEY y OPENAI_PROJECT_ID de staging.",
+    );
+  }
+  return integration;
+}
+
+function approvedOutputBudgetMicrousd(): number {
+  const raw = argumentValue("approved-output-cost-usd");
+  if (raw === null) {
+    throw new Error(
+      "--generate-real requiere --approved-output-cost-usd para confirmar el gasto de salida.",
+    );
+  }
+  const usd = Number(raw);
+  if (!Number.isFinite(usd) || usd <= 0) {
+    throw new Error("--approved-output-cost-usd debe ser un monto positivo.");
+  }
+  return Math.round(usd * 1_000_000);
+}
+
+function realAssetsDirectory(): string {
+  const runId = new Date().toISOString().replaceAll(":", "-");
+  return fileURLToPath(new URL(`${runId}/`, realAssetsRootUrl));
+}
+
 async function readGeneratedBase(
   directory: string,
   caseId: string,
@@ -105,7 +165,7 @@ async function readGeneratedBase(
 
 async function writeBlindReviewBundle(assetsDirectory: string): Promise<void> {
   const byId = new Map(
-    imageQualityDataset().map((entry) => [entry.caseId, entry]),
+    imageQualityHumanReviewDataset().map((entry) => [entry.caseId, entry]),
   );
   const missingReferences = imageQualityHumanSampleCaseIds.filter(
     (caseId) => byId.get(caseId)?.reference.status === "missing",
@@ -200,6 +260,7 @@ async function writeBlindReviewBundle(assetsDirectory: string): Promise<void> {
 async function main(): Promise<void> {
   const write = process.argv.includes("--write");
   const reviewBundle = process.argv.includes("--review-bundle");
+  const generateReal = process.argv.includes("--generate-real");
   const previous = await previousBaseline();
   const current = withPreservedHumanReview(
     await runImageQualityEvaluation(),
@@ -226,7 +287,7 @@ async function main(): Promise<void> {
     throw new Error(
       "No existe baseline de calidad; ejecutá la evaluación con --write.",
     );
-  } else {
+  } else if (!generateReal) {
     const failures = checkImageQualityGate({
       baseline: previous,
       compositionVersion: current.compositionVersion,
@@ -250,8 +311,42 @@ async function main(): Promise<void> {
     }
   }
 
-  if (reviewBundle) {
-    const assetsDirectory = reviewAssetsDirectory();
+  let generatedAssetsDirectory: string | null = null;
+  if (generateReal) {
+    const productReference = argumentValue("product-reference");
+    if (productReference === null) {
+      throw new Error(
+        "--generate-real requiere --product-reference=/ruta/a/la/foto aprobada.",
+      );
+    }
+    const referenceCost = imageQualityOutputReferenceCostMicrousd();
+    const approvedCost = approvedOutputBudgetMicrousd();
+    if (approvedCost < referenceCost) {
+      throw new Error(
+        `El costo de salida de referencia es USD ${(referenceCost / 1_000_000).toFixed(3)} y supera el monto aprobado.`,
+      );
+    }
+    const integration = requiredStagingIntegration();
+    generatedAssetsDirectory = realAssetsDirectory();
+    process.stdout.write(
+      `Muestra real: 12 salidas medium; costo de salida estimado USD ${(referenceCost / 1_000_000).toFixed(3)} más tokens de entrada.\n`,
+    );
+    const result = await generateImageQualityRealAssets({
+      gateway: new OpenAIImageGenerationGateway(
+        new OfficialOpenAIImagesTransport(integration.credentials),
+      ),
+      outputDirectory: generatedAssetsDirectory,
+      productReferencePath: resolve(productReference),
+    });
+    process.stdout.write(
+      result.settledCostMicrousd === null
+        ? "El proveedor no informó uso completo; revisar manifest.json.\n"
+        : `Costo liquidado informado: USD ${(result.settledCostMicrousd / 1_000_000).toFixed(3)}.\n`,
+    );
+  }
+
+  if (reviewBundle || generateReal) {
+    const assetsDirectory = generatedAssetsDirectory ?? reviewAssetsDirectory();
     if (assetsDirectory === null) {
       throw new Error(
         "--review-bundle requiere --review-assets=/directorio con los 12 resultados reales del proveedor.",
