@@ -10,11 +10,14 @@ import { FONT_WEIGHTS, TYPOGRAPHY } from "../tokens/typography.ts";
 import {
   BulletList,
   Cta,
+  Disclaimer,
   Eyebrow,
   Footer,
   Header,
   IconBadge,
+  LocalHeader,
   PhotoScrim,
+  PriceBlock,
   ProductImage,
   Subtitle,
   Title,
@@ -125,18 +128,20 @@ export function ProductoMosaico(props: LayoutProps): ReactElement {
 
   return (
     <div style={safeAreaStyle(props)}>
-      <Header
-        eyebrow={content.badge ?? content.category ?? "Surtido"}
-        theme={theme}
-      />
+      <LocalHeader context={context} theme={theme} />
+      <div style={{ marginTop: SPACING.lg }}>
+        <Eyebrow theme={theme}>
+          {content.badge ?? content.category ?? "Surtido real"}
+        </Eyebrow>
+      </div>
       <div
         style={{
           display: "grid",
           gap: 14,
           gridTemplateColumns: `repeat(${String(columns)}, 1fr)`,
           gridTemplateRows: `repeat(${String(rows)}, 1fr)`,
-          height: 700,
-          marginTop: SPACING.xxl,
+          height: 560,
+          marginTop: SPACING.lg,
         }}
       >
         {photos.length === 0 ? (
@@ -193,9 +198,27 @@ export function ProductoMosaico(props: LayoutProps): ReactElement {
             justifyContent: "space-between",
           }}
         >
+          <div>
+            <PriceBlock
+              color={theme.colors.primary}
+              compact
+              mutedColor={theme.colors.muted}
+              price={content.price}
+              validity={content.validity}
+            />
+            {content.disclaimer === undefined ? null : (
+              <div style={{ marginTop: SPACING.xs }}>
+                <Disclaimer color={theme.colors.muted}>
+                  {content.disclaimer}
+                </Disclaimer>
+              </div>
+            )}
+          </div>
           <Cta compact theme={theme}>
             {content.callToAction ?? "Consultanos por WhatsApp"}
           </Cta>
+        </div>
+        <div style={{ marginTop: SPACING.md }}>
           <Footer
             branch={footerBranch(content, context, theme)}
             context={context}

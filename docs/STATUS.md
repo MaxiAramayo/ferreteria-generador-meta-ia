@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-06
+Actualizado: 2026-08-11
 
 ## Fase activa
 
@@ -41,6 +41,46 @@ de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
 revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
 versionada conserva todas las alternativas y su auditoría (`ADR-016`).
 
+`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local cubre 18
+casos —seis perfiles por tres formatos— y compara producto, precio, stock, CTA y
+disclaimer contra snapshots sintéticos. El usuario aportó y autorizó una foto de
+los filtros Wega FCI 1101C, y la muestra real de 12 piezas se generó en staging y
+quedó preparada de forma ciega en `output/image-quality-review/`. La corrida
+liquidó USD 0,657 según el uso informado por Images. La inspección preliminar
+detectó un fallo crítico: las piezas Wega `A03` y `A04` perdieron la marca y el
+código del envase, y `A04` agregó un filtro blanco genérico. El gate sigue
+bloqueado. El usuario rechazó además el filtro visual repetido y las escenas
+complejas con geometría inventada. El rediseño propuesto prioriza fotos propias,
+activos autorizados y representaciones de categoría claramente rotuladas;
+define tres familias mínimas y vuelve obligatorio el anclaje visible en Frías
+para piezas comerciales. Está documentado en
+[`IMAGE-CREATIVE-IMPROVEMENT-PLAN.md`](operations/IMAGE-CREATIVE-IMPROVEMENT-PLAN.md).
+La siguiente muestra ya no será de 12: el negocio la limitó a tres historias y
+tres posts. Los seis prototipos code-native ya fueron renderizados con activos
+propios, casos sin marca, `EN FRÍAS`, explicación, precio sintético rotulado y
+CTA; no consumieron IA. Remotion quedó documentado como opción futura para
+Reels deterministas, pendiente de confirmar su licencia antes de instalarlo.
+Estos prototipos no están aprobados ni cierran `P4-T08`: son la primera
+iteración para continuar revisando junto al negocio la apariencia general,
+jerarquía, textos, elección y recorte de fotografías, tamaño del precio, CTA y
+adaptación entre feed e historia. El 2026-08-11 el negocio rechazó esa primera
+dirección y pidió dos piezas originales: un comparador para líneas con varias
+medidas o modelos y una pieza de uso para los demás productos. La
+nueva muestra de cuatro piezas —feed e historia de cada familia— no usa precios
+ni medidas sintéticas. El negocio rechazó además la primera grilla y el
+mostrador vacío porque la imagen no acompañaba. La iteración actual usa dos
+escenas IA específicas y claramente ilustrativas. La ficha muestra tres
+conectores T de espiga completos sobre el mostrador y usa `1/2″`, `3/4″` y `1″`
+como medidas de muestra, sin atribuirlas todavía al surtido real de Aramayo. La
+pieza de aplicación evita una instalación inventada: muestra el preencastre,
+con las tres espigas visibles y las bocas de manguera separadas, y explica que
+la manguera cubre la espiga por fuera. Ambas composiciones integran la fotografía
+completa como superficie principal y `EN FRÍAS` se compone como una única unidad
+tipográfica. El negocio aprobó esta dirección visual el 2026-08-11 con una
+corrección final: se eliminó por completo el marco rojo exterior para reducir la
+carga visual. Los rótulos, medidas y pasos siguen siendo deterministas. No deben
+ejecutarse otra muestra paga ni avanzar con Reels hasta revisar esta iteración.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
@@ -60,9 +100,16 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P4-T08` — aprobar calidad visual y factual. Sus dependencias `P4-T06`
-y `P4-T07` están completas; corresponde definir dataset, rúbrica, responsables
-y umbrales antes de habilitar la integración Meta.
+Continuar `P4-T08` — aprobar calidad visual y factual. El próximo paso es que el
+negocio revise los cuatro prototipos nuevos: comparador de variantes y uso del
+producto, cada uno en feed e historia. La dirección, jerarquía, foto y redacción
+quedaron aprobadas, incluyendo la eliminación del marco exterior. Las tres
+medidas actuales sirven sólo para evaluar el diseño; la conexión al catálogo
+comercial y la sustitución por medidas/SKU
+reales quedaron diferidas por decisión del negocio. Recién cuando el contrato
+visual quede aprobado se registran los datos
+comerciales con fuente vigente y, sólo si un caso necesita generación, se
+ejecuta una muestra paga máxima de seis salidas. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
@@ -113,9 +160,9 @@ de la organización además de la biblioteca congelada.
   almacena ubicación ni datos de cámara. Se conserva la orientación aplicada a
   los píxeles, el color se normaliza a sRGB y se guardan los dos SHA-256 —el de
   los bytes recibidos y el del archivo normalizado— para no perder trazabilidad;
-- faltan fotos propias de lubricante clasificadas como material de producto: las
-  de lubricentro son del local, así que `lubricentro-producto-limpio` hoy sólo
-  puede resolverse con render determinista;
+- la muestra humana ya dispone de una foto de producto Wega autorizada por el
+  usuario. El dataset automático conserva el caso sintético de lubricante; no se
+  debe usar la foto de filtros como evidencia de un lubricante;
 - las tres fotos de la gata pasan la preparación como `mascot_photo`, pero
   todavía no están persistidas: la ingesta necesita PostgreSQL y una membresía
   real, así que subirlas es una operación de datos y no de código. La biblioteca

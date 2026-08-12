@@ -10,6 +10,8 @@
  */
 
 export type PublicationLayoutId =
+  | "ficha-variantes"
+  | "guia-aplicacion"
   | "producto-destacado"
   | "producto-precio"
   | "combo-kit"
@@ -34,6 +36,11 @@ export type CarouselLayoutId =
   | "carrusel-lubricentro-turno";
 
 export type StoryLayoutId =
+  | "historia-ficha-variantes"
+  | "historia-guia-aplicacion"
+  | "historia-producto-precio"
+  | "historia-problema-solucion"
+  | "historia-surtido-real"
   | "historia-producto"
   | "historia-precio-dia"
   | "historia-turno-lubricentro"

@@ -75,7 +75,10 @@ function documentFor(
     content,
     format,
     layout,
-    media: spec.media.maximum > 0 ? [photo] : [],
+    media:
+      spec.media.maximum > 0
+        ? Array.from({ length: Math.max(spec.media.minimum, 1) }, () => photo)
+        : [],
     schemaVersion: DESIGN_SCHEMA_VERSION,
     slug: `fixture-${layout}`,
     theme: "taller",
@@ -191,6 +194,48 @@ test("las piezas de feed respetan la zona segura del formato", () => {
   assert.ok(html.includes(`padding-top:${String(safeArea.top)}px`));
   assert.ok(html.includes(`padding-bottom:${String(safeArea.bottom)}px`));
   assert.ok(html.includes(`padding-left:${String(safeArea.left)}px`));
+});
+
+test("las fichas de variantes exigen una escena y exponen la guía de medidas", () => {
+  const invalid = parseDesignDocument({
+    content: { items: ["Medida A", "Medida B"], title: "Conectores" },
+    format: "feed",
+    layout: "ficha-variantes",
+    media: [],
+    schemaVersion: DESIGN_SCHEMA_VERSION,
+    slug: "ficha-incompleta",
+    theme: "taller",
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.issues.some(({ path }) => path === "media"));
+
+  const markup = markupFor("ficha-variantes");
+  assert.ok(markup.includes("data-variant-board"));
+  assert.ok(markup.includes("data-measurement-rail"));
+});
+
+test("las piezas de uso exigen una escena y enumeran los pasos", () => {
+  const invalid = parseDesignDocument({
+    content: { items: ["Paso A", "Paso B"], title: "Uso del producto" },
+    format: "feed",
+    layout: "guia-aplicacion",
+    media: [],
+    schemaVersion: DESIGN_SCHEMA_VERSION,
+    slug: "uso-sin-escena",
+    theme: "taller",
+  });
+
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.issues.some(({ path }) => path === "media"));
+  assert.ok(markupFor("guia-aplicacion").includes("data-application-steps"));
+});
+
+test("la localidad compone EN FRÍAS como una única unidad tipográfica", () => {
+  const markup = markupFor("ficha-variantes");
+
+  assert.ok(markup.includes('data-locality-label=""'));
+  assert.ok(markup.includes("EN FRÍAS"));
 });
 
 test("la portada destacada centra su símbolo dentro del círculo seguro", () => {

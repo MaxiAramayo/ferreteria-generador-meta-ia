@@ -86,6 +86,98 @@ export function Header({
   );
 }
 
+/**
+ * Encabezado comercial para audiencias que todavía no conocen la cuenta.
+ *
+ * La ubicación no queda escondida en el descriptor diminuto del logo: ocupa
+ * un bloque propio y se deriva del perfil del negocio. La foto nunca dibuja
+ * este dato, por lo que una imagen genérica no puede fingir que muestra el
+ * local real.
+ */
+export function LocalHeader({
+  context,
+  theme,
+}: {
+  readonly context: LayoutContext;
+  readonly theme: Theme;
+}): ReactElement {
+  const [rawCity] = context.brand.city.split(",");
+  const localCity = (rawCity ?? context.brand.city)
+    .trim()
+    .toLocaleUpperCase("es-AR");
+  const locationBackground =
+    theme.brand === "lubricentro" ? COLORS.safety : COLORS.rust;
+  const locationColor =
+    theme.brand === "lubricentro" ? COLORS.graphite : COLORS.white;
+
+  return (
+    <div
+      data-locality=""
+      data-role="localidad"
+      style={{
+        alignItems: "center",
+        display: "flex",
+        gap: SPACING.xl,
+        justifyContent: "space-between",
+        position: "relative",
+        zIndex: 10,
+      }}
+    >
+      <Logo size={76} tone={theme.tone} variant={theme.brand} />
+      <div
+        style={{
+          backgroundColor: locationBackground,
+          borderRadius: RADII.chip,
+          color: locationColor,
+          padding: `${String(SPACING.sm)}px ${String(SPACING.xl)}px`,
+        }}
+      >
+        <span
+          data-locality-label=""
+          style={{
+            fontFamily: TYPOGRAPHY.display.cssStack,
+            fontSize: 46,
+            fontWeight: FONT_WEIGHTS.black,
+            letterSpacing: 0.4,
+            lineHeight: 0.9,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          EN {localCity}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Aclaración comercial visible y separada de la vigencia del precio. */
+export function Disclaimer({
+  children,
+  color,
+}: {
+  readonly children: ReactNode;
+  readonly color: string;
+}): ReactElement {
+  return (
+    <div
+      data-disclaimer=""
+      data-role="aclaracion"
+      style={{
+        color,
+        fontFamily: TYPOGRAPHY.body.cssStack,
+        fontSize: 20,
+        fontWeight: FONT_WEIGHTS.bold,
+        letterSpacing: 0.3,
+        lineHeight: 1.15,
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function Cta({
   children,
   compact = false,

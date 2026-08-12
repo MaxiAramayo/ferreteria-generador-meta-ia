@@ -1,7 +1,7 @@
 # Catálogo de piezas
 
-- Estado: vigente, con decisiones del negocio del 2026-07-27
-- Fecha: 2026-07-27
+- Estado: vigente, ampliado por la iteración técnica del 2026-08-11
+- Fecha: 2026-08-11
 - Decisión que lo habilita: [`ADR-011`](decisions/ADR-011-CURATED-PIECE-CATALOG.md)
 
 Este documento define **qué piezas produce la plataforma y para qué sirve cada
@@ -47,6 +47,8 @@ afirmación de disponibilidad sin dato que la respalde.
 | `problema-solucion` | Partir del problema del cliente | Problema, solución, producto | Consultar cómo resolverlo |
 | `epp-seguridad` | Equipos de protección por rubro | Foto, título, tres puntos | Consultar modelos y talles |
 | `producto-mosaico` | Surtido de una categoría | 3 a 6 fotos, título | Consultar disponibilidad |
+| `ficha-variantes` | Comparar una línea con varias medidas o modelos | Una escena coherente, 2 a 6 rótulos factuales | Mandar foto o medida |
+| `guia-aplicacion` | Ayudar a elegir o usar una categoría sin inventar compatibilidades | Foto real, hasta 3 pasos verificados | Traer la pieza o consultar |
 
 ### Historia (1080×1920)
 
@@ -57,6 +59,11 @@ afirmación de disponibilidad sin dato que la respalde.
 | `historia-turno-lubricentro` | Pedir turno de servicio | Servicio, horario, teléfono | Pedir turno por WhatsApp o en el local |
 | `historia-tip` | Tip corto de oficio o mantenimiento | Título, tip, icono | Guardar el tip |
 | `historia-locales` | Dónde estamos y hasta qué hora | Direcciones, horario | Cómo llegar |
+| `historia-producto-precio` | Vender una categoría o producto con lectura comercial completa | Foto, nombre, uso, precio/condición, anclaje en Frías | Consultar o reservar |
+| `historia-problema-solucion` | Explicar una necesidad y la categoría que la resuelve | Problema, solución, referencia, precio/condición | Consulta guiada |
+| `historia-surtido-real` | Mostrar una categoría existente en el local sin afirmar stock completo | Foto propia, subcategorías, precio/condición, Frías | Mandar foto o medida |
+| `historia-ficha-variantes` | Comparar medidas/modelos con lectura móvil | Una escena coherente, 2 a 6 rótulos factuales | Mandar foto o medida |
+| `historia-guia-aplicacion` | Explicar tres pasos para elegir o aplicar una categoría | Foto real, hasta 3 pasos verificados | Traer la pieza o consultar |
 
 ### Cuadrado (1080×1080)
 
@@ -137,6 +144,14 @@ con la línea base congelada; componerlos falla de forma explícita.
    requiere revisar autorización y forma de atribución.
 5. **El catálogo va a crecer.** Esta versión cubre lo esencial; se refina con
    más piezas en una tarea posterior.
+6. **Las variantes comerciales de historia son explícitas.** No comparten un
+   compositor gobernado por banderas: cada familia define su jerarquía y todas
+   reutilizan únicamente el marco local, precio, disclaimer y pie.
+7. **El comparador de variantes y la pieza de uso son composiciones distintas.**
+   La primera compara medidas o modelos provenientes de una fuente comercial
+   sobre una escena coherente; la segunda explica una elección o uso respaldado
+   dentro de una escena propia. No se reutiliza una grilla para simular pasos ni
+   se inventa una medida.
 
 ## Pendientes de definición
 

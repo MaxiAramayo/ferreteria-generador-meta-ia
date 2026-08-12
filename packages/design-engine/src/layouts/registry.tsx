@@ -14,6 +14,17 @@ import {
   ComposicionTercioInferior,
 } from "./composed-pieces.tsx";
 import {
+  HistoriaProblemaSolucion,
+  HistoriaProductoPrecio,
+  HistoriaSurtidoReal,
+} from "./commercial-stories.tsx";
+import {
+  FichaVariantes,
+  GuiaAplicacion,
+  HistoriaFichaVariantes,
+  HistoriaGuiaAplicacion,
+} from "./technical-product-cards.tsx";
+import {
   ComboKit,
   HistoriaLocales,
   HistoriaPrecioDia,
@@ -54,9 +65,16 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "composicion-tercio-inferior": ComposicionTercioInferior,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
+    "ficha-variantes": FichaVariantes,
+    "guia-aplicacion": GuiaAplicacion,
+    "historia-ficha-variantes": HistoriaFichaVariantes,
+    "historia-guia-aplicacion": HistoriaGuiaAplicacion,
     "historia-locales": HistoriaLocales,
+    "historia-problema-solucion": HistoriaProblemaSolucion,
     "historia-precio-dia": HistoriaPrecioDia,
     "historia-producto": HistoriaProducto,
+    "historia-producto-precio": HistoriaProductoPrecio,
+    "historia-surtido-real": HistoriaSurtidoReal,
     "historia-tip": HistoriaTip,
     "historia-turno-lubricentro": HistoriaTurnoLubricentro,
     "lubricentro-servicio": LubricentroServicio,

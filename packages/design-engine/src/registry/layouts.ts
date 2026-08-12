@@ -41,6 +41,7 @@ const noMedia: MediaCapacity = { maximum: 0, minimum: 0 };
 const singlePhoto: MediaCapacity = { maximum: 1, minimum: 0 };
 const photoPair: MediaCapacity = { maximum: 2, minimum: 0 };
 const mosaic: MediaCapacity = { maximum: 6, minimum: 0 };
+const technicalScene: MediaCapacity = { maximum: 1, minimum: 1 };
 
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
@@ -51,6 +52,22 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["title", "items"],
       ["subtitle", "category", "price", "badge", "validity", "callToAction"],
       { maximum: 3, minimum: 0 },
+    ),
+    "ficha-variantes": specFor(
+      "ficha-variantes",
+      "publicacion",
+      ["feed"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer"],
+      technicalScene,
+    ),
+    "guia-aplicacion": specFor(
+      "guia-aplicacion",
+      "publicacion",
+      ["feed"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer", "icon"],
+      technicalScene,
     ),
     "historia-precio-dia": specFor(
       "historia-precio-dia",
@@ -65,6 +82,56 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
         "badge",
         "validity",
         "callToAction",
+      ],
+      singlePhoto,
+    ),
+    "historia-producto-precio": specFor(
+      "historia-producto-precio",
+      "historia",
+      ["historia"],
+      ["title"],
+      [
+        "subtitle",
+        "category",
+        "price",
+        "badge",
+        "validity",
+        "callToAction",
+        "disclaimer",
+      ],
+      singlePhoto,
+    ),
+    "historia-problema-solucion": specFor(
+      "historia-problema-solucion",
+      "historia",
+      ["historia"],
+      ["title", "subtitle"],
+      [
+        "category",
+        "price",
+        "badge",
+        "validity",
+        "callToAction",
+        "disclaimer",
+        "icon",
+        "items",
+      ],
+      singlePhoto,
+    ),
+    "historia-surtido-real": specFor(
+      "historia-surtido-real",
+      "historia",
+      ["historia"],
+      ["title"],
+      [
+        "subtitle",
+        "category",
+        "price",
+        "badge",
+        "validity",
+        "callToAction",
+        "disclaimer",
+        "items",
       ],
       singlePhoto,
     ),
@@ -89,7 +156,16 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       "publicacion",
       ["feed"],
       ["title", "subtitle"],
-      ["category", "badge", "icon", "items", "callToAction"],
+      [
+        "category",
+        "badge",
+        "icon",
+        "items",
+        "price",
+        "validity",
+        "callToAction",
+        "disclaimer",
+      ],
       singlePhoto,
     ),
     "producto-precio": specFor(
@@ -97,7 +173,15 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       "publicacion",
       ["feed"],
       ["title"],
-      ["subtitle", "category", "price", "badge", "validity", "callToAction"],
+      [
+        "subtitle",
+        "category",
+        "price",
+        "badge",
+        "validity",
+        "callToAction",
+        "disclaimer",
+      ],
       singlePhoto,
     ),
     "banner-marca": specFor(
@@ -211,6 +295,22 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["title"],
       ["subtitle", "badge", "icon", "items"],
       noMedia,
+    ),
+    "historia-ficha-variantes": specFor(
+      "historia-ficha-variantes",
+      "historia",
+      ["historia"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer"],
+      technicalScene,
+    ),
+    "historia-guia-aplicacion": specFor(
+      "historia-guia-aplicacion",
+      "historia",
+      ["historia"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer", "icon"],
+      technicalScene,
     ),
     "historia-informativa": specFor(
       "historia-informativa",
@@ -352,7 +452,16 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       "publicacion",
       ["feed"],
       ["title"],
-      ["subtitle", "category", "badge", "callToAction"],
+      [
+        "subtitle",
+        "category",
+        "badge",
+        "items",
+        "price",
+        "validity",
+        "callToAction",
+        "disclaimer",
+      ],
       mosaic,
     ),
     "promo-producto": specFor(

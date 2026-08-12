@@ -89,21 +89,30 @@ export function createPlaywrightRenderer(
   const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
   const semaphore = createSemaphore(options.concurrency ?? defaultConcurrency);
   let browser: Browser | undefined;
+  let browserLaunch: Promise<Browser> | undefined;
 
   async function browserInstance(): Promise<Browser> {
     if (browser !== undefined && browser.isConnected()) {
       return browser;
     }
 
-    browser = await chromium.launch({
-      ...(options.executablePath === undefined
-        ? { channel: options.browserChannel ?? defaultChannel }
-        : { executablePath: options.executablePath }),
-      args: ["--force-color-profile=srgb", "--font-render-hinting=none"],
-      headless: true,
-    });
+    browserLaunch ??= chromium
+      .launch({
+        ...(options.executablePath === undefined
+          ? { channel: options.browserChannel ?? defaultChannel }
+          : { executablePath: options.executablePath }),
+        args: ["--force-color-profile=srgb", "--font-render-hinting=none"],
+        headless: true,
+      })
+      .then((launchedBrowser) => {
+        browser = launchedBrowser;
+        return launchedBrowser;
+      })
+      .finally(() => {
+        browserLaunch = undefined;
+      });
 
-    return browser;
+    return browserLaunch;
   }
 
   async function renderOnce(request: RenderRequest): Promise<RenderResult> {
@@ -190,8 +199,10 @@ export function createPlaywrightRenderer(
 
   return {
     async close(): Promise<void> {
-      const instance = browser;
+      const pendingLaunch = browserLaunch;
+      const instance = browser ?? (await pendingLaunch?.catch(() => undefined));
       browser = undefined;
+      browserLaunch = undefined;
       await instance?.close().catch(() => undefined);
     },
     async render(request: RenderRequest): Promise<RenderResult> {
