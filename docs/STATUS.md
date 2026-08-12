@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-11
+Actualizado: 2026-08-12
 
 ## Fase activa
 
@@ -109,7 +109,10 @@ comercial y la sustitución por medidas/SKU
 reales quedaron diferidas por decisión del negocio. Recién cuando el contrato
 visual quede aprobado se registran los datos
 comerciales con fuente vigente y, sólo si un caso necesita generación, se
-ejecuta una muestra paga máxima de seis salidas. Meta continúa bloqueada.
+ejecuta una muestra paga máxima de seis salidas. Esta copia local está en
+`development` y no contiene el grupo privado de Odoo; esa recuperación debe
+correr desde el entorno de staging protegido con el grupo completo, nunca
+reconstruyendo credenciales locales. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

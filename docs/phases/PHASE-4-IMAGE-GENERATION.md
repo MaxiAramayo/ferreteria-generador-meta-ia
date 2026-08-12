@@ -1159,6 +1159,14 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   CTA y tratamiento uniforme de `EN FRÍAS` se conservaron sin cambios. La
   aprobación factual sigue pendiente hasta sustituir las medidas de referencia
   por datos del catálogo comercial.
+- 2026-08-12: se intentó iniciar la recuperación factual de las medidas de
+  referencia mediante el adaptador comercial tipado, con una única búsqueda
+  `tee`, `GET`-only y auditada. Esta copia local se validó como `development` y
+  no trae el grupo privado `ODOO_CONTENT_API_*`; ambos guards detuvieron el
+  proceso antes de abrir PostgreSQL o contactar Odoo. No se recuperó ni
+  persistió ningún hecho comercial. Próximo paso: ejecutar esa misma consulta
+  desde el entorno de staging protegido que tenga la configuración completa, y
+  registrar SKU, medida, fuente y fecha antes de sustituir el fixture.
 
 ### Evidencia de cierre
 
