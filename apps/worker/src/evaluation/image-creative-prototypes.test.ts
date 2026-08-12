@@ -3,24 +3,20 @@ import { test } from "node:test";
 
 import { imageCreativePrototypeCases } from "./image-creative-prototypes.ts";
 
-test("la muestra contiene tres conceptos en historia y feed", () => {
+test("la muestra contiene dos conceptos en historia y feed", () => {
   const cases = imageCreativePrototypeCases();
 
-  assert.equal(cases.length, 6);
+  assert.equal(cases.length, 4);
   assert.equal(
     cases.filter(({ document }) => document.format === "feed").length,
-    3,
+    2,
   );
   assert.equal(
     cases.filter(({ document }) => document.format === "historia").length,
-    3,
+    2,
   );
 
-  for (const family of [
-    "product-price",
-    "problem-solution",
-    "real-assortment",
-  ] as const) {
+  for (const family of ["application-guide", "variant-sheet"] as const) {
     const familyCases = cases.filter((entry) => entry.family === family);
     assert.equal(familyCases.length, 2);
     assert.deepEqual(
@@ -30,20 +26,51 @@ test("la muestra contiene tres conceptos en historia y feed", () => {
   }
 });
 
-test("ningún precio sintético puede confundirse con una pieza publicable", () => {
+test("la muestra no inventa precios ni condiciones de venta", () => {
   for (const prototypeCase of imageCreativePrototypeCases()) {
     assert.equal(prototypeCase.publishable, false);
-    assert.ok(prototypeCase.document.content.price);
-    assert.match(prototypeCase.document.content.validity ?? "", /NO PUBLICAR/u);
+    assert.equal(prototypeCase.document.content.price, undefined);
+    assert.equal(prototypeCase.document.content.validity, undefined);
     assert.ok(prototypeCase.document.content.disclaimer);
   }
 });
 
-test("los seis prototipos usan sólo activos propios y no necesitan red ni IA", () => {
+test("la ficha usa tres medidas de referencia y sigue bloqueada para publicar", () => {
+  const variants = imageCreativePrototypeCases().filter(
+    ({ family }) => family === "variant-sheet",
+  );
+
+  for (const prototypeCase of variants) {
+    assert.deepEqual(prototypeCase.document.content.items, [
+      "1/2″",
+      "3/4″",
+      "1″",
+    ]);
+    assert.equal(prototypeCase.publishable, false);
+    assert.match(prototypeCase.document.content.disclaimer ?? "", /MUESTRA/u);
+  }
+});
+
+test("la guía explicita que la manguera envuelve la espiga", () => {
+  const applications = imageCreativePrototypeCases().filter(
+    ({ family }) => family === "application-guide",
+  );
+
+  for (const prototypeCase of applications) {
+    assert.match(prototypeCase.document.content.title, /POR FUERA/iu);
+    assert.ok(
+      prototypeCase.document.content.items?.includes(
+        "Deslizá la manguera por fuera",
+      ),
+    );
+  }
+});
+
+test("los prototipos usan bases IA embebidas y no necesitan red al renderizar", () => {
   for (const { document } of imageCreativePrototypeCases()) {
-    assert.ok(document.media.length > 0);
+    assert.equal(document.media.length, 1);
     for (const asset of document.media) {
-      assert.equal(asset.reference.source, "brand-library");
+      assert.equal(asset.reference.source, "inline");
     }
   }
 });

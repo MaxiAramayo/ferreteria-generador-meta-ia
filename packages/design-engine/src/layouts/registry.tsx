@@ -19,6 +19,12 @@ import {
   HistoriaSurtidoReal,
 } from "./commercial-stories.tsx";
 import {
+  FichaVariantes,
+  GuiaAplicacion,
+  HistoriaFichaVariantes,
+  HistoriaGuiaAplicacion,
+} from "./technical-product-cards.tsx";
+import {
   ComboKit,
   HistoriaLocales,
   HistoriaPrecioDia,
@@ -59,6 +65,10 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "composicion-tercio-inferior": ComposicionTercioInferior,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
+    "ficha-variantes": FichaVariantes,
+    "guia-aplicacion": GuiaAplicacion,
+    "historia-ficha-variantes": HistoriaFichaVariantes,
+    "historia-guia-aplicacion": HistoriaGuiaAplicacion,
     "historia-locales": HistoriaLocales,
     "historia-problema-solucion": HistoriaProblemaSolucion,
     "historia-precio-dia": HistoriaPrecioDia,

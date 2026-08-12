@@ -126,35 +126,25 @@ export function LocalHeader({
       <Logo size={76} tone={theme.tone} variant={theme.brand} />
       <div
         style={{
-          alignItems: "baseline",
           backgroundColor: locationBackground,
           borderRadius: RADII.chip,
           color: locationColor,
-          display: "flex",
-          gap: SPACING.xs,
           padding: `${String(SPACING.sm)}px ${String(SPACING.xl)}px`,
         }}
       >
         <span
-          style={{
-            fontFamily: TYPOGRAPHY.body.cssStack,
-            fontSize: 22,
-            fontWeight: FONT_WEIGHTS.extrabold,
-            textTransform: "uppercase",
-          }}
-        >
-          En
-        </span>
-        <span
+          data-locality-label=""
           style={{
             fontFamily: TYPOGRAPHY.display.cssStack,
-            fontSize: 52,
+            fontSize: 46,
             fontWeight: FONT_WEIGHTS.black,
-            lineHeight: 0.8,
+            letterSpacing: 0.4,
+            lineHeight: 0.9,
             textTransform: "uppercase",
+            whiteSpace: "nowrap",
           }}
         >
-          {localCity}
+          EN {localCity}
         </span>
       </div>
     </div>

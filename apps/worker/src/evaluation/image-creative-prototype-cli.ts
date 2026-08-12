@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     );
 
     process.stdout.write(
-      `Prototipos exportados: ${String(rendered.length)} (3 feed, 3 historias, 0 llamadas IA).\n`,
+      `Prototipos exportados: ${String(rendered.length)} (${String(rendered.filter((piece) => piece.format === "feed").length)} feed, ${String(rendered.filter((piece) => piece.format === "historia").length)} historias, 0 llamadas IA).\n`,
     );
     process.stdout.write(`${fileURLToPath(outputDirectory)}\n`);
   } finally {

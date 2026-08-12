@@ -1114,6 +1114,51 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   actualizó la muestra pendiente a 6; `pnpm verify` completó stack, plan,
   formato, build, lint, tipos, pruebas, baseline y smoke en verde. No se llamó a
   OpenAI, no se publicó contenido y no se instaló Remotion.
+- Los seis PNG son evidencia de una primera iteración, no evidencia de
+  aprobación. Queda pendiente continuar la revisión visual con el negocio,
+  registrar observaciones y ajustar las piezas hasta acordar el contrato
+  visual. Por eso `P4-T08` sigue abierta y todavía no corresponde reemplazar
+  precios sintéticos, ejecutar la muestra paga ni comenzar los Reels.
+- 2026-08-11: el negocio rechazó la primera dirección. Se implementaron cuatro
+  prototipos nuevos y explícitos: `ficha-variantes` y `guia-aplicacion`, cada
+  uno en feed e historia. Esa primera iteración usó una grilla de entre dos y
+  seis fotos para las variantes, una foto con hasta tres pasos para aplicación
+  y un mostrador genérico generado con `imagegen`. No declaró precio, stock ni
+  medidas sintéticas, pero fue rechazada visualmente más tarde el mismo día y el
+  mostrador no se incorporó a la biblioteca de activos.
+- 2026-08-11: el negocio rechazó también la grilla de fotos y el mostrador vacío
+  porque la imagen no acompañaba. Se reemplazaron por dos escenas IA específicas
+  y originales, con procedencia registrada en el fixture: una familia de seis
+  conectores T ordenada por escala y un conector T aplicado a tres caños. Las
+  escenas se embeben en la muestra, llevan disclaimer ilustrativo y no sostienen
+  medidas, SKU, compatibilidad ni stock. La ficha pasó a usar una única escena
+  coherente con una guía determinista de hasta seis medidas.
+- 2026-08-11: la revisión final movió las orientaciones al espacio negativo de
+  la escena para no tapar el producto, reemplazó el rótulo visible de “guía” por
+  `USO DEL PRODUCTO` y volvió obligatoria la imagen en ambas familias. También
+  se serializó el arranque concurrente de Chromium: dos renders ya no abren dos
+  navegadores ni dejan uno sin cerrar. `pnpm image-creative:prototype` vuelve a
+  terminar limpiamente después de exportar las cuatro piezas. La revisión cerró
+  con `pnpm verify` completo en verde; `P4-T08` sigue abierta únicamente por la
+  aprobación visual y factual humana.
+- 2026-08-11: el negocio rechazó la representación de la manguera encastrada y
+  pidió usar la base IA completa dentro de un marco propio, conservar el
+  producto como protagonista y unificar el tamaño de `EN FRÍAS`. La tercera
+  iteración reemplazó la unión terminada por una escena de preencastre: las
+  espigas están expuestas, las mangueras separadas y el texto determinista
+  explica que la manguera va por fuera. La ficha usa tres productos completos y
+  `1/2″`, `3/4″`, `1″` como medidas de referencia para la muestra. El negocio
+  difirió la validación del surtido real; por eso los cuatro documentos siguen
+  con `publishable: false` y las medidas deberán sustituirse desde la fuente
+  comercial antes de cualquier aprobación publicable. Los prompts y activos
+  aceptados quedan trazados en
+  `apps/worker/src/evaluation/fixtures/image-creative/README.md`.
+- 2026-08-11: el negocio aprobó la tercera dirección visual y pidió una única
+  simplificación final: retirar por completo el marco rojo cuadrado y sus
+  esquinas. La fotografía completa, jerarquía, medidas de muestra, preencastre,
+  CTA y tratamiento uniforme de `EN FRÍAS` se conservaron sin cambios. La
+  aprobación factual sigue pendiente hasta sustituir las medidas de referencia
+  por datos del catálogo comercial.
 
 ### Evidencia de cierre
 

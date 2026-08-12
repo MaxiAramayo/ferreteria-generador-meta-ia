@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-07
+Actualizado: 2026-08-11
 
 ## Fase activa
 
@@ -60,6 +60,26 @@ tres posts. Los seis prototipos code-native ya fueron renderizados con activos
 propios, casos sin marca, `EN FRÍAS`, explicación, precio sintético rotulado y
 CTA; no consumieron IA. Remotion quedó documentado como opción futura para
 Reels deterministas, pendiente de confirmar su licencia antes de instalarlo.
+Estos prototipos no están aprobados ni cierran `P4-T08`: son la primera
+iteración para continuar revisando junto al negocio la apariencia general,
+jerarquía, textos, elección y recorte de fotografías, tamaño del precio, CTA y
+adaptación entre feed e historia. El 2026-08-11 el negocio rechazó esa primera
+dirección y pidió dos piezas originales: un comparador para líneas con varias
+medidas o modelos y una pieza de uso para los demás productos. La
+nueva muestra de cuatro piezas —feed e historia de cada familia— no usa precios
+ni medidas sintéticas. El negocio rechazó además la primera grilla y el
+mostrador vacío porque la imagen no acompañaba. La iteración actual usa dos
+escenas IA específicas y claramente ilustrativas. La ficha muestra tres
+conectores T de espiga completos sobre el mostrador y usa `1/2″`, `3/4″` y `1″`
+como medidas de muestra, sin atribuirlas todavía al surtido real de Aramayo. La
+pieza de aplicación evita una instalación inventada: muestra el preencastre,
+con las tres espigas visibles y las bocas de manguera separadas, y explica que
+la manguera cubre la espiga por fuera. Ambas composiciones integran la fotografía
+completa como superficie principal y `EN FRÍAS` se compone como una única unidad
+tipográfica. El negocio aprobó esta dirección visual el 2026-08-11 con una
+corrección final: se eliminó por completo el marco rojo exterior para reducir la
+carga visual. Los rótulos, medidas y pasos siguen siendo deterministas. No deben
+ejecutarse otra muestra paga ni avanzar con Reels hasta revisar esta iteración.
 
 ## Resumen
 
@@ -81,11 +101,15 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 ## Próxima tarea
 
 Continuar `P4-T08` — aprobar calidad visual y factual. El próximo paso es que el
-negocio revise los seis prototipos de `Producto + precio`, `Problema + solución`
-y `Surtido real`. Después se reemplazan los precios sintéticos por tres precios
-con fuente vigente y, sólo si algún caso realmente necesita generación, se
-ejecuta una muestra paga máxima de seis salidas. Todavía queda neutralizar el
-prompt que produce la estética repetida de IA. Meta continúa bloqueada.
+negocio revise los cuatro prototipos nuevos: comparador de variantes y uso del
+producto, cada uno en feed e historia. La dirección, jerarquía, foto y redacción
+quedaron aprobadas, incluyendo la eliminación del marco exterior. Las tres
+medidas actuales sirven sólo para evaluar el diseño; la conexión al catálogo
+comercial y la sustitución por medidas/SKU
+reales quedaron diferidas por decisión del negocio. Recién cuando el contrato
+visual quede aprobado se registran los datos
+comerciales con fuente vigente y, sólo si un caso necesita generación, se
+ejecuta una muestra paga máxima de seis salidas. Meta continúa bloqueada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

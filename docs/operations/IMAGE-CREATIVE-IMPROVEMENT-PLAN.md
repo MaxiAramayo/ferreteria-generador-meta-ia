@@ -307,11 +307,16 @@ es la revisión humana acompañada por defectos concretos y verificables.
   deterministas;
 - validar 9:16 y 4:5 a tamaño móvil.
 
-La primera implementación usa tres variantes explícitas para historia
+La primera implementación usó tres variantes explícitas para historia
 (`historia-producto-precio`, `historia-problema-solucion` e
-`historia-surtido-real`) y sus equivalentes de feed. Logo, `EN FRÍAS`, nombre,
-uso, precio, condición, disclaimer y CTA se componen en código. Las fotografías
-son activos propios de Aramayo y no se hizo ninguna llamada de IA.
+`historia-surtido-real`) y sus equivalentes de feed. El negocio rechazó esa
+primera dirección el 2026-08-11. La siguiente iteración reemplaza la muestra por
+dos familias propias: `ficha-variantes` / `historia-ficha-variantes` para una
+línea con medidas o modelos, y `guia-aplicacion` /
+`historia-guia-aplicacion` para una escena de uso con hasta tres orientaciones.
+Logo,
+`EN FRÍAS`, nombre, rótulos, pasos, precio, condición, disclaimer y CTA se
+componen en código.
 
 ### Etapa 3 — Selector de recurso y prompt v3
 
@@ -335,13 +340,34 @@ Crear, sin publicar:
 
 La muestra se revisa primero por comprensión en teléfono y después con la
 rúbrica ciega. La salida local queda en `output/image-creative-prototypes/` y se
-reproduce con `pnpm image-creative:prototype`. Sus precios son sintéticos,
-aparecen como `NO PUBLICAR` y no habilitan una publicación real. No se paga otra
-corrida de imágenes antes de aprobar esta muestra de seis piezas.
+reproduce con `pnpm image-creative:prototype`. La iteración técnica del
+2026-08-11 no usa precios ni condiciones sintéticas: las medidas son sólo una
+muestra de jerarquía. Queda marcada como muestra interna y no habilita una
+publicación real. No se paga otra corrida de imágenes antes de aprobar esta
+dirección.
+
+La exportación anterior de seis piezas fue rechazada y no es una aprobación del
+contrato visual. Los cuatro prototipos actuales son una nueva iteración para
+revisar apariencia, jerarquía, copy, fotografías, recortes, CTA y comportamiento
+entre formatos. La tarea `P4-T08` permanece abierta durante esa revisión.
+
+El 2026-08-11 se generó con la skill `imagegen` un mostrador neutro como primera
+exploración. El negocio también rechazó esa integración porque la imagen no
+acompañaba la ficha. Las dos exploraciones posteriores con las escenas
+`*-ia-v1.png` también fueron rechazadas: una grilla de seis conectores no
+acompañaba la comparación y la aplicación aparentaba una unión terminada.
+
+La muestra vigente usa `conectores-tres-medidas-ia-v2.png`, con tres conectores
+T completos ordenados por escala, y `conector-preencastre-ia-v2.png`, con las
+tres espigas visibles y las bocas de manguera todavía separadas. Ambas viven como
+fixtures internos con procedencia documentada, se embeben en el documento de
+diseño y conservan el disclaimer `IMAGEN ILUSTRATIVA`; no prueban medida, SKU,
+compatibilidad, local ni stock. Los rótulos `1/2″`, `3/4″` y `1″` son únicamente
+una muestra de jerarquía y deberán sustituirse por datos comerciales vigentes.
 
 ### Etapa 4.1 — Reels code-native
 
-Los Reels pueden reutilizar las mismas seis composiciones y animar sólo
+Los Reels pueden reutilizar las composiciones técnicas aprobadas y animar sólo
 elementos deterministas: entrada del producto, titular, precio, CTA y cierre de
 marca. Esto evita generar un video con IA y reduce el consumo de tokens a cero
 cuando los activos de entrada ya existen.
@@ -361,10 +387,11 @@ registran en
 - repetir revisión comercial y visual;
 - mantener Meta bloqueada hasta superar el gate completo.
 
-La próxima muestra humana paga también queda limitada a seis resultados:
-producto genérico, problema/solución y oferta/surtido, cada uno en `feed` e
-`historia`. La matriz automática de 18 casos continúa porque es local, rápida y
-no consume proveedor.
+No se ejecuta otra muestra humana paga hasta que el negocio revise esta
+iteración y se cuente con medidas/SKU recuperados de la fuente comercial. Si un
+caso posterior realmente necesita generación, su muestra sigue limitada a seis
+salidas. La matriz automática de 18 casos continúa porque es local, rápida y no
+consume proveedor.
 
 ## Criterios de aceptación del rediseño
 

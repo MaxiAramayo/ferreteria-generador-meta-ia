@@ -41,6 +41,7 @@ const noMedia: MediaCapacity = { maximum: 0, minimum: 0 };
 const singlePhoto: MediaCapacity = { maximum: 1, minimum: 0 };
 const photoPair: MediaCapacity = { maximum: 2, minimum: 0 };
 const mosaic: MediaCapacity = { maximum: 6, minimum: 0 };
+const technicalScene: MediaCapacity = { maximum: 1, minimum: 1 };
 
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
@@ -51,6 +52,22 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["title", "items"],
       ["subtitle", "category", "price", "badge", "validity", "callToAction"],
       { maximum: 3, minimum: 0 },
+    ),
+    "ficha-variantes": specFor(
+      "ficha-variantes",
+      "publicacion",
+      ["feed"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer"],
+      technicalScene,
+    ),
+    "guia-aplicacion": specFor(
+      "guia-aplicacion",
+      "publicacion",
+      ["feed"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer", "icon"],
+      technicalScene,
     ),
     "historia-precio-dia": specFor(
       "historia-precio-dia",
@@ -278,6 +295,22 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["title"],
       ["subtitle", "badge", "icon", "items"],
       noMedia,
+    ),
+    "historia-ficha-variantes": specFor(
+      "historia-ficha-variantes",
+      "historia",
+      ["historia"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer"],
+      technicalScene,
+    ),
+    "historia-guia-aplicacion": specFor(
+      "historia-guia-aplicacion",
+      "historia",
+      ["historia"],
+      ["title", "items"],
+      ["subtitle", "badge", "callToAction", "disclaimer", "icon"],
+      technicalScene,
     ),
     "historia-informativa": specFor(
       "historia-informativa",

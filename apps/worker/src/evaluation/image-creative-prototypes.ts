@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import {
   DESIGN_SCHEMA_VERSION,
   describeIssues,
@@ -9,34 +11,34 @@ import {
 } from "@aramayo/design-engine";
 
 export const imageCreativePrototypeVersion =
-  "image-creative-prototypes/2026-08-07.1";
+  "image-creative-prototypes/2026-08-11.3";
 
-export type PrototypeFamily =
-  "problem-solution" | "product-price" | "real-assortment";
+export type PrototypeFamily = "application-guide" | "variant-sheet";
 
-export type PrototypeTruthMode = "category-representation" | "real-local-stock";
+export type PrototypeTruthMode = "category-representation";
 
 export interface ImageCreativePrototypeCase {
   readonly caseId: string;
   readonly document: DesignDocument;
   readonly family: PrototypeFamily;
-  /** Siempre falso: estos precios sirven para evaluar jerarquía, no para vender. */
+  /** Siempre falso: la muestra sirve para revisar diseño, no para publicar. */
   readonly publishable: false;
   readonly truthMode: PrototypeTruthMode;
 }
 
-const evaluationValidity = "PRECIO SINTÉTICO · NO PUBLICAR";
+function generatedFixture(fileName: string, alt: string): MediaAsset {
+  const bytes = readFileSync(
+    new URL(`./fixtures/image-creative/${fileName}`, import.meta.url),
+  );
 
-function media(
-  assetId: string,
-  alt: string,
-  focus: Readonly<{ x: number; y: number }> = { x: 50, y: 50 },
-): MediaAsset {
   return Object.freeze({
     alt,
-    fit: "cover" as const,
-    focus: Object.freeze({ ...focus }),
-    reference: Object.freeze({ assetId, source: "brand-library" as const }),
+    fit: "contain" as const,
+    focus: Object.freeze({ x: 50, y: 50 }),
+    reference: Object.freeze({
+      dataUrl: `data:image/png;base64,${bytes.toString("base64")}`,
+      source: "inline" as const,
+    }),
     zoom: 1,
   });
 }
@@ -67,141 +69,92 @@ function documentFor(input: {
   return parsed.document;
 }
 
-const productContent: DesignContent = Object.freeze({
-  badge: "PRODUCTO SIN MARCA",
-  callToAction: "CONSULTÁ MEDIDAS",
-  category: "RIEGO Y LIMPIEZA",
-  disclaimer: "IMAGEN ILUSTRATIVA · EVALUACIÓN INTERNA",
-  price: "$ 12.345",
-  subtitle: "Para riego, limpieza y tareas de todos los días.",
-  title: "Manguera reforzada de 1/2 pulgada",
-  validity: evaluationValidity,
+const variantsContent: DesignContent = Object.freeze({
+  badge: "MEDIDAS DE REFERENCIA",
+  callToAction: "CONSULTÁ TU MEDIDA",
+  disclaimer: "IMAGEN ILUSTRATIVA · MEDIDAS DE MUESTRA",
+  items: Object.freeze(["1/2″", "3/4″", "1″"]),
+  subtitle: "Tres opciones claras para comparar el diámetro que necesitás.",
+  title: "Tee triple espiga",
 });
 
-const problemContent: DesignContent = Object.freeze({
-  badge: "SOLUCIÓN DE PLOMERÍA",
-  callToAction: "TRAÉ LA MEDIDA",
-  category: "CONEXIONES",
-  disclaimer: "IMAGEN ILUSTRATIVA · EVALUACIÓN INTERNA",
-  items: Object.freeze(["Elegí el largo", "Revisá las roscas"]),
-  price: "$ 4.590",
+const applicationContent: DesignContent = Object.freeze({
+  badge: "CÓMO SE CONECTA",
+  callToAction: "TRAÉ LA MUESTRA",
+  disclaimer: "IMAGEN ILUSTRATIVA · VERIFICÁ LA MEDIDA",
+  items: Object.freeze([
+    "Hacé coincidir el diámetro",
+    "Enfrentá la boca con la espiga",
+    "Deslizá la manguera por fuera",
+  ]),
   subtitle:
-    "Un flexible nuevo conecta la grifería cuando la manguera existente está deteriorada.",
-  title: "¿Perdés agua debajo de la pileta?",
-  validity: evaluationValidity,
+    "La boca de la manguera cubre la espiga: no se introduce dentro del accesorio.",
+  title: "La manguera va por fuera",
 });
 
-const assortmentContent: DesignContent = Object.freeze({
-  badge: "SURTIDO REAL",
-  callToAction: "MANDANOS FOTO O MEDIDA",
-  category: "PLOMERÍA",
-  disclaimer: "FOTO REAL DEL SURTIDO · EVALUACIÓN INTERNA",
-  items: Object.freeze(["Codos PVC", "Tees PVC", "Reducciones PVC"]),
-  price: "DESDE $ 1.990",
-  subtitle: "Codos, tees y reducciones para completar tu instalación.",
-  title: "Conexiones para agua y desagüe",
-  validity: evaluationValidity,
-});
+const variantsPhoto = generatedFixture(
+  "conectores-tres-medidas-ia-v2.png",
+  "Tres conectores T de espiga ordenados de menor a mayor sobre el mostrador",
+);
 
-const productPhoto = media(
-  "manguera-azul-jpg",
-  "Manguera azul reforzada enrollada, sin marca visible",
+const applicationPhoto = generatedFixture(
+  "conector-preencastre-ia-v2.png",
+  "Representación del conector T y tres mangueras separados antes del encastre",
 );
-const problemPhoto = media(
-  "flexible-conexion-agua",
-  "Flexible metálico para conexión de agua, sin marca visible",
-);
-const mainAssortmentPhoto = media(
-  "deposito-plomeria-surtido",
-  "Depósito real de Aramayo con accesorios y conexiones de plomería",
-  { x: 50, y: 42 },
-);
-const assortmentPhotos: readonly MediaAsset[] = Object.freeze([
-  mainAssortmentPhoto,
-  media("cano-ips-bicapa", "Caño bicapa para instalación de agua"),
-  media("tapa-pvc-tuboforte", "Tapas de PVC para desagüe"),
-  media("entrerosca-cano-ips", "Entreroscas para conexión de agua"),
-]);
 
 export function imageCreativePrototypeCases(): readonly ImageCreativePrototypeCase[] {
   return Object.freeze([
     Object.freeze({
-      caseId: "P01-producto-precio-feed",
+      caseId: "P01-ficha-variantes-feed",
       document: documentFor({
-        content: productContent,
+        content: variantsContent,
         format: "feed",
-        layout: "producto-precio",
-        media: [productPhoto],
-        slug: "prototipo-producto-precio-feed",
+        layout: "ficha-variantes",
+        media: [variantsPhoto],
+        slug: "prototipo-ficha-variantes-feed",
       }),
-      family: "product-price" as const,
+      family: "variant-sheet" as const,
       publishable: false as const,
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
-      caseId: "H01-producto-precio-historia",
+      caseId: "H01-ficha-variantes-historia",
       document: documentFor({
-        content: productContent,
+        content: variantsContent,
         format: "historia",
-        layout: "historia-producto-precio",
-        media: [productPhoto],
-        slug: "prototipo-producto-precio-historia",
+        layout: "historia-ficha-variantes",
+        media: [variantsPhoto],
+        slug: "prototipo-ficha-variantes-historia",
       }),
-      family: "product-price" as const,
+      family: "variant-sheet" as const,
       publishable: false as const,
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
-      caseId: "P02-problema-solucion-feed",
+      caseId: "P02-guia-aplicacion-feed",
       document: documentFor({
-        content: problemContent,
+        content: applicationContent,
         format: "feed",
-        layout: "problema-solucion",
-        media: [problemPhoto],
-        slug: "prototipo-problema-solucion-feed",
+        layout: "guia-aplicacion",
+        media: [applicationPhoto],
+        slug: "prototipo-guia-aplicacion-feed",
       }),
-      family: "problem-solution" as const,
+      family: "application-guide" as const,
       publishable: false as const,
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
-      caseId: "H02-problema-solucion-historia",
+      caseId: "H02-guia-aplicacion-historia",
       document: documentFor({
-        content: problemContent,
+        content: applicationContent,
         format: "historia",
-        layout: "historia-problema-solucion",
-        media: [problemPhoto],
-        slug: "prototipo-problema-solucion-historia",
+        layout: "historia-guia-aplicacion",
+        media: [applicationPhoto],
+        slug: "prototipo-guia-aplicacion-historia",
       }),
-      family: "problem-solution" as const,
+      family: "application-guide" as const,
       publishable: false as const,
       truthMode: "category-representation" as const,
-    }),
-    Object.freeze({
-      caseId: "P03-surtido-real-feed",
-      document: documentFor({
-        content: assortmentContent,
-        format: "feed",
-        layout: "producto-mosaico",
-        media: assortmentPhotos,
-        slug: "prototipo-surtido-real-feed",
-      }),
-      family: "real-assortment" as const,
-      publishable: false as const,
-      truthMode: "real-local-stock" as const,
-    }),
-    Object.freeze({
-      caseId: "H03-surtido-real-historia",
-      document: documentFor({
-        content: assortmentContent,
-        format: "historia",
-        layout: "historia-surtido-real",
-        media: [mainAssortmentPhoto],
-        slug: "prototipo-surtido-real-historia",
-      }),
-      family: "real-assortment" as const,
-      publishable: false as const,
-      truthMode: "real-local-stock" as const,
     }),
   ]);
 }
