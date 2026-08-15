@@ -362,8 +362,12 @@ T completos ordenados por escala, y `conector-preencastre-ia-v2.png`, con las
 tres espigas visibles y las bocas de manguera todavía separadas. Ambas viven como
 fixtures internos con procedencia documentada, se embeben en el documento de
 diseño y conservan el disclaimer `IMAGEN ILUSTRATIVA`; no prueban medida, SKU,
-compatibilidad, local ni stock. Los rótulos `1/2″`, `3/4″` y `1″` son únicamente
-una muestra de jerarquía y deberán sustituirse por datos comerciales vigentes.
+compatibilidad, local ni stock. El 2026-08-12 se sustituyeron los rótulos de
+muestra por `1/2″ · SKU 1670` y `3/4″ · SKU 1671`, hallados como `ESPIGA TEE
+1/2` y `ESPIGA TEE 3/4 POLIETILENO` mediante la API comercial de Odoo. La
+evidencia conserva fuente, fecha y alcance en el fixture; sólo acredita
+identidad y medida, no precio, stock, compatibilidad ni la apariencia de la
+escena ilustrativa.
 
 ### Etapa 4.1 — Reels code-native
 

@@ -1,6 +1,6 @@
 # ADR-017: puerta factual determinista y revisión visual humana
 
-- Estado: propuesto; muestra de seis y umbrales acordados, revisión pendiente
+- Estado: aprobado con excepción de alcance determinista el 2026-08-12
 - Fecha: 2026-08-07
 - Tarea: `P4-T08`
 
@@ -42,6 +42,19 @@ del criterio cuando el modo visual es representativo.
 
 Los graders multimodales de OpenAI se consideran una señal auxiliar posible,
 no un reemplazo del veto factual ni de la revisión humana.
+
+## Excepción de alcance del 2026-08-12
+
+El usuario aprobó cuatro prototipos deterministas —comparador y guía de uso en
+feed e historia— y decidió no autorizar la muestra facturable de seis salidas
+reales. Por lo tanto, `P4-T08` cierra únicamente para ese contrato visual:
+composición code-native y activos ilustrativos ya revisados. No se promueve una
+salida nueva de Images ni se interpreta la excepción como aprobación del modelo,
+prompt o perfil para una nueva generación.
+
+Si se pide una base generada nueva, o cambia prompt, perfil o modelo, se reabre
+la muestra ciega original de seis salidas en staging con presupuesto explícito y
+los mismos umbrales de esta decisión.
 
 ## Consecuencias
 

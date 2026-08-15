@@ -11,13 +11,37 @@ import {
 } from "@aramayo/design-engine";
 
 export const imageCreativePrototypeVersion =
-  "image-creative-prototypes/2026-08-11.3";
+  "image-creative-prototypes/2026-08-12.1";
 
 export type PrototypeFamily = "application-guide" | "variant-sheet";
 
 export type PrototypeTruthMode = "category-representation";
 
+/**
+ * Evidencia comercial congelada exclusivamente para esta muestra interna.
+ * No equivale a precio, stock ni una aprobación publicable.
+ */
+export interface ImageCreativePrototypeCatalogEvidence {
+  readonly observedAt: string;
+  readonly products: readonly Readonly<{
+    readonly externalId: string;
+    readonly measure: string;
+    readonly name: string;
+    readonly sku: string;
+  }>[];
+  readonly query: string;
+  readonly reference: string;
+  readonly requestId: string;
+  readonly scope: "product-identity-and-measure";
+  readonly sourceKind: "odoo";
+}
+
 export interface ImageCreativePrototypeCase {
+  /**
+   * Sólo sustenta los rótulos de medidas y SKU de la ficha. Las guías de uso
+   * no hacen afirmaciones de catálogo.
+   */
+  readonly catalogEvidence: ImageCreativePrototypeCatalogEvidence | null;
   readonly caseId: string;
   readonly document: DesignDocument;
   readonly family: PrototypeFamily;
@@ -70,12 +94,12 @@ function documentFor(input: {
 }
 
 const variantsContent: DesignContent = Object.freeze({
-  badge: "MEDIDAS DE REFERENCIA",
+  badge: "MEDIDAS DE CATÁLOGO",
   callToAction: "CONSULTÁ TU MEDIDA",
-  disclaimer: "IMAGEN ILUSTRATIVA · MEDIDAS DE MUESTRA",
-  items: Object.freeze(["1/2″", "3/4″", "1″"]),
-  subtitle: "Tres opciones claras para comparar el diámetro que necesitás.",
-  title: "Tee triple espiga",
+  disclaimer: "IMAGEN ILUSTRATIVA · SKU DE REFERENCIA",
+  items: Object.freeze(["1/2″ · SKU 1670", "3/4″ · SKU 1671"]),
+  subtitle: "Dos medidas del catálogo para comparar el diámetro que necesitás.",
+  title: "Tee espiga",
 });
 
 const applicationContent: DesignContent = Object.freeze({
@@ -102,9 +126,34 @@ const applicationPhoto = generatedFixture(
   "Representación del conector T y tres mangueras separados antes del encastre",
 );
 
+const variantsCatalogEvidence: ImageCreativePrototypeCatalogEvidence =
+  Object.freeze({
+    observedAt: "2026-08-12T23:18:41.000Z",
+    products: Object.freeze([
+      Object.freeze({
+        externalId: "odoo-product-7915",
+        measure: "1/2″",
+        name: "ESPIGA TEE 1/2",
+        sku: "1670",
+      }),
+      Object.freeze({
+        externalId: "odoo-product-7916",
+        measure: "3/4″",
+        name: "ESPIGA TEE 3/4 POLIETILENO",
+        sku: "1671",
+      }),
+    ]),
+    query: "tee",
+    reference: "odoo:product.product:search",
+    requestId: "fe794c7e-f168-49ea-a025-6e446b6389e4",
+    scope: "product-identity-and-measure",
+    sourceKind: "odoo",
+  });
+
 export function imageCreativePrototypeCases(): readonly ImageCreativePrototypeCase[] {
   return Object.freeze([
     Object.freeze({
+      catalogEvidence: variantsCatalogEvidence,
       caseId: "P01-ficha-variantes-feed",
       document: documentFor({
         content: variantsContent,
@@ -118,6 +167,7 @@ export function imageCreativePrototypeCases(): readonly ImageCreativePrototypeCa
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
+      catalogEvidence: variantsCatalogEvidence,
       caseId: "H01-ficha-variantes-historia",
       document: documentFor({
         content: variantsContent,
@@ -131,6 +181,7 @@ export function imageCreativePrototypeCases(): readonly ImageCreativePrototypeCa
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
+      catalogEvidence: null,
       caseId: "P02-guia-aplicacion-feed",
       document: documentFor({
         content: applicationContent,
@@ -144,6 +195,7 @@ export function imageCreativePrototypeCases(): readonly ImageCreativePrototypeCa
       truthMode: "category-representation" as const,
     }),
     Object.freeze({
+      catalogEvidence: null,
       caseId: "H02-guia-aplicacion-historia",
       document: documentFor({
         content: applicationContent,

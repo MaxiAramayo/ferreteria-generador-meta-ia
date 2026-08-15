@@ -45,10 +45,20 @@ logos, flechas, manos ni estética CGI.
 
 ## Alcance factual de la muestra
 
-La composición usa `1/2″`, `3/4″` y `1″` únicamente como medidas de referencia
-para revisar jerarquía y legibilidad. No representan todavía el surtido de
-Aramayo y los prototipos continúan con `publishable: false`. Antes de publicar
-se deben reemplazar por los SKU y medidas recuperados de la fuente comercial.
+La ficha de variantes usa dos rótulos recuperados de Odoo el
+2026-08-12T23:18:41.000Z mediante una búsqueda `tee`: `ESPIGA TEE 1/2` (SKU
+`1670`, `odoo-product-7915`) y `ESPIGA TEE 3/4 POLIETILENO` (SKU `1671`,
+`odoo-product-7916`). La evidencia conservada en el fixture es
+`odoo:product.product:search`, request ID
+`fe794c7e-f168-49ea-a025-6e446b6389e4`, con alcance limitado a identidad y
+medida de producto.
 
-Ambos activos deben conservar el disclaimer `IMAGEN ILUSTRATIVA` y no pueden
-usarse para afirmar SKU, medida, marca, disponibilidad o instalación exacta.
+La imagen continúa siendo una representación de categoría: los conectores que
+muestra no son evidencia de la apariencia exacta de esos SKU. Los prototipos
+continúan con `publishable: false`; la consulta no acreditó precio, stock,
+compatibilidad ni instalación exacta. Antes de publicar, el caso de uso debe
+recuperar un snapshot vigente mediante el adaptador comercial de la plataforma.
+
+Ambos activos deben conservar el disclaimer `IMAGEN ILUSTRATIVA` y, por sí
+solos, no pueden usarse para afirmar SKU, medida, marca, disponibilidad o
+instalación exacta.

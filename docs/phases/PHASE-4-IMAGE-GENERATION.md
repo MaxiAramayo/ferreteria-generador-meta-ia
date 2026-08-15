@@ -1007,8 +1007,8 @@ mostrarse con seguridad.
 
 ## P4-T08 — Aprobar calidad visual y factual
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETADA CON EXCEPCIÓN DE MUESTRA FACTURABLE
 - Dependencias: `P4-T06`, `P4-T07`
 - Riesgo: Alto
 
@@ -1034,8 +1034,11 @@ legibilidad y seguridad antes de habilitar la integración Meta.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar evaluación completa y guardar resultados.
-- [ ] Revisión humana ciega de una muestra acordada.
+- [x] Ejecutar evaluación completa y guardar resultados.
+- [x] Revisión humana ciega de una muestra acordada. Excepción aprobada por el
+  usuario el 2026-08-12: se revisaron y aceptaron los cuatro prototipos
+  deterministas en feed e historia; no se ejecuta la muestra ciega de seis
+  salidas reales ni se promociona ninguna salida nueva de Images.
 - [x] Introducir una pieza con error factual y confirmar rechazo.
 
 ### Fuera de alcance
@@ -1167,15 +1170,51 @@ legibilidad y seguridad antes de habilitar la integración Meta.
   persistió ningún hecho comercial. Próximo paso: ejecutar esa misma consulta
   desde el entorno de staging protegido que tenga la configuración completa, y
   registrar SKU, medida, fuente y fecha antes de sustituir el fixture.
+- 2026-08-12: con autorización explícita del usuario se consultó una vez la
+  API de catálogo de Odoo desde el host protegido del sistema comercial: `GET`
+  `products?query=tee&limit=10`. La plataforma local seguía sin grupo privado,
+  por lo que no se reconstruyeron ni expusieron sus credenciales ni se simuló
+  una auditoría local. La respuesta Odoo, auditada por su propio addon, devolvió
+  dos productos activos para la ficha: `ESPIGA TEE 1/2` (SKU `1670`,
+  `odoo-product-7915`) y `ESPIGA TEE 3/4 POLIETILENO` (SKU `1671`,
+  `odoo-product-7916`), observados a `2026-08-12T23:18:41.000Z`. Se retiró la
+  medida `1″`, que no tenía evidencia, y el fixture conserva fuente, instante,
+  request ID y alcance de identidad/medida. Sigue siendo una representación
+  ilustrativa y no acredita precio, stock, compatibilidad ni publicación. Antes
+  de una publicación deberá revalidarse mediante el adaptador de la plataforma
+  con un snapshot vigente.
+- Verificaciones de esta continuación: la suite del worker aprobó 203 pruebas
+  con una integración preexistente omitida; `pnpm image-creative:prototype`
+  renderizó 4/4 PNG sin IA y la inspección visual confirmó los rótulos de ambas
+  medidas en feed e historia; `pnpm verify` aprobó stack, plan, formato, build,
+  lint, tipos, pruebas, baseline y smoke. La tarea sigue abierta por la
+  aprobación humana visual y factual.
+- 2026-08-12: el usuario aceptó los cuatro prototipos revisados y rechazó
+  explícitamente consumir tokens para la muestra ciega de seis salidas reales.
+  Esta excepción cierra el alcance actual, que queda limitado a las
+  composiciones deterministas y activos ilustrativos ya aprobados. No constituye
+  aprobación de una nueva salida de Images: cualquier cambio futuro de prompt,
+  perfil o modelo, o cualquier nueva base generada, debe reabrir la muestra ciega
+  con presupuesto explícito conforme a `ADR-017`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Aprobación del usuario en esta tarea el 2026-08-12: cuatro prototipos
+  deterministas aceptados; muestra facturable de seis salidas no autorizada.
+- `pnpm image-quality:eval -- --write`: 18/18 casos automáticos sin fallos
+  bloqueantes; la corrida sin `--write` se bloqueó sólo por
+  `human-review-pending`, como corresponde a la excepción documentada.
+- `pnpm image-creative:prototype`: 4/4 PNG deterministas renderizados y
+  revisados visualmente en feed e historia.
+- `pnpm verify`: stack, plan, formato, build, lint, tipos, pruebas, baseline y
+  smoke en verde.
 
 ## Criterios de salida de Fase 4
 
-- [ ] `P4-T01` a `P4-T08` están completas.
-- [ ] Un brief produce, edita y aprueba variantes trazables.
-- [ ] Texto crítico y marca se componen determinísticamente.
-- [ ] Costos, cuotas y fallos externos están controlados.
-- [ ] Evaluaciones visuales y factuales superan umbrales aprobados.
+- [x] `P4-T01` a `P4-T08` están completas.
+- [x] Un brief produce, edita y aprueba variantes trazables.
+- [x] Texto crítico y marca se componen determinísticamente.
+- [x] Costos, cuotas y fallos externos están controlados.
+- [x] Evaluaciones visuales y factuales superan umbrales aprobados para el
+  alcance determinista actual; una nueva salida de Images exige reabrir
+  `P4-T08` y su muestra ciega facturable.

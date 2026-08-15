@@ -1,6 +1,7 @@
 # Evaluación de calidad de imágenes
 
-Estado: en implementación por `P4-T08`.
+Estado: evaluación automática aprobada; alcance actual determinista aceptado
+mediante la excepción de `ADR-017`.
 
 La primera muestra de 12 piezas fue rechazada y el rediseño de activos,
 formatos, prompt y criterios humanos se documenta en
@@ -111,10 +112,11 @@ es estable entre plataformas; el PNG sintético no forma parte de su identidad.
 Mientras la revisión humana esté pendiente, termina bloqueada con
 `human-review-pending` por diseño.
 
-La revisión ciega requiere seis PNG o JPEG reales generados en staging. Cada
-archivo se nombra con el `caseId` del dataset. No se aceptan placeholders
-sintéticos como evidencia humana. Para generar las bases y componer el paquete
-en una sola corrida:
+Si se habilita una nueva salida de Images, la revisión ciega requiere seis PNG o
+JPEG reales generados en staging. Cada archivo se nombra con el `caseId` del
+dataset. No se aceptan placeholders sintéticos como evidencia humana. La
+excepción actual de `ADR-017` no permite promover una salida de Images; para
+reabrir ese alcance y generar las bases en una sola corrida:
 
 ```bash
 NODE_ENV=staging node tools/run-with-env.mjs pnpm image-quality:eval -- \

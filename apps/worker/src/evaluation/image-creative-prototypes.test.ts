@@ -35,19 +35,50 @@ test("la muestra no inventa precios ni condiciones de venta", () => {
   }
 });
 
-test("la ficha usa tres medidas de referencia y sigue bloqueada para publicar", () => {
+test("la ficha usa dos medidas recuperadas de Odoo y sigue bloqueada para publicar", () => {
   const variants = imageCreativePrototypeCases().filter(
     ({ family }) => family === "variant-sheet",
   );
 
   for (const prototypeCase of variants) {
     assert.deepEqual(prototypeCase.document.content.items, [
-      "1/2″",
-      "3/4″",
-      "1″",
+      "1/2″ · SKU 1670",
+      "3/4″ · SKU 1671",
     ]);
     assert.equal(prototypeCase.publishable, false);
-    assert.match(prototypeCase.document.content.disclaimer ?? "", /MUESTRA/u);
+    assert.match(prototypeCase.document.content.disclaimer ?? "", /SKU/u);
+    assert.deepEqual(prototypeCase.catalogEvidence, {
+      observedAt: "2026-08-12T23:18:41.000Z",
+      products: [
+        {
+          externalId: "odoo-product-7915",
+          measure: "1/2″",
+          name: "ESPIGA TEE 1/2",
+          sku: "1670",
+        },
+        {
+          externalId: "odoo-product-7916",
+          measure: "3/4″",
+          name: "ESPIGA TEE 3/4 POLIETILENO",
+          sku: "1671",
+        },
+      ],
+      query: "tee",
+      reference: "odoo:product.product:search",
+      requestId: "fe794c7e-f168-49ea-a025-6e446b6389e4",
+      scope: "product-identity-and-measure",
+      sourceKind: "odoo",
+    });
+  }
+});
+
+test("la guía no presenta su explicación de uso como un dato de catálogo", () => {
+  const applications = imageCreativePrototypeCases().filter(
+    ({ family }) => family === "application-guide",
+  );
+
+  for (const prototypeCase of applications) {
+    assert.equal(prototypeCase.catalogEvidence, null);
   }
 });
 
