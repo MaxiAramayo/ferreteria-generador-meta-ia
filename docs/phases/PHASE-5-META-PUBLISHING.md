@@ -16,8 +16,8 @@ recuperable ante fallos parciales.
 
 ## P5-T01 — Inventariar activos, capacidades y requisitos de Meta
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P0-T07`, `P4-T08`
 - Riesgo: Alto
 
@@ -34,18 +34,19 @@ capacidades reales antes de diseñar OAuth o solicitar permisos.
 
 ### Criterios de aceptación
 
-- [ ] Página de Facebook e Instagram profesional están vinculados cuando se requiere.
-- [ ] Se identifica quién puede administrar la app y completar verificaciones.
-- [ ] Feed, stories y formatos inicialmente soportados están confirmados con documentación oficial.
-- [ ] Permisos mínimos se listan con justificación por caso de uso.
-- [ ] Limitaciones de cuentas, media, URLs y rate limits se documentan.
-- [ ] Los activos de prueba están separados de producción.
+- [x] Página de Facebook e Instagram profesional están vinculados cuando se requiere.
+- [x] Se identifica quién puede administrar la app y completar verificaciones.
+- [x] Feed, stories y formatos inicialmente soportados están confirmados con documentación oficial.
+- [x] Permisos mínimos se listan con justificación por caso de uso.
+- [x] Limitaciones de cuentas, media, URLs y rate limits se documentan.
+- [x] Excepción aprobada: no habrá activos Meta de prueba separados; los
+  smokes no escribirán ni publicarán en los activos existentes (`ADR-019`).
 
 ### Verificación obligatoria
 
-- [ ] Revisar configuración real sin copiar tokens a documentación.
-- [ ] Ejecutar consulta read-only de activos con herramienta oficial o API.
-- [ ] Obtener aprobación del alcance inicial.
+- [x] Revisar configuración real sin copiar tokens a documentación.
+- [x] Ejecutar consulta read-only de activos con herramienta oficial o API.
+- [x] Obtener aprobación del alcance inicial.
 
 ### Fuera de alcance
 
@@ -54,11 +55,69 @@ capacidades reales antes de diseñar OAuth o solicitar permisos.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-12: se verificó la documentación pública oficial: Graph API vigente
+  `v26.0`; el alcance inicial puede usar Instagram API con inicio de sesión con
+  Facebook para empresas. Instagram feed y stories requieren cuenta profesional,
+  URL pública HTTPS y, si Meta la exige, Page Publishing Authorization; las
+  imágenes admitidas son JPEG y el límite informado es 100 publicaciones por
+  cuenta en 24 horas. Facebook Page usa un token de Page derivado de OAuth y
+  `pages_show_list`, `pages_read_engagement` y `pages_manage_posts` para el
+  alcance estático. La matriz y el plan de actualización quedaron en
+  [`META.md`](../integrations/META.md).
+- Se intentó el inventario real desde Meta Business con una navegación de solo
+  lectura. La sesión disponible no está autenticada y Chrome no está disponible;
+  no se consultaron activos, no se copiaron tokens y no se modificó ninguna
+  configuración. Falta que un administrador autorizado inicie sesión o habilite
+  una sesión existente para ejecutar una única consulta `GET` de activos.
+- 2026-08-13: se repitió el acceso de solo lectura en Meta Business. La única
+  superficie disponible muestra el inicio de sesión; no había una sesión
+  autorizada ni activos accesibles. No se enviaron credenciales, no se copiaron
+  tokens y no se modificó configuración alguna. La página de inicio de sesión
+  quedó lista para que un administrador autorizado ingrese y confirme que puede
+  continuar; después corresponde consultar una sola vez los activos con `GET`.
+- 2026-08-13: la sesión autenticada en Chrome confirmó la superficie conjunta
+  de la Page Ferretería y Lubricentro Aramayo y el perfil
+  `@ferreteria_aramayo`; Business Suite ofrece administrar la Page y editar el
+  perfil de Instagram. Al abrir Settings, Meta rechazó el acceso y pidió que
+  alguien con **control total** del portfolio apruebe acceso para ese perfil.
+  No se envió la solicitud ofrecida, no se alteraron permisos y no se copiaron
+  tokens. El vínculo operativo está confirmado, pero administradores, tipo
+  Business, activos de prueba, configuración de app y autorizaciones siguen sin
+  poder verificarse; el inventario parcial quedó en
+  [`META.md`](../integrations/META.md).
+- 2026-08-13: la sesión correcta en Chrome tiene control total del portfolio y
+  permitió completar el inventario de lectura. Hay dos administradores humanos
+  del portfolio y de la Page, una Page conectada explícitamente a la única
+  cuenta de Instagram observada, y una aplicación de publicaciones con un
+  administrador humano y un usuario de sistema. La cuenta de Instagram tiene
+  una persona con acceso total y otra con acceso parcial. No se registraron
+  identificadores, correos ni tokens. No se observó un par de activos de prueba
+  separado ni la UI expuso el tipo Business de Instagram, el modo de la app,
+  permisos aprobados o PPA. Usar los activos productivos como prueba queda
+  rechazado; el detalle anonimizado está en [`META.md`](../integrations/META.md).
+- 2026-08-13: el usuario decidió usar los activos existentes y no crear una
+  cuenta de prueba. La excepción, sus límites y el riesgo residual están en
+  [`ADR-019`](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md):
+  los smokes previos no escriben en Meta y toda escritura requiere autorización
+  posterior y concreta. La decisión no cierra todavía la tarea: falta confirmar
+  que Instagram es tipo Business e identificar al administrador humano de la
+  app para App Review y verificaciones.
+- 2026-08-13: el responsable del negocio confirmó que
+  `@ferreteria_aramayo` es una cuenta profesional de tipo Business y que toda
+  persona humana con acceso vigente a la app asume su responsabilidad operativa.
+  Con esto queda confirmado el alcance inicial: Instagram feed y stories, y
+  Facebook Page, usando los activos existentes bajo los límites de `ADR-019`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Consulta autenticada de Meta Business Suite, 2026-08-13: portfolio, personas,
+  Page, Instagram, vínculo entre activos y aplicación; identificadores, correos
+  y tokens omitidos.
+- Documentación oficial revisada el 2026-08-12 y matriz registrada en
+  [`META.md`](../integrations/META.md).
+- `pnpm verify:plan` en verde el 2026-08-13.
+- El cierre se conserva en un commit temático de documentación y no produjo
+  escrituras en Meta.
 
 ## P5-T02 — Implementar OAuth y almacenamiento de conexiones
 

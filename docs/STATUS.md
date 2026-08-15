@@ -1,10 +1,10 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-12
+Actualizado: 2026-08-13
 
 ## Fase activa
 
-**Fase 4 — Generación personalizada de imágenes**
+**Fase 5 — Publicación mediante Meta**
 
 Las Fases 0, 1, 2 y 3 quedaron cerradas. La Fase 1 cerró el 2026-08-03: el
 usuario configuró Cloudinary staging y el smoke remoto verificó carga, variante
@@ -41,7 +41,13 @@ de volver a verificar sus bytes; el factual exige un brief nuevo con evidencia
 revalidada. El panel compara prompt, perfil, costo y resultado, y la selección
 versionada conserva todas las alternativas y su auditoría (`ADR-016`).
 
-`P4-T08` está en progreso desde el 2026-08-07. La preevaluación local cubre 18
+`P4-T08` quedó cerrada el 2026-08-12 con una excepción de alcance explícitamente
+aprobada por el usuario: los cuatro prototipos deterministas revisados son
+aceptables y no se autoriza gastar tokens en una nueva muestra de Images. La
+evaluación automática conserva 18 casos y bloquea regresiones; toda salida nueva
+de Images, o cualquier cambio de prompt, perfil o modelo, obliga a reabrir el
+gate con muestra ciega de seis salidas y presupuesto explícito (`ADR-017`). La
+preevaluación local cubre 18
 casos —seis perfiles por tres formatos— y compara producto, precio, stock, CTA y
 disclaimer contra snapshots sintéticos. El usuario aportó y autorizó una foto de
 los filtros Wega FCI 1101C, y la muestra real de 12 piezas se generó en staging y
@@ -79,7 +85,8 @@ completa como superficie principal y `EN FRÍAS` se compone como una única unid
 tipográfica. El negocio aprobó esta dirección visual el 2026-08-11 con una
 corrección final: se eliminó por completo el marco rojo exterior para reducir la
 carga visual. Los rótulos, medidas y pasos siguen siendo deterministas. No deben
-ejecutarse otra muestra paga ni avanzar con Reels hasta revisar esta iteración.
+ejecutarse otra muestra paga ni avanzar con Reels hasta reabrir el gate conforme
+a la excepción de `ADR-017`.
 
 ## Resumen
 
@@ -88,7 +95,7 @@ ejecutarse otra muestra paga ni avanzar con Reels hasta revisar esta iteración.
 - [x] Fase 1 — Migración del motor visual.
 - [x] Fase 2 — Dominio, persistencia y panel base.
 - [x] Fase 3 — OpenAI, RAG y datos comerciales.
-- [ ] Fase 4 — Generación personalizada de imágenes.
+- [x] Fase 4 — Generación personalizada de imágenes.
 - [ ] Fase 5 — Publicación mediante Meta.
 - [ ] Fase 6 — Programación y automatizaciones.
 - [ ] Fase 7 — Endurecimiento y salida a producción.
@@ -100,19 +107,14 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P4-T08` — aprobar calidad visual y factual. El próximo paso es que el
-negocio revise los cuatro prototipos nuevos: comparador de variantes y uso del
-producto, cada uno en feed e historia. La dirección, jerarquía, foto y redacción
-quedaron aprobadas, incluyendo la eliminación del marco exterior. Las tres
-medidas actuales sirven sólo para evaluar el diseño; la conexión al catálogo
-comercial y la sustitución por medidas/SKU
-reales quedaron diferidas por decisión del negocio. Recién cuando el contrato
-visual quede aprobado se registran los datos
-comerciales con fuente vigente y, sólo si un caso necesita generación, se
-ejecuta una muestra paga máxima de seis salidas. Esta copia local está en
-`development` y no contiene el grupo privado de Odoo; esa recuperación debe
-correr desde el entorno de staging protegido con el grupo completo, nunca
-reconstruyendo credenciales locales. Meta continúa bloqueada.
+Iniciar `P5-T02` — implementar OAuth y almacenamiento de conexiones. `P5-T01`
+cerró con la Page e Instagram Business vinculadas, una aplicación existente y
+dos administradores de portfolio; el usuario aprobó usar los activos existentes
+sin una cuenta de prueba bajo `ADR-019`. El siguiente diseño debe validar
+`state`, redirect URI y sesión; cifrar tokens sólo en API/worker; aislar los
+activos por organización; y exponer estado sin secreto. No se configurará OAuth
+en Meta ni se solicitarán permisos hasta que la implementación local, sus
+pruebas y la confirmación externa concreta estén preparadas.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
