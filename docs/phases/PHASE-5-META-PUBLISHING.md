@@ -175,15 +175,21 @@ almacenar tokens cifrados con ciclo de vida administrado.
   Los cinco permisos exactos de la vertical quedaron `Listo para prueba`; no se
   agregaron permisos de mensajes, comentarios, anuncios ni insights. La app
   permanece sin publicar y no se mostró ni copió el App Secret.
+- El usuario autorizó continuar con hosting y DNS de staging. Una inspección
+  remota de solo lectura comprobó 6,9 GiB de RAM disponible, 59 GB libres y
+  cero contenedores/volúmenes. `ADR-020` habilita usar temporalmente el VPS con
+  producción detenida; el perfil versionado separa proyecto Compose, dominios,
+  base, Redis, volúmenes, credenciales y keyring. El worker y los proveedores
+  de generación permanecen apagados durante este smoke.
 - Verificación pendiente: registrar la redirect exacta y completar el OAuth en
   staging con un administrador autorizado.
-- Bloqueo: todavía no existe un hostname remoto staging con TLS. El objetivo
-  nominal de Render no puede registrarse como callback y `ADR-019` impide usar
-  los activos existentes para una escritura de prueba.
-- Próximo paso exacto: provisionar y verificar el host staging, configurar
-  `META_REDIRECT_URI=https://<api-staging>/oauth/meta/callback`, iniciar sesión
-  desde el panel y comprobar conexión, Page, Instagram, permisos, expiración y
-  filas cifradas sin publicar nada.
+- Estado operativo: host y perfil aprobados; DNS, secretos remotos, release y
+  TLS todavía no fueron provisionados.
+- Próximo paso exacto: publicar las imágenes del SHA de este perfil, crear los
+  dos registros DNS staging, desplegar la release y registrar
+  `https://api.staging.content.ferreteriaaramayo.com.ar/oauth/meta/callback`.
+  Después, iniciar sesión desde el panel y comprobar conexión, Page, Instagram,
+  permisos, expiración y filas cifradas sin publicar nada.
 
 ### Evidencia de cierre
 

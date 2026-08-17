@@ -103,8 +103,11 @@ otra sesión administrativa abierta hasta comprobar el acceso restante.
 | `/opt/aramayo-content` | `0750 root:root` | Releases declarativas |
 | `/opt/aramayo-content/releases/<sha>` | `0750 root:root` | Manifiesto inmutable por commit |
 | `/opt/aramayo-content/current` | symlink | Release seleccionada |
+| `/opt/aramayo-content-staging` | `0750 root:root` | Releases declarativas de staging |
+| `/opt/aramayo-content-staging/current` | symlink | Release staging seleccionada |
 | `/etc/aramayo-content` | `0700 root:root` | Configuración privada |
 | `/etc/aramayo-content/production.env` | `0600 root:root` | Entorno y secretos productivos |
+| `/etc/aramayo-content/staging.env` | `0600 root:root` | Entorno y secretos exclusivos de staging |
 | `/var/backups/aramayo-content` | `0700 root:root` | Área temporal de backup local |
 
 El archivo productivo contiene:

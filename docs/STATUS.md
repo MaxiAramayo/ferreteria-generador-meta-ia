@@ -116,10 +116,12 @@ verificación que puede cerrar la tarea: registrar la redirect y ejecutar OAuth
 completo en staging, sin crear containers ni publicaciones. `Aramayo Content
 Staging` ya fue creada en el portfolio correcto, quedó sin publicar y los cinco
 permisos exactos están `Listo para prueba`; no se reveló su secreto ni se
-agregaron scopes opcionales. Antes del OAuth hace falta provisionar un hostname
-staging real: el nombre de Render de `ADR-012` sigue siendo nominal y no debe
-registrarse como callback. Crear hosting con costo requiere una confirmación
-concreta.
+agregaron scopes opcionales. El usuario autorizó continuar con hosting y DNS.
+La inspección del VPS demostró margen con producción detenida y `ADR-020`
+habilitó un staging temporal con proyecto Compose, dominios, datos, volúmenes,
+credenciales y keyring separados. El perfil ya está validado; falta publicar
+su SHA, crear DNS, obtener TLS, cargar el secreto de la app por canal seguro y
+ejecutar el OAuth completo.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

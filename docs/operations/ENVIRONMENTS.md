@@ -4,8 +4,10 @@
 
 La producción piloto usa el VPS dedicado decidido en
 [ADR-013](../architecture/decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md).
-Staging conserva recursos y credenciales independientes; su host remoto no se
-provisiona en el mismo VPS hasta demostrar que existe margen operativo.
+La inspección del 2026-08-17 demostró margen con producción detenida y
+[ADR-020](../architecture/decisions/ADR-020-TEMPORARY-STAGING-ON-DEDICATED-VPS.md)
+habilitó staging temporal en el mismo host físico. Conserva recursos y
+credenciales independientes y nunca se ejecuta en paralelo con producción.
 
 ```mermaid
 flowchart LR
@@ -65,8 +67,8 @@ crear contenedores ni volúmenes.
 
 | Uso | Staging | Piloto de producción | Propietario |
 |---|---|---|---|
-| Web | hostname remoto pendiente | `https://content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
-| API | hostname remoto pendiente | `https://api.content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
+| Web | `https://staging.content.ferreteriaaramayo.com.ar` | `https://content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
+| API | `https://api.staging.content.ferreteriaaramayo.com.ar` | `https://api.content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
 | Meta OAuth redirect | `<api>/oauth/meta/callback` | `<api>/oauth/meta/callback` | Administrador de Meta Business |
 | Meta eliminación de datos | `<api>/integrations/meta/data-deletion` | `<api>/integrations/meta/data-deletion` | Administrador de Meta Business |
 | Meta desautorización | `<api>/integrations/meta/deauthorize` | `<api>/integrations/meta/deauthorize` | Administrador de Meta Business |
@@ -84,7 +86,7 @@ futuros verifican firma y replay antes de procesar.
 
 | Recurso | Staging | Producción | Entrada pública |
 |---|---|---|---|
-| Caddy | pendiente | contenedor exclusivo | Sí, 80/443 |
+| Caddy | contenedor temporal; mutuamente excluyente con producción | contenedor exclusivo | Sí, 80/443 |
 | Web | proceso/imagen independiente | contenedor Next.js | Sólo mediante Caddy |
 | API | proceso/imagen independiente | contenedor NestJS | Sólo mediante Caddy |
 | Worker | proceso/imagen independiente | contenedor Playwright | No |
