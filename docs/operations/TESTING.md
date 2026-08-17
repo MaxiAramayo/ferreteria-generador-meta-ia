@@ -111,11 +111,12 @@ OpenAI. Deben cubrir como mínimo:
 - retención por categoría, referencias y carrera adjuntar-vs-borrar;
 - aislamiento del ID determinista entre organizaciones.
 
-`pnpm db:test` aplica la migración desde una base vacía, ejecuta integración,
-revierte `20260806000000_generation_edit_lineage`, la reaplica y vuelve a
-probar. La suite cubre generar–editar–comparar–seleccionar con PostgreSQL real,
-genealogía completa, control de versión, conservación de variantes y auditoría
-de edición y selección.
+`pnpm db:test` aplica todas las migraciones desde una base vacía, ejecuta la
+integración, revierte la última migración mediante su `down.sql`, la reaplica y
+vuelve a verificar el esquema. La suite cubre, entre otros flujos, aislamiento
+OAuth por sesión y organización, cifrado de conexiones Meta, revocación y
+auditoría; también conserva generar–editar–comparar–seleccionar con genealogía
+completa y control de versión.
 
 ### Calidad visual y factual de imágenes
 
@@ -205,6 +206,24 @@ organización y mapa de sucursales en el entorno no versionado. Ejecuta búsqued
 detalle, precio y stock, confirma cuatro eventos de auditoría y sólo informa
 tipos de resultado; no imprime token, identificadores, consultas ni valores
 comerciales. No forma parte de CI porque consulta el proveedor real.
+
+El smoke OAuth de Meta es manual porque requiere una sesión humana y el
+consentimiento visible del administrador. Antes de ejecutarlo deben existir un
+host staging real con TLS, base y llaves separadas, y una app Meta de staging;
+no se registra una URL nominal o todavía no provisionada. La callback exacta
+es:
+
+```text
+https://<api-staging>/oauth/meta/callback
+```
+
+Desde el panel staging, un `admin` inicia OAuth y concede únicamente
+`instagram_basic`, `instagram_content_publish`, `pages_manage_posts`,
+`pages_read_engagement` y `pages_show_list`. La evidencia confirma cuenta,
+Page, Instagram Business, permisos, expiración, salud, `state` consumido y
+columnas cifradas sin copiar tokens, códigos OAuth ni secretos a capturas o
+logs. Este smoke no crea containers ni publica contenido en los activos
+existentes; conserva los límites de `ADR-019`.
 
 ## Puertas de calidad
 

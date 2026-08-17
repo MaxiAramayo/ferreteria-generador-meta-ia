@@ -173,12 +173,16 @@ almacenar tokens cifrados con ciclo de vida administrado.
 - Verificación pendiente: configurar redirect y permisos en la aplicación Meta
   existente y completar el OAuth en staging con un administrador autorizado.
 - Bloqueo: la escritura externa de configuración y la solicitud de permisos
-  requieren confirmación concreta; `ADR-019` impide usar los activos existentes
-  para una escritura de prueba.
-- Próximo paso exacto: confirmar `META_REDIRECT_URI`, registrar esa URL en la
-  app, habilitar sólo los cinco permisos documentados, iniciar sesión desde el
-  panel y comprobar conexión, Page, Instagram, permisos, expiración y filas
-  cifradas sin publicar nada.
+  requieren confirmación concreta; además todavía no existe un hostname remoto
+  de staging ni una app Meta separada confirmados. `ADR-019` impide usar los
+  activos existentes para una escritura de prueba.
+- Próximo paso exacto: provisionar y verificar el host staging, confirmar su
+  `META_REDIRECT_URI`, configurar la app Meta separada con sólo los cinco
+  permisos documentados, iniciar sesión desde el panel y comprobar conexión,
+  Page, Instagram, permisos, expiración y filas cifradas sin publicar nada.
+- Acceso preparado: el 2026-08-17 se abrió Meta for Developers en el navegador
+  integrado y quedó esperando que el administrador ingrese personalmente su
+  contraseña y 2FA; esas credenciales no se comparten con el agente.
 
 ### Evidencia de cierre
 

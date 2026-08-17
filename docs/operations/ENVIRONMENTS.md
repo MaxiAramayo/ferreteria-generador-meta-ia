@@ -67,7 +67,7 @@ crear contenedores ni volúmenes.
 |---|---|---|---|
 | Web | hostname remoto pendiente | `https://content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
 | API | hostname remoto pendiente | `https://api.content.ferreteriaaramayo.com.ar` | Administrador de plataforma |
-| Meta OAuth redirect | `<api>/integrations/meta/oauth/callback` | `<api>/integrations/meta/oauth/callback` | Administrador de Meta Business |
+| Meta OAuth redirect | `<api>/oauth/meta/callback` | `<api>/oauth/meta/callback` | Administrador de Meta Business |
 | Meta eliminación de datos | `<api>/integrations/meta/data-deletion` | `<api>/integrations/meta/data-deletion` | Administrador de Meta Business |
 | Meta desautorización | `<api>/integrations/meta/deauthorize` | `<api>/integrations/meta/deauthorize` | Administrador de Meta Business |
 | Política de privacidad | `<web>/legal/privacy` | `<web>/legal/privacy` | Responsable de negocio |
@@ -92,7 +92,7 @@ futuros verifican firma y replay antes de procesar.
 | Redis | instancia exclusiva, `noeviction` | volumen exclusivo, `noeviction` | No |
 | Cloudinary | product environment exclusivo | product environment exclusivo | CDN solamente |
 | OpenAI | proyecto y presupuesto exclusivos | proyecto y presupuesto exclusivos | No aplica |
-| Meta | app y activos de prueba | app y activos aprobados | Callbacks exactos |
+| Meta | app separada; activos existentes sólo bajo `ADR-019` | app y activos aprobados | Callbacks exactos |
 
 ## Matriz de secretos
 

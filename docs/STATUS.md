@@ -113,9 +113,12 @@ incluye `state` de un solo uso ligado a sesión y tenant, redirect fija, Graph
 renovación, revocación auditada y panel sin secretos. La migración completa pasó
 up, repositorios, down y reaplicación en una base efímera. Falta la única
 verificación que puede cerrar la tarea: configurar redirect y cinco permisos en
-la aplicación Meta existente y ejecutar OAuth completo en staging, sin crear
-containers ni publicaciones. Esa escritura externa requiere confirmación
-concreta antes de operar la app.
+una app Meta de staging y ejecutar OAuth completo, sin crear containers ni
+publicaciones. Antes hace falta provisionar un hostname staging real: el nombre
+de Render de `ADR-012` sigue siendo nominal y no debe registrarse como callback.
+El acceso a Meta for Developers quedó abierto para que el administrador ingrese
+personalmente contraseña y 2FA. Crear/configurar la app y eventualmente generar
+costo de hosting requieren confirmación concreta.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

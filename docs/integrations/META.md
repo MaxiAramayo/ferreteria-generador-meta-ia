@@ -143,9 +143,16 @@ incorporar `code_verifier` sin exponerlo al navegador. `state`, sesión y redire
 exacta son obligatorios independientemente de esa decisión.
 
 La implementación local y su migración están verificadas. Sigue pendiente
-configurar la redirect URI y los permisos en la aplicación existente y ejecutar
-un OAuth completo en staging. Esa acción externa necesita confirmación concreta
-y no autoriza publicación ni creación de containers.
+configurar la redirect URI y los permisos en una app Meta separada para staging
+y ejecutar un OAuth completo en ese ambiente. Esa acción externa necesita
+confirmación concreta y no autoriza publicación ni creación de containers.
+
+Antes de configurar Meta debe provisionarse el hostname staging real. El nombre
+histórico de Render en `ADR-012` es sólo un objetivo y no puede registrarse como
+callback mientras no resuelva, sirva TLS y ejecute esta release. Staging usa
+credenciales, base, keyring y app Meta separados; la excepción de `ADR-019`
+permite descubrir los activos existentes sin crear publicaciones, pero no
+permite reutilizar secretos ni persistencia de producción.
 
 ## Publicación Instagram
 
