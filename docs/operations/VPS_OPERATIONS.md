@@ -35,6 +35,22 @@ carga, el host tenía 7,1 GiB de memoria disponible y ningún uso de swap.
 AppArmor, UFW, Docker, actualizaciones automáticas y sincronización horaria
 estaban activos.
 
+## Estado staging verificado
+
+El 2026-08-17 se preparó la release `4759c3d` bajo
+`/opt/aramayo-content-staging`. Las imágenes web, API y migración publicadas por
+el workflow `32046279735` reportaron ese mismo label de revisión. PostgreSQL,
+Redis, migración, API y web están sanos dentro de los proyectos y volúmenes
+`aramayo-content-staging`; ninguno publica puertos. Caddy y worker permanecen
+detenidos, por lo que sólo SSH continúa expuesto.
+
+La base recibió el seed canónico y un administrador staging. La contraseña no
+se escribió en el VPS ni en Git: el servidor conserva únicamente su hash
+Argon2id y la credencial operativa vive en el Llavero local con servicio
+`Aramayo-Content-Staging-Admin`. Un smoke autenticó y cerró la sesión
+correctamente. El grupo Meta está totalmente vacío hasta cargar juntos App ID,
+App Secret, callback y versión Graph.
+
 ## DNS e ingreso público
 
 Donweb sirve estos cuatro registros con TTL observado de 900 segundos:

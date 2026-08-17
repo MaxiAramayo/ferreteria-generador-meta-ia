@@ -53,8 +53,8 @@ El 2026-07-29 ambas direcciones resolvieron desde el hostname y el servidor
 fue actualizado, reiniciado y validado por IPv4 e IPv6. SSH acepta sólo la clave
 ED25519 autorizada; contraseña, login de root y X11 están deshabilitados. UFW
 permite únicamente SSH, HTTP, HTTPS y HTTP/3; AppArmor y actualizaciones
-automáticas permanecen activos. No hay contenedores activos y sólo SSH escucha
-hasta completar el entorno. La release declarativa
+automáticas permanecen activos. La release productiva continúa sin contenedores
+ni volúmenes y sólo SSH está expuesto públicamente. La release declarativa
 `3b83df4c667e8b14b3ff1e65363e6e6cf1a5ebf1` está seleccionada en
 `/opt/aramayo-content/current`, con Compose y Caddy validados pero sin servicios
 iniciados. El entorno productivo existe como archivo `0600 root:root`: contiene
@@ -62,6 +62,13 @@ correo ACME y secretos internos generados en el host, mientras OpenAI,
 Cloudinary y Meta siguen deshabilitados. Las imágenes públicas de la release
 fueron descargadas anónimamente desde GHCR y verificadas como `linux/amd64`, sin
 crear contenedores ni volúmenes.
+
+El 2026-08-17 staging inició PostgreSQL, Redis, migración, API y web del SHA
+`4759c3d` en sus redes privadas. No publica puertos y Caddy/worker permanecen
+detenidos hasta completar DNS y el grupo atómico de credenciales Meta. El seed
+canónico creó Aramayo, marca y sucursales; un administrador con contraseña
+Argon2id almacenada en el Llavero local pasó login y logout remotos. Producción
+no fue iniciada ni modificada.
 
 ## Matriz de URLs
 

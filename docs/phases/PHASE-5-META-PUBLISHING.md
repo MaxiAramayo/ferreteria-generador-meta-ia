@@ -183,10 +183,21 @@ almacenar tokens cifrados con ciclo de vida administrado.
   de generación permanecen apagados durante este smoke.
 - Verificación pendiente: registrar la redirect exacta y completar el OAuth en
   staging con un administrador autorizado.
-- Estado operativo: host y perfil aprobados; DNS, secretos remotos, release y
-  TLS todavía no fueron provisionados.
-- Próximo paso exacto: publicar las imágenes del SHA de este perfil, crear los
-  dos registros DNS staging, desplegar la release y registrar
+- Estado operativo: las imágenes inmutables del SHA `4759c3d` se publicaron en
+  GHCR mediante el workflow `32046279735` y la release remota quedó preparada.
+  PostgreSQL, Redis, migración, API y web están sanos en redes privadas, sin
+  puertos publicados. Caddy y worker siguen detenidos. El seed canónico y un
+  administrador Argon2id auditado pasaron login y logout reales. La contraseña
+  sólo existe en el Llavero local y la base conserva su hash.
+- Incidente resuelto: el primer bootstrap rechazó correctamente un grupo Meta
+  parcial. El perfil ahora mantiene vacíos App ID, App Secret, callback y
+  versión hasta cargarlos juntos; la API reinició sana. El arreglo quedó en
+  `6bfb1d9`.
+- Bloqueo actual: Donweb requiere que el usuario inicie sesión; no hay
+  credenciales DNS almacenadas o compartidas con el agente. DNS, TLS y el App
+  Secret siguen pendientes.
+- Próximo paso exacto: crear los cuatro registros DNS staging, obtener TLS,
+  cargar el grupo Meta atómicamente y registrar
   `https://api.staging.content.ferreteriaaramayo.com.ar/oauth/meta/callback`.
   Después, iniciar sesión desde el panel y comprobar conexión, Page, Instagram,
   permisos, expiración y filas cifradas sin publicar nada.

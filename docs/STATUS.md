@@ -121,7 +121,12 @@ La inspección del VPS demostró margen con producción detenida y `ADR-020`
 habilitó un staging temporal con proyecto Compose, dominios, datos, volúmenes,
 credenciales y keyring separados. El perfil ya está validado; falta publicar
 su SHA, crear DNS, obtener TLS, cargar el secreto de la app por canal seguro y
-ejecutar el OAuth completo.
+ejecutar el OAuth completo. Las imágenes del SHA `4759c3d` se publicaron en
+GHCR y la release remota quedó preparada. PostgreSQL, Redis, migración, API y
+web están sanos únicamente en redes privadas; Caddy y worker permanecen
+detenidos. El seed canónico y un administrador Argon2id auditado pasaron login
+y logout reales. El siguiente bloqueo es iniciar sesión en Donweb para crear
+los registros DNS; no se dispone de credenciales DNS en el agente.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
