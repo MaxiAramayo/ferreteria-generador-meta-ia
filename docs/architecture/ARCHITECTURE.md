@@ -78,6 +78,15 @@ URLs y metadatos controlados dentro del tenant. Ninguna ruta de borradores
 programa ni publica contenido. Solicitar render es una acción separada y
 explícita; sólo esa ruta crea la intención que consume el worker.
 
+El módulo `connections` implementa OAuth Meta como una vertical separada. El
+inicio autenticado crea un `state` de diez minutos ligado a organización,
+membresía y sesión; el callback sólo consume su hash una vez y usa la redirect
+URI de configuración, nunca una recibida del cliente. El adaptador versionado
+intercambia y renueva la credencial, descubre permisos, Page e Instagram y
+entrega datos tipados al caso de uso. Cifrado, persistencia y auditoría ocurren
+antes de responder; el contrato público proyecta salud y activos sin secretos.
+Health, renovación y revocación son acciones administrativas diferentes.
+
 ## Arranque y salud de los procesos
 
 Cada proceso convierte su entorno en un contrato tipado antes de aceptar trabajo:

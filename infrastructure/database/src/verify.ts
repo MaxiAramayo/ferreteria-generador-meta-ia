@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260806000000_generation_edit_lineage";
+const latestMigrationName = "20260815000000_meta_connections";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -170,6 +170,9 @@ async function verifyDatabase(): Promise<void> {
         idempotency_table: string | null;
         knowledge_documents_table: string | null;
         knowledge_versions_table: string | null;
+        meta_assets_table: string | null;
+        meta_connections_table: string | null;
+        meta_oauth_table: string | null;
         outbox_table: string | null;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
@@ -223,6 +226,9 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.outbox_messages')::text AS "outbox_table",
             to_regclass('public.knowledge_documents')::text AS "knowledge_documents_table",
             to_regclass('public.knowledge_document_versions')::text AS "knowledge_versions_table",
+            to_regclass('public.meta_connections')::text AS "meta_connections_table",
+            to_regclass('public.meta_connection_assets')::text AS "meta_assets_table",
+            to_regclass('public.meta_oauth_transactions')::text AS "meta_oauth_table",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -267,9 +273,12 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparece la
-      // genealogía editorial; gobierno, composición y todo lo anterior quedan.
-      assert.equal(rollbackEvidence.generation_lineage_exists, false);
+      // La reversión afecta sólo a la última migración: desaparecen conexión,
+      // activos y transacciones Meta; la genealogía y todo lo anterior quedan.
+      assert.equal(rollbackEvidence.meta_connections_table, null);
+      assert.equal(rollbackEvidence.meta_assets_table, null);
+      assert.equal(rollbackEvidence.meta_oauth_table, null);
+      assert.equal(rollbackEvidence.generation_lineage_exists, true);
       assert.equal(rollbackEvidence.admission_mode_exists, true);
       assert.equal(
         rollbackEvidence.generation_attempts_table,

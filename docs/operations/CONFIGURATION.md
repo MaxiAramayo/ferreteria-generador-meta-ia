@@ -110,7 +110,11 @@ considera administrador de secretos.
 - `DATABASE_URL`: `postgresql://` o `postgres://`, con usuario, contraseña, host
   y base.
 - `REDIS_URL`: `redis://` o `rediss://`, con usuario, contraseña y host.
-- `META_GRAPH_API_VERSION`: `v<mayor>.<menor>`.
+- `META_GRAPH_API_VERSION`: `v<mayor>.<menor>`; la vertical vigente fija
+  `v26.0`.
+- `META_REDIRECT_URI`: URL absoluta exacta del callback de API
+  `/oauth/meta/callback`. Debe coincidir byte por byte con la registrada en la
+  aplicación Meta; no se recibe desde el navegador.
 - `OPENAI_PROJECT_ID`: prefijo `proj_`.
 - `OPENAI_VECTOR_STORE_ID`: prefijo `vs_`.
 - Los modelos OpenAI admiten letras, números, punto, guion y guion bajo; el

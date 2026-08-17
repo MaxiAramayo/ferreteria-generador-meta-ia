@@ -115,6 +115,38 @@ al navegador.
 - revocación invalida trabajos futuros;
 - logs redactan `Authorization`, query strings sensibles y payloads.
 
+### Implementación local de `P5-T02` (2026-08-17)
+
+La API expone las siguientes acciones, todas con sesión viva y permiso
+`connections:manage`; las mutaciones además pasan CSRF y validación de origen:
+
+| Acción | Ruta | Efecto |
+|---|---|---|
+| Iniciar OAuth | `POST /connections/meta/oauth` | Crea `state` aleatorio, persiste sólo su hash ligado a sesión y devuelve la URL versionada de Meta. |
+| Callback | `GET /oauth/meta/callback` | Consume `state` una vez, intercambia y renueva el código, descubre cuenta y activos y redirige al panel. |
+| Consultar | `GET /connections/meta` | Devuelve cuenta, permisos, activos, expiración y salud sin secretos. |
+| Health | `POST /connections/meta/:id/health` | Revalida permisos y activos; distingue token vencido, permiso revocado y activo removido. |
+| Renovar | `POST /connections/meta/:id/renewal` | Renueva credencial, redescubre activos y vuelve a cifrar tokens con la llave activa. |
+| Revocar | `DELETE /connections/meta/:id` | Intenta revocación remota y siempre corta capacidad local mediante borrado criptográfico auditado. |
+
+Los tokens de usuario y Page usan AES-256-GCM con IV aleatorio, tag y versión
+de llave. Ni el repositorio público, ni contratos, UI o auditoría incluyen esas
+columnas. El adaptador sólo llama rutas HTTPS de `graph.facebook.com` con
+`v26.0`, límite de respuesta y timeout; un fallo de red no se convierte en
+permiso revocado.
+
+PKCE no se agregó al flujo web confidencial actual: el código se intercambia
+exclusivamente desde la API autenticada con `app_secret`, y la documentación
+aprobada de esta vertical no declaró soporte u obligación de PKCE para este
+camino de Facebook Login. Si Meta lo exige en App Review, el puerto permite
+incorporar `code_verifier` sin exponerlo al navegador. `state`, sesión y redirect
+exacta son obligatorios independientemente de esa decisión.
+
+La implementación local y su migración están verificadas. Sigue pendiente
+configurar la redirect URI y los permisos en la aplicación existente y ejecutar
+un OAuth completo en staging. Esa acción externa necesita confirmación concreta
+y no autoriza publicación ni creación de containers.
+
 ## Publicación Instagram
 
 Flujo esperado:

@@ -62,7 +62,9 @@ un endpoint público nuevo debe declarar `@PublicRoute()`.
 - Nunca en `NEXT_PUBLIC_*`.
 - Nunca completos en UI o logs.
 - Staging y producción usan credenciales separadas.
-- Tokens de Meta cifrados por la aplicación antes de persistir.
+- Tokens de Meta cifrados con AES-256-GCM antes de persistir. Cada valor tiene
+  IV aleatorio de 96 bits, tag de autenticación y versión del keyring; revocar
+  elimina ciphertext, IV, tag y versión sin borrar auditoría.
 - Rotación probada antes de producción.
 - `.env.example` contiene nombres, no valores.
 
@@ -77,7 +79,9 @@ y respuesta ante exposición están en [`SECRETS.md`](SECRETS.md).
 - Límite de tamaño.
 - URLs salientes permitidas o normalizadas.
 - Webhooks con firma y protección contra replay.
-- OAuth con `state`, redirect exacto y sesión asociada.
+- OAuth con `state` aleatorio de 32 bytes, hash SHA-256 persistido, redirect
+  exacto, expiración de diez minutos y organización, membresía y sesión
+  asociadas. El callback consume `state` atómicamente una sola vez.
 - Rate limiting en autenticación, generación y webhooks.
 
 ## Datos comerciales

@@ -15,6 +15,7 @@ export {
 export { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 export { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
 export { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
+export { PrismaMetaConnectionRepository } from "./meta-connection-repository.ts";
 export {
   PrismaContentBriefRequestRepository,
   PrismaContentBriefRunRepository,

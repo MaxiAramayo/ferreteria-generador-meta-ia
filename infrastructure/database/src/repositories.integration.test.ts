@@ -9,6 +9,7 @@ import {
   transitionPublication,
   type GenerationRunRecord,
   type GenerationVariantRecord,
+  type OrganizationRole,
   type ReserveKnowledgeDocumentVersionInput,
   type ReliableMutationContext,
 } from "@aramayo/domain";
@@ -34,6 +35,7 @@ import {
   PrismaGenerationRunRequestRepository,
 } from "./generation-run-repository.ts";
 import { PrismaGenerationPolicyRepository } from "./generation-governance-repository.ts";
+import { PrismaMetaConnectionRepository } from "./meta-connection-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
@@ -3916,6 +3918,196 @@ test("la base rechaza estados de lote que no describen nada real", async () => {
         status: "pending",
       },
     }),
+  );
+});
+
+test("Meta aísla state y conexiones, cifra secretos y revoca con auditoría", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const sessionId = randomUUID();
+  const now = new Date();
+  const stateHash = randomHash();
+
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Meta A",
+        id: organizationId,
+        legalName: "Meta A",
+        slug: `meta-a-${organizationId}`,
+      },
+      {
+        displayName: "Meta B",
+        id: otherOrganizationId,
+        legalName: "Meta B",
+        slug: `meta-b-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Administrador Meta",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin"],
+      userId,
+    },
+  });
+  await database.authenticationSession.create({
+    data: {
+      createdAt: now,
+      csrfTokenHash: randomHash(),
+      expiresAt: new Date(now.getTime() + 3_600_000),
+      id: sessionId,
+      lastSeenAt: now,
+      membershipId,
+      organizationId,
+      tokenHash: randomHash(),
+      updatedAt: now,
+      userId,
+    },
+  });
+
+  const actor = Object.freeze({
+    displayName: "Administrador Meta",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: Object.freeze(["admin"] satisfies readonly OrganizationRole[]),
+    sessionId,
+    userId,
+  });
+  const repository = new PrismaMetaConnectionRepository(database);
+  await repository.createOAuthTransaction({
+    actor,
+    expiresAt: new Date(now.getTime() + 600_000).toISOString(),
+    redirectUri: "https://api.example.invalid/oauth/meta/callback",
+    stateHash,
+  });
+  const consumedAt = new Date(now.getTime() + 1_000).toISOString();
+  assert.deepEqual(
+    await repository.consumeOAuthTransaction({
+      actor: { ...actor, sessionId: randomUUID() },
+      consumedAt,
+      redirectUri: "https://api.example.invalid/oauth/meta/callback",
+      stateHash,
+    }),
+    { status: "invalid" },
+  );
+  assert.deepEqual(
+    await repository.consumeOAuthTransaction({
+      actor,
+      consumedAt,
+      redirectUri: "https://api.example.invalid/oauth/meta/callback",
+      stateHash,
+    }),
+    { status: "consumed" },
+  );
+  assert.deepEqual(
+    await repository.consumeOAuthTransaction({
+      actor,
+      consumedAt,
+      redirectUri: "https://api.example.invalid/oauth/meta/callback",
+      stateHash,
+    }),
+    { status: "invalid" },
+  );
+
+  const encrypted = Object.freeze({
+    authenticationTag: "authentication-tag",
+    ciphertext: "encrypted-user-token-not-plain-text",
+    initializationVector: "initialization-vector",
+    keyVersion: "v1",
+  });
+  const connected = await repository.save({
+    accessSecret: encrypted,
+    accountName: "Administrador Meta",
+    actor,
+    assets: Object.freeze([
+      Object.freeze({
+        accessSecret: {
+          ...encrypted,
+          ciphertext: "encrypted-page-token-not-plain-text",
+        },
+        kind: "page",
+        name: "Aramayo",
+        providerAssetId: "page-1",
+      }),
+      Object.freeze({
+        kind: "instagram_business",
+        name: "@ferreteria_aramayo",
+        providerAssetId: "ig-1",
+        username: "ferreteria_aramayo",
+      }),
+    ]),
+    audit: {
+      actorMembershipId: membershipId,
+      entityType: "meta_connection",
+      eventId: randomUUID(),
+      metadata: { assetCount: 2, provider: "meta" },
+      occurredAt: now.toISOString(),
+      operation: "meta.connection.connected",
+      organizationId,
+      outcome: "success",
+    },
+    expiresAt: new Date(now.getTime() + 5_184_000_000).toISOString(),
+    grantedPermissions: [
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_manage_posts",
+      "pages_read_engagement",
+      "pages_show_list",
+    ],
+    health: "healthy",
+    occurredAt: now.toISOString(),
+    providerAccountId: "meta-account-1",
+  });
+  assert.equal(connected.organizationId, organizationId);
+  assert.equal((await repository.list(otherOrganizationId)).length, 0);
+  const secret = await repository.findSecret(organizationId, connected.id);
+  assert.equal(secret?.accessSecret.ciphertext, encrypted.ciphertext);
+  const rawConnection = await database.metaConnection.findUniqueOrThrow({
+    where: { id: connected.id },
+  });
+  assert.equal(rawConnection.accessCiphertext, encrypted.ciphertext);
+  assert.equal(JSON.stringify(connected).includes(encrypted.ciphertext), false);
+
+  const revoked = await repository.revoke({
+    actor,
+    audit: {
+      actorMembershipId: membershipId,
+      entityId: connected.id,
+      entityType: "meta_connection",
+      eventId: randomUUID(),
+      metadata: { provider: "meta", remoteConfirmed: false },
+      occurredAt: new Date(now.getTime() + 1_000).toISOString(),
+      operation: "meta.connection.revoked",
+      organizationId,
+      outcome: "success",
+    },
+    metaConnectionId: connected.id,
+    revokedAt: new Date(now.getTime() + 1_000).toISOString(),
+  });
+  assert.equal(revoked.status, "updated");
+  assert.equal(revoked.connection.health, "revoked");
+  assert.equal(await repository.findSecret(organizationId, connected.id), null);
+  const rawRevoked = await database.metaConnection.findUniqueOrThrow({
+    where: { id: connected.id },
+  });
+  assert.equal(rawRevoked.accessCiphertext, null);
+  assert.equal(
+    await database.auditEvent.count({
+      where: { entityType: "meta_connection", organizationId },
+    }),
+    2,
   );
 });
 

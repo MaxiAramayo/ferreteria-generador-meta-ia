@@ -195,6 +195,30 @@ enum KnowledgeRemoteStatus {
   @@map("knowledge_remote_status")
 }
 
+enum MetaConnectionHealth {
+  asset_removed
+  healthy
+  permission_revoked
+  revoked
+  token_expired
+
+  @@map("meta_connection_health")
+}
+
+enum MetaAssetKind {
+  instagram_business
+  page
+
+  @@map("meta_asset_kind")
+}
+
+enum MetaAssetStatus {
+  active
+  removed
+
+  @@map("meta_asset_status")
+}
+
 model Organization {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug        String   @unique(map: "organizations_slug_key") @db.VarChar(80)
@@ -218,6 +242,9 @@ model Organization {
   generationBudgetAlerts GenerationBudgetAlert[]
   locations              Location[]
   mediaAssets            MediaAsset[]
+  metaConnectionAssets   MetaConnectionAsset[]
+  metaConnections        MetaConnection[]
+  metaOAuthTransactions  MetaOAuthTransaction[]
   memberships            OrganizationMembership[]
   idempotencyRecords     IdempotencyRecord[]
   knowledgeDocuments     KnowledgeDocument[]
@@ -331,12 +358,14 @@ model OrganizationMembership {
   contentBriefRuns             ContentBriefRun[]
   generationRuns               GenerationRun[]
   generationAttempts           GenerationAttempt[]
+  connectedMetaConnections     MetaConnection[]
   createdMedia                 MediaAsset[]
   createdPublications          Publication[]
   createdRevisions             PublicationRevision[]
   idempotencyRecords           IdempotencyRecord[]
   stateTransitions             PublicationStateTransition[]
   targetedAuthenticationEvents AuthenticationEvent[]            @relation("AuthenticationEventTarget")
+  metaOAuthTransactions        MetaOAuthTransaction[]
 
   @@unique([organizationId, userId], map: "memberships_organization_user_key")
   @@unique([organizationId, id], map: "memberships_organization_id_key")
@@ -360,14 +389,90 @@ model AuthenticationSession {
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  membership   OrganizationMembership @relation(fields: [organizationId, userId, membershipId], references: [organizationId, userId, id], onDelete: Restrict, onUpdate: Cascade)
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user         User                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  membership            OrganizationMembership @relation(fields: [organizationId, userId, membershipId], references: [organizationId, userId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  metaOAuthTransactions MetaOAuthTransaction[]
 
+  @@unique([organizationId, membershipId, id], map: "authentication_sessions_org_membership_id_key")
   @@index([userId, revokedAt, expiresAt], map: "authentication_sessions_user_active_idx")
   @@index([organizationId, membershipId, revokedAt], map: "authentication_sessions_membership_active_idx")
   @@index([expiresAt], map: "authentication_sessions_expiry_idx")
   @@map("authentication_sessions")
+}
+
+model MetaOAuthTransaction {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  actorMembershipId String    @map("actor_membership_id") @db.Uuid
+  sessionId         String    @map("session_id") @db.Uuid
+  stateHash         String    @unique(map: "meta_oauth_transactions_state_hash_key") @map("state_hash") @db.Char(64)
+  redirectUri       String    @map("redirect_uri") @db.VarChar(500)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt        DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor        OrganizationMembership @relation(fields: [organizationId, actorMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade, map: "meta_oauth_transactions_actor_membership_id_fkey")
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "meta_oauth_transactions_organization_id_fkey")
+  session      AuthenticationSession  @relation(fields: [organizationId, actorMembershipId, sessionId], references: [organizationId, membershipId, id], onDelete: Restrict, onUpdate: Cascade, map: "meta_oauth_transactions_session_id_fkey")
+
+  @@index([organizationId, sessionId, expiresAt], map: "meta_oauth_transactions_session_expiry_idx")
+  @@index([expiresAt, consumedAt], map: "meta_oauth_transactions_expiry_idx")
+  @@map("meta_oauth_transactions")
+}
+
+model MetaConnection {
+  id                      String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String               @map("organization_id") @db.Uuid
+  connectedByMembershipId String               @map("connected_by_membership_id") @db.Uuid
+  providerAccountId       String               @map("provider_account_id") @db.VarChar(160)
+  accountName             String               @map("account_name") @db.VarChar(160)
+  health                  MetaConnectionHealth
+  grantedPermissions      Json                 @map("granted_permissions")
+  accessCiphertext        String?              @map("access_ciphertext") @db.Text
+  accessIv                String?              @map("access_iv") @db.VarChar(32)
+  accessTag               String?              @map("access_tag") @db.VarChar(32)
+  accessKeyVersion        String?              @map("access_key_version") @db.VarChar(40)
+  expiresAt               DateTime?            @map("expires_at") @db.Timestamptz(3)
+  lastCheckedAt           DateTime             @map("last_checked_at") @db.Timestamptz(3)
+  revokedAt               DateTime?            @map("revoked_at") @db.Timestamptz(3)
+  version                 Int                  @default(1)
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  assets       MetaConnectionAsset[]
+  connectedBy  OrganizationMembership @relation(fields: [organizationId, connectedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, id], map: "meta_connections_organization_id_key")
+  @@unique([organizationId, providerAccountId], map: "meta_connections_org_account_key")
+  @@index([organizationId, health, updatedAt(sort: Desc)], map: "meta_connections_org_health_idx")
+  @@map("meta_connections")
+}
+
+model MetaConnectionAsset {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  metaConnectionId String          @map("meta_connection_id") @db.Uuid
+  providerAssetId  String          @map("provider_asset_id") @db.VarChar(160)
+  kind             MetaAssetKind
+  name             String          @db.VarChar(160)
+  username         String?         @db.VarChar(160)
+  status           MetaAssetStatus @default(active)
+  accessCiphertext String?         @map("access_ciphertext") @db.Text
+  accessIv         String?         @map("access_iv") @db.VarChar(32)
+  accessTag        String?         @map("access_tag") @db.VarChar(32)
+  accessKeyVersion String?         @map("access_key_version") @db.VarChar(40)
+  removedAt        DateTime?       @map("removed_at") @db.Timestamptz(3)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  connection   MetaConnection @relation(fields: [organizationId, metaConnectionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, kind, providerAssetId], map: "meta_connection_assets_org_kind_provider_key")
+  @@index([organizationId, metaConnectionId, status], map: "meta_connection_assets_connection_status_idx")
+  @@map("meta_connection_assets")
 }
 
 model AuthenticationEvent {

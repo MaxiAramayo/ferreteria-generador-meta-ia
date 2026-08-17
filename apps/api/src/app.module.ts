@@ -4,6 +4,7 @@ import { Module, type DynamicModule } from "@nestjs/common";
 import { API_CONFIGURATION } from "./configuration.tokens.ts";
 import { AuditModule } from "./audit/audit.module.ts";
 import { ContentModule } from "./content/content.module.ts";
+import { ConnectionsModule } from "./connections/connections.module.ts";
 import { DatabaseModule } from "./database/database.module.ts";
 import { HealthModule } from "./health/health.module.ts";
 import { IdentityModule } from "./identity/identity.module.ts";
@@ -19,6 +20,7 @@ export class AppModule {
         AuditModule,
         DatabaseModule.forConfiguration(configuration.databaseUrl),
         ContentModule,
+        ConnectionsModule.forConfiguration(configuration),
         HealthModule.forConfiguration(configuration),
         IdentityModule.forConfiguration(configuration),
         OrganizationsModule,

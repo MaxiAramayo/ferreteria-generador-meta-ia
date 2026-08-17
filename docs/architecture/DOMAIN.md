@@ -225,6 +225,20 @@ estado aprobado incompleto. La decisión propuesta y el procedimiento están en
 Conexión cifrada con OpenAI, Meta, Cloudinary o sistema comercial. Expone estado
 y capacidades, nunca el secreto.
 
+La primera implementación concreta es `MetaConnection`, aislada por
+`organizationId` y acompañada por `MetaConnectionAsset`. La conexión conserva
+la cuenta autorizante, permisos, vencimiento, versión y última comprobación;
+los activos distinguen `page` de `instagram_business`. Sus estados de salud son
+disjuntos: `healthy`, `token_expired`, `permission_revoked`, `asset_removed` y
+`revoked`. Sólo `healthy`, con todos los permisos y ambos tipos de activo
+vigentes, puede aportar capacidad de publicación.
+
+`MetaOAuthTransaction` conserva únicamente SHA-256 de `state`, redirect URI
+exacta, organización, membresía, sesión y vencimiento. Consumirla es atómico y
+de un solo uso. Los tokens de usuario y Page se guardan como AES-256-GCM con
+versión de llave, IV y tag; revocar elimina esas cuatro columnas, marca los
+activos removidos y agrega auditoría sin borrar la conexión histórica.
+
 ### KnowledgeDocument
 
 Fuente documental aprobada e identificada por

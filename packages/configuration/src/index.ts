@@ -24,6 +24,7 @@ export {
   type CommercialCatalogPolicy,
   type CommercialExternalLocationId,
   type CommercialLocationMapping,
+  type MetaCredentials,
   type OpenAICredentials,
   type OpenAIIntegration,
   type OpenAIModelPolicy,

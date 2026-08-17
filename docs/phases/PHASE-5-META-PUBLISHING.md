@@ -122,7 +122,7 @@ capacidades reales antes de diseñar OAuth o solicitar permisos.
 ## P5-T02 — Implementar OAuth y almacenamiento de conexiones
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO — IMPLEMENTACIÓN LOCAL COMPLETA; SMOKE STAGING PENDIENTE
 - Dependencias: `P2-T02`, `P5-T01`
 - Riesgo: Alto
 
@@ -139,18 +139,19 @@ almacenar tokens cifrados con ciclo de vida administrado.
 
 ### Criterios de aceptación
 
-- [ ] `state`, redirect URI y sesión se validan en callback.
-- [ ] Solo un administrador puede crear o revocar conexiones.
-- [ ] Tokens se cifran en reposo y se descifran únicamente en backend/worker.
-- [ ] La UI muestra cuenta, activos, permisos y salud sin mostrar token.
-- [ ] Expiración, permiso revocado y activo removido tienen estados distintos.
-- [ ] Revocar elimina capacidad de publicar y conserva auditoría.
+- [x] `state`, redirect URI y sesión se validan en callback.
+- [x] Solo un administrador puede crear o revocar conexiones.
+- [x] Tokens se cifran en reposo y se descifran únicamente en backend/worker.
+- [x] La UI muestra cuenta, activos, permisos y salud sin mostrar token.
+- [x] Expiración, permiso revocado y activo removido tienen estados distintos.
+- [x] Revocar elimina capacidad de publicar y conserva auditoría.
 
 ### Verificación obligatoria
 
 - [ ] Flujo OAuth completo en staging.
-- [ ] Pruebas de state inválido, callback repetido y usuario sin permisos.
-- [ ] Inspeccionar BD y logs para confirmar cifrado y redacción.
+- [x] Pruebas de state inválido, callback repetido y usuario sin permisos.
+- [x] Inspeccionar BD y contratos para confirmar cifrado y redacción; el
+  adaptador no registra URLs, tokens ni payloads del proveedor.
 
 ### Fuera de alcance
 
@@ -158,11 +159,31 @@ almacenar tokens cifrados con ciclo de vida administrado.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-17.
+- Estado real: dominio, contratos, migración, repositorio, cifrado AES-256-GCM,
+  adaptador Graph `v26.0`, casos de uso, controlador y panel administrativo
+  implementados localmente. No se llamó a Meta ni a OpenAI.
+- Restricciones conservadas: OAuth sólo para `admin`; `state` de un solo uso
+  ligado a sesión/tenant; redirect fija; secretos fuera de UI, contratos y
+  auditoría; revocación local fail-closed aunque la remota sea ambigua.
+- Verificaciones ejecutadas: suites de dominio, API y web; `pnpm db:test`
+  aplicó todas las migraciones desde cero, ejecutó repositorios, revirtió
+  `20260815000000_meta_connections`, la reaplicó y terminó en verde. `pnpm
+  verify` pasó build, lint, typecheck, tests, baseline y smoke completos.
+- Verificación pendiente: configurar redirect y permisos en la aplicación Meta
+  existente y completar el OAuth en staging con un administrador autorizado.
+- Bloqueo: la escritura externa de configuración y la solicitud de permisos
+  requieren confirmación concreta; `ADR-019` impide usar los activos existentes
+  para una escritura de prueba.
+- Próximo paso exacto: confirmar `META_REDIRECT_URI`, registrar esa URL en la
+  app, habilitar sólo los cinco permisos documentados, iniciar sesión desde el
+  panel y comprobar conexión, Page, Instagram, permisos, expiración y filas
+  cifradas sin publicar nada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Cierre pendiente por smoke staging. Evidencia local: migración reversible,
+  pruebas de seguridad y panel sin tokens en verde el 2026-08-17.
 
 ## P5-T03 — Implementar adaptador de publicación en Instagram
 

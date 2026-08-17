@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-13
+Actualizado: 2026-08-17
 
 ## Fase activa
 
@@ -107,14 +107,15 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P5-T02` — implementar OAuth y almacenamiento de conexiones. `P5-T01`
-cerró con la Page e Instagram Business vinculadas, una aplicación existente y
-dos administradores de portfolio; el usuario aprobó usar los activos existentes
-sin una cuenta de prueba bajo `ADR-019`. El siguiente diseño debe validar
-`state`, redirect URI y sesión; cifrar tokens sólo en API/worker; aislar los
-activos por organización; y exponer estado sin secreto. No se configurará OAuth
-en Meta ni se solicitarán permisos hasta que la implementación local, sus
-pruebas y la confirmación externa concreta estén preparadas.
+Continuar `P5-T02` — OAuth y almacenamiento de conexiones. La vertical local ya
+incluye `state` de un solo uso ligado a sesión y tenant, redirect fija, Graph
+`v26.0`, descubrimiento de Page/Instagram, AES-256-GCM versionado, health,
+renovación, revocación auditada y panel sin secretos. La migración completa pasó
+up, repositorios, down y reaplicación en una base efímera. Falta la única
+verificación que puede cerrar la tarea: configurar redirect y cinco permisos en
+la aplicación Meta existente y ejecutar OAuth completo en staging, sin crear
+containers ni publicaciones. Esa escritura externa requiere confirmación
+concreta antes de operar la app.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

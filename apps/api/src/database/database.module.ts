@@ -11,6 +11,7 @@ import {
   PrismaGenerationPolicyRepository,
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
+  PrismaMetaConnectionRepository,
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
   PrismaPublicationProductionRepository,
@@ -28,6 +29,7 @@ import type {
   GenerationPolicyRepository,
   IdentityRepository,
   MediaAssetRepository,
+  MetaConnectionRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
   PublicationProductionRepository,
@@ -49,6 +51,7 @@ import {
   GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
+  META_CONNECTION_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
@@ -71,6 +74,7 @@ export class DatabaseModule {
         GENERATION_POLICY_REPOSITORY,
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
+        META_CONNECTION_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
@@ -81,6 +85,12 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: META_CONNECTION_REPOSITORY,
+          useFactory: (database: DatabaseClient): MetaConnectionRepository =>
+            new PrismaMetaConnectionRepository(database),
+        },
         {
           inject: [DATABASE_CLIENT],
           provide: GENERATION_RUN_EDITORIAL_REPOSITORY,

@@ -186,7 +186,7 @@ test("enables complete provider groups and redacts their secrets", () => {
     CLOUDINARY_FOLDER: "aramayo/test",
     META_APP_ID: "1234567890",
     META_APP_SECRET: "meta-placeholder-secret",
-    META_GRAPH_API_VERSION: "v24.0",
+    META_GRAPH_API_VERSION: "v26.0",
     META_REDIRECT_URI: "http://localhost:3001/oauth/meta/callback",
     OPENAI_API_KEY: "openai-placeholder-key",
     OPENAI_PROJECT_ID: "proj_placeholder",

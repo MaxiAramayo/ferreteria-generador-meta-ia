@@ -27,6 +27,7 @@ import {
   type ConfigurationSaveResult,
   type GenerationPolicySaveResult,
 } from "../../lib/organization-configuration-api";
+import { MetaConnectionsPanel } from "./meta-connections-panel";
 
 type ConfigurationNotice = Readonly<{
   kind: "conflict" | "error" | "success";
@@ -812,6 +813,7 @@ function ReadyView({
 }: {
   readonly state: Extract<ConfigurationState, { kind: "ready" }>;
 }) {
+  const { meta } = useConfiguration();
   const disabled = state.saving || !state.canEdit;
   return (
     <main className="configuration-shell">
@@ -845,6 +847,9 @@ function ReadyView({
           generationPolicy={state.generationPolicy}
         />
       )}
+      {state.canEdit ? (
+        <MetaConnectionsPanel apiBaseUrl={meta.apiBaseUrl} />
+      ) : null}
       <BrandForm configuration={state.configuration} disabled={disabled} />
       <section className="configuration-locations">
         <div className="configuration-section-heading">
