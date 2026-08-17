@@ -51,7 +51,9 @@ no coincidan con esta tabla.
    `/etc/aramayo-content/staging.env` sin imprimir su contenido.
 4. Generar dentro del VPS contraseñas distintas para PostgreSQL y Redis y una
    llave `TOKEN_ENCRYPTION_KEYS` nueva.
-5. Cargar únicamente el App ID y App Secret de `Aramayo Content Staging`.
+5. Cargar juntos App ID, App Secret, callback exacta y Graph `v26.0` de
+   `Aramayo Content Staging`. Mientras Meta esté deshabilitada, los cuatro
+   valores permanecen vacíos; un grupo parcial hace fallar el bootstrap.
 6. Mantener vacíos OpenAI, Odoo y Cloudinary.
 7. Validar con `docker compose config --quiet` antes de descargar o iniciar.
 
