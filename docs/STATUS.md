@@ -112,13 +112,14 @@ incluye `state` de un solo uso ligado a sesión y tenant, redirect fija, Graph
 `v26.0`, descubrimiento de Page/Instagram, AES-256-GCM versionado, health,
 renovación, revocación auditada y panel sin secretos. La migración completa pasó
 up, repositorios, down y reaplicación en una base efímera. Falta la única
-verificación que puede cerrar la tarea: configurar redirect y cinco permisos en
-una app Meta de staging y ejecutar OAuth completo, sin crear containers ni
-publicaciones. Antes hace falta provisionar un hostname staging real: el nombre
-de Render de `ADR-012` sigue siendo nominal y no debe registrarse como callback.
-El acceso a Meta for Developers quedó abierto para que el administrador ingrese
-personalmente contraseña y 2FA. Crear/configurar la app y eventualmente generar
-costo de hosting requieren confirmación concreta.
+verificación que puede cerrar la tarea: registrar la redirect y ejecutar OAuth
+completo en staging, sin crear containers ni publicaciones. `Aramayo Content
+Staging` ya fue creada en el portfolio correcto, quedó sin publicar y los cinco
+permisos exactos están `Listo para prueba`; no se reveló su secreto ni se
+agregaron scopes opcionales. Antes del OAuth hace falta provisionar un hostname
+staging real: el nombre de Render de `ADR-012` sigue siendo nominal y no debe
+registrarse como callback. Crear hosting con costo requiere una confirmación
+concreta.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

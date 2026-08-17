@@ -162,7 +162,7 @@ almacenar tokens cifrados con ciclo de vida administrado.
 - Fecha: 2026-08-17.
 - Estado real: dominio, contratos, migración, repositorio, cifrado AES-256-GCM,
   adaptador Graph `v26.0`, casos de uso, controlador y panel administrativo
-  implementados localmente. No se llamó a Meta ni a OpenAI.
+  implementados localmente. Esa verificación no llamó a Meta ni a OpenAI.
 - Restricciones conservadas: OAuth sólo para `admin`; `state` de un solo uso
   ligado a sesión/tenant; redirect fija; secretos fuera de UI, contratos y
   auditoría; revocación local fail-closed aunque la remota sea ambigua.
@@ -170,19 +170,20 @@ almacenar tokens cifrados con ciclo de vida administrado.
   aplicó todas las migraciones desde cero, ejecutó repositorios, revirtió
   `20260815000000_meta_connections`, la reaplicó y terminó en verde. `pnpm
   verify` pasó build, lint, typecheck, tests, baseline y smoke completos.
-- Verificación pendiente: configurar redirect y permisos en la aplicación Meta
-  existente y completar el OAuth en staging con un administrador autorizado.
-- Bloqueo: la escritura externa de configuración y la solicitud de permisos
-  requieren confirmación concreta; además todavía no existe un hostname remoto
-  de staging ni una app Meta separada confirmados. `ADR-019` impide usar los
-  activos existentes para una escritura de prueba.
-- Próximo paso exacto: provisionar y verificar el host staging, confirmar su
-  `META_REDIRECT_URI`, configurar la app Meta separada con sólo los cinco
-  permisos documentados, iniciar sesión desde el panel y comprobar conexión,
-  Page, Instagram, permisos, expiración y filas cifradas sin publicar nada.
-- Acceso preparado: el 2026-08-17 se abrió Meta for Developers en el navegador
-  integrado y quedó esperando que el administrador ingrese personalmente su
-  contraseña y 2FA; esas credenciales no se comparten con el agente.
+- Configuración remota preparada: con autorización explícita se creó `Aramayo
+  Content Staging` en el portfolio correcto, con casos de uso Instagram y Page.
+  Los cinco permisos exactos de la vertical quedaron `Listo para prueba`; no se
+  agregaron permisos de mensajes, comentarios, anuncios ni insights. La app
+  permanece sin publicar y no se mostró ni copió el App Secret.
+- Verificación pendiente: registrar la redirect exacta y completar el OAuth en
+  staging con un administrador autorizado.
+- Bloqueo: todavía no existe un hostname remoto staging con TLS. El objetivo
+  nominal de Render no puede registrarse como callback y `ADR-019` impide usar
+  los activos existentes para una escritura de prueba.
+- Próximo paso exacto: provisionar y verificar el host staging, configurar
+  `META_REDIRECT_URI=https://<api-staging>/oauth/meta/callback`, iniciar sesión
+  desde el panel y comprobar conexión, Page, Instagram, permisos, expiración y
+  filas cifradas sin publicar nada.
 
 ### Evidencia de cierre
 

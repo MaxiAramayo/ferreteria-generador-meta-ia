@@ -1,6 +1,7 @@
 # Integración Meta
 
-Verificado contra documentación oficial disponible: 2026-08-12.
+Verificado contra documentación oficial y configuración autenticada disponible:
+2026-08-17.
 
 ## Alcance inicial
 
@@ -49,6 +50,26 @@ legales. La decisión de no separar activos y los límites de smoke están en
 [`ADR-019`](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md).
 No se alteraron permisos, conexiones ni configuraciones, y no se copió ningún
 token.
+
+## Aplicación separada de staging (2026-08-17)
+
+Meta for Developers confirmó que el portfolio de Aramayo no tenía una app
+registrada visible; las aplicaciones que aparecían al quitar el filtro
+pertenecían a otro portfolio y no se tocaron. Con autorización explícita se creó
+`Aramayo Content Staging`, vinculada al portfolio de Aramayo y con los casos de
+uso de administración de Instagram y Facebook Page. La app permanece **sin
+publicar** y su secreto nunca se mostró ni copió.
+
+Los cinco permisos que solicita la implementación quedaron `Listo para prueba`:
+`instagram_basic`, `instagram_content_publish`, `pages_manage_posts`,
+`pages_read_engagement` y `pages_show_list`. Meta agregó automáticamente
+`business_management` y `public_profile` al configurar los casos de uso, pero
+la plataforma no los pide en su URL OAuth. No se habilitaron mensajes,
+comentarios, anuncios, insights ni otros permisos opcionales.
+
+Sigue pendiente la callback porque todavía no existe un hostname staging real
+con TLS. No se registrará el objetivo nominal de Render ni una URL productiva
+como sustituto.
 
 ## Versión fijada y actualización
 
