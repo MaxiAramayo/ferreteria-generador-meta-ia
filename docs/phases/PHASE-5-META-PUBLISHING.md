@@ -193,10 +193,14 @@ almacenar tokens cifrados con ciclo de vida administrado.
   parcial. El perfil ahora mantiene vacíos App ID, App Secret, callback y
   versión hasta cargarlos juntos; la API reinició sana. El arreglo quedó en
   `6bfb1d9`.
-- Bloqueo actual: Donweb requiere que el usuario inicie sesión; no hay
-  credenciales DNS almacenadas o compartidas con el agente. DNS, TLS y el App
-  Secret siguen pendientes.
-- Próximo paso exacto: crear los cuatro registros DNS staging, obtener TLS,
+- DNS/TLS completados: Donweb muestra los cuatro registros A/AAAA exactos con
+  TTL 900; `ns1/ns2`, 1.1.1.1 y 8.8.8.8 devolvieron las IP correctas. Caddy es
+  el único servicio que publica `80/443`, obtuvo certificados Let's Encrypt y
+  web, `/health` y `/ready` respondieron `200` con TLS y headers verificados.
+- Bloqueo actual: Meta exige volver a introducir la contraseña de la persona
+  administradora antes de revelar el App Secret. La ventana quedó entregada al
+  usuario; el secreto no fue mostrado, copiado ni registrado.
+- Próximo paso exacto: copiar el App Secret directamente al entorno remoto,
   cargar el grupo Meta atómicamente y registrar
   `https://api.staging.content.ferreteriaaramayo.com.ar/oauth/meta/callback`.
   Después, iniciar sesión desde el panel y comprobar conexión, Page, Instagram,

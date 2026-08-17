@@ -64,11 +64,12 @@ fueron descargadas anónimamente desde GHCR y verificadas como `linux/amd64`, si
 crear contenedores ni volúmenes.
 
 El 2026-08-17 staging inició PostgreSQL, Redis, migración, API y web del SHA
-`4759c3d` en sus redes privadas. No publica puertos y Caddy/worker permanecen
-detenidos hasta completar DNS y el grupo atómico de credenciales Meta. El seed
-canónico creó Aramayo, marca y sucursales; un administrador con contraseña
-Argon2id almacenada en el Llavero local pasó login y logout remotos. Producción
-no fue iniciada ni modificada.
+`4759c3d` en sus redes privadas. Luego se crearon los cuatro registros staging
+y Caddy obtuvo certificados Let's Encrypt: web, `/health` y `/ready`
+respondieron `200` por HTTPS verificado. El seed canónico creó Aramayo, marca y
+sucursales; un administrador con contraseña Argon2id almacenada en el Llavero
+local pasó login y logout remotos. Worker permanece detenido. Producción no fue
+iniciada ni modificada.
 
 ## Matriz de URLs
 

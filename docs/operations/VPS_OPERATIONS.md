@@ -41,8 +41,8 @@ El 2026-08-17 se preparó la release `4759c3d` bajo
 `/opt/aramayo-content-staging`. Las imágenes web, API y migración publicadas por
 el workflow `32046279735` reportaron ese mismo label de revisión. PostgreSQL,
 Redis, migración, API y web están sanos dentro de los proyectos y volúmenes
-`aramayo-content-staging`; ninguno publica puertos. Caddy y worker permanecen
-detenidos, por lo que sólo SSH continúa expuesto.
+`aramayo-content-staging`; sólo Caddy publica `80/443`. Caddy está sano con TLS
+válido y worker permanece detenido.
 
 La base recibió el seed canónico y un administrador staging. La contraseña no
 se escribió en el VPS ni en Git: el servidor conserva únicamente su hash
@@ -62,7 +62,21 @@ Donweb sirve estos cuatro registros con TTL observado de 900 segundos:
 | `A` | `api.content.ferreteriaaramayo.com.ar` | `144.217.91.115` |
 | `AAAA` | `api.content.ferreteriaaramayo.com.ar` | `2607:5300:205:200::9f41` |
 
-Caddy será el único ingreso público y publicará `80/tcp`, `443/tcp` y
+Staging agrega otros cuatro registros, también con TTL 900:
+
+| Tipo | Nombre | Destino |
+|---|---|---|
+| `A` | `staging.content.ferreteriaaramayo.com.ar` | `144.217.91.115` |
+| `AAAA` | `staging.content.ferreteriaaramayo.com.ar` | `2607:5300:205:200::9f41` |
+| `A` | `api.staging.content.ferreteriaaramayo.com.ar` | `144.217.91.115` |
+| `AAAA` | `api.staging.content.ferreteriaaramayo.com.ar` | `2607:5300:205:200::9f41` |
+
+El 2026-08-17 los cuatro valores respondieron desde `ns1.donweb.com`,
+`ns2.donweb.com`, 1.1.1.1 y 8.8.8.8. Caddy emitió certificados Let's Encrypt
+para ambos nombres; web, `/health` y `/ready` devolvieron `200` por IPv6 con
+verificación TLS exitosa y los headers de seguridad esperados.
+
+Caddy es el único ingreso público y publica `80/tcp`, `443/tcp` y
 `443/udp`. PostgreSQL, Redis, API directa y worker nunca publican puertos. El
 correo ACME está configurado únicamente en el archivo remoto protegido.
 

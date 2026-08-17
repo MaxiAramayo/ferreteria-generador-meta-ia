@@ -123,10 +123,12 @@ credenciales y keyring separados. El perfil ya está validado; falta publicar
 su SHA, crear DNS, obtener TLS, cargar el secreto de la app por canal seguro y
 ejecutar el OAuth completo. Las imágenes del SHA `4759c3d` se publicaron en
 GHCR y la release remota quedó preparada. PostgreSQL, Redis, migración, API y
-web están sanos únicamente en redes privadas; Caddy y worker permanecen
-detenidos. El seed canónico y un administrador Argon2id auditado pasaron login
-y logout reales. El siguiente bloqueo es iniciar sesión en Donweb para crear
-los registros DNS; no se dispone de credenciales DNS en el agente.
+web están sanos. El seed canónico y un administrador Argon2id auditado pasaron
+login y logout reales. Los cuatro registros DNS staging ya resuelven en
+`ns1/ns2` de Donweb, 1.1.1.1 y 8.8.8.8; Caddy obtuvo certificados Let's Encrypt
+y web, liveness y readiness responden `200` por IPv6 con TLS verificado. Worker
+sigue detenido. Falta confirmar la contraseña de Meta en el navegador para
+copiar el App Secret por canal seguro, cargar el grupo atómico y ejecutar OAuth.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
