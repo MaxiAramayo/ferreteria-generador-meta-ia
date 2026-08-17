@@ -160,7 +160,9 @@ function WorkspaceStatus({
         <h1>Mesa de contenido</h1>
         <p>{message}</p>
         {onRetry === undefined ? (
-          <Link href="/">Volver al inicio</Link>
+          <Link href={kind === "forbidden" ? "/iniciar-sesion" : "/"}>
+            {kind === "forbidden" ? "Iniciar sesión" : "Volver al inicio"}
+          </Link>
         ) : (
           <button
             className="workspace-primary-action"

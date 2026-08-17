@@ -360,9 +360,11 @@ function ConfigurationProvider({
 }
 
 function StatusView({
+  action = "retry",
   eyebrow,
   message,
 }: {
+  readonly action?: "login" | "retry";
   readonly eyebrow: string;
   readonly message: string;
 }) {
@@ -373,9 +375,15 @@ function StatusView({
         <p className="configuration-eyebrow">{eyebrow}</p>
         <h1>Configuración operativa</h1>
         <p>{message}</p>
-        <button className="configuration-button" onClick={actions.reload}>
-          Reintentar
-        </button>
+        {action === "login" ? (
+          <Link className="configuration-button" href="/iniciar-sesion">
+            Iniciar sesión
+          </Link>
+        ) : (
+          <button className="configuration-button" onClick={actions.reload}>
+            Reintentar
+          </button>
+        )}
       </section>
     </main>
   );
@@ -899,8 +907,9 @@ function ConfigurationContent() {
     case "forbidden":
       return (
         <StatusView
+          action="login"
           eyebrow="Acceso restringido"
-          message="Tu sesión no permite ver o modificar esta configuración."
+          message="Iniciá sesión con una cuenta autorizada para ver esta configuración."
         />
       );
     case "error":
