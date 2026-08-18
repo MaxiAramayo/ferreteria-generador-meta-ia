@@ -18,6 +18,7 @@ export interface MetaCredentials {
   readonly appId: string;
   readonly appSecret: SecretValue;
   readonly graphApiVersion: string;
+  readonly pageId: string;
   readonly redirectUri: string;
 }
 
@@ -89,6 +90,7 @@ const metaVariables = [
   "META_APP_SECRET",
   "META_REDIRECT_URI",
   "META_GRAPH_API_VERSION",
+  "META_PAGE_ID",
 ] as const;
 
 const openAiVariables = ["OPENAI_API_KEY", "OPENAI_PROJECT_ID"] as const;
@@ -254,6 +256,12 @@ export function parseMetaIntegration(
         processName,
         "META_GRAPH_API_VERSION",
         /^v\d+\.\d+$/u,
+      ),
+      pageId: assertPattern(
+        rawEnvironment,
+        processName,
+        "META_PAGE_ID",
+        /^\d+$/u,
       ),
       redirectUri: parseHttpUrl(
         rawEnvironment,

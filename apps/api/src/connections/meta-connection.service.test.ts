@@ -60,6 +60,7 @@ function configuration(ring: EncryptionKeyRing): ApiConfiguration {
         appId: "123456789",
         appSecret: new SecretValue("meta-app-secret-value"),
         graphApiVersion: "v26.0",
+        pageId: "1098765432109876",
         redirectUri: "http://localhost:3001/oauth/meta/callback",
       }),
       enabled: true,

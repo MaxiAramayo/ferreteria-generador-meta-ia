@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-17
+Actualizado: 2026-08-18
 
 ## Fase activa
 
@@ -107,28 +107,33 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T02` — OAuth y almacenamiento de conexiones. La vertical local ya
-incluye `state` de un solo uso ligado a sesión y tenant, redirect fija, Graph
-`v26.0`, descubrimiento de Page/Instagram, AES-256-GCM versionado, health,
-renovación, revocación auditada y panel sin secretos. La migración completa pasó
-up, repositorios, down y reaplicación en una base efímera. Falta la única
-verificación que puede cerrar la tarea: registrar la redirect y ejecutar OAuth
-completo en staging, sin crear containers ni publicaciones. `Aramayo Content
-Staging` ya fue creada en el portfolio correcto, quedó sin publicar y los cinco
-permisos exactos están `Listo para prueba`; no se reveló su secreto ni se
-agregaron scopes opcionales. El usuario autorizó continuar con hosting y DNS.
-La inspección del VPS demostró margen con producción detenida y `ADR-020`
-habilitó un staging temporal con proyecto Compose, dominios, datos, volúmenes,
-credenciales y keyring separados. El perfil ya está validado; falta publicar
-su SHA, crear DNS, obtener TLS, cargar el secreto de la app por canal seguro y
-ejecutar el OAuth completo. Las imágenes del SHA `4759c3d` se publicaron en
-GHCR y la release remota quedó preparada. PostgreSQL, Redis, migración, API y
-web están sanos. El seed canónico y un administrador Argon2id auditado pasaron
-login y logout reales. Los cuatro registros DNS staging ya resuelven en
-`ns1/ns2` de Donweb, 1.1.1.1 y 8.8.8.8; Caddy obtuvo certificados Let's Encrypt
-y web, liveness y readiness responden `200` por IPv6 con TLS verificado. Worker
-sigue detenido. Falta confirmar la contraseña de Meta en el navegador para
-copiar el App Secret por canal seguro, cargar el grupo atómico y ejecutar OAuth.
+Continuar `P5-T02` — OAuth y almacenamiento de conexiones. El entorno staging
+está completo y sano: DNS, TLS, Caddy, PostgreSQL, Redis, API y web, con el
+worker detenido y el grupo Meta cargado. La redirect exacta ya estaba registrada
+en `Aramayo Content Staging`, con modo estricto de URI, y la app sigue sin
+publicar.
+
+El OAuth completo se ejecutó dos veces contra staging el 2026-08-18 y dejó
+demostrado que la vertical funciona y falla cerrada: token cifrado AES-256-GCM
+`v1` con IV y tag propios, credencial de larga duración, cinco permisos con cero
+faltantes, reconexión idempotente que subió `version` sin duplicar fila, health
+check con estados diferenciados y auditoría de tres eventos sin token, URL ni
+payload. El panel mostró cuenta, permisos y salud sin exponer credenciales.
+
+Las tres corridas terminaron igual en `asset_removed` con `assetCount: 0`. El
+diagnóstico descartó con evidencia el código, el consentimiento y el tipo de
+diálogo, y confirmó que la Page se resuelve por identificador aunque
+`me/accounts` la enumere vacía, porque el portfolio es su dueño y la persona la
+administra por asignación de negocio. `ADR-021` decidió resolver la Page por
+`META_PAGE_ID` en vez de pedir `business_management`, y el cambio ya está
+implementado con `pnpm verify` en verde. El grupo Meta pasó de cuatro a cinco
+variables.
+
+Falta la verificación que cierra la tarea: reconstruir y publicar las imágenes
+del commit con este cambio, desplegar staging, agregar `META_PAGE_ID` al entorno
+remoto —la API no arranca sin él, por ser grupo atómico—, revocar la conexión
+actual y rehacer el OAuth comprobando que quede `healthy` con Page e Instagram
+poblados, sin publicar nada.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:
