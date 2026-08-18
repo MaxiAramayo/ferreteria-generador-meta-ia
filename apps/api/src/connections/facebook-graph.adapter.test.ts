@@ -4,12 +4,17 @@ import test from "node:test";
 import { SecretValue, type MetaCredentials } from "@aramayo/configuration";
 
 import { FacebookGraphAdapter } from "./facebook-graph.adapter.ts";
-import { MetaGraphError } from "./meta-graph.port.ts";
+import {
+  MetaAssetUnavailableError,
+  MetaGraphError,
+  MetaGraphUnavailableError,
+} from "./meta-graph.port.ts";
 
 const credentials: MetaCredentials = Object.freeze({
   appId: "123456789",
   appSecret: new SecretValue("meta-app-secret-value"),
   graphApiVersion: "v26.0",
+  pageId: "1098765432109876",
   redirectUri: "https://api.content.example.com/oauth/meta/callback",
 });
 
@@ -52,20 +57,16 @@ test("descubre cuenta, Page e Instagram Business con llamadas GET versionadas", 
         }),
       );
     }
-    if (url.pathname.endsWith("/me/accounts")) {
+    if (url.pathname.endsWith(`/${credentials.pageId}`)) {
       return Promise.resolve(
         json({
-          data: [
-            {
-              access_token: "page-token",
-              id: "page-id",
-              instagram_business_account: {
-                id: "ig-id",
-                username: "ferreteria_aramayo",
-              },
-              name: "Aramayo",
-            },
-          ],
+          access_token: "page-token",
+          id: credentials.pageId,
+          instagram_business_account: {
+            id: "ig-id",
+            username: "ferreteria_aramayo",
+          },
+          name: "Aramayo",
         }),
       );
     }
@@ -79,11 +80,60 @@ test("descubre cuenta, Page e Instagram Business con llamadas GET versionadas", 
     discovery.assets.map((asset) => asset.kind),
     ["page", "instagram_business"],
   );
+  assert.equal(discovery.assets[0]?.providerAssetId, credentials.pageId);
   assert.deepEqual(paths.sort(), [
+    `GET /v26.0/${credentials.pageId}`,
     "GET /v26.0/me",
-    "GET /v26.0/me/accounts",
     "GET /v26.0/me/permissions",
   ]);
+});
+
+test("una Page que Meta no expone deja cero activos sin romper el descubrimiento", async () => {
+  const adapter = new FacebookGraphAdapter(credentials, (input) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input.toString(),
+    );
+    if (url.pathname.endsWith(`/${credentials.pageId}`)) {
+      return Promise.resolve(
+        json(
+          { error: { code: 100, message: "Unsupported get request." } },
+          400,
+        ),
+      );
+    }
+    if (url.pathname.endsWith("/me/permissions")) {
+      return Promise.resolve(
+        json({ data: [{ permission: "pages_show_list", status: "granted" }] }),
+      );
+    }
+    return Promise.resolve(json({ id: "account-id", name: "Administrador" }));
+  });
+
+  const discovery = await adapter.discover("user-token");
+  assert.deepEqual(discovery.assets, []);
+  assert.deepEqual(discovery.grantedPermissions, ["pages_show_list"]);
+});
+
+test("una falla de Meta no se confunde con un activo removido", async () => {
+  const adapter = new FacebookGraphAdapter(credentials, (input) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input.toString(),
+    );
+    if (url.pathname.endsWith(`/${credentials.pageId}`)) {
+      return Promise.resolve(json({ error: { code: 2 } }, 500));
+    }
+    if (url.pathname.endsWith("/me/permissions")) {
+      return Promise.resolve(json({ data: [] }));
+    }
+    return Promise.resolve(json({ id: "account-id", name: "Administrador" }));
+  });
+
+  await assert.rejects(
+    () => adapter.discover("user-token"),
+    (cause: unknown) =>
+      cause instanceof MetaGraphUnavailableError &&
+      !(cause instanceof MetaAssetUnavailableError),
+  );
 });
 
 test("un error 190 se tipa como token vencido sin reproducir credenciales", async () => {

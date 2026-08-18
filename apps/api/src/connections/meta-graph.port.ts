@@ -60,3 +60,17 @@ export class MetaGraphUnavailableError extends Error {
     this.name = "MetaGraphUnavailableError";
   }
 }
+
+/**
+ * Meta respondió que el objeto pedido no existe o no es visible para esta
+ * credencial. Para un activo declarado eso significa que dejó de estar
+ * disponible, que es distinto de que Meta esté caído: hereda de
+ * `MetaGraphUnavailableError` para que quien no necesite la distinción lo
+ * siga tratando como una falla de proveedor.
+ */
+export class MetaAssetUnavailableError extends MetaGraphUnavailableError {
+  constructor() {
+    super("Meta no expone el activo declarado a esta conexión.");
+    this.name = "MetaAssetUnavailableError";
+  }
+}

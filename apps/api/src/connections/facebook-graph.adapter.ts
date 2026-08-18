@@ -2,10 +2,12 @@ import type { MetaCredentials } from "@aramayo/configuration";
 import { metaRequiredPermissions } from "@aramayo/domain";
 
 import {
+  MetaAssetUnavailableError,
   MetaGraphError,
   MetaGraphUnavailableError,
   MetaIntegrationDisabledError,
   type MetaGraphPort,
+  type MetaRemoteAsset,
   type MetaRemoteCredential,
   type MetaRemoteDiscovery,
 } from "./meta-graph.port.ts";
@@ -81,12 +83,20 @@ function metaErrorFromPayload(
         "Meta rechazó los permisos de la conexión.",
       );
     }
+    // `100` cubre «no existe» y «no visible para esta credencial». Para un
+    // activo declarado ambas cosas significan lo mismo.
+    if (code === 100) {
+      return new MetaAssetUnavailableError();
+    }
   }
-  return status === 403
-    ? new MetaGraphError(
-        "permission_revoked",
-        "Meta rechazó los permisos de la conexión.",
-      )
+  if (status === 403) {
+    return new MetaGraphError(
+      "permission_revoked",
+      "Meta rechazó los permisos de la conexión.",
+    );
+  }
+  return status === 404
+    ? new MetaAssetUnavailableError()
     : new MetaGraphUnavailableError(
         "Meta no pudo completar la operación solicitada.",
       );
@@ -140,16 +150,11 @@ export class FacebookGraphAdapter implements MetaGraphPort {
   }
 
   async discover(accessToken: string): Promise<MetaRemoteDiscovery> {
-    const [accountPayload, permissionsPayload, pagesPayload] =
-      await Promise.all([
-        this.#get("me", accessToken, { fields: "id,name" }),
-        this.#get("me/permissions", accessToken, { limit: "100" }),
-        this.#get("me/accounts", accessToken, {
-          fields:
-            "id,name,access_token,instagram_business_account{id,username}",
-          limit: "100",
-        }),
-      ]);
+    const [accountPayload, permissionsPayload, assets] = await Promise.all([
+      this.#get("me", accessToken, { fields: "id,name" }),
+      this.#get("me/permissions", accessToken, { limit: "100" }),
+      this.#declaredPageAssets(accessToken),
+    ]);
 
     const grantedPermissions = dataArray(permissionsPayload).flatMap(
       (entry) => {
@@ -160,43 +165,63 @@ export class FacebookGraphAdapter implements MetaGraphPort {
       },
     );
 
-    const assets = dataArray(pagesPayload).flatMap((entry) => {
-      const page = objectValue(entry, "page");
-      const pageId = stringValue(page, "id");
-      const pageName = stringValue(page, "name");
-      const pageToken = optionalString(page, "access_token");
-      const pageAsset = Object.freeze({
-        ...(pageToken === undefined ? {} : { accessToken: pageToken }),
-        kind: "page" as const,
-        name: pageName,
-        providerAssetId: pageId,
-      });
-      const instagramValue = page["instagram_business_account"];
-      if (instagramValue === undefined || instagramValue === null) {
-        return [pageAsset];
-      }
-      const instagram = objectValue(
-        instagramValue,
-        "instagram_business_account",
-      );
-      const username = optionalString(instagram, "username");
-      return [
-        pageAsset,
-        Object.freeze({
-          kind: "instagram_business" as const,
-          name: username === undefined ? pageName : `@${username}`,
-          providerAssetId: stringValue(instagram, "id"),
-          ...(username === undefined ? {} : { username }),
-        }),
-      ];
-    });
-
     return Object.freeze({
       accountName: stringValue(accountPayload, "name"),
-      assets: Object.freeze(assets),
+      assets,
       grantedPermissions: Object.freeze(grantedPermissions.sort()),
       providerAccountId: stringValue(accountPayload, "id"),
     });
+  }
+
+  /**
+   * La Page se resuelve por su identificador declarado y no enumerando
+   * `me/accounts`: cuando el portfolio es dueño del activo y la persona lo
+   * administra por asignación de negocio, esa enumeración vuelve vacía aunque
+   * el permiso esté concedido (`ADR-021`).
+   *
+   * Un activo que Meta no expone devuelve cero activos, para que la salud lo
+   * clasifique como `asset_removed`. Una falla de Meta se propaga en cambio
+   * sin tocar los activos: un corte transitorio no es un activo removido.
+   */
+  async #declaredPageAssets(
+    accessToken: string,
+  ): Promise<readonly MetaRemoteAsset[]> {
+    let page: Record<string, unknown>;
+    try {
+      page = await this.#get(this.#credentials.pageId, accessToken, {
+        fields: "id,name,access_token,instagram_business_account{id,username}",
+      });
+    } catch (cause: unknown) {
+      if (cause instanceof MetaAssetUnavailableError) {
+        return Object.freeze([]);
+      }
+      throw cause;
+    }
+
+    const pageName = stringValue(page, "name");
+    const pageToken = optionalString(page, "access_token");
+    const pageAsset = Object.freeze({
+      ...(pageToken === undefined ? {} : { accessToken: pageToken }),
+      kind: "page" as const,
+      name: pageName,
+      providerAssetId: stringValue(page, "id"),
+    });
+
+    const instagramValue = page["instagram_business_account"];
+    if (instagramValue === undefined || instagramValue === null) {
+      return Object.freeze([pageAsset]);
+    }
+    const instagram = objectValue(instagramValue, "instagram_business_account");
+    const username = optionalString(instagram, "username");
+    return Object.freeze([
+      pageAsset,
+      Object.freeze({
+        kind: "instagram_business" as const,
+        name: username === undefined ? pageName : `@${username}`,
+        providerAssetId: stringValue(instagram, "id"),
+        ...(username === undefined ? {} : { username }),
+      }),
+    ]);
   }
 
   async exchangeCode(code: string): Promise<MetaRemoteCredential> {

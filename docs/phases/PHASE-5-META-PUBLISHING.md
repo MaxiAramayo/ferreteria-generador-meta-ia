@@ -197,14 +197,39 @@ almacenar tokens cifrados con ciclo de vida administrado.
   TTL 900; `ns1/ns2`, 1.1.1.1 y 8.8.8.8 devolvieron las IP correctas. Caddy es
   el único servicio que publica `80/443`, obtuvo certificados Let's Encrypt y
   web, `/health` y `/ready` respondieron `200` con TLS y headers verificados.
-- Bloqueo actual: Meta exige volver a introducir la contraseña de la persona
-  administradora antes de revelar el App Secret. La ventana quedó entregada al
-  usuario; el secreto no fue mostrado, copiado ni registrado.
-- Próximo paso exacto: copiar el App Secret directamente al entorno remoto,
-  cargar el grupo Meta atómicamente y registrar
-  `https://api.staging.content.ferreteriaaramayo.com.ar/oauth/meta/callback`.
-  Después, iniciar sesión desde el panel y comprobar conexión, Page, Instagram,
-  permisos, expiración y filas cifradas sin publicar nada.
+- 2026-08-18: el grupo Meta quedó cargado en el entorno remoto y la redirect
+  exacta ya estaba registrada en `Aramayo Content Staging`, con modo estricto de
+  URI y HTTPS obligatorio. La API corre con `ambiente=staging meta=habilitada`;
+  PostgreSQL, Redis, Caddy y web siguen sanos y el worker detenido.
+- 2026-08-18: el OAuth completo se ejecutó dos veces contra staging y quedó
+  demostrado que la vertical funciona y falla cerrada. Verificado en la base:
+  token cifrado AES-256-GCM con `key_version` `v1` e IV y tag en columnas
+  propias, credencial de larga duración, los cinco permisos concedidos con cero
+  faltantes, reconexión idempotente que subió `version` de 1 a 2 sin duplicar
+  fila, health check con estados diferenciados y tres eventos de auditoría sin
+  token, URL ni payload del proveedor. El panel mostró cuenta, permisos y salud
+  sin exponer credenciales.
+- 2026-08-18: las tres corridas terminaron en `asset_removed` con
+  `assetCount: 0`. El diagnóstico descartó con evidencia que fuera el código, el
+  consentimiento o el tipo de diálogo, y confirmó con un resultado positivo que
+  la Page se resuelve por identificador aunque `me/accounts` la enumere vacía.
+  La causa y la decisión están en
+  [`ADR-021`](../architecture/decisions/ADR-021-DECLARED-META-PAGE-RESOLUTION.md).
+- 2026-08-18: implementado el descubrimiento por Page declarada. Cambiaron
+  `packages/configuration/src/providers.ts` —`META_PAGE_ID` entra al grupo
+  atómico, que pasa de cuatro a cinco variables—, `meta-graph.port.ts` con
+  `MetaAssetUnavailableError`, `facebook-graph.adapter.ts` con
+  `#declaredPageAssets`, sus tests, los tres `.env.example`, el `compose.yaml`
+  de producción y el ADR nuevo. `pnpm verify` pasó completo en verde.
+- Verificación pendiente: repetir el OAuth en staging con el descubrimiento
+  nuevo y comprobar que la conexión queda `healthy` con Page e Instagram
+  poblados, sin publicar nada.
+- Próximo paso exacto: reconstruir y publicar las imágenes del commit que
+  contenga este cambio, desplegar staging, agregar `META_PAGE_ID` al grupo Meta
+  de `/etc/aramayo-content/staging.env` —la API no arranca hasta que esté, por
+  ser grupo atómico—, revocar la conexión actual y rehacer el OAuth desde el
+  panel. El identificador de la Page se lee de Configuración del negocio; no se
+  registra en Git.
 
 ### Evidencia de cierre
 
