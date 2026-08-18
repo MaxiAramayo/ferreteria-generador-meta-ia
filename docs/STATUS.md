@@ -107,33 +107,36 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T02` — OAuth y almacenamiento de conexiones. El entorno staging
-está completo y sano: DNS, TLS, Caddy, PostgreSQL, Redis, API y web, con el
-worker detenido y el grupo Meta cargado. La redirect exacta ya estaba registrada
-en `Aramayo Content Staging`, con modo estricto de URI, y la app sigue sin
-publicar.
+Comenzar `P5-T03` — adaptador de publicación en Instagram. Sus dependencias
+están completas y la conexión de staging ya entrega Page e Instagram activos con
+token utilizable. Vale recordar que `ADR-019` no autoriza escribir en los activos
+reales: una publicación, incluso de prueba, necesita autorización posterior y
+concreta con activo, media, copy, destino y efecto esperado.
 
-El OAuth completo se ejecutó dos veces contra staging el 2026-08-18 y dejó
-demostrado que la vertical funciona y falla cerrada: token cifrado AES-256-GCM
-`v1` con IV y tag propios, credencial de larga duración, cinco permisos con cero
-faltantes, reconexión idempotente que subió `version` sin duplicar fila, health
-check con estados diferenciados y auditoría de tres eventos sin token, URL ni
-payload. El panel mostró cuenta, permisos y salud sin exponer credenciales.
+`P5-T02` quedó cerrada el 2026-08-18. El OAuth completo corrió en staging con
+las imágenes del SHA `45a2f272`, la conexión quedó `healthy` con la Facebook Page
+y `@ferreteria_aramayo` activos, seis permisos con cero faltantes, credencial de
+usuario y token de Page cifrados por separado con llave `v1`, tres transacciones
+OAuth consumidas y auditoría sin token, URL ni payload. El panel la muestra como
+`LISTA PARA PUBLICAR` sin exponer credenciales.
 
-Las tres corridas terminaron igual en `asset_removed` con `assetCount: 0`. El
-diagnóstico descartó con evidencia el código, el consentimiento y el tipo de
-diálogo, y confirmó que la Page se resuelve por identificador aunque
-`me/accounts` la enumere vacía, porque el portfolio es su dueño y la persona la
-administra por asignación de negocio. `ADR-021` decidió resolver la Page por
-`META_PAGE_ID` en vez de pedir `business_management`, y el cambio ya está
-implementado con `pnpm verify` en verde. El grupo Meta pasó de cuatro a cinco
-variables.
+El cierre destrabó un defecto de descubrimiento que vale recordar: `me/accounts`
+devuelve una colección vacía para una Page que pertenece al portfolio y que la
+persona administra por asignación de negocio, así que toda conexión terminaba en
+`asset_removed` con cero activos. Se reprodujo cuatro veces, incluso desde el
+Explorador de la API Graph, lo que descartó el adaptador, el consentimiento y el
+tipo de diálogo. `ADR-021` resolvió resolver la Page por `META_PAGE_ID` en vez de
+pedir `business_management`: el grupo Meta pasó de cuatro a cinco variables y el
+descubrimiento ahora distingue un activo que Meta no expone de una caída de Meta.
 
-Falta la verificación que cierra la tarea: reconstruir y publicar las imágenes
-del commit con este cambio, desplegar staging, agregar `META_PAGE_ID` al entorno
-remoto —la API no arranca sin él, por ser grupo atómico—, revocar la conexión
-actual y rehacer el OAuth comprobando que quede `healthy` con Page e Instagram
-poblados, sin publicar nada.
+Dos cosas quedaron registradas para las tareas siguientes:
+
+- el token renovado volvió sin `expires_in`, así que la conexión no tiene
+  vencimiento. El dominio ya modela `expiresAt` como opcional y la salud omite
+  el chequeo cuando falta, pero `P5-T06` tiene que decidir qué hace la
+  renovación programada con una credencial sin fecha;
+- la cuenta de Instagram no guarda token propio: publica con el de la Page, que
+  se cifra aparte. `P5-T03` depende de eso.
 
 `P4-T05` dejó cuatro cosas registradas que conviene tener presentes al
 continuar:

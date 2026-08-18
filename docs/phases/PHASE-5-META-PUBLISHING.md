@@ -121,8 +121,8 @@ capacidades reales antes de diseñar OAuth o solicitar permisos.
 
 ## P5-T02 — Implementar OAuth y almacenamiento de conexiones
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO — IMPLEMENTACIÓN LOCAL COMPLETA; SMOKE STAGING PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T02`, `P5-T01`
 - Riesgo: Alto
 
@@ -148,7 +148,7 @@ almacenar tokens cifrados con ciclo de vida administrado.
 
 ### Verificación obligatoria
 
-- [ ] Flujo OAuth completo en staging.
+- [x] Flujo OAuth completo en staging.
 - [x] Pruebas de state inválido, callback repetido y usuario sin permisos.
 - [x] Inspeccionar BD y contratos para confirmar cifrado y redacción; el
   adaptador no registra URLs, tokens ni payloads del proveedor.
@@ -233,8 +233,30 @@ almacenar tokens cifrados con ciclo de vida administrado.
 
 ### Evidencia de cierre
 
-- Cierre pendiente por smoke staging. Evidencia local: migración reversible,
-  pruebas de seguridad y panel sin tokens en verde el 2026-08-17.
+- OAuth completo en staging el 2026-08-18 con las imágenes del SHA
+  `45a2f272af609b19ccf17b2a8d02aab77a223db0`. El evento
+  `meta.connection.connected` quedó auditado con
+  `{"health": "healthy", "assetCount": 2, "permissionCount": 6}`, sin token, URL
+  ni payload del proveedor.
+- Base de staging después del cierre: una única conexión —sin duplicar tras
+  cinco versiones—, dos activos `active`, credencial de usuario cifrada en 282
+  caracteres base64url con `access_key_version` `v1`, y token de Page cifrado
+  aparte. La cuenta de Instagram no guarda token propio porque publica con el de
+  la Page. Tres transacciones OAuth consumidas, ninguna reutilizable.
+- Panel en staging: la conexión muestra `LISTA PARA PUBLICAR`, distintivo
+  `HABILITADA`, Instagram Business `@ferreteria_aramayo` y la Facebook Page como
+  activos, seis permisos con cero faltantes y ningún token.
+- El defecto de descubrimiento encontrado en el camino, su diagnóstico y la
+  decisión están en
+  [`ADR-021`](../architecture/decisions/ADR-021-DECLARED-META-PAGE-RESOLUTION.md).
+  El arreglo entró por [PR #5](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/5)
+  con CI en verde y `pnpm verify` completo.
+- Migración reversible, pruebas de seguridad y panel sin tokens en verde desde
+  el 2026-08-17; `pnpm verify` volvió a pasar completo el 2026-08-18.
+- Desviación registrada: el token renovado volvió sin `expires_in`, así que la
+  conexión quedó sin vencimiento. El dominio ya modela `expiresAt` como opcional
+  y la salud omite el chequeo cuando no existe, pero conviene tenerlo presente
+  al implementar renovación programada en `P5-T06`.
 
 ## P5-T03 — Implementar adaptador de publicación en Instagram
 
