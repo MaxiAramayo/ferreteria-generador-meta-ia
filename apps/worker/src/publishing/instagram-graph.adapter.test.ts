@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InstagramPublishingError } from "@aramayo/domain";
+import { MetaPublishingError } from "@aramayo/domain";
 
 import {
   HttpPublicMediaProbe,
@@ -68,11 +68,11 @@ function graphError(
 
 async function failureOf(
   operation: () => Promise<unknown>,
-): Promise<InstagramPublishingError> {
+): Promise<MetaPublishingError> {
   try {
     await operation();
   } catch (cause: unknown) {
-    assert.ok(cause instanceof InstagramPublishingError);
+    assert.ok(cause instanceof MetaPublishingError);
     return cause;
   }
   throw new Error("La operación tenía que fallar.");
@@ -211,9 +211,9 @@ test("los subcódigos de publicación se distinguen entre sí", async () => {
     [2_207_004, "media-invalid", false],
     [2_207_005, "media-invalid", false],
     [2_207_006, "permission-denied", false],
-    [2_207_008, "container-expired", true],
+    [2_207_008, "staged-media-expired", true],
     [2_207_009, "media-invalid", false],
-    [2_207_020, "container-expired", true],
+    [2_207_020, "staged-media-expired", true],
     [2_207_042, "publishing-limit-reached", false],
     [2_207_052, "media-unreachable", true],
   ] as const) {

@@ -379,18 +379,18 @@ resultado coherente con Instagram.
 
 ### Criterios de aceptación
 
-- [ ] El destino debe pertenecer a la conexión y organización.
-- [ ] Copy y media se validan antes de la llamada.
-- [ ] ID remoto y respuesta segura quedan persistidos.
-- [ ] Fallos se normalizan sin perder código útil de Meta.
-- [ ] Reintentos usan idempotencia y reconciliación.
-- [ ] Un fallo de Facebook no muta el resultado de Instagram.
+- [x] El destino debe pertenecer a la conexión y organización.
+- [x] Copy y media se validan antes de la llamada.
+- [x] ID remoto y respuesta segura quedan persistidos.
+- [x] Fallos se normalizan sin perder código útil de Meta.
+- [x] Reintentos usan idempotencia y reconciliación.
+- [x] Un fallo de Facebook no muta el resultado de Instagram.
 
 ### Verificación obligatoria
 
 - [ ] Publicación real en página de prueba.
-- [ ] Pruebas de permiso revocado, media inválida y timeout.
-- [ ] Verificar correlación entre intento local y publicación remota.
+- [x] Pruebas de permiso revocado, media inválida y timeout.
+- [x] Verificar correlación entre intento local y publicación remota.
 
 ### Fuera de alcance
 
@@ -398,11 +398,58 @@ resultado coherente con Instagram.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-19.
+- Estado real: reglas, puerto, adaptador de Graph y publicador implementados y
+  verificados localmente. Ninguna verificación llamó a Meta.
+- Archivos: `packages/domain/src/facebook-publishing.ts` y
+  `meta-publishing-attempt.ts` con sus pruebas y sus exports en `index.ts`;
+  `apps/worker/src/publishing/facebook-graph.adapter.ts`,
+  `facebook-publisher.service.ts` y las dos pruebas del worker;
+  `docs/integrations/META.md` con el contrato verificado.
+- **Decisión de diseño principal: la publicación usa dos llamadas y no una.**
+  Facebook admite publicar la foto con su texto de una sola vez, pero entonces
+  una respuesta perdida deja a la plataforma sin ningún identificador que
+  consultar, y las dos salidas automáticas —publicar de nuevo o abandonar— son
+  igual de malas. Subir la foto con `published=false` primero produce un
+  identificador que se guarda antes de pedir la publicación, y ese identificador
+  responde después, vía `page_story_id`, si la publicación existe.
+- **Esa respuesta es concluyente en un solo sentido.** Presente prueba que la
+  publicación existe; ausente no prueba lo contrario, porque Meta documenta que
+  el campo puede faltar. Por eso un fallo ambiguo con foto ya preparada queda en
+  `outcome_unknown` y **no se reintenta solo**: publicar en la Page de un
+  negocio real es irreversible y esa elección no le corresponde al worker. Un
+  rechazo explícito sí se marca fallido, porque no creó nada.
+- Subtarea de alcance, justificada por el objetivo «contrato de resultado
+  coherente con Instagram»: el vocabulario de intentos se unificó en
+  `meta-publishing-attempt.ts` —un diario, una taxonomía de fallos, un conjunto
+  de estados— y `P5-T03` se refactorizó sobre él. `P5-T05` calcula un estado
+  agregado sobre destinos distintos; con dos vocabularios tendría que traducir
+  antes de comparar, que es donde se pierde la diferencia entre «falló» y «no sé
+  si salió». Los destinos siguen independientes: cada uno tiene su fila propia,
+  identificada por su `publicationTargetId`.
+- Diferencias reales con Instagram que la implementación respeta: la Page pesa
+  **4 MB** como máximo —la mitad—, acepta cinco formatos de imagen, no impone
+  proporción y **exige texto**, porque una publicación de Page sin copy pierde
+  el mensaje, el dato verificado y el llamado a la acción.
+- Verificaciones ejecutadas: 96 pruebas en total sobre la vertical de
+  publicación —41 nuevas de Facebook y del módulo compartido— y `pnpm verify`
+  completo en verde.
+- Defecto encontrado y corregido en la propia revisión: el enlace permanente se
+  perdía al guardar el intento porque la forma del cambio repetía los campos del
+  registro en vez de derivarlos. Se derivó el tipo con `Omit` para que no vuelva
+  a pasar, y quedó cubierto por prueba.
+- Verificación pendiente y bloqueo: **la publicación real no se ejecutó.** Es el
+  mismo bloqueo que `P5-T03`: `ADR-019` no autoriza escribir en los activos
+  existentes y no hay Page de prueba separada. Mientras tanto la tarea queda
+  `[ ]`.
+- Próximo paso exacto: obtener autorización explícita y concreta y ejecutar una
+  única publicación en la Page desde staging, registrando identificador de foto
+  preparada, identificador de publicación y enlace permanente.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta la publicación real, bloqueada por `ADR-019` hasta obtener
+  autorización explícita.
 
 ## P5-T05 — Orquestar publicación multidestino
 

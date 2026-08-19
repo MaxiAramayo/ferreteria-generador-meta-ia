@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  InstagramPublishingError,
-  type InstagramAttemptJournal,
-  type InstagramAttemptRecord,
-  type InstagramAttemptScope,
-  type InstagramAttemptWriteResult,
+  MetaPublishingError,
+  type MetaPublishingAttemptJournal,
+  type MetaPublishingAttemptRecord,
+  type MetaPublishingAttemptScope,
+  type MetaPublishingAttemptWriteResult,
   type InstagramContainerReport,
   type InstagramContainerRequest,
   type InstagramContainerState,
@@ -20,7 +20,7 @@ import {
   type PublicMediaProbeResult,
 } from "@aramayo/domain";
 
-import { InMemoryInstagramAttemptJournal } from "./in-memory-instagram-attempts.ts";
+import { InMemoryMetaPublishingAttemptJournal } from "./in-memory-publishing-attempts.ts";
 import {
   InstagramPublisher,
   type InstagramPublishOutcome,
@@ -168,31 +168,33 @@ class ScriptedProbe implements PublicMediaProbePort {
 }
 
 /** Diario en el que otro trabajador escribe justo después de la lectura. */
-class ContendedJournal implements InstagramAttemptJournal {
-  readonly #delegate: InstagramAttemptJournal;
+class ContendedJournal implements MetaPublishingAttemptJournal {
+  readonly #delegate: MetaPublishingAttemptJournal;
   readonly #interleave: () => void;
 
-  constructor(delegate: InstagramAttemptJournal, interleave: () => void) {
+  constructor(delegate: MetaPublishingAttemptJournal, interleave: () => void) {
     this.#delegate = delegate;
     this.#interleave = interleave;
   }
 
   async find(
-    scope: InstagramAttemptScope,
-  ): Promise<InstagramAttemptRecord | null> {
+    scope: MetaPublishingAttemptScope,
+  ): Promise<MetaPublishingAttemptRecord | null> {
     const found = await this.#delegate.find(scope);
     this.#interleave();
     return found;
   }
 
-  save(record: InstagramAttemptRecord): Promise<InstagramAttemptWriteResult> {
+  save(
+    record: MetaPublishingAttemptRecord,
+  ): Promise<MetaPublishingAttemptWriteResult> {
     return this.#delegate.save(record);
   }
 }
 
 function publisherWith(
   graph: ScriptedInstagramGraph,
-  journal: InstagramAttemptJournal,
+  journal: MetaPublishingAttemptJournal,
   probe: ScriptedProbe = new ScriptedProbe(),
 ): InstagramPublisher {
   let clock = Date.parse("2026-08-19T10:00:00.000Z");
@@ -218,7 +220,7 @@ test("una pieza válida crea contenedor, espera el procesamiento y publica", asy
   const graph = new ScriptedInstagramGraph({
     states: ["in_progress", "in_progress", "finished"],
   });
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
   assert.equal(outcome.status, "published");
@@ -236,14 +238,14 @@ test("una pieza válida crea contenedor, espera el procesamiento y publica", asy
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
   assert.equal(attempt.state, "published");
-  assert.equal(attempt.containerId, "container-1");
-  assert.equal(attempt.mediaId, "media-1");
+  assert.equal(attempt.stagedMediaId, "container-1");
+  assert.equal(attempt.remotePostId, "media-1");
   assert.equal(attempt.sequence, 2);
 });
 
 test("repetir el comando sobre un éxito confirmado no llama a Meta", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const publisher = publisherWith(graph, journal);
 
   const first = await publisher.publish(command());
@@ -260,28 +262,28 @@ test("repetir el comando sobre un éxito confirmado no llama a Meta", async () =
 test("un timeout después de crear el contenedor conserva su identificador", async () => {
   const graph = new ScriptedInstagramGraph({
     publishContainer: (): never => {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "request-timeout",
         "Meta no respondió a tiempo.",
         true,
       );
     },
   });
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
   assert.equal(failureCodeOf(outcome), "request-timeout");
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
   assert.equal(attempt.state, "failed");
-  assert.equal(attempt.containerId, "container-1");
+  assert.equal(attempt.stagedMediaId, "container-1");
 });
 
 test("el reintento reconcilia por estado y no crea una segunda publicación", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
-    containerId: "container-1",
+    stagedMediaId: "container-1",
     failure: {
       code: "request-timeout",
       detail: "Meta no respondió a tiempo.",
@@ -304,14 +306,14 @@ test("el reintento reconcilia por estado y no crea una segunda publicación", as
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
   assert.equal(attempt.state, "published_unconfirmed");
-  assert.equal(attempt.containerId, "container-1");
+  assert.equal(attempt.stagedMediaId, "container-1");
 });
 
 test("un intento sin confirmar tampoco vuelve a publicar", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
-    containerId: "container-1",
+    stagedMediaId: "container-1",
     organizationId,
     publicationTargetId: "target-feed-1",
     sequence: 3,
@@ -326,10 +328,10 @@ test("un intento sin confirmar tampoco vuelve a publicar", async () => {
 });
 
 test("el reintento reutiliza el contenedor vigente en vez de gastar otro", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
-    containerId: "container-1",
+    stagedMediaId: "container-1",
     failure: {
       code: "provider-error",
       detail: "Meta no pudo responder.",
@@ -351,53 +353,53 @@ test("el reintento reutiliza el contenedor vigente en vez de gastar otro", async
 });
 
 test("un contenedor vencido se descarta para que el reintento cree uno nuevo", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
-    containerId: "container-viejo",
+    stagedMediaId: "container-viejo",
     organizationId,
     publicationTargetId: "target-feed-1",
     sequence: 1,
-    state: "container_created",
+    state: "media_staged",
     updatedAt: "2026-08-18T09:00:00.000Z",
   });
   const graph = new ScriptedInstagramGraph({ states: ["expired"] });
   const outcome = await publisherWith(graph, journal).publish(command());
 
-  assert.equal(failureCodeOf(outcome), "container-expired");
+  assert.equal(failureCodeOf(outcome), "staged-media-expired");
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
-  assert.equal(attempt.containerId, undefined);
+  assert.equal(attempt.stagedMediaId, undefined);
 });
 
 test("un contenedor con error de procesamiento no se reintenta con el mismo", async () => {
   const graph = new ScriptedInstagramGraph({ states: ["error"] });
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
   assert.equal(failureCodeOf(outcome), "processing-failed");
   assert.equal(outcome.status === "failed" && outcome.failure.retryable, false);
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
-  assert.equal(attempt.containerId, undefined);
+  assert.equal(attempt.stagedMediaId, undefined);
 });
 
 test("agotar el plazo de procesamiento conserva el contenedor", async () => {
   const graph = new ScriptedInstagramGraph({ states: ["in_progress"] });
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
   assert.equal(failureCodeOf(outcome), "processing-timeout");
   assert.equal(outcome.status === "failed" && outcome.failure.retryable, true);
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
-  assert.equal(attempt.containerId, "container-1");
+  assert.equal(attempt.stagedMediaId, "container-1");
   assert.ok(!graph.calls.some((call) => call.startsWith("publishContainer")));
 });
 
 test("una pieza del formato equivocado no gasta ni la sonda ni una llamada", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const probe = new ScriptedProbe();
   const outcome = await publisherWith(graph, journal, probe).publish(
     command({ media: { height: 1920, url: imageUrl, width: 1080 } }),
@@ -410,7 +412,7 @@ test("una pieza del formato equivocado no gasta ni la sonda ni una llamada", asy
 
 test("una historia con pie se rechaza antes de llamar a Meta", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(
     command({
       caption: "Texto que Instagram descartaría",
@@ -425,7 +427,7 @@ test("una historia con pie se rechaza antes de llamar a Meta", async () => {
 
 test("una URL inaccesible se detecta antes de gastar el contenedor", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(
     graph,
     journal,
@@ -439,7 +441,7 @@ test("una URL inaccesible se detecta antes de gastar el contenedor", async () =>
 
 test("una entrega que no es JPEG se rechaza aunque el activo diga otra cosa", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(
     graph,
     journal,
@@ -458,7 +460,7 @@ test("la cuota agotada frena antes de crear el contenedor", async () => {
   const graph = new ScriptedInstagramGraph({
     quota: { quotaDurationSeconds: 86_400, quotaTotal: 50, quotaUsage: 50 },
   });
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
   assert.equal(failureCodeOf(outcome), "publishing-limit-reached");
@@ -484,7 +486,7 @@ test("una conexión sin salud, sin permisos o sin activo no publica", async () =
     connection({ organizationId: "org-ajena" }),
   ]) {
     const graph = new ScriptedInstagramGraph();
-    const journal = new InMemoryInstagramAttemptJournal();
+    const journal = new InMemoryMetaPublishingAttemptJournal();
     const outcome = await publisherWith(graph, journal).publish(
       command({ connection: broken }),
     );
@@ -495,7 +497,7 @@ test("una conexión sin salud, sin permisos o sin activo no publica", async () =
 
 test("un activo de Instagram removido no se usa como destino", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   const removed = connection();
   const outcome = await publisherWith(graph, journal).publish(
     command({
@@ -517,7 +519,7 @@ test("un activo de Instagram removido no se usa como destino", async () => {
 
 test("el contenedor se dirige a la cuenta que declara la conexión", async () => {
   const graph = new ScriptedInstagramGraph();
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   await publisherWith(graph, journal).publish(command());
   const [request] = graph.containers;
   assert.ok(request !== undefined);
@@ -526,18 +528,18 @@ test("el contenedor se dirige a la cuenta que declara la conexión", async () =>
 });
 
 test("otro trabajador que escribe primero deja este intento en conflicto", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   // Entre la lectura y la escritura de este publicador, otro trabajador toma
   // el mismo destino y adelanta la secuencia. Es la carrera real entre dos
   // consumidores del mismo mensaje.
   const contended = new ContendedJournal(journal, () => {
     journal.seed({
       attemptId: "attempt-otro",
-      containerId: "container-otro",
+      stagedMediaId: "container-otro",
       organizationId,
       publicationTargetId: "target-feed-1",
       sequence: 1,
-      state: "container_created",
+      state: "media_staged",
       updatedAt: "2026-08-19T09:59:30.000Z",
     });
   });
@@ -554,14 +556,14 @@ test("otro trabajador que escribe primero deja este intento en conflicto", async
 });
 
 test("perder la conexión no borra el contenedor que quizá ya se publicó", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
-    containerId: "container-1",
+    stagedMediaId: "container-1",
     organizationId,
     publicationTargetId: "target-feed-1",
     sequence: 1,
-    state: "container_created",
+    state: "media_staged",
     updatedAt: "2026-08-19T09:59:00.000Z",
   });
   const graph = new ScriptedInstagramGraph();
@@ -574,11 +576,11 @@ test("perder la conexión no borra el contenedor que quizá ya se publicó", asy
   assert.ok(attempt !== undefined);
   // Si se hubiera borrado, reparar la conexión haría que el reintento creara
   // otro contenedor y publicara de nuevo lo que quizá ya salió.
-  assert.equal(attempt.containerId, "container-1");
+  assert.equal(attempt.stagedMediaId, "container-1");
 });
 
 test("un intento publicado sin identificador no se vuelve a publicar", async () => {
-  const journal = new InMemoryInstagramAttemptJournal();
+  const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
     organizationId,

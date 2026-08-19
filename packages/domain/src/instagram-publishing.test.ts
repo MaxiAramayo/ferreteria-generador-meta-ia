@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   instagramMediaPolicy,
-  InstagramPublishingError,
   validateInstagramCaption,
   validateInstagramMedia,
   type InstagramMediaCandidate,
@@ -210,18 +209,4 @@ test("las menciones se cuentan y su exceso se rechaza", () => {
     rejectionOf(validateInstagramCaption("instagram_feed", mentions)),
     "mentions-exceeded",
   );
-});
-
-test("el fallo de publicación no expone la respuesta del proveedor", () => {
-  const error = new InstagramPublishingError(
-    "media-unreachable",
-    "Meta no pudo descargar la pieza.",
-    true,
-  );
-  assert.equal(
-    error.message,
-    "La publicación en Instagram no pudo completarse.",
-  );
-  assert.equal(error.code, "media-unreachable");
-  assert.equal(error.retryable, true);
 });

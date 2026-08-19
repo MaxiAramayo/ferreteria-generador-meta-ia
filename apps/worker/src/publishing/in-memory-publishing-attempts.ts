@@ -12,32 +12,36 @@
  */
 
 import type {
-  InstagramAttemptJournal,
-  InstagramAttemptRecord,
-  InstagramAttemptScope,
-  InstagramAttemptWriteResult,
+  MetaPublishingAttemptJournal,
+  MetaPublishingAttemptRecord,
+  MetaPublishingAttemptScope,
+  MetaPublishingAttemptWriteResult,
 } from "@aramayo/domain";
 
-function keyOf(scope: InstagramAttemptScope): string {
+function keyOf(scope: MetaPublishingAttemptScope): string {
   return `${scope.organizationId}::${scope.publicationTargetId}`;
 }
 
-export class InMemoryInstagramAttemptJournal implements InstagramAttemptJournal {
-  readonly #attempts = new Map<string, InstagramAttemptRecord>();
+export class InMemoryMetaPublishingAttemptJournal implements MetaPublishingAttemptJournal {
+  readonly #attempts = new Map<string, MetaPublishingAttemptRecord>();
 
-  get records(): readonly InstagramAttemptRecord[] {
+  get records(): readonly MetaPublishingAttemptRecord[] {
     return [...this.#attempts.values()];
   }
 
-  seed(record: InstagramAttemptRecord): void {
+  seed(record: MetaPublishingAttemptRecord): void {
     this.#attempts.set(keyOf(record), record);
   }
 
-  find(scope: InstagramAttemptScope): Promise<InstagramAttemptRecord | null> {
+  find(
+    scope: MetaPublishingAttemptScope,
+  ): Promise<MetaPublishingAttemptRecord | null> {
     return Promise.resolve(this.#attempts.get(keyOf(scope)) ?? null);
   }
 
-  save(record: InstagramAttemptRecord): Promise<InstagramAttemptWriteResult> {
+  save(
+    record: MetaPublishingAttemptRecord,
+  ): Promise<MetaPublishingAttemptWriteResult> {
     const stored = this.#attempts.get(keyOf(record));
     if (record.sequence !== (stored?.sequence ?? 0) + 1) {
       return Promise.resolve("conflict");

@@ -107,22 +107,50 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T03` — adaptador de publicación en Instagram. El código está
-completo y verificado localmente; **falta la única verificación que no puede
-hacerse sin el usuario: una publicación real.** `ADR-019` no autoriza escribir
+`P5-T03` y `P5-T04` están implementadas y verificadas localmente, y las dos
+quedan abiertas por **el mismo bloqueo: falta la publicación real**, la única
+verificación que no puede hacerse sin el usuario. `ADR-019` no autoriza escribir
 en los activos existentes y no hay activos de prueba separados, así que hace
 falta autorización posterior y concreta con activo, media, copy, destino y
-efecto esperado. Sin eso la tarea no cierra.
+efecto esperado. Sin eso ninguna de las dos cierra.
 
-Lo implementado el 2026-08-19: puerto, reglas y taxonomía de fallos en
-`packages/domain/src/instagram-publishing.ts`; adaptador de Graph `v26.0` y
-sonda de la URL pública en
-`apps/worker/src/publishing/instagram-graph.adapter.ts`; publicador de un
-destino en `instagram-publisher.service.ts`. Cincuenta y cinco pruebas nuevas y
-`pnpm verify` completo en verde. Ninguna verificación llamó a Meta.
+Con ese bloqueo en pie, la tarea siguiente habilitada es `P5-T05` —orquestación
+multidestino—, que además destraba lo que hoy falta para poder publicar de
+verdad: el diario de intentos persistente. Los publicadores no están cableados a
+ningún módulo Nest a propósito, porque hacerlo sin persistencia real sería un
+agujero de corrección.
 
-Cuatro cosas quedaron registradas para las tareas siguientes:
+Lo implementado el 2026-08-19:
 
+- **Instagram (`P5-T03`)**: puerto, reglas y taxonomía en
+  `packages/domain/src/instagram-publishing.ts`; adaptador de Graph `v26.0` y
+  sonda de la URL pública en
+  `apps/worker/src/publishing/instagram-graph.adapter.ts`; publicador en
+  `instagram-publisher.service.ts`.
+- **Facebook (`P5-T04`)**: reglas y puerto en
+  `packages/domain/src/facebook-publishing.ts`; adaptador en
+  `facebook-graph.adapter.ts`; publicador en `facebook-publisher.service.ts`.
+- **Vocabulario común**: `packages/domain/src/meta-publishing-attempt.ts` —un
+  diario de intentos, una taxonomía de fallos y un conjunto de estados para los
+  dos destinos.
+
+Noventa y seis pruebas sobre la vertical y `pnpm verify` completo en verde.
+Ninguna verificación llamó a Meta.
+
+Las dos redes resuelven el mismo problema —una respuesta perdida no dice si la
+publicación existe— anclando algo durable antes de pedirla, pero terminan
+distinto. Instagram puede preguntarle al contenedor si ya se publicó, así que el
+reintento reconcilia y sigue solo. Facebook responde `page_story_id` cuando la
+publicación existe, pero su ausencia no prueba lo contrario, así que un pedido
+ambiguo queda en `outcome_unknown` y **espera decisión humana** en vez de elegir
+entre duplicar y abandonar.
+
+Cinco cosas quedaron registradas para las tareas siguientes:
+
+- **la Page pesa 4 MB como máximo, la mitad que Instagram**, acepta cinco
+  formatos de imagen, no impone proporción y exige texto. Una misma pieza puede
+  ser válida para un destino y no para el otro, así que cada uno valida por su
+  cuenta;
 - **el render produce PNG e Instagram sólo admite JPEG.** Quien publique tiene
   que entregar la variante `meta-feed` de `MediaStorage.deliveryUrl`, que ya
   reconvierte y limita el lado largo a 1440 px. Las medidas que recibe el
@@ -130,16 +158,15 @@ Cuatro cosas quedaron registradas para las tareas siguientes:
   una historia de 1080×1920 se entrega como 810×1440;
 - **el diario de intentos es un puerto y hoy sólo existe en memoria.**
   Persistirlo es el entregable «modelo de orden, destino e intento» de `P5-T05`,
-  con la misma regla de secuencia que aplica el doble. El publicador no está
-  cableado a ningún módulo Nest a propósito: hacerlo sin persistencia real sería
-  un agujero de corrección;
+  con la misma regla de secuencia que aplica el doble: una escritura sólo se
+  acepta si continúa a la última almacenada;
 - **un contenedor que Meta informa como `PUBLISHED` sin devolver el ID de la
   publicación queda como intento sin confirmar y no se vuelve a publicar.**
   Recuperar ese identificador es de `P5-T06`;
 - **la cuota documentada bajó de 100 a `quota_total` 50** y las historias no
   publican pie. Las dos correcciones al contrato asumido en `P5-T01` están en
-  [`META.md`](integrations/META.md), junto con la tabla de subcódigos que
-  distingue límite de tasa, credencial, media inválida y error de procesamiento.
+  [`META.md`](integrations/META.md), junto con las tablas de códigos de los dos
+  destinos.
 
 `P5-T02` quedó cerrada el 2026-08-18. El OAuth completo corrió en staging con
 las imágenes del SHA `45a2f272`, la conexión quedó `healthy` con la Facebook Page

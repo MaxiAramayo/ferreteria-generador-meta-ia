@@ -26,11 +26,11 @@ import {
   validateInstagramCaption,
   validateInstagramDelivery,
   validateInstagramGeometry,
-  InstagramPublishingError,
-  type InstagramAttemptFailure,
-  type InstagramAttemptJournal,
-  type InstagramAttemptRecord,
-  type InstagramAttemptState,
+  MetaPublishingError,
+  type MetaPublishingAttemptChange,
+  type MetaPublishingAttemptFailure,
+  type MetaPublishingAttemptJournal,
+  type MetaPublishingAttemptRecord,
   type InstagramContainerState,
   type InstagramMediaGeometry,
   type InstagramMediaRejection,
@@ -56,12 +56,12 @@ export interface PublishToInstagramCommand {
 
 export type InstagramPublishOutcome =
   | Readonly<{
-      attempt: InstagramAttemptRecord;
+      attempt: MetaPublishingAttemptRecord;
       mediaId: string;
       status: "already-published";
     }>
   | Readonly<{
-      attempt: InstagramAttemptRecord;
+      attempt: MetaPublishingAttemptRecord;
       mediaId: string;
       status: "published";
     }>
@@ -71,13 +71,13 @@ export type InstagramPublishOutcome =
    * almacenado tampoco lo tenía; recuperarlo es de `P5-T06`.
    */
   | Readonly<{
-      attempt: InstagramAttemptRecord;
+      attempt: MetaPublishingAttemptRecord;
       containerId?: string;
       status: "published-unconfirmed";
     }>
   | Readonly<{
-      attempt: InstagramAttemptRecord;
-      failure: InstagramAttemptFailure;
+      attempt: MetaPublishingAttemptRecord;
+      failure: MetaPublishingAttemptFailure;
       status: "failed";
     }>
   /** Otro trabajador escribió el intento primero; este no toca nada más. */
@@ -93,7 +93,7 @@ export interface InstagramPublisherOptions {
 const defaultPollIntervalMilliseconds = 3_000;
 const defaultProcessingDeadlineMilliseconds = 120_000;
 
-function failureOf(error: InstagramPublishingError): InstagramAttemptFailure {
+function failureOf(error: MetaPublishingError): MetaPublishingAttemptFailure {
   return Object.freeze({
     code: error.code,
     detail: error.detail,
@@ -103,7 +103,7 @@ function failureOf(error: InstagramPublishingError): InstagramAttemptFailure {
 
 function rejectionFailure(
   rejection: InstagramMediaRejection,
-): InstagramAttemptFailure {
+): MetaPublishingAttemptFailure {
   return Object.freeze({
     code: "validation-failed" as const,
     detail: `${rejection.reason} ${rejection.correction}`,
@@ -116,14 +116,15 @@ function rejectionFailure(
  * reintento tiene que crear uno nuevo. Cualquier otro fallo lo conserva, porque
  * ese identificador es lo único que permite reconciliar después.
  */
-function keepsContainer(failure: InstagramAttemptFailure): boolean {
+function keepsContainer(failure: MetaPublishingAttemptFailure): boolean {
   return (
-    failure.code !== "container-expired" && failure.code !== "processing-failed"
+    failure.code !== "staged-media-expired" &&
+    failure.code !== "processing-failed"
   );
 }
 
 export class InstagramPublisher {
-  readonly #journal: InstagramAttemptJournal;
+  readonly #journal: MetaPublishingAttemptJournal;
   readonly #now: () => number;
   readonly #pollIntervalMilliseconds: number;
   readonly #probe: PublicMediaProbePort;
@@ -133,7 +134,7 @@ export class InstagramPublisher {
 
   constructor(
     publishing: InstagramPublishingPort,
-    journal: InstagramAttemptJournal,
+    journal: MetaPublishingAttemptJournal,
     probe: PublicMediaProbePort,
     options: InstagramPublisherOptions = {},
   ) {
@@ -177,15 +178,15 @@ export class InstagramPublisher {
         // El contenedor anterior se conserva aunque la conexión ya no sirva: si
         // se repara y esto lo hubiera borrado, el reintento crearía otro y
         // publicaría de nuevo lo que quizá ya salió.
-        stored?.containerId,
+        stored?.stagedMediaId,
       );
     }
 
     const rejection = await this.#reject(command);
     if (rejection !== null) {
-      return this.#fail(command, sequence, rejection, stored?.containerId);
+      return this.#fail(command, sequence, rejection, stored?.stagedMediaId);
     }
-    return this.#run(command, sequence, assetId, stored?.containerId);
+    return this.#run(command, sequence, assetId, stored?.stagedMediaId);
   }
 
   /**
@@ -227,9 +228,9 @@ export class InstagramPublisher {
         // Antes de cualquier intento de publicar: es el dato que permite saber
         // después si esta corrida llegó a publicar o no.
         const written = await this.#save(command, {
-          containerId,
           sequence: sequence + 1,
-          state: "container_created",
+          stagedMediaId: containerId,
+          state: "media_staged",
         });
         if (written === null) {
           return Object.freeze({ status: "conflict" as const });
@@ -250,9 +251,9 @@ export class InstagramPublisher {
         command.accessToken,
       );
       const attempt = await this.#save(command, {
-        containerId,
-        mediaId: published.mediaId,
+        remotePostId: published.mediaId,
         sequence: sequence + 1,
+        stagedMediaId: containerId,
         state: "published",
       });
       // Perder la escritura después de publicar deja la publicación hecha sin
@@ -267,7 +268,7 @@ export class InstagramPublisher {
             status: "published" as const,
           });
     } catch (cause: unknown) {
-      if (!(cause instanceof InstagramPublishingError)) throw cause;
+      if (!(cause instanceof MetaPublishingError)) throw cause;
       const failure = failureOf(cause);
       return this.#fail(
         command,
@@ -299,21 +300,21 @@ export class InstagramPublisher {
         return report.state;
       }
       if (report.state === "error") {
-        throw new InstagramPublishingError(
+        throw new MetaPublishingError(
           "processing-failed",
           "Meta no pudo procesar la pieza.",
           false,
         );
       }
       if (report.state === "expired") {
-        throw new InstagramPublishingError(
-          "container-expired",
+        throw new MetaPublishingError(
+          "staged-media-expired",
           "El contenedor venció antes de publicarse.",
           true,
         );
       }
       if (this.#now() + this.#pollIntervalMilliseconds > deadline) {
-        throw new InstagramPublishingError(
+        throw new MetaPublishingError(
           "processing-timeout",
           "Meta sigue procesando la pieza y se agotó el plazo de espera.",
           true,
@@ -332,7 +333,7 @@ export class InstagramPublisher {
       accessToken,
     );
     if (quota.quotaUsage >= quota.quotaTotal) {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "publishing-limit-reached",
         `La cuenta usó ${String(quota.quotaUsage)} de ${String(quota.quotaTotal)} publicaciones de la ventana vigente.`,
         false,
@@ -343,7 +344,7 @@ export class InstagramPublisher {
   /** Validaciones que no cuestan una llamada a Meta, y la sonda de la URL. */
   async #reject(
     command: PublishToInstagramCommand,
-  ): Promise<InstagramAttemptFailure | null> {
+  ): Promise<MetaPublishingAttemptFailure | null> {
     const caption = validateInstagramCaption(command.target, command.caption);
     if (caption.status === "rejected") {
       return rejectionFailure(caption.rejection);
@@ -376,8 +377,8 @@ export class InstagramPublisher {
     containerId: string,
   ): Promise<InstagramPublishOutcome> {
     const attempt = await this.#save(command, {
-      containerId,
       sequence: sequence + 1,
+      stagedMediaId: containerId,
       state: "published_unconfirmed",
     });
     return attempt === null
@@ -392,13 +393,13 @@ export class InstagramPublisher {
   async #fail(
     command: PublishToInstagramCommand,
     sequence: number,
-    failure: InstagramAttemptFailure,
+    failure: MetaPublishingAttemptFailure,
     containerId: string | undefined,
   ): Promise<InstagramPublishOutcome> {
     const attempt = await this.#save(command, {
-      ...(containerId === undefined ? {} : { containerId }),
       failure,
       sequence: sequence + 1,
+      ...(containerId === undefined ? {} : { stagedMediaId: containerId }),
       state: "failed",
     });
     return attempt === null
@@ -408,25 +409,13 @@ export class InstagramPublisher {
 
   async #save(
     command: PublishToInstagramCommand,
-    change: Readonly<{
-      containerId?: string;
-      failure?: InstagramAttemptFailure;
-      mediaId?: string;
-      sequence: number;
-      state: InstagramAttemptState;
-    }>,
-  ): Promise<InstagramAttemptRecord | null> {
-    const record: InstagramAttemptRecord = Object.freeze({
+    change: MetaPublishingAttemptChange,
+  ): Promise<MetaPublishingAttemptRecord | null> {
+    const record: MetaPublishingAttemptRecord = Object.freeze({
+      ...change,
       attemptId: command.attemptId,
-      ...(change.containerId === undefined
-        ? {}
-        : { containerId: change.containerId }),
-      ...(change.failure === undefined ? {} : { failure: change.failure }),
-      ...(change.mediaId === undefined ? {} : { mediaId: change.mediaId }),
       organizationId: command.organizationId,
       publicationTargetId: command.publicationTargetId,
-      sequence: change.sequence,
-      state: change.state,
       updatedAt: new Date(this.#now()).toISOString(),
     });
     return (await this.#journal.save(record)) === "saved" ? record : null;
@@ -441,7 +430,7 @@ export class InstagramPublisher {
  * y volver a publicarlo produciría la segunda publicación que esto evita.
  */
 function settledOutcome(
-  stored: InstagramAttemptRecord | null,
+  stored: MetaPublishingAttemptRecord | null,
 ): InstagramPublishOutcome | null {
   if (stored === null) return null;
   if (
@@ -450,10 +439,10 @@ function settledOutcome(
   ) {
     return null;
   }
-  if (stored.mediaId !== undefined) {
+  if (stored.remotePostId !== undefined) {
     return Object.freeze({
       attempt: stored,
-      mediaId: stored.mediaId,
+      mediaId: stored.remotePostId,
       status: "already-published" as const,
     });
   }
@@ -462,9 +451,9 @@ function settledOutcome(
   // reintentar por falta de un dato local produciría la segunda publicación.
   return Object.freeze({
     attempt: stored,
-    ...(stored.containerId === undefined
+    ...(stored.stagedMediaId === undefined
       ? {}
-      : { containerId: stored.containerId }),
+      : { containerId: stored.stagedMediaId }),
     status: "published-unconfirmed" as const,
   });
 }

@@ -30,6 +30,7 @@
  * cambie.
  */
 
+import { isPubliclyFetchableMediaUrl } from "./meta-publishing-attempt.ts";
 import type { PublicationTarget } from "./publication.ts";
 
 /**
@@ -145,34 +146,6 @@ function rejected(
   });
 }
 
-/**
- * Una URL sirve si Meta puede descargarla desde afuera.
- *
- * `localhost`, una IP privada o un host sin punto no son accesibles para Meta
- * aunque lo sean para el worker, y el error que devolvería Meta —«no pude
- * descargar la imagen»— llega después de haber gastado la llamada.
- */
-function isPubliclyFetchableUrl(candidate: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(candidate);
-  } catch {
-    return false;
-  }
-  if (url.protocol !== "https:" || url.username !== "" || url.password !== "") {
-    return false;
-  }
-  const host = url.hostname.toLowerCase();
-  if (!host.includes(".") || host.endsWith(".local") || host === "localhost") {
-    return false;
-  }
-  // Literales IPv4 privados y de loopback. Un nombre que resuelva a una IP
-  // privada no se detecta acá: eso es responsabilidad de la red, no del tipo.
-  return !/^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/u.test(
-    host,
-  );
-}
-
 function countMatches(text: string, pattern: RegExp): number {
   return [...text.matchAll(pattern)].length;
 }
@@ -264,7 +237,7 @@ export function validateInstagramGeometry(
   target: InstagramPublishTarget,
   candidate: InstagramMediaGeometry,
 ): InstagramMediaDecision {
-  if (!isPubliclyFetchableUrl(candidate.url)) {
+  if (!isPubliclyFetchableMediaUrl(candidate.url)) {
     return rejected(
       "url-not-public",
       "La URL de la pieza no es una dirección HTTPS que Meta pueda descargar.",
@@ -409,138 +382,4 @@ export interface InstagramPublishingPort {
     instagramAssetId: string,
     accessToken: string,
   ): Promise<InstagramPublishingQuota>;
-}
-
-export const instagramPublishingFailureCodes = Object.freeze([
-  /** El contenedor venció sin publicarse; hay que crear uno nuevo. */
-  "container-expired",
-  /** Meta rechazó la pieza por formato, medida o peso. */
-  "media-invalid",
-  /** Meta no pudo descargar la URL de la pieza. */
-  "media-unreachable",
-  /** La conexión perdió un permiso o el activo no le pertenece. */
-  "permission-denied",
-  /** El contenedor terminó en error del lado de Meta. */
-  "processing-failed",
-  /** El contenedor no llegó a estado publicable dentro del plazo. */
-  "processing-timeout",
-  "provider-error",
-  /** La cuenta agotó la cuota de publicaciones de la ventana vigente. */
-  "publishing-limit-reached",
-  "rate-limit",
-  /** La llamada al proveedor no respondió dentro del plazo. */
-  "request-timeout",
-  "token-expired",
-  /** La pieza o el pie no cumplen las reglas; no se llama al proveedor. */
-  "validation-failed",
-] as const);
-
-export type InstagramPublishingFailureCode =
-  (typeof instagramPublishingFailureCodes)[number];
-
-/**
- * Fallo de publicación.
- *
- * El mensaje es fijo y `detail` es texto propio: una respuesta de Meta puede
- * traer reflejada la URL firmada de la pieza, y un error termina en un log.
- */
-export class InstagramPublishingError extends Error {
-  readonly code: InstagramPublishingFailureCode;
-  readonly detail: string;
-  readonly retryable: boolean;
-
-  constructor(
-    code: InstagramPublishingFailureCode,
-    detail: string,
-    retryable: boolean,
-  ) {
-    super("La publicación en Instagram no pudo completarse.");
-    this.code = code;
-    this.detail = detail;
-    this.name = "InstagramPublishingError";
-    this.retryable = retryable;
-  }
-}
-
-/**
- * Estados de un intento contra un destino de Instagram.
- *
- * `published_unconfirmed` existe porque Meta puede confirmar que el contenedor
- * fue publicado sin decir con qué identificador. Colapsarlo en `failed`
- * invitaría a reintentar y duplicaría la publicación; colapsarlo en `published`
- * inventaría un identificador que nadie puede consultar. Se conserva separado y
- * su reconciliación es de `P5-T06`.
- */
-export const instagramAttemptStates = Object.freeze([
-  "container_created",
-  "failed",
-  "pending",
-  "published",
-  "published_unconfirmed",
-] as const);
-
-export type InstagramAttemptState = (typeof instagramAttemptStates)[number];
-
-export interface InstagramAttemptFailure {
-  readonly code: InstagramPublishingFailureCode;
-  readonly detail: string;
-  readonly retryable: boolean;
-}
-
-/**
- * Ámbito de un intento.
- *
- * La clave es el destino de la publicación y no el intento: es lo que permite
- * que repetir el comando encuentre lo que dejó la corrida anterior.
- */
-export interface InstagramAttemptScope {
-  readonly organizationId: string;
-  readonly publicationTargetId: string;
-}
-
-export interface InstagramAttemptRecord extends InstagramAttemptScope {
-  readonly attemptId: string;
-  /** Contenedor vigente. Ausente cuando todavía no se creó o ya no sirve. */
-  readonly containerId?: string;
-  readonly failure?: InstagramAttemptFailure;
-  readonly mediaId?: string;
-  /**
-   * Escritura esperada. Crece de a uno y el diario rechaza una escritura que no
-   * siga a la última almacenada: dos workers sobre el mismo destino no pueden
-   * pisarse ni publicar dos veces.
-   */
-  readonly sequence: number;
-  readonly state: InstagramAttemptState;
-  readonly updatedAt: string;
-}
-
-export type InstagramAttemptWriteResult = "conflict" | "saved";
-
-/**
- * Diario de intentos.
- *
- * Guarda el identificador de contenedor antes de intentar publicar y el de la
- * publicación cuando Meta la confirma. `P5-T05` lo implementa sobre su modelo de
- * orden, destino e intento; el publicador no cambia por eso.
- */
-export interface InstagramAttemptJournal {
-  find(scope: InstagramAttemptScope): Promise<InstagramAttemptRecord | null>;
-  save(record: InstagramAttemptRecord): Promise<InstagramAttemptWriteResult>;
-}
-
-export type PublicMediaProbeResult =
-  | Readonly<{ byteSize: number; mimeType: string; status: "reachable" }>
-  | Readonly<{ status: "unreachable" }>;
-
-/**
- * Sonda de la URL pública.
- *
- * Meta descarga la pieza desde su propia red, así que una URL rota se descubre
- * recién cuando el contenedor termina en error: tarde, y habiendo consumido una
- * unidad de cuota. Una consulta de encabezados antes de llamar cuesta mucho
- * menos y además confirma el tipo y el peso reales de lo que se entrega, que es
- * lo único que la plataforma no puede deducir del activo almacenado.
- */
-export interface PublicMediaProbePort {
-  probe(url: string): Promise<PublicMediaProbeResult>;
 }

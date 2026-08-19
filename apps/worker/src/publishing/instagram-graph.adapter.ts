@@ -22,7 +22,7 @@
  */
 
 import {
-  InstagramPublishingError,
+  MetaPublishingError,
   type InstagramContainerReport,
   type InstagramContainerRequest,
   type InstagramContainerState,
@@ -47,7 +47,7 @@ const probeTimeoutMilliseconds = 8_000;
 
 function objectValue(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new InstagramPublishingError(
+    throw new MetaPublishingError(
       "provider-error",
       "Meta devolvió una respuesta con una forma inesperada.",
       true,
@@ -59,7 +59,7 @@ function objectValue(value: unknown): Record<string, unknown> {
 function stringValue(object: Record<string, unknown>, field: string): string {
   const value = object[field];
   if (typeof value !== "string" || value.length === 0) {
-    throw new InstagramPublishingError(
+    throw new MetaPublishingError(
       "provider-error",
       `Meta no devolvió ${field}.`,
       true,
@@ -71,7 +71,7 @@ function stringValue(object: Record<string, unknown>, field: string): string {
 function integerValue(object: Record<string, unknown>, field: string): number {
   const value = object[field];
   if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    throw new InstagramPublishingError(
+    throw new MetaPublishingError(
       "provider-error",
       `Meta no devolvió ${field} como entero.`,
       true,
@@ -84,7 +84,7 @@ function integerValue(object: Record<string, unknown>, field: string): number {
 const subcodeFailures: ReadonlyMap<
   number,
   Readonly<{
-    code: InstagramPublishingError["code"];
+    code: MetaPublishingError["code"];
     detail: string;
     retryable: boolean;
   }>
@@ -124,7 +124,7 @@ const subcodeFailures: ReadonlyMap<
   [
     2_207_008,
     {
-      code: "container-expired" as const,
+      code: "staged-media-expired" as const,
       detail: "El contenedor de la pieza ya no existe.",
       retryable: true,
     },
@@ -140,7 +140,7 @@ const subcodeFailures: ReadonlyMap<
   [
     2_207_020,
     {
-      code: "container-expired" as const,
+      code: "staged-media-expired" as const,
       detail: "El contenedor de la pieza venció.",
       retryable: true,
     },
@@ -169,7 +169,7 @@ const subcodeFailures: ReadonlyMap<
  * `4`, `17`, `32`, `341` y `613` son las variantes de límite de tasa; `190` y
  * `102` son credencial; `10` y la familia `200-299` son permiso.
  */
-function topLevelFailure(code: number): InstagramPublishingError | null {
+function topLevelFailure(code: number): MetaPublishingError | null {
   if (
     code === 4 ||
     code === 17 ||
@@ -177,21 +177,21 @@ function topLevelFailure(code: number): InstagramPublishingError | null {
     code === 341 ||
     code === 613
   ) {
-    return new InstagramPublishingError(
+    return new MetaPublishingError(
       "rate-limit",
       "Meta está limitando las llamadas de esta aplicación.",
       true,
     );
   }
   if (code === 102 || code === 190) {
-    return new InstagramPublishingError(
+    return new MetaPublishingError(
       "token-expired",
       "La credencial de la conexión venció o dejó de ser válida.",
       false,
     );
   }
   if (code === 10 || (code >= 200 && code <= 299)) {
-    return new InstagramPublishingError(
+    return new MetaPublishingError(
       "permission-denied",
       "Meta rechazó los permisos de la conexión.",
       false,
@@ -203,7 +203,7 @@ function topLevelFailure(code: number): InstagramPublishingError | null {
 function failureFrom(
   status: number,
   payload: Record<string, unknown>,
-): InstagramPublishingError {
+): MetaPublishingError {
   const errorValue = payload["error"];
   if (typeof errorValue === "object" && errorValue !== null) {
     const error = objectValue(errorValue);
@@ -211,7 +211,7 @@ function failureFrom(
     if (typeof subcode === "number") {
       const mapped = subcodeFailures.get(subcode);
       if (mapped !== undefined) {
-        return new InstagramPublishingError(
+        return new MetaPublishingError(
           mapped.code,
           mapped.detail,
           mapped.retryable,
@@ -225,20 +225,20 @@ function failureFrom(
     }
   }
   if (status === 429) {
-    return new InstagramPublishingError(
+    return new MetaPublishingError(
       "rate-limit",
       "Meta está limitando las llamadas de esta aplicación.",
       true,
     );
   }
   if (status === 401 || status === 403) {
-    return new InstagramPublishingError(
+    return new MetaPublishingError(
       "permission-denied",
       "Meta rechazó los permisos de la conexión.",
       false,
     );
   }
-  return new InstagramPublishingError(
+  return new MetaPublishingError(
     "provider-error",
     status >= 500
       ? "Meta no pudo responder la operación solicitada."
@@ -261,7 +261,7 @@ function containerStateFrom(value: unknown): InstagramContainerState {
     case "PUBLISHED":
       return "published";
     default:
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "provider-error",
         "Meta informó un estado de contenedor que la plataforma no conoce.",
         false,
@@ -339,7 +339,7 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
     );
     const entries = payload["data"];
     if (!Array.isArray(entries) || entries.length === 0) {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "provider-error",
         "Meta no informó la cuota de publicación de la cuenta.",
         true,
@@ -402,7 +402,7 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
         signal: AbortSignal.timeout(requestTimeoutMilliseconds),
       });
     } catch (cause: unknown) {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         cause instanceof Error && cause.name === "TimeoutError"
           ? "request-timeout"
           : "provider-error",
@@ -413,7 +413,7 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
 
     const body = await response.text();
     if (new TextEncoder().encode(body).byteLength > maximumResponseBytes) {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "provider-error",
         "Meta devolvió una respuesta demasiado grande.",
         false,
@@ -423,7 +423,7 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
     try {
       parsed = JSON.parse(body);
     } catch {
-      throw new InstagramPublishingError(
+      throw new MetaPublishingError(
         "provider-error",
         "Meta devolvió una respuesta ilegible.",
         response.status >= 500,

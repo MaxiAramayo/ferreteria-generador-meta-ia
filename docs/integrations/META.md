@@ -287,6 +287,81 @@ publicaciones de la Page:
 Los endpoints y parámetros exactos deben quedar encapsulados en el adaptador y
 probados contra la versión de Graph fijada.
 
+### Contrato verificado de publicación (2026-08-19)
+
+Consultado en la documentación oficial vigente el 2026-08-19 e implementado en
+`P5-T04`.
+
+| Paso | Llamada | Notas |
+|---|---|---|
+| Preparar la foto | `POST /<PAGE_ID>/photos` con `published=false` | Deja la foto en estado temporal 24 horas. Nadie la ve. Devuelve `id`. |
+| Publicar | `POST /<PAGE_ID>/feed` | `message` con el copy y `attached_media=[{"media_fbid":"<id>"}]`. Devuelve `id`. |
+| Reconciliar | `GET /<PHOTO_ID>?fields=page_story_id` | Presente prueba que la publicación existe. **Ausente no prueba lo contrario.** |
+| Enlace | `GET /<POST_ID>?fields=permalink_url` | Lectura opcional de presentación. |
+
+Especificaciones de la imagen: JPEG, BMP, PNG, GIF y TIFF; máximo **4 MB** —la
+mitad que Instagram—; Meta recomienda mantener los PNG por debajo de 1 MB para
+que no se pixelen y elimina por su cuenta los metadatos de ubicación. No hay
+restricción documentada de proporción. La longitud del copy no está documentada
+para publicaciones de Page; la plataforma adopta el mismo tope de 2200
+caracteres que Instagram para que una misma pieza no se acepte en un destino y
+se rechace en el otro.
+
+**Por qué dos llamadas y no una.** Facebook admite publicar la foto y su texto
+en una sola llamada. Esta vertical usa dos por idempotencia: con una sola, una
+respuesta perdida deja a la plataforma sin ningún identificador que consultar, y
+las dos salidas automáticas —publicar de nuevo o abandonar— son igual de malas.
+Subir la foto sin publicar primero produce un identificador que se guarda antes
+de pedir la publicación, y ese identificador sí puede responder después la única
+pregunta que importa.
+
+**La respuesta es concluyente en un solo sentido.** Si `page_story_id` está, la
+publicación existe. Si no está, la documentación advierte que «puede no estar en
+todas las fotos», así que su ausencia no prueba que no se publicó. Por eso una
+publicación ambigua —timeout o 5xx después de tener la foto preparada— queda en
+`outcome_unknown` y **no se reintenta sola**: espera decisión humana. Publicar en
+la Page de un negocio real es irreversible y elegir automáticamente entre
+duplicar y no publicar no es una decisión del worker. Un rechazo explícito
+—permiso, credencial, pieza inválida— no creó nada, así que sí se marca fallido y
+su reintento es seguro.
+
+Códigos distinguidos por el adaptador. La Page informa sus fallos con los
+códigos generales de Graph y no con la familia `22070xx` de Instagram:
+
+| Señal de Meta | Categoría interna | ¿Reintenta? |
+|---|---|---|
+| `4`, `17`, `32`, `341`, `613`, HTTP 429 | `rate-limit` | sí |
+| `102`, `190` | `token-expired` | no |
+| `10`, `200`–`299`, HTTP 401/403 | `permission-denied` | no |
+| `324`, `1363030`, `1363037` | `media-invalid` | no |
+| `100` sobre la foto preparada | `staged-media-expired` | sí, preparando otra |
+| `1`, `2` | `provider-error` | sí |
+| HTTP 5xx o código desconocido | `provider-error` | sí sólo si es 5xx |
+
+Fuentes:
+[publicaciones de Page](https://developers.facebook.com/docs/pages-api/posts/),
+[fotos de Page](https://developers.facebook.com/docs/graph-api/reference/page/photos/),
+[feed de Page](https://developers.facebook.com/docs/graph-api/reference/page/feed/),
+[nodo Photo](https://developers.facebook.com/docs/graph-api/reference/photo/),
+[manejo de errores de Graph](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+
+### Implementación de `P5-T04`
+
+Las reglas y el puerto están en `packages/domain/src/facebook-publishing.ts`; el
+adaptador en `apps/worker/src/publishing/facebook-graph.adapter.ts`; el
+publicador en `facebook-publisher.service.ts`.
+
+`P5-T04` unificó además el vocabulario de intentos de los dos destinos en
+`packages/domain/src/meta-publishing-attempt.ts`: un único diario, una única
+taxonomía de fallos y un único conjunto de estados. La razón es concreta:
+`P5-T05` calcula un estado agregado sobre destinos distintos, y si cada uno
+tuviera su vocabulario ese cálculo tendría que traducir antes de comparar, que
+es justamente donde se pierde la diferencia entre «falló» y «no sé si salió».
+
+Los destinos siguen siendo independientes: cada uno tiene su propia fila,
+identificada por su `publicationTargetId`. Un fallo en Facebook no puede tocar el
+resultado de Instagram porque no comparten estado, sólo contrato.
+
 ## Idempotencia y fallas
 
 - Un `PublicationTarget` tiene una clave única.
