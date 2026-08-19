@@ -511,18 +511,18 @@ estado agregado sin ocultar fallos parciales.
 
 ### Criterios de aceptación
 
-- [ ] La orden referencia un snapshot aprobado e inmutable.
-- [ ] Cada destino tiene clave idempotente y estado propio.
-- [ ] El agregado es `published` solo si todos los destinos requeridos tuvieron éxito.
-- [ ] Un fallo parcial muestra qué destino falló y cuál se publicó.
-- [ ] Cancelar antes del inicio evita nuevos intentos; no borra éxitos previos.
-- [ ] Acciones y respuestas remotas quedan auditadas sin tokens.
+- [x] La orden referencia un snapshot aprobado e inmutable.
+- [x] Cada destino tiene clave idempotente y estado propio.
+- [x] El agregado es `published` solo si todos los destinos requeridos tuvieron éxito.
+- [x] Un fallo parcial muestra qué destino falló y cuál se publicó.
+- [x] Cancelar antes del inicio evita nuevos intentos; no borra éxitos previos.
+- [x] Acciones y respuestas remotas quedan auditadas sin tokens.
 
 ### Verificación obligatoria
 
 - [ ] E2E con éxito total, fallo total y fallo parcial.
 - [ ] Requests duplicados y workers concurrentes.
-- [ ] Confirmar que un snapshot no aprobado se rechaza.
+- [x] Confirmar que un snapshot no aprobado se rechaza.
 
 ### Fuera de alcance
 
@@ -530,11 +530,59 @@ estado agregado sin ocultar fallos parciales.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-19.
+- Estado real: dominio, persistencia, orquestación, API y cableado del worker
+  implementados y verificados con dobles. Falta la verificación contra
+  PostgreSQL real.
+- Archivos: `packages/domain/src/publication-publishing.ts` con su prueba;
+  `infrastructure/database/prisma/schema.prisma` y la migración
+  `20260819230000_publication_orders`;
+  `infrastructure/database/src/publication-order-repository.ts`;
+  `apps/api/src/content/publication-order.{service,controller}.ts`, su DTO y su
+  prueba; `apps/worker/src/publishing/publication-order.transport.ts`,
+  `meta-credential.adapter.ts` y `publishing.module.ts` con sus pruebas;
+  contratos públicos en `packages/contracts/src/publication-draft.ts`.
+- **El estado agregado se calcula, no se guarda.** Un campo puede quedar
+  diciendo `published` sobre una orden cuyo destino falló; una función pura de
+  los estados por destino no. Su regla central es negativa: `published` exige
+  que **todos** los destinos requeridos hayan salido.
+- **`outcome_unknown` deja la orden abierta a propósito.** Un destino ambiguo no
+  es éxito ni fallo, así que la orden se queda en `publishing`: cerrarla exigiría
+  elegir entre duplicar y abandonar. El detalle por destino muestra cuál está en
+  duda.
+- **La regla de secuencia vive en el `WHERE` del `UPDATE`.** La decide el motor y
+  no la aplicación: dos trabajadores sobre el mismo destino compiten en la base y
+  gana exactamente uno.
+- **El repositorio implementa dos contratos sobre las mismas dos tablas** —ciclo
+  de la orden y diario de intentos—, porque separarlos obligaría a mantener el
+  estado del intento sincronizado en dos lugares.
+- **Lo que se publica sale del snapshot, no del borrador**, y el checksum del
+  activo almacenado se compara contra el que el snapshot fijó: una pieza
+  cambiada aborta en vez de publicar algo que nadie revisó.
+- Los publicadores quedaron cableados al worker. Hasta ahora estaban sueltos a
+  propósito: sin diario persistente, un publicador conectado podía duplicar tras
+  un reinicio.
+- Defecto encontrado y corregido en la propia revisión: Nest inyecta por
+  posición, y con dos grupos opcionales —brief y publicación— un brief
+  deshabilitado con publicación habilitada habría entregado el transporte de
+  publicación en el parámetro del brief. El token de publicación se provee
+  siempre, con `null` cuando Meta falta.
+- Verificaciones ejecutadas: 29 pruebas nuevas —11 del agregado, 9 de la
+  orquestación y 9 de la API— y `pnpm verify` completo en verde.
+- **Verificación pendiente y bloqueo:** la migración no se aplicó nunca contra
+  PostgreSQL. `pnpm db:test` necesita Docker corriendo, y `pnpm infra:up`
+  además rechaza el `.env` local por dos líneas en minúscula —`correo` y
+  `password`— ajenas a esta tarea. Sin eso no puede darse por buena la
+  migración ni probarse concurrencia real, que es lo que piden los dos
+  criterios de verificación abiertos.
+- Próximo paso exacto: levantar Docker, correr `pnpm db:test` para aplicar,
+  revertir y reaplicar la migración, y escribir el E2E que cubra éxito total,
+  fallo total y fallo parcial con requests duplicados y dos trabajadores sobre
+  la misma orden.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta la verificación contra PostgreSQL real.
 
 ## P5-T06 — Implementar reintentos y reconciliación remota
 

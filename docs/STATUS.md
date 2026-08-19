@@ -107,18 +107,35 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T05` — orquestación multidestino. Sus dependencias están completas
-y es lo que falta para que publicar deje de ser una operación de plataforma y
-pase a ser el producto: orden con snapshot aprobado, estado por destino, estado
-agregado y diario de intentos persistente.
+Terminar `P5-T05` — orquestación multidestino. Los seis criterios de aceptación
+están cumplidos y verificados con dobles; **faltan las dos verificaciones que
+necesitan PostgreSQL real**: el E2E de éxito total, fallo total y fallo parcial,
+y la prueba de requests duplicados con dos trabajadores concurrentes.
+
+**Bloqueo concreto:** la migración `20260819230000_publication_orders` nunca se
+aplicó contra PostgreSQL. `pnpm db:test` necesita Docker corriendo, y
+`pnpm infra:up` además rechaza el `.env` local por dos líneas en minúscula
+—`correo` y `password`, línea 45— ajenas a esta tarea y que no se tocaron por
+parecer credenciales.
+
+Lo implementado el 2026-08-19 para `P5-T05`:
+
+- **regla del agregado** en `packages/domain/src/publication-publishing.ts`. Se
+  calcula sobre los destinos en vez de guardarse: un campo puede quedar diciendo
+  `published` sobre una orden cuyo destino falló;
+- **modelo de orden, destino e intento** en Prisma, con `CHECK` que impiden
+  estados imposibles —un destino publicado sin identificador remoto, un fallido
+  sin código—;
+- **repositorio** que cumple el ciclo de la orden y el diario de intentos sobre
+  las mismas dos tablas, con la regla de secuencia en el `WHERE` del `UPDATE`;
+- **API** con `publishing:execute` y clave idempotente obligatoria;
+- **worker cableado**: los publicadores dejaron de estar sueltos.
 
 `P5-T03` y `P5-T04` quedaron cerradas el 2026-08-19 con **publicación real en
-los activos de Aramayo**. El usuario autorizó de forma explícita y concreta la
-primera escritura; la enmienda de
-[`ADR-019`](architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md)
-registra sus términos, el resultado y las dos desviaciones que implica —no hubo
-snapshot aprobado ni intervino el rol `publisher`—. La excepción es puntual y no
-habilita publicaciones posteriores.
+los activos de Aramayo**, autorizada explícitamente por el usuario. La enmienda
+de [`ADR-019`](architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md)
+registra los términos, el resultado y las dos desviaciones que implica —no hubo
+snapshot aprobado ni intervino el rol `publisher`—. La excepción es puntual.
 
 | Destino | Medio preparado | Publicación |
 |---|---|---|
@@ -129,7 +146,7 @@ La lectura remota posterior devolvió HTTP 200 en los dos y el copy remoto
 coincide carácter por carácter con el confirmado. Repetir el comando exacto
 devolvió `already-published` sin crear una segunda publicación.
 
-Seis cosas quedaron registradas para `P5-T05` y siguientes:
+Seis cosas quedaron registradas para las tareas siguientes:
 
 - **el diario tiene que escribir antes de publicar, y la corrida lo demostró por
   las malas.** El primer intento creó el contenedor de Instagram y falló al
@@ -138,24 +155,16 @@ Seis cosas quedaron registradas para `P5-T05` y siguientes:
   de publicar. Un paso más tarde, no habría habido forma de saberlo;
 - **la red `backend` del stack es `internal: true`.** Llega a PostgreSQL pero no
   a internet, así que el worker que publique necesita salida explícita;
-- **las variables de Cloudinary estaban vacías en staging.** Sin ellas no hay
-  dónde alojar la pieza; se cargaron para la corrida y se eliminaron después;
+- **las variables de Cloudinary estaban vacías en staging.** Se cargaron para la
+  corrida y se eliminaron después;
 - **el render produce PNG e Instagram sólo admite JPEG.** Quien publique debe
   entregar la variante `meta-feed` de `MediaStorage.deliveryUrl`, que reconvierte
-  y limita el lado largo a 1440 px. Las medidas que recibe el publicador
-  describen lo que entrega esa variante, no lo que guarda el activo;
+  y limita el lado largo a 1440 px;
 - **la Page pesa 4 MB como máximo, la mitad que Instagram**, acepta cinco
-  formatos, no impone proporción y exige texto. Cada destino valida por su
-  cuenta;
+  formatos, no impone proporción y exige texto;
 - **un desenlace ambiguo en Facebook queda en `outcome_unknown` y espera
   decisión humana.** `page_story_id` prueba que la publicación existe, pero su
-  ausencia no prueba lo contrario, y elegir solo entre duplicar y abandonar no
-  le corresponde al worker.
-
-El diario de intentos sigue siendo un puerto con implementación en memoria y en
-archivo; persistirlo en PostgreSQL es el entregable «modelo de orden, destino e
-intento» de `P5-T05`. Los publicadores no están cableados a ningún módulo Nest a
-propósito.
+  ausencia no prueba lo contrario.
 
 `P5-T02` quedó cerrada el 2026-08-18. El OAuth completo corrió en staging con
 las imágenes del SHA `45a2f272`, la conexión quedó `healthy` con la Facebook Page
