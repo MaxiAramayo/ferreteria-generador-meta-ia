@@ -107,66 +107,55 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P5-T03` y `P5-T04` están implementadas y verificadas localmente, y las dos
-quedan abiertas por **el mismo bloqueo: falta la publicación real**, la única
-verificación que no puede hacerse sin el usuario. `ADR-019` no autoriza escribir
-en los activos existentes y no hay activos de prueba separados, así que hace
-falta autorización posterior y concreta con activo, media, copy, destino y
-efecto esperado. Sin eso ninguna de las dos cierra.
+Comenzar `P5-T05` — orquestación multidestino. Sus dependencias están completas
+y es lo que falta para que publicar deje de ser una operación de plataforma y
+pase a ser el producto: orden con snapshot aprobado, estado por destino, estado
+agregado y diario de intentos persistente.
 
-Con ese bloqueo en pie, la tarea siguiente habilitada es `P5-T05` —orquestación
-multidestino—, que además destraba lo que hoy falta para poder publicar de
-verdad: el diario de intentos persistente. Los publicadores no están cableados a
-ningún módulo Nest a propósito, porque hacerlo sin persistencia real sería un
-agujero de corrección.
+`P5-T03` y `P5-T04` quedaron cerradas el 2026-08-19 con **publicación real en
+los activos de Aramayo**. El usuario autorizó de forma explícita y concreta la
+primera escritura; la enmienda de
+[`ADR-019`](architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md)
+registra sus términos, el resultado y las dos desviaciones que implica —no hubo
+snapshot aprobado ni intervino el rol `publisher`—. La excepción es puntual y no
+habilita publicaciones posteriores.
 
-Lo implementado el 2026-08-19:
+| Destino | Medio preparado | Publicación |
+|---|---|---|
+| Instagram feed | contenedor `17875714101627070` | `17868397647637585` |
+| Facebook Page | foto `1587397383077625` | `252222471780140_1587397416410955` |
 
-- **Instagram (`P5-T03`)**: puerto, reglas y taxonomía en
-  `packages/domain/src/instagram-publishing.ts`; adaptador de Graph `v26.0` y
-  sonda de la URL pública en
-  `apps/worker/src/publishing/instagram-graph.adapter.ts`; publicador en
-  `instagram-publisher.service.ts`.
-- **Facebook (`P5-T04`)**: reglas y puerto en
-  `packages/domain/src/facebook-publishing.ts`; adaptador en
-  `facebook-graph.adapter.ts`; publicador en `facebook-publisher.service.ts`.
-- **Vocabulario común**: `packages/domain/src/meta-publishing-attempt.ts` —un
-  diario de intentos, una taxonomía de fallos y un conjunto de estados para los
-  dos destinos.
+La lectura remota posterior devolvió HTTP 200 en los dos y el copy remoto
+coincide carácter por carácter con el confirmado. Repetir el comando exacto
+devolvió `already-published` sin crear una segunda publicación.
 
-Noventa y seis pruebas sobre la vertical y `pnpm verify` completo en verde.
-Ninguna verificación llamó a Meta.
+Seis cosas quedaron registradas para `P5-T05` y siguientes:
 
-Las dos redes resuelven el mismo problema —una respuesta perdida no dice si la
-publicación existe— anclando algo durable antes de pedirla, pero terminan
-distinto. Instagram puede preguntarle al contenedor si ya se publicó, así que el
-reintento reconcilia y sigue solo. Facebook responde `page_story_id` cuando la
-publicación existe, pero su ausencia no prueba lo contrario, así que un pedido
-ambiguo queda en `outcome_unknown` y **espera decisión humana** en vez de elegir
-entre duplicar y abandonar.
-
-Cinco cosas quedaron registradas para las tareas siguientes:
-
+- **el diario tiene que escribir antes de publicar, y la corrida lo demostró por
+  las malas.** El primer intento creó el contenedor de Instagram y falló al
+  escribir el diario por permisos; el identificador se perdió y ese contenedor
+  quedó huérfano hasta vencer. No se publicó nada porque el fallo ocurrió antes
+  de publicar. Un paso más tarde, no habría habido forma de saberlo;
+- **la red `backend` del stack es `internal: true`.** Llega a PostgreSQL pero no
+  a internet, así que el worker que publique necesita salida explícita;
+- **las variables de Cloudinary estaban vacías en staging.** Sin ellas no hay
+  dónde alojar la pieza; se cargaron para la corrida y se eliminaron después;
+- **el render produce PNG e Instagram sólo admite JPEG.** Quien publique debe
+  entregar la variante `meta-feed` de `MediaStorage.deliveryUrl`, que reconvierte
+  y limita el lado largo a 1440 px. Las medidas que recibe el publicador
+  describen lo que entrega esa variante, no lo que guarda el activo;
 - **la Page pesa 4 MB como máximo, la mitad que Instagram**, acepta cinco
-  formatos de imagen, no impone proporción y exige texto. Una misma pieza puede
-  ser válida para un destino y no para el otro, así que cada uno valida por su
+  formatos, no impone proporción y exige texto. Cada destino valida por su
   cuenta;
-- **el render produce PNG e Instagram sólo admite JPEG.** Quien publique tiene
-  que entregar la variante `meta-feed` de `MediaStorage.deliveryUrl`, que ya
-  reconvierte y limita el lado largo a 1440 px. Las medidas que recibe el
-  publicador describen lo que entrega esa variante, no lo que guarda el activo:
-  una historia de 1080×1920 se entrega como 810×1440;
-- **el diario de intentos es un puerto y hoy sólo existe en memoria.**
-  Persistirlo es el entregable «modelo de orden, destino e intento» de `P5-T05`,
-  con la misma regla de secuencia que aplica el doble: una escritura sólo se
-  acepta si continúa a la última almacenada;
-- **un contenedor que Meta informa como `PUBLISHED` sin devolver el ID de la
-  publicación queda como intento sin confirmar y no se vuelve a publicar.**
-  Recuperar ese identificador es de `P5-T06`;
-- **la cuota documentada bajó de 100 a `quota_total` 50** y las historias no
-  publican pie. Las dos correcciones al contrato asumido en `P5-T01` están en
-  [`META.md`](integrations/META.md), junto con las tablas de códigos de los dos
-  destinos.
+- **un desenlace ambiguo en Facebook queda en `outcome_unknown` y espera
+  decisión humana.** `page_story_id` prueba que la publicación existe, pero su
+  ausencia no prueba lo contrario, y elegir solo entre duplicar y abandonar no
+  le corresponde al worker.
+
+El diario de intentos sigue siendo un puerto con implementación en memoria y en
+archivo; persistirlo en PostgreSQL es el entregable «modelo de orden, destino e
+intento» de `P5-T05`. Los publicadores no están cableados a ningún módulo Nest a
+propósito.
 
 `P5-T02` quedó cerrada el 2026-08-18. El OAuth completo corrió en staging con
 las imágenes del SHA `45a2f272`, la conexión quedó `healthy` con la Facebook Page

@@ -260,8 +260,8 @@ almacenar tokens cifrados con ciclo de vida administrado.
 
 ## P5-T03 — Implementar adaptador de publicación en Instagram
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T02`
 - Riesgo: Alto
 
@@ -287,7 +287,8 @@ inicialmente aprobados en Instagram.
 
 ### Verificación obligatoria
 
-- [ ] Publicación real en cuenta de prueba.
+- [x] Publicación real en cuenta de prueba. Se ejecutó en la cuenta real bajo la
+  enmienda de `ADR-019`: no existen activos de prueba separados.
 - [x] Casos de URL inaccesible, media inválida y procesamiento fallido.
 - [x] Reintento después de timeout con reconciliación por estado.
 
@@ -348,21 +349,46 @@ inicialmente aprobados en Instagram.
   prueba separados. Una publicación, aunque sea de prueba, necesita
   autorización posterior y concreta del usuario con activo, media, copy, destino
   y efecto esperado. Mientras tanto la tarea queda `[ ]`.
-- Próximo paso exacto: obtener esa autorización explícita y ejecutar una única
-  publicación en `@ferreteria_aramayo` desde staging, con una pieza JPEG
-  entregada por la variante `meta-feed`, registrando ID de contenedor e ID de
-  publicación. Si el negocio no la autoriza, corresponde decidir en la misma
-  tarea —o en un ADR— con qué evidencia alternativa se cierra el criterio.
+- 2026-08-19: el usuario autorizó la publicación real y se ejecutó. La tarea
+  queda cerrada; el detalle está en la evidencia de cierre.
+- Incidente durante la corrida, que vale registrar porque es exactamente el
+  fallo que el diseño previene: la primera corrida creó el contenedor de
+  Instagram y **falló al escribir el diario** por permisos del volumen. El
+  identificador del contenedor se perdió y ese contenedor quedó huérfano hasta
+  vencer a las 24 horas. No se publicó nada —`media_publish` nunca se llamó— y
+  la corrida siguiente creó uno nuevo. Costó una unidad de la cuota diaria de
+  50. Confirma por qué el diario tiene que escribir antes de publicar: si el
+  fallo hubiera ocurrido un paso más tarde, no habría forma de saber si la
+  publicación existía.
+- Dos huecos de infraestructura que aparecieron y que `P5-T05` hereda: la red
+  `backend` del stack es `internal: true` —llega a PostgreSQL pero no a
+  internet—, así que el worker que publique necesita salida; y las variables de
+  Cloudinary estaban vacías en el entorno de staging, sin las cuales no hay
+  dónde alojar la pieza.
 
 ### Evidencia de cierre
 
-- Pendiente: falta la publicación real, bloqueada por `ADR-019` hasta obtener
-  autorización explícita.
+- Publicación real en `@ferreteria_aramayo` el 2026-08-19, con las imágenes del
+  SHA `c8cb89636deb20b275fec255b72baa330e90ae69` construidas en el VPS de
+  staging. Contenedor `17875714101627070`, publicación `17868397647637585`.
+- Lectura remota posterior con `GET /{media-id}`: HTTP 200, `media_type` `IMAGE`
+  y `caption` idéntico carácter por carácter al confirmado antes de publicar.
+- Idempotencia probada contra la cuenta real: repetir el comando exacto devolvió
+  `already-published` con el mismo identificador y **sin crear una segunda
+  publicación**.
+- Pieza entregada por la variante `meta-feed` de Cloudinary staging: PNG de
+  1122×1402 —proporción 0,8003, dentro del rango 4:5 a 1.91:1 por 0,0003—
+  convertido a JPEG de 0,16 MB. SHA-256 del original
+  `1dce89f86f31d614829affaffb5d18a9ad2c1609277668db6a879c7a4a1ba58c`.
+- La autorización, sus términos y las dos desviaciones que implica están en la
+  enmienda 2026-08-19 de
+  [`ADR-019`](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md).
+- 96 pruebas de la vertical y `pnpm verify` completo en verde.
 
 ## P5-T04 — Implementar adaptador de publicación en Facebook
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T02`
 - Riesgo: Alto
 
@@ -388,7 +414,8 @@ resultado coherente con Instagram.
 
 ### Verificación obligatoria
 
-- [ ] Publicación real en página de prueba.
+- [x] Publicación real en página de prueba. Se ejecutó en la Page real bajo la
+  enmienda de `ADR-019`: no existen activos de prueba separados.
 - [x] Pruebas de permiso revocado, media inválida y timeout.
 - [x] Verificar correlación entre intento local y publicación remota.
 
@@ -448,8 +475,21 @@ resultado coherente con Instagram.
 
 ### Evidencia de cierre
 
-- Pendiente: falta la publicación real, bloqueada por `ADR-019` hasta obtener
-  autorización explícita.
+- Publicación real en la Page de Aramayo el 2026-08-19, con las imágenes del SHA
+  `c8cb89636deb20b275fec255b72baa330e90ae69`. Foto preparada
+  `1587397383077625`, publicación `252222471780140_1587397416410955`, enlace
+  `https://www.facebook.com/1587397443077619/posts/1587397416410955`.
+- Correlación intento ↔ publicación remota comprobada: los identificadores del
+  diario coinciden con los que devolvió `GET /{post-id}` —HTTP 200,
+  `created_time` `2026-08-19T21:57:11+0000`— y el `message` remoto es idéntico
+  al confirmado antes de publicar.
+- Idempotencia probada contra la Page real: repetir el comando exacto devolvió
+  `already-published` con el mismo identificador y enlace, leídos del registro y
+  sin volver a llamar a Meta.
+- Independencia de destinos comprobada en la misma corrida: Instagram y Facebook
+  escribieron filas distintas del diario, cada una con su clave de destino.
+- La autorización y sus desviaciones están en la enmienda 2026-08-19 de
+  [`ADR-019`](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md).
 
 ## P5-T05 — Orquestar publicación multidestino
 

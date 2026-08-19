@@ -91,3 +91,27 @@ El smoke que la ejecuta —`apps/worker/src/publishing/publish-smoke.ts`— fall
 cerrado: sin la frase de autorización exacta en la línea de comandos termina sin
 haber llamado a Meta. Su diario de intentos es un archivo y no memoria, para que
 repetir el comando encuentre la publicación anterior en vez de duplicarla.
+
+### Resultado de la corrida
+
+Ejecutada el 2026-08-19. Publicó una vez en cada destino:
+
+| Destino | Medio preparado | Publicación | Enlace |
+|---|---|---|---|
+| Instagram feed | contenedor `17875714101627070` | `17868397647637585` | — |
+| Facebook Page | foto `1587397383077625` | `252222471780140_1587397416410955` | [posts/1587397416410955](https://www.facebook.com/1587397443077619/posts/1587397416410955) |
+
+Repetir el comando exacto devolvió `already-published` en ambos destinos, con
+los mismos identificadores y sin crear una segunda publicación.
+
+**Defecto conocido y aceptado.** La pieza es material generado con IA y las
+térmicas SICA que muestra llevan marcados fabricados: los amperajes son
+caracteres deformados, la letra chica es texto ilegible y los valores «C 60» y
+«C 90» no existen en la línea residencial. Se le señaló al usuario antes de
+publicar, con un recorte ampliado, y decidió publicar igual. Es el mismo defecto
+que `P4-T08` había registrado con los filtros Wega.
+
+Los secretos que hubo que cargar en el servidor para la corrida —credenciales de
+Cloudinary staging— se eliminaron al terminar. El servidor queda sin capacidad
+de volver a publicar sin una preparación deliberada, que es la postura que
+corresponde a una autorización puntual.
