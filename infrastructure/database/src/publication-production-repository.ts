@@ -11,7 +11,6 @@ import {
   type PublicationRenderOutput,
   type PublicationRenderRequestInput,
   type PublicationRenderRequestResult,
-  type ReliableOperationCommitInput,
   type SafeJsonObject,
 } from "@aramayo/domain";
 
@@ -19,6 +18,7 @@ import type { DatabaseClient } from "./client.ts";
 import type { Prisma } from "./generated/prisma/client.ts";
 import {
   claimReliableOperation,
+  reliableCommit,
   commitReliableOperation,
   discardReliableOperationClaim,
 } from "./reliable-operation-repository.ts";
@@ -61,42 +61,6 @@ function replayedApproval(body: SafeJsonObject): ApprovePublicationResult {
     status: "approved",
     version,
   });
-}
-
-function reliableCommit(
-  input: PublicationRenderRequestInput | ApprovePublicationInput,
-  recordId: string,
-  responseBody: SafeJsonObject,
-  operation: Readonly<{
-    readonly entityType: string;
-    readonly metadata: SafeJsonObject;
-    readonly outbox: ReliableOperationCommitInput["outbox"];
-  }>,
-): ReliableOperationCommitInput {
-  return {
-    audit: {
-      actorMembershipId: input.actorMembershipId,
-      entityId: input.publicationId,
-      entityType: operation.entityType,
-      eventId: input.reliableOperation.auditEventId,
-      metadata: operation.metadata,
-      occurredAt: input.reliableOperation.occurredAt,
-      operation: input.reliableOperation.claim.operation,
-      organizationId: input.organizationId,
-      outcome: "success",
-    },
-    idempotency: {
-      actorMembershipId: input.actorMembershipId,
-      expiresAt: input.reliableOperation.completedExpiresAt,
-      keyHash: input.reliableOperation.claim.keyHash,
-      operation: input.reliableOperation.claim.operation,
-      organizationId: input.organizationId,
-      recordId,
-      responseBody,
-      responseStatus: 200,
-    },
-    outbox: operation.outbox,
-  };
 }
 
 function inputJson(
@@ -219,6 +183,7 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         version,
       } satisfies SafeJsonObject;
       const commit = reliableCommit(input, claim.recordId, responseBody, {
+        entityId: input.publicationId,
         entityType: "publication",
         metadata: { revisionId: revision.id, version },
         outbox: [
@@ -592,6 +557,7 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         version,
       } satisfies SafeJsonObject;
       const commit = reliableCommit(input, claim.recordId, responseBody, {
+        entityId: input.publicationId,
         entityType: "approval_snapshot",
         metadata: { revisionId: revision.id, snapshotId, version },
         outbox: [],

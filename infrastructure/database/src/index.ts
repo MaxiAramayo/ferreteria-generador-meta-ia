@@ -9,6 +9,10 @@ export {
 export { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
 export { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 export {
+  PrismaPublicationOrderRepository,
+  publicationTargetKey,
+} from "./publication-order-repository.ts";
+export {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,
 } from "./reliable-operation-repository.ts";

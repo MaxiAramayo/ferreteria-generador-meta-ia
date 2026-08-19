@@ -598,3 +598,20 @@ export {
   type FacebookStagedPhoto,
   type FacebookStagedPhotoReport,
 } from "./facebook-publishing.ts";
+export {
+  isSettledPublicationTarget,
+  isSuccessfulPublicationTarget,
+  pendingPublicationTargets,
+  publicationOrderStatus,
+  publicationOrderTopic,
+  type CancelPublicationOrderInput,
+  type CancelPublicationOrderResult,
+  type PublicationOrderCompletionResult,
+  type PublicationOrderJob,
+  type PublicationOrderRecord,
+  type PublicationOrderRepository,
+  type PublicationOrderStatus,
+  type PublicationOrderTargetRecord,
+  type RequestPublicationOrderInput,
+  type RequestPublicationOrderResult,
+} from "./publication-publishing.ts";
