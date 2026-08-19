@@ -278,18 +278,18 @@ inicialmente aprobados en Instagram.
 
 ### Criterios de aceptación
 
-- [ ] Solo usa URLs HTTPS públicas y activos aprobados.
-- [ ] Valida dimensiones, tipo y límites antes de llamar a Meta.
-- [ ] Se espera el estado procesable antes de publicar.
-- [ ] IDs de contenedor y publicación se guardan por intento.
-- [ ] Rate limit, token, media inválida y error de procesamiento se distinguen.
-- [ ] Repetir el comando no crea una segunda publicación si ya hay éxito confirmado.
+- [x] Solo usa URLs HTTPS públicas y activos aprobados.
+- [x] Valida dimensiones, tipo y límites antes de llamar a Meta.
+- [x] Se espera el estado procesable antes de publicar.
+- [x] IDs de contenedor y publicación se guardan por intento.
+- [x] Rate limit, token, media inválida y error de procesamiento se distinguen.
+- [x] Repetir el comando no crea una segunda publicación si ya hay éxito confirmado.
 
 ### Verificación obligatoria
 
 - [ ] Publicación real en cuenta de prueba.
-- [ ] Casos de URL inaccesible, media inválida y procesamiento fallido.
-- [ ] Reintento después de timeout con reconciliación por estado.
+- [x] Casos de URL inaccesible, media inválida y procesamiento fallido.
+- [x] Reintento después de timeout con reconciliación por estado.
 
 ### Fuera de alcance
 
@@ -297,11 +297,67 @@ inicialmente aprobados en Instagram.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-19.
+- Estado real: puerto, reglas, adaptador de Graph, sonda de la URL pública y
+  publicador de un destino implementados y verificados localmente. Ninguna
+  verificación llamó a Meta.
+- Archivos: `packages/domain/src/instagram-publishing.ts` con su prueba y su
+  export en `index.ts`; `apps/worker/src/publishing/instagram-graph.adapter.ts`,
+  `instagram-publisher.service.ts`, `in-memory-instagram-attempts.ts` y las dos
+  pruebas del worker; `docs/integrations/META.md` con el contrato verificado.
+- Contrato revisado contra la documentación oficial el 2026-08-19 y registrado
+  en [`META.md`](../integrations/META.md). Aparecieron dos correcciones a lo
+  asumido en `P5-T01`: la cuota documentada bajó de 100 a `quota_total` 50 —el
+  adaptador la consulta y no la fija—, y las historias no publican pie, así que
+  un pie en ese destino se rechaza en vez de enviarse para que Meta lo descarte.
+- Decisiones de la implementación: el token de publicación viaja en el
+  encabezado `Authorization` y no en la cadena de consulta; el identificador del
+  contenedor se guarda antes de intentar publicar; la URL se sonda con `HEAD`
+  —o un `GET` de un byte— antes de crear el contenedor, porque la cuota se
+  consume al crearlo y no al publicarlo.
+- Reglas propias, no de Meta, marcadas como tales en el código: una historia
+  exige 9:16 porque Meta recorta cualquier otra proporción por su cuenta y ese
+  recorte no lo revisó nadie, y el ancho mínimo es 320 px porque una pieza
+  escalada hacia arriba pierde la legibilidad del precio y del CTA.
+- Consecuencia registrada para `P5-T05`: **el render produce PNG y Instagram
+  sólo admite JPEG**. Quien publique tiene que entregar la variante `meta-feed`
+  de `MediaStorage.deliveryUrl`, que ya reconvierte a JPEG y limita el lado
+  largo a 1440 px. Las medidas que recibe el publicador describen lo que entrega
+  esa variante, no lo que guarda el activo: una historia de 1080×1920 se entrega
+  como 810×1440 y conserva la proporción.
+- Seam declarado: el diario de intentos es un puerto
+  (`InstagramAttemptJournal`) y hoy sólo existe su doble en memoria, que aplica
+  la misma regla de secuencia que tendrá la tabla. Persistirlo es el entregable
+  «modelo de orden, destino e intento» de `P5-T05`; recuperar el identificador
+  de una publicación que Meta confirmó sin devolverlo es de `P5-T06`. El
+  publicador no se conecta a ningún módulo Nest todavía, a propósito: cablearlo
+  sin persistencia real sería un agujero de corrección.
+- Verificaciones ejecutadas: 55 pruebas nuevas —17 de dominio, 18 del adaptador
+  y 20 del publicador— y `pnpm verify` completo en verde, con `verify:stack`,
+  `verify:plan`, `format:check`, `build`, `lint`, `typecheck`, `test`,
+  `baseline:verify` y `smoke`.
+- Riesgo residual conocido: si el diario falla justo después de crear el
+  contenedor, ese identificador se pierde y el reintento crea otro. Es
+  inherente —un diario que no escribe tampoco puede registrar nada— y se acota
+  cuando `P5-T05` lo persista dentro de la transacción del outbox. Perder la
+  escritura *después* de publicar sí es recuperable: quien ganó la carrera
+  conserva el contenedor y Meta lo informa `PUBLISHED`, así que ese trabajador
+  termina en «publicado sin confirmar» en vez de publicar otra vez.
+- Verificación pendiente y bloqueo: **la publicación real no se ejecutó.**
+  `ADR-019` no autoriza escribir en los activos existentes y no hay activos de
+  prueba separados. Una publicación, aunque sea de prueba, necesita
+  autorización posterior y concreta del usuario con activo, media, copy, destino
+  y efecto esperado. Mientras tanto la tarea queda `[ ]`.
+- Próximo paso exacto: obtener esa autorización explícita y ejecutar una única
+  publicación en `@ferreteria_aramayo` desde staging, con una pieza JPEG
+  entregada por la variante `meta-feed`, registrando ID de contenedor e ID de
+  publicación. Si el negocio no la autoriza, corresponde decidir en la misma
+  tarea —o en un ADR— con qué evidencia alternativa se cierra el criterio.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta la publicación real, bloqueada por `ADR-019` hasta obtener
+  autorización explícita.
 
 ## P5-T04 — Implementar adaptador de publicación en Facebook
 

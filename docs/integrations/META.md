@@ -1,7 +1,7 @@
 # Integración Meta
 
 Verificado contra documentación oficial y configuración autenticada disponible:
-2026-08-17.
+2026-08-19.
 
 ## Alcance inicial
 
@@ -119,9 +119,11 @@ de `P5-T01`.
 | Instagram profesional | Story de imagen JPEG | Contenedor con `media_type=STORIES`; mismos requisitos de cuenta, URL y PPA; no supone soporte de texto alternativo | `instagram_basic`, `instagram_content_publish`, `pages_read_engagement` |
 | Facebook Page | Post estático | Token de Page derivado de OAuth; `POST /<PAGE_ID>/feed`; Page administrada por la conexión | `pages_show_list`, `pages_read_engagement`, `pages_manage_posts` |
 
-Para Instagram, Meta informa un máximo de 100 publicaciones por API por cuenta
-en una ventana continua de 24 horas; el adaptador debe consultar
-`/<IG_ID>/content_publishing_limit` y conservar límites locales más estrictos.
+Para Instagram, la guía de publicación informa un máximo de 100 publicaciones
+por API por cuenta en una ventana continua de 24 horas, pero la referencia del
+límite documenta hoy `quota_total` **50**. El adaptador consulta
+`/<IG_ID>/content_publishing_limit` y usa lo que Meta responda; el detalle está
+en [Contrato verificado de publicación](#contrato-verificado-de-publicación-2026-08-19).
 Instagram admite sólo JPEG para imágenes y descarga la URL de media desde un
 servidor público. La publicación de Page exige token de Page, no token expuesto
 al navegador.
@@ -191,6 +193,90 @@ Meta descarga la imagen desde `image_url`, que debe ser pública:
 [Create an image container](https://www.postman.com/meta/instagram/request/23987686-f4b5a72d-a125-4080-8968-93de1a549e68).
 
 Stories requieren cuenta Business según la documentación oficial.
+
+### Contrato verificado de publicación (2026-08-19)
+
+Consultado en la documentación oficial vigente el 2026-08-19 e implementado en
+`P5-T03`.
+
+| Paso | Llamada | Notas |
+|---|---|---|
+| Crear contenedor | `POST /<IG_ID>/media` | `image_url` obligatorio; `caption` sólo en feed; `media_type=STORIES` en historia. El feed no declara `media_type`. |
+| Consultar estado | `GET /<IG_CONTAINER_ID>?fields=status_code` | `EXPIRED`, `ERROR`, `FINISHED`, `IN_PROGRESS`, `PUBLISHED`. |
+| Publicar | `POST /<IG_ID>/media_publish` | `creation_id` es el contenedor; devuelve el ID de la publicación. |
+| Cuota | `GET /<IG_ID>/content_publishing_limit?fields=config,quota_usage` | `config.quota_total`, `config.quota_duration` y `quota_usage`. |
+
+Especificaciones de la imagen: JPEG únicamente —`MPO` y `JPS` no—, máximo 8 MB,
+proporción admitida en feed entre 4:5 y 1.91:1, ancho entre 320 y 1440 px (Meta
+escala fuera de ese rango en lugar de rechazar) y color sRGB. El pie admite
+2200 caracteres, 30 etiquetas y 20 menciones. Un contenedor sin publicar vence a
+las 24 horas.
+
+Dos correcciones respecto de lo registrado en `P5-T01`:
+
+- la documentación de la cuota informa hoy `quota_total` **50** por ventana de
+  86 400 segundos, no 100. El adaptador la consulta y no la fija: un número
+  escrito en el código frenaría antes de tiempo o gastaría contenedores que Meta
+  ya no acepta;
+- las historias no publican pie. La API acepta el parámetro y lo descarta, así
+  que la plataforma lo rechaza en vez de prometer un texto que nadie va a ver.
+
+La documentación oficial no fija proporción para historias. La plataforma exige
+9:16 por decisión propia: Meta recuadra o recorta cualquier otra proporción por
+su cuenta y ese recorte no lo revisó nadie; el catálogo aprobado tiene un único
+formato de historia y es ese. El ancho mínimo de 320 px también es regla propia,
+porque una pieza escalada hacia arriba pierde la legibilidad del precio y del
+llamado a la acción.
+
+Códigos de error distinguidos por el adaptador. Los subcódigos salen de la
+referencia de errores de Instagram y los códigos superiores de la guía de manejo
+de errores de Graph:
+
+| Señal de Meta | Categoría interna | ¿Reintenta? |
+|---|---|---|
+| `2207003`, `2207052` | `media-unreachable` | sí |
+| `2207004`, `2207005`, `2207009` | `media-invalid` | no |
+| `2207006` | `permission-denied` | no |
+| `2207008`, `2207020` | `container-expired` | sí, con contenedor nuevo |
+| `2207042` | `publishing-limit-reached` | no |
+| `4`, `17`, `32`, `341`, `613`, HTTP 429 | `rate-limit` | sí |
+| `102`, `190` | `token-expired` | no |
+| `10`, `200`–`299`, HTTP 401/403 | `permission-denied` | no |
+| HTTP 5xx o código desconocido | `provider-error` | sí sólo si es 5xx |
+
+Fuentes:
+[publicación de contenido](https://developers.facebook.com/docs/instagram-platform/content-publishing/),
+[contenedor de imagen](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media/),
+[límite de publicación](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/content_publishing_limit/),
+[códigos de error](https://developers.facebook.com/docs/instagram-api/reference/error-codes/),
+[manejo de errores de Graph](https://developers.facebook.com/docs/graph-api/guides/error-handling/).
+
+### Implementación de `P5-T03`
+
+El puerto, las reglas y la taxonomía viven en
+`packages/domain/src/instagram-publishing.ts`; el adaptador de Graph y la sonda
+de la URL pública en `apps/worker/src/publishing/instagram-graph.adapter.ts`; el
+publicador de un destino en
+`apps/worker/src/publishing/instagram-publisher.service.ts`.
+
+Tres decisiones que conviene conocer antes de tocarlo:
+
+- **el token de publicación viaja en el encabezado `Authorization`**, no en la
+  cadena de consulta. Publica con el token de Page, y una URL termina en
+  mensajes de error y registros intermedios. El adaptador de OAuth sigue usando
+  la cadena de consulta porque los extremos de intercambio de código no aceptan
+  otra cosa;
+- **el identificador del contenedor se guarda antes de intentar publicarlo.** Es
+  el único dato que permite distinguir, después de un timeout, «no llegué a
+  publicar» de «publiqué y no me enteré». Un contenedor que Meta informa como
+  `PUBLISHED` sin que la plataforma tenga el ID de la publicación queda como
+  intento sin confirmar y **no se vuelve a publicar**;
+- **la URL se sonda antes de crear el contenedor.** La cuota se consume al crear
+  el contenedor y no al publicar, así que una dirección rota descubierta por
+  Meta cuesta lo mismo que una publicación. La sonda además informa el tipo y el
+  peso reales de lo que se entrega, que es lo único que no puede deducirse del
+  activo almacenado: el render produce PNG y quien publica tiene que entregar la
+  variante `meta-feed`, que es JPEG.
 
 ## Publicación Facebook
 

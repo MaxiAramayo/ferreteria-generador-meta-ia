@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-18
+Actualizado: 2026-08-19
 
 ## Fase activa
 
@@ -107,11 +107,39 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T03` — adaptador de publicación en Instagram. Sus dependencias
-están completas y la conexión de staging ya entrega Page e Instagram activos con
-token utilizable. Vale recordar que `ADR-019` no autoriza escribir en los activos
-reales: una publicación, incluso de prueba, necesita autorización posterior y
-concreta con activo, media, copy, destino y efecto esperado.
+Continuar `P5-T03` — adaptador de publicación en Instagram. El código está
+completo y verificado localmente; **falta la única verificación que no puede
+hacerse sin el usuario: una publicación real.** `ADR-019` no autoriza escribir
+en los activos existentes y no hay activos de prueba separados, así que hace
+falta autorización posterior y concreta con activo, media, copy, destino y
+efecto esperado. Sin eso la tarea no cierra.
+
+Lo implementado el 2026-08-19: puerto, reglas y taxonomía de fallos en
+`packages/domain/src/instagram-publishing.ts`; adaptador de Graph `v26.0` y
+sonda de la URL pública en
+`apps/worker/src/publishing/instagram-graph.adapter.ts`; publicador de un
+destino en `instagram-publisher.service.ts`. Cincuenta y cinco pruebas nuevas y
+`pnpm verify` completo en verde. Ninguna verificación llamó a Meta.
+
+Cuatro cosas quedaron registradas para las tareas siguientes:
+
+- **el render produce PNG e Instagram sólo admite JPEG.** Quien publique tiene
+  que entregar la variante `meta-feed` de `MediaStorage.deliveryUrl`, que ya
+  reconvierte y limita el lado largo a 1440 px. Las medidas que recibe el
+  publicador describen lo que entrega esa variante, no lo que guarda el activo:
+  una historia de 1080×1920 se entrega como 810×1440;
+- **el diario de intentos es un puerto y hoy sólo existe en memoria.**
+  Persistirlo es el entregable «modelo de orden, destino e intento» de `P5-T05`,
+  con la misma regla de secuencia que aplica el doble. El publicador no está
+  cableado a ningún módulo Nest a propósito: hacerlo sin persistencia real sería
+  un agujero de corrección;
+- **un contenedor que Meta informa como `PUBLISHED` sin devolver el ID de la
+  publicación queda como intento sin confirmar y no se vuelve a publicar.**
+  Recuperar ese identificador es de `P5-T06`;
+- **la cuota documentada bajó de 100 a `quota_total` 50** y las historias no
+  publican pie. Las dos correcciones al contrato asumido en `P5-T01` están en
+  [`META.md`](integrations/META.md), junto con la tabla de subcódigos que
+  distingue límite de tasa, credencial, media inválida y error de procesamiento.
 
 `P5-T02` quedó cerrada el 2026-08-18. El OAuth completo corrió en staging con
 las imágenes del SHA `45a2f272`, la conexión quedó `healthy` con la Facebook Page
