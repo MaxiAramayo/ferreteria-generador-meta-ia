@@ -13,10 +13,12 @@ export {
   type OptionalIntegration,
   type RawEnvironment,
 } from "./types.ts";
+export { parseEncryptionKeyRing } from "./validation.ts";
 export {
   parseCommercialCatalogIntegration,
   parseCloudinaryIntegration,
   openAiPolicyDefaults,
+  parseMetaIntegration,
   parseOpenAiIntegration,
   type CloudinaryCredentials,
   type CommercialCatalogCredentials,

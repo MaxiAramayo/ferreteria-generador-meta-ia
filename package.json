@@ -61,6 +61,7 @@
     "production:test": "node --test tools/production-infrastructure/*.test.ts",
     "production:typecheck": "tsc --project tools/production-infrastructure/tsconfig.json",
     "production:verify": "node tools/production-infrastructure/cli.ts verify",
+    "publish:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/database build && pnpm --filter @aramayo/worker smoke:publish",
     "smoke": "node tools/smoke/cli.ts",
     "smoke:typecheck": "tsc --project tools/smoke/tsconfig.json",
     "test": "pnpm --recursive test && pnpm run infra:test && pnpm run production:test && node --test tools/smoke/*.test.ts tools/design-baseline/*.test.ts",

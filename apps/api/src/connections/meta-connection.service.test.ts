@@ -8,6 +8,7 @@ import {
   type AuthenticatedActor,
   type ConsumeMetaOAuthTransactionResult,
   type MetaConnectionMutationResult,
+  type MetaAssetSecretRecord,
   type MetaConnectionRecord,
   type MetaConnectionRepository,
   type MetaConnectionSecretRecord,
@@ -134,6 +135,11 @@ class StubRepository implements MetaConnectionRepository {
   ): Promise<void> {
     this.createdTransaction = input;
     return Promise.resolve();
+  }
+
+  findAssetSecret(): Promise<MetaAssetSecretRecord | null> {
+    // La API no lo usa: el token del activo lo lee el worker para publicar.
+    return Promise.resolve(null);
   }
 
   findSecret(): Promise<MetaConnectionSecretRecord | null> {

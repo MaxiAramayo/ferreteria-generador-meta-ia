@@ -2,6 +2,8 @@ import {
   validateAuditMetadata,
   type AuditEventInput,
   type EncryptedSecret,
+  type MetaAssetKind,
+  type MetaAssetSecretRecord,
   type MetaConnectionRecord,
   type MetaConnectionRepository,
   type MetaConnectionSecretRecord,
@@ -106,6 +108,47 @@ function mapMetaConnection(row: MetaConnectionRow): MetaConnectionRecord {
 }
 
 function secretFromRow(row: MetaConnectionSecretRow): EncryptedSecret | null {
+  if (
+    row.accessCiphertext === null ||
+    row.accessIv === null ||
+    row.accessKeyVersion === null ||
+    row.accessTag === null
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    authenticationTag: row.accessTag,
+    ciphertext: row.accessCiphertext,
+    initializationVector: row.accessIv,
+    keyVersion: row.accessKeyVersion,
+  });
+}
+
+/**
+ * Credencial de un activo.
+ *
+ * Se lee por separado de la conexión y con su propia consulta: el token de la
+ * Page es lo que publica, y no tiene por qué viajar dentro del registro que ven
+ * la UI y la auditoría.
+ */
+const metaAssetSecretSelection = {
+  accessCiphertext: true,
+  accessIv: true,
+  accessKeyVersion: true,
+  accessTag: true,
+  id: true,
+  kind: true,
+  name: true,
+  providerAssetId: true,
+  status: true,
+  username: true,
+} satisfies Prisma.MetaConnectionAssetSelect;
+
+type MetaAssetSecretRow = Prisma.MetaConnectionAssetGetPayload<{
+  select: typeof metaAssetSecretSelection;
+}>;
+
+function assetSecretFromRow(row: MetaAssetSecretRow): EncryptedSecret | null {
   if (
     row.accessCiphertext === null ||
     row.accessIv === null ||
@@ -263,6 +306,40 @@ export class PrismaMetaConnectionRepository implements MetaConnectionRepository 
         stateHash: input.stateHash,
       },
     });
+  }
+
+  async findAssetSecret(
+    organizationId: string,
+    metaConnectionId: string,
+    kind: MetaAssetKind,
+  ): Promise<MetaAssetSecretRecord | null> {
+    const row = await this.#database.metaConnectionAsset.findFirst({
+      select: metaAssetSecretSelection,
+      where: {
+        accessCiphertext: { not: null },
+        // Una conexión revocada no publica aunque el activo siga en la fila.
+        connection: { health: { not: "revoked" } },
+        kind,
+        metaConnectionId,
+        organizationId,
+        status: "active",
+      },
+    });
+    if (row === null) return null;
+    const accessSecret = assetSecretFromRow(row);
+    return accessSecret === null
+      ? null
+      : Object.freeze({
+          accessSecret,
+          asset: Object.freeze({
+            id: row.id,
+            kind: row.kind,
+            name: row.name,
+            providerAssetId: row.providerAssetId,
+            status: row.status,
+            ...(row.username === null ? {} : { username: row.username }),
+          }),
+        });
   }
 
   async findSecret(

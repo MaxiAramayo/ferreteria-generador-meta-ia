@@ -7,6 +7,7 @@ export {
   type ConsumeMetaOAuthTransactionResult,
   type EncryptedSecret,
   type MetaAssetKind,
+  type MetaAssetSecretRecord,
   type MetaAssetStatus,
   type MetaConnectionAssetRecord,
   type MetaConnectionHealth,

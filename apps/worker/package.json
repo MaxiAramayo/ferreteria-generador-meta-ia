@@ -15,6 +15,7 @@
     "smoke:commercial": "node ../../tools/run-with-env.mjs node src/catalog/commercial-smoke.ts",
     "smoke:knowledge": "node ../../tools/run-with-env.mjs node src/knowledge/knowledge-smoke.ts",
     "smoke:openai": "node ../../tools/run-with-env.mjs node src/generation/openai-smoke.ts",
+    "smoke:publish": "node ../../tools/run-with-env.mjs node src/publishing/publish-smoke.ts",
     "start": "node ../../tools/run-with-env.mjs node --enable-source-maps dist/main.js",
     "snapshot:visual": "node src/visual/visual-snapshot-cli.ts",
     "typecheck": "tsc --project tsconfig.json",
