@@ -14,6 +14,7 @@ import {
   PrismaMetaConnectionRepository,
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
+  PrismaPublicationOrderRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
@@ -32,6 +33,7 @@ import type {
   MetaConnectionRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
+  PublicationOrderRepository,
   PublicationProductionRepository,
   PublicationRepository,
   PublicationStateRepository,
@@ -54,6 +56,7 @@ import {
   META_CONNECTION_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
+  PUBLICATION_ORDER_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
@@ -77,6 +80,7 @@ export class DatabaseModule {
         META_CONNECTION_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
+        PUBLICATION_ORDER_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
@@ -115,6 +119,12 @@ export class DatabaseModule {
           provide: PUBLICATION_DRAFT_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationDraftRepository =>
             new PrismaPublicationDraftRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_ORDER_REPOSITORY,
+          useFactory: (database: DatabaseClient): PublicationOrderRepository =>
+            new PrismaPublicationOrderRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],
