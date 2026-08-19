@@ -96,6 +96,19 @@ export interface MetaConnectionSecretRecord {
   readonly connection: MetaConnectionRecord;
 }
 
+/**
+ * Credencial de un activo, separada de la de la conexión.
+ *
+ * Publicar no usa el token de la persona sino el del activo: la Page tiene el
+ * suyo, y la cuenta de Instagram publica con el de la Page porque no guarda
+ * ninguno. Se lee aparte y no viaja dentro de `MetaConnectionRecord`, que es lo
+ * que ven la UI y la auditoría.
+ */
+export interface MetaAssetSecretRecord {
+  readonly accessSecret: EncryptedSecret;
+  readonly asset: MetaConnectionAssetRecord;
+}
+
 export interface UpdateMetaConnectionHealthInput {
   readonly actor: AuthenticatedActor;
   readonly assets?: readonly PersistedMetaAssetInput[];
@@ -134,6 +147,16 @@ export interface MetaConnectionRepository {
     input: ConsumeMetaOAuthTransactionInput,
   ): Promise<ConsumeMetaOAuthTransactionResult>;
   createOAuthTransaction(input: MetaOAuthTransactionInput): Promise<void>;
+  /**
+   * Credencial cifrada del activo activo de ese tipo. Devuelve `null` cuando la
+   * conexión no existe, está revocada, el activo fue removido o no guarda token
+   * propio.
+   */
+  findAssetSecret(
+    organizationId: string,
+    metaConnectionId: string,
+    kind: MetaAssetKind,
+  ): Promise<MetaAssetSecretRecord | null>;
   findSecret(
     organizationId: string,
     metaConnectionId: string,
