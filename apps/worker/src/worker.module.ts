@@ -8,6 +8,7 @@ import { GenerationModule } from "./generation/generation.module.ts";
 import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
 import { MediaModule } from "./media/media.module.ts";
 import { OutboxModule } from "./outbox/outbox.module.ts";
+import { PublishingModule } from "./publishing/publishing.module.ts";
 import { RenderingModule } from "./rendering/rendering.module.ts";
 import { StatusModule } from "./status/status.module.ts";
 
@@ -29,6 +30,7 @@ export class WorkerModule {
       available: briefAvailable,
       imports: [catalogModule, knowledgeModule],
     });
+    const publishingModule = PublishingModule.forConfiguration(configuration);
 
     return {
       imports: [
@@ -39,9 +41,10 @@ export class WorkerModule {
         briefModule,
         MediaModule.forConfiguration(configuration.cloudinary),
         RenderingModule.forConfiguration(configuration),
+        publishingModule,
         OutboxModule.forConfiguration({
           briefAvailable,
-          imports: [briefModule],
+          imports: [briefModule, publishingModule],
         }),
         StatusModule.forConfiguration(configuration),
       ],
