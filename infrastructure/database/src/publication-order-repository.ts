@@ -280,11 +280,11 @@ export class PrismaPublicationOrderRepository
           organizationId: input.organizationId,
           publicationId: input.publicationId,
           requestedByMembershipId: input.actorMembershipId,
+          // `organizationId` no viaja acá: Prisma lo deriva de la orden padre a
+          // través de la clave foránea compuesta del destino. Pasarlo explícito
+          // es un argumento desconocido y la creación falla entera.
           targets: {
-            create: targets.map((target) => ({
-              organizationId: input.organizationId,
-              target,
-            })),
+            create: targets.map((target) => ({ target })),
           },
         },
         select: { id: true },
@@ -292,7 +292,9 @@ export class PrismaPublicationOrderRepository
       await transaction.publicationStateTransition.create({
         data: {
           actorMembershipId: input.actorMembershipId,
-          approvalSnapshotId: snapshot.id,
+          // El snapshot no viaja en la transición: `state_transitions_approval_check`
+          // reserva esa columna al comando `approve`. La orden ya guarda a cuál
+          // apunta, así que la trazabilidad no depende de repetirlo acá.
           commandType: "advance",
           fromStatus: publication.status,
           fromVersion: publication.version,
@@ -461,7 +463,6 @@ export class PrismaPublicationOrderRepository
       await transaction.publicationStateTransition.create({
         data: {
           actorMembershipId: order.requestedByMembershipId,
-          approvalSnapshotId: order.approvalSnapshotId,
           commandType: "advance",
           fromStatus: publication.status,
           fromVersion: publication.version,

@@ -6,9 +6,13 @@ import { Pool } from "pg";
 import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
+  pendingPublicationTargets,
+  publicationOrderStatus,
   transitionPublication,
   type GenerationRunRecord,
   type GenerationVariantRecord,
+  type MetaPublishingAttemptRecord,
+  type MetaPublishingFailureCode,
   type OrganizationRole,
   type ReserveKnowledgeDocumentVersionInput,
   type ReliableMutationContext,
@@ -37,6 +41,10 @@ import {
 import { PrismaGenerationPolicyRepository } from "./generation-governance-repository.ts";
 import { PrismaMetaConnectionRepository } from "./meta-connection-repository.ts";
 import { PrismaPublicationDraftRepository } from "./publication-draft-repository.ts";
+import {
+  PrismaPublicationOrderRepository,
+  publicationTargetKey,
+} from "./publication-order-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import {
   PrismaOutboxRepository,
@@ -4703,4 +4711,666 @@ test("la base rechaza una variante que salió sin pieza o con pieza a medias", a
       },
     }),
   );
+});
+
+/**
+ * Publicación aprobada con su snapshot inmutable.
+ *
+ * Una orden sólo puede nacer de un snapshot aprobado, así que el fixture deja
+ * la publicación en `approved` y el snapshot creado: sin eso lo único que se
+ * podría probar es el rechazo.
+ */
+async function publicationOrderFixture(): Promise<{
+  contentHash: string;
+  membershipId: string;
+  organizationId: string;
+  publicationId: string;
+  snapshotId: string;
+}> {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  const publicationId = randomUUID();
+  const revisionId = randomUUID();
+  const snapshotId = randomUUID();
+  const contentHash = randomHash();
+
+  await database.organization.create({
+    data: {
+      displayName: "Organización de publicación",
+      id: organizationId,
+      legalName: "Organización de publicación",
+      slug: `publishing-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Publicadora",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["publisher"], userId },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { claim: "Ferretería y Lubricentro" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Avenida Belgrano 100",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa central",
+      openingHours: { display: "08:00 a 20:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  await database.publication.create({
+    data: {
+      createdByMembershipId: membershipId,
+      id: publicationId,
+      locationId,
+      organizationId,
+      status: "approved",
+      title: "Promoción de amoladoras",
+    },
+  });
+  await database.publicationRevision.create({
+    data: {
+      content: { title: "Promoción de amoladoras" },
+      contentHash,
+      createdByMembershipId: membershipId,
+      designDocument: { layout: "producto-destacado" },
+      id: revisionId,
+      organizationId,
+      publicationId,
+      revisionNumber: 1,
+      schemaVersion: 1,
+      status: "approved",
+    },
+  });
+  await database.approvalSnapshot.create({
+    data: {
+      approvedAt: new Date("2026-08-19T12:00:00.000Z"),
+      approvedByMembershipId: membershipId,
+      contentHash,
+      id: snapshotId,
+      organizationId,
+      publicationId,
+      revisionId,
+      snapshot: { contentHash, revisionId },
+    },
+  });
+
+  return {
+    contentHash,
+    membershipId,
+    organizationId,
+    publicationId,
+    snapshotId,
+  };
+}
+
+/**
+ * Los intentos se construyen enteros y no por partes: con
+ * `exactOptionalPropertyTypes` un campo opcional presente y en `undefined` no
+ * es lo mismo que ausente, y el diario distingue los dos casos al escribir.
+ */
+function stagedAttempt(
+  organizationId: string,
+  publicationTargetId: string,
+  sequence: number,
+  stagedMediaId: string,
+): MetaPublishingAttemptRecord {
+  return Object.freeze({
+    attemptId: randomUUID(),
+    organizationId,
+    publicationTargetId,
+    sequence,
+    stagedMediaId,
+    state: "media_staged",
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function publishedAttempt(
+  organizationId: string,
+  publicationTargetId: string,
+  sequence: number,
+  remotePostId: string,
+): MetaPublishingAttemptRecord {
+  return Object.freeze({
+    attemptId: randomUUID(),
+    organizationId,
+    publicationTargetId,
+    remotePermalink: `https://www.instagram.com/p/${remotePostId}/`,
+    remotePostId,
+    sequence,
+    state: "published",
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function failedAttempt(
+  organizationId: string,
+  publicationTargetId: string,
+  sequence: number,
+  code: MetaPublishingFailureCode,
+): MetaPublishingAttemptRecord {
+  return Object.freeze({
+    attemptId: randomUUID(),
+    failure: Object.freeze({
+      code,
+      detail: "El proveedor rechazó el intento.",
+      retryable: false,
+    }),
+    organizationId,
+    publicationTargetId,
+    sequence,
+    state: "failed",
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function unknownAttempt(
+  organizationId: string,
+  publicationTargetId: string,
+  sequence: number,
+): MetaPublishingAttemptRecord {
+  return Object.freeze({
+    attemptId: randomUUID(),
+    organizationId,
+    publicationTargetId,
+    sequence,
+    state: "outcome_unknown",
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function requestOrder(
+  orders: PrismaPublicationOrderRepository,
+  organizationId: string,
+  membershipId: string,
+  publicationId: string,
+  targets: readonly ("facebook_page" | "instagram_feed" | "instagram_story")[],
+): Promise<string> {
+  const requested = await orders.request({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "publishing:execute",
+    ),
+    targets,
+  });
+  if (requested.status !== "accepted") {
+    assert.fail(`la orden no fue aceptada: ${requested.status}`);
+  }
+  return requested.orderId;
+}
+
+test("la orden E2E publica todos sus destinos y cierra como published", async () => {
+  const {
+    contentHash,
+    membershipId,
+    organizationId,
+    publicationId,
+    snapshotId,
+  } = await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+
+  // Pedir la orden mueve la publicación a `publishing` y consume una versión.
+  const requested = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(requested.status, "publishing");
+  assert.equal(requested.version, 2);
+
+  // Lo que el worker recibe sale del snapshot aprobado, no del borrador.
+  const job = await orders.findJob(organizationId, orderId);
+  assert.ok(job);
+  assert.equal(job.approvalSnapshotId, snapshotId);
+  assert.equal(job.contentHash, contentHash);
+  assert.equal(job.targets.length, 2);
+
+  const opened = await orders.findById(organizationId, orderId);
+  assert.ok(opened);
+  assert.equal(publicationOrderStatus(opened.targets), "publishing");
+  assert.equal(pendingPublicationTargets(opened).length, 2);
+
+  // Cada destino avanza por su cuenta: primero el medio preparado, después la
+  // publicación confirmada.
+  for (const target of ["facebook_page", "instagram_feed"] as const) {
+    const key = publicationTargetKey(orderId, target);
+    assert.equal(
+      await orders.save(
+        stagedAttempt(organizationId, key, 1, `staged-${target}`),
+      ),
+      "saved",
+    );
+    assert.equal(
+      await orders.save(
+        publishedAttempt(organizationId, key, 2, `remote-${target}`),
+      ),
+      "saved",
+    );
+  }
+
+  const done = await orders.findById(organizationId, orderId);
+  assert.ok(done);
+  assert.equal(publicationOrderStatus(done.targets), "published");
+  assert.equal(pendingPublicationTargets(done).length, 0);
+  // El repositorio ordena por `target`, y PostgreSQL ordena un ENUM por el
+  // orden en que se declararon sus valores, no alfabéticamente: `instagram_feed`
+  // va primero porque encabeza el tipo.
+  assert.deepEqual(
+    done.targets.map((entry) => entry.target),
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.deepEqual(
+    done.targets.map((entry) => entry.remotePostId),
+    ["remote-instagram_feed", "remote-facebook_page"],
+  );
+
+  const settled = await orders.settle(
+    organizationId,
+    orderId,
+    "2026-08-19T13:00:00.000Z",
+  );
+  assert.equal(settled.status, "completed");
+
+  // La orden cerrada y la publicación tienen que decir lo mismo.
+  const closed = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(closed.status, "published");
+  assert.equal(closed.version, 3);
+  const closedOrder = await database.publicationOrder.findUniqueOrThrow({
+    where: { id: orderId },
+  });
+  assert.notEqual(closedOrder.settledAt, null);
+  // El cierre deja transición registrada: pedido y cierre son dos asientos.
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: { organizationId, publicationId, toStatus: "published" },
+    }),
+    1,
+  );
+});
+
+test("la orden E2E con todos los destinos fallidos cierra como publish_failed", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+
+  for (const target of ["facebook_page", "instagram_feed"] as const) {
+    const key = publicationTargetKey(orderId, target);
+    assert.equal(
+      await orders.save(failedAttempt(organizationId, key, 1, "media-invalid")),
+      "saved",
+    );
+  }
+
+  const failed = await orders.findById(organizationId, orderId);
+  assert.ok(failed);
+  assert.equal(publicationOrderStatus(failed.targets), "publish_failed");
+  // Ningún destino admite otro intento por sí solo: todos están resueltos.
+  assert.deepEqual(
+    failed.targets.map((entry) => entry.failureCode),
+    ["media-invalid", "media-invalid"],
+  );
+  assert.deepEqual(
+    failed.targets.map((entry) => entry.remotePostId),
+    [undefined, undefined],
+  );
+
+  assert.equal(
+    (await orders.settle(organizationId, orderId, "2026-08-19T13:00:00.000Z"))
+      .status,
+    "completed",
+  );
+  const closed = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(closed.status, "publish_failed");
+});
+
+test("la orden E2E con un destino caído cierra como partially_published", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+
+  const instagram = publicationTargetKey(orderId, "instagram_feed");
+  const facebook = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      publishedAttempt(organizationId, instagram, 1, "remote-instagram"),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.save(
+      failedAttempt(organizationId, facebook, 1, "permission-denied"),
+    ),
+    "saved",
+  );
+
+  const partial = await orders.findById(organizationId, orderId);
+  assert.ok(partial);
+  assert.equal(publicationOrderStatus(partial.targets), "partially_published");
+
+  // El fallo parcial tiene que decir cuál salió y cuál no; un agregado solo no
+  // alcanza para decidir qué hacer después.
+  const byTarget = new Map(
+    partial.targets.map((entry) => [entry.target, entry]),
+  );
+  assert.equal(byTarget.get("instagram_feed")?.state, "published");
+  assert.equal(
+    byTarget.get("instagram_feed")?.remotePostId,
+    "remote-instagram",
+  );
+  assert.equal(byTarget.get("facebook_page")?.state, "failed");
+  assert.equal(byTarget.get("facebook_page")?.failureCode, "permission-denied");
+  assert.equal(byTarget.get("facebook_page")?.remotePostId, undefined);
+
+  assert.equal(
+    (await orders.settle(organizationId, orderId, "2026-08-19T13:00:00.000Z"))
+      .status,
+    "completed",
+  );
+  const closed = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(closed.status, "partially_published");
+});
+
+test("un destino en duda deja la orden abierta y fuera de reintento", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+
+  assert.equal(
+    await orders.save(
+      publishedAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+        "remote-instagram",
+      ),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.save(
+      unknownAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "facebook_page"),
+        1,
+      ),
+    ),
+    "saved",
+  );
+
+  // `outcome_unknown` no es éxito ni fallo: la orden sigue `publishing` porque
+  // es la única lectura honesta, y el destino en duda no se reintenta porque
+  // pudo haber salido.
+  const open = await orders.findById(organizationId, orderId);
+  assert.ok(open);
+  assert.equal(publicationOrderStatus(open.targets), "publishing");
+  assert.equal(pendingPublicationTargets(open).length, 0);
+  const stillPublishing = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(stillPublishing.status, "publishing");
+});
+
+test("dos pedidos duplicados de publicación crean una sola orden", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  // La misma clave idempotente en los dos intentos: es lo que hace un cliente
+  // que reintenta antes de recibir la primera respuesta.
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "publishing:execute",
+  );
+  const input = {
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: operation,
+    targets: ["instagram_feed", "facebook_page"] as const,
+  };
+
+  const [first, second] = await Promise.all([
+    orders.request(input),
+    orders.request(input),
+  ]);
+
+  const outcomes = [first.status, second.status].toSorted();
+  assert.ok(
+    outcomes.every(
+      (status) => status === "accepted" || status === "in-progress",
+    ),
+    `estados inesperados: ${outcomes.join(", ")}`,
+  );
+  // Una sola orden, un solo evento y una sola tanda de destinos: publicar dos
+  // veces empieza por crear dos órdenes.
+  assert.equal(
+    await database.publicationOrder.count({ where: { organizationId } }),
+    1,
+  );
+  assert.equal(
+    await database.publicationOrderTarget.count({ where: { organizationId } }),
+    2,
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateType: "publication_order", organizationId },
+    }),
+    1,
+  );
+  // Y la publicación avanzó una sola versión.
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(publication.version, 2);
+});
+
+test("dos trabajadores sobre el mismo destino publican una sola vez", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+
+  // Los dos leyeron la misma fila y escriben la misma secuencia. La condición
+  // vive en el `WHERE` del `UPDATE`, así que la resuelve el motor.
+  const [first, second] = await Promise.all([
+    orders.save(publishedAttempt(organizationId, key, 1, "remote-primero")),
+    orders.save(publishedAttempt(organizationId, key, 1, "remote-segundo")),
+  ]);
+  assert.deepEqual([first, second].toSorted(), ["conflict", "saved"]);
+
+  // Gana exactamente uno y el otro se detiene sin publicar.
+  const stored = await orders.find({
+    organizationId,
+    publicationTargetId: key,
+  });
+  assert.ok(stored);
+  assert.equal(stored.sequence, 1);
+  assert.equal(stored.state, "published");
+  assert.ok(
+    stored.remotePostId === "remote-primero" ||
+      stored.remotePostId === "remote-segundo",
+    `identificador remoto inesperado: ${String(stored.remotePostId)}`,
+  );
+
+  // El perdedor tampoco puede reintentar con la secuencia que ya se usó.
+  assert.equal(
+    await orders.save(publishedAttempt(organizationId, key, 1, "remote-tarde")),
+    "conflict",
+  );
+  assert.equal(
+    await database.publicationOrderTarget.count({
+      where: { orderId, organizationId },
+    }),
+    1,
+  );
+});
+
+test("cancelar antes de terminar corta los intentos y conserva lo publicado", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.equal(
+    await orders.save(
+      publishedAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+        "remote-instagram",
+      ),
+    ),
+    "saved",
+  );
+
+  const cancelled = await orders.cancel({
+    actorMembershipId: membershipId,
+    cancelledAt: "2026-08-19T13:30:00.000Z",
+    orderId,
+    organizationId,
+    reasonCode: "operator-cancelled",
+  });
+  assert.equal(cancelled.status, "cancelled");
+
+  // Cancelar no borra lo irreversible: Instagram siguió publicado y Facebook
+  // dejó de admitir intentos.
+  const after = await orders.findById(organizationId, orderId);
+  assert.ok(after);
+  assert.equal(pendingPublicationTargets(after).length, 0);
+  const byTarget = new Map(after.targets.map((entry) => [entry.target, entry]));
+  assert.equal(byTarget.get("instagram_feed")?.state, "published");
+  assert.equal(byTarget.get("facebook_page")?.state, "pending");
+
+  // Cancelar dos veces no cambia nada ni pierde el motivo.
+  const again = await orders.cancel({
+    actorMembershipId: membershipId,
+    cancelledAt: "2026-08-19T13:40:00.000Z",
+    orderId,
+    organizationId,
+    reasonCode: "operator-cancelled",
+  });
+  assert.equal(again.status, "already-settled");
+  const row = await database.publicationOrder.findUniqueOrThrow({
+    where: { id: orderId },
+  });
+  assert.equal(row.cancelledReasonCode, "operator-cancelled");
+  assert.equal(row.cancelledAt?.toISOString(), "2026-08-19T13:30:00.000Z");
+});
+
+test("la base rechaza destinos y órdenes que no describen nada real", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+
+  // Un destino publicado sin identificador remoto sería un éxito que nadie
+  // puede consultar; para eso existe `published_unconfirmed`.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { state: "published" },
+      where: { orderId, organizationId },
+    }),
+  );
+  // Un fallo sin código no se puede clasificar ni reintentar con criterio.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { state: "failed" },
+      where: { orderId, organizationId },
+    }),
+  );
+  // Dos filas para el mismo destino de la misma orden serían dos intentos
+  // compitiendo por el mismo lugar.
+  await assert.rejects(
+    database.publicationOrderTarget.create({
+      data: { orderId, organizationId, target: "instagram_feed" },
+    }),
+  );
+  // Una cancelación sin motivo no se puede auditar después.
+  await assert.rejects(
+    database.publicationOrder.updateMany({
+      data: { cancelledAt: new Date("2026-08-19T13:30:00.000Z") },
+      where: { id: orderId, organizationId },
+    }),
+  );
+
+  // Ninguno de los rechazos dejó rastro: el destino sigue como estaba.
+  const intact = await orders.findById(organizationId, orderId);
+  assert.ok(intact);
+  assert.equal(intact.targets.length, 1);
+  assert.equal(intact.targets[0]?.state, "pending");
+  assert.equal(intact.cancelledAt, undefined);
 });
