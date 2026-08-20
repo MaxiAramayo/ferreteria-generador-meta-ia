@@ -22,6 +22,7 @@
 import {
   metaPublishingFailureCodes,
   publicationOrderStatus,
+  reconcilableFailureCodes,
   publicationOrderTopic,
   type CancelPublicationOrderInput,
   type CancelPublicationOrderResult,
@@ -211,6 +212,7 @@ function mapRetryTarget(row: RetryRow): PublicationRetryTargetRecord {
     publicationTargetId: publicationTargetKey(row.orderId, row.target),
     sequence: row.sequence,
     state: row.state,
+    target: row.target,
   });
 }
 
@@ -604,9 +606,44 @@ export class PrismaPublicationOrderRepository
       select: retrySelection,
       take: limit,
       where: {
-        state: {
-          in: ["media_staged", "outcome_unknown", "published_unconfirmed"],
-        },
+        OR: [
+          {
+            state: {
+              in: ["media_staged", "outcome_unknown", "published_unconfirmed"],
+            },
+          },
+          // Un fallo ambiguo también deja el desenlace abierto: `failed` con
+          // uno de esos códigos significa que la llamada no salió bien, no que
+          // la publicación no exista.
+          {
+            failureCode: { in: [...reconcilableFailureCodes] },
+            state: "failed",
+          },
+        ],
+      },
+    });
+    return Object.freeze(rows.map(mapRetryTarget));
+  }
+
+  /**
+   * Fallos sin plan.
+   *
+   * `nextAttemptAt` y `manualReason` en nulo es exactamente «nadie decidió
+   * todavía qué hacer con esto». Los ambiguos quedan afuera porque los resuelve
+   * la reconciliación, no el reintento.
+   */
+  async unplannedFailures(
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { updatedAt: "asc" },
+      select: retrySelection,
+      take: limit,
+      where: {
+        failureCode: { notIn: [...reconcilableFailureCodes] },
+        manualReason: null,
+        nextAttemptAt: null,
+        state: "failed",
       },
     });
     return Object.freeze(rows.map(mapRetryTarget));
@@ -649,6 +686,24 @@ export class PrismaPublicationOrderRepository
       remotePermalink: input.remotePermalink ?? null,
       remotePostId: input.remotePostId,
       state: "published",
+    });
+  }
+
+  /**
+   * Cierra el destino como salido sin identificador.
+   *
+   * `published_unconfirmed` es el estado que existe para esto: el proveedor
+   * confirmó y no devolvió la media. El destino queda resuelto —no espera
+   * reintento ni persona— aunque nadie pueda abrir la publicación.
+   */
+  async confirmWithoutIdentifier(
+    input: PublicationRetryWriteInput & { readonly reconciledAt: string },
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      manualReason: null,
+      nextAttemptAt: null,
+      reconciledAt: new Date(input.reconciledAt),
+      state: "published_unconfirmed",
     });
   }
 

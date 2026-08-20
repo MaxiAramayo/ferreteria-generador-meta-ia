@@ -251,3 +251,31 @@ test("sólo los estados con desenlace abierto piden reconciliación", () => {
   assert.equal(needsPublicationReconciliation("failed"), false);
   assert.equal(needsPublicationReconciliation("pending"), false);
 });
+
+test("una publicación sin identificador se cierra sin poder mostrarse", () => {
+  // Es lo único que prueba el estado de un contenedor de Instagram: salió, y no
+  // devuelve la media. Ni republicable ni en duda.
+  assert.deepEqual(
+    reconcilePublicationTarget(attemptAt("outcome_unknown"), {
+      status: "published-unidentified",
+    }),
+    { status: "confirmed-unidentified" },
+  );
+  assert.deepEqual(
+    reconcilePublicationTarget(attemptAt("media_staged"), {
+      status: "published-unidentified",
+    }),
+    { status: "confirmed-unidentified" },
+  );
+});
+
+test("volver a confirmar sin identificador lo que ya estaba así no escribe", () => {
+  // La consulta no aportó nada; escribir sólo haría avanzar la secuencia por
+  // nada y competir con el publicador sin motivo.
+  assert.deepEqual(
+    reconcilePublicationTarget(attemptAt("published_unconfirmed"), {
+      status: "published-unidentified",
+    }),
+    { status: "already-settled" },
+  );
+});

@@ -25,11 +25,13 @@
  * segunda.
  */
 
-import type {
-  MetaPublishingAttemptRecord,
-  MetaPublishingAttemptState,
-  MetaPublishingFailureCode,
+import {
+  metaPublishingFailureCodes,
+  type MetaPublishingAttemptRecord,
+  type MetaPublishingAttemptState,
+  type MetaPublishingFailureCode,
 } from "./meta-publishing-attempt.ts";
+import type { PublicationTarget } from "./publication.ts";
 
 /**
  * Qué se puede hacer con un fallo sin que intervenga una persona.
@@ -219,6 +221,15 @@ export type RemotePublicationEvidence =
       remotePostId: string;
       status: "published";
     }>
+  /**
+   * Existe, pero el proveedor no entrega su identificador.
+   *
+   * Es lo único que el estado de un contenedor de Instagram puede probar:
+   * dice que se publicó y no devuelve la media. Colapsarlo contra `absent`
+   * republicaría algo que ya salió y colapsarlo contra `indeterminate`
+   * dejaría en duda algo que el proveedor ya afirmó.
+   */
+  | Readonly<{ status: "published-unidentified" }>
   | Readonly<{ status: "absent" }>
   | Readonly<{ status: "indeterminate" }>;
 
@@ -229,6 +240,8 @@ export type PublicationReconciliation =
       remotePostId: string;
       status: "confirmed";
     }>
+  /** Salió, pero no se puede mostrar: queda cerrada sin identificador. */
+  | Readonly<{ status: "confirmed-unidentified" }>
   /** El proveedor no la tiene: recién ahora es seguro volver a publicar. */
   | Readonly<{ status: "republishable" }>
   /** Sigue sin saberse. Queda para una persona. */
@@ -236,14 +249,43 @@ export type PublicationReconciliation =
   /** Ya estaba resuelto; reconciliar no cambia nada. */
   | Readonly<{ status: "already-settled" }>;
 
-/** Estados cuyo desenlace remoto conviene volver a mirar. */
+/**
+ * Códigos cuyo fallo no prueba que la publicación no exista.
+ *
+ * Se deriva de la tabla en vez de repetirse a mano: una lista paralela se
+ * desincroniza en cuanto alguien reclasifica un código, y desincronizarse acá
+ * significa reintentar a ciegas algo ambiguo.
+ */
+export const reconcilableFailureCodes: readonly MetaPublishingFailureCode[] =
+  Object.freeze(
+    metaPublishingFailureCodes.filter(
+      (code) => retryDispositions[code] === "reconcile",
+    ),
+  );
+
+/**
+ * Si conviene volver a mirar el desenlace remoto.
+ *
+ * Son dos familias y no una. Los tres estados abiertos dejaron un anclaje
+ * remoto sin resolver, y un destino ya marcado como fallido también entra
+ * cuando el código que lo tumbó fue ambiguo: `failed` ahí adentro significa
+ * «la llamada no salió bien», no «la publicación no existe».
+ */
 export function needsPublicationReconciliation(
   state: MetaPublishingAttemptState,
+  failureCode?: MetaPublishingFailureCode,
 ): boolean {
-  return (
+  if (
     state === "media_staged" ||
     state === "outcome_unknown" ||
     state === "published_unconfirmed"
+  ) {
+    return true;
+  }
+  return (
+    state === "failed" &&
+    failureCode !== undefined &&
+    publicationRetryDisposition(failureCode) === "reconcile"
   );
 }
 
@@ -276,6 +318,13 @@ export function reconcilePublicationTarget(
       status: "confirmed",
     });
   }
+  if (evidence.status === "published-unidentified") {
+    // Ya estaba anotado así: la consulta no aportó nada y escribir otra vez
+    // sólo haría avanzar la secuencia por nada.
+    return attempt.state === "published_unconfirmed"
+      ? Object.freeze({ status: "already-settled" })
+      : Object.freeze({ status: "confirmed-unidentified" });
+  }
   if (evidence.status === "indeterminate") {
     return Object.freeze({ status: "unresolved" });
   }
@@ -301,6 +350,7 @@ export interface PublicationRetryTargetRecord {
   readonly publicationTargetId: string;
   readonly sequence: number;
   readonly state: MetaPublishingAttemptState;
+  readonly target: PublicationTarget;
 }
 
 export type PublicationRetryWriteResult = "conflict" | "saved";
@@ -334,6 +384,16 @@ export interface ConfirmRemotePublicationInput extends PublicationRetryWriteInpu
  * posterior vuelve a acotarse a su organización.
  */
 export interface PublicationRetryRepository {
+  /**
+   * Destinos que fallaron y todavía no tienen decidido qué sigue.
+   *
+   * Es lo que hace que la política sobreviva a un reinicio: el publicador sólo
+   * registra el fallo, y decidir qué hacer con él es un barrido aparte que
+   * vuelve a encontrarlo aunque el worker se haya caído en el medio.
+   */
+  unplannedFailures(
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]>;
   /** Destinos con reintento programado que ya venció. */
   dueRetries(
     at: string,
@@ -354,6 +414,16 @@ export interface PublicationRetryRepository {
   /** Deja el destino esperando a una persona, con el motivo. */
   requireManualAction(
     input: RequireManualActionInput,
+  ): Promise<PublicationRetryWriteResult>;
+  /**
+   * Cierra el destino como salido sin identificador.
+   *
+   * No se puede mostrar la publicación ni reintentarla: existe y no hay forma
+   * de señalarla. Es el precio de que el proveedor confirme sin devolver la
+   * media, y es preferible a duplicar.
+   */
+  confirmWithoutIdentifier(
+    input: PublicationRetryWriteInput & { readonly reconciledAt: string },
   ): Promise<PublicationRetryWriteResult>;
   /** Habilita otro intento sobre un destino que se comprobó ausente. */
   reopenForRepublish(

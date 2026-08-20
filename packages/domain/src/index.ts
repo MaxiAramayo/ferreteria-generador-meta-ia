@@ -621,6 +621,7 @@ export {
   publicationRetryDelayMilliseconds,
   publicationRetryDisposition,
   publicationRetryLimits,
+  reconcilableFailureCodes,
   reconcilePublicationTarget,
   type PlanPublicationRetryInput,
   type PublicationManualReason,
