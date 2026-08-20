@@ -212,6 +212,25 @@ enum MetaAssetKind {
   @@map("meta_asset_kind")
 }
 
+enum PublicationTargetKind {
+  instagram_feed   @map("instagram_feed")
+  instagram_story  @map("instagram_story")
+  facebook_page    @map("facebook_page")
+
+  @@map("publication_target_kind")
+}
+
+enum PublicationAttemptState {
+  pending               @map("pending")
+  media_staged          @map("media_staged")
+  published             @map("published")
+  published_unconfirmed @map("published_unconfirmed")
+  outcome_unknown       @map("outcome_unknown")
+  failed                @map("failed")
+
+  @@map("publication_attempt_state")
+}
+
 enum MetaAssetStatus {
   active
   removed
@@ -243,6 +262,8 @@ model Organization {
   locations              Location[]
   mediaAssets            MediaAsset[]
   metaConnectionAssets   MetaConnectionAsset[]
+  publicationOrders      PublicationOrder[]
+  publicationOrderTargets PublicationOrderTarget[]
   metaConnections        MetaConnection[]
   metaOAuthTransactions  MetaOAuthTransaction[]
   memberships            OrganizationMembership[]
@@ -364,6 +385,7 @@ model OrganizationMembership {
   createdRevisions             PublicationRevision[]
   idempotencyRecords           IdempotencyRecord[]
   stateTransitions             PublicationStateTransition[]
+  requestedPublicationOrders   PublicationOrder[]               @relation("PublicationOrderRequestedBy")
   targetedAuthenticationEvents AuthenticationEvent[]            @relation("AuthenticationEventTarget")
   metaOAuthTransactions        MetaOAuthTransaction[]
 
@@ -586,6 +608,7 @@ model Publication {
   location          Location?                    @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   createdBy         OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   approvalSnapshots ApprovalSnapshot[]
+  publishingOrders  PublicationOrder[]
   revisions         PublicationRevision[]
   stateTransitions  PublicationStateTransition[]
 
@@ -644,6 +667,7 @@ model ApprovalSnapshot {
   publication      Publication                  @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   revision         PublicationRevision          @relation(fields: [organizationId, revisionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   approvedBy       OrganizationMembership       @relation(fields: [organizationId, approvedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publishingOrders PublicationOrder[]
   stateTransitions PublicationStateTransition[] @relation("TransitionApprovalSnapshot")
 
   @@unique([organizationId, revisionId], map: "approval_snapshots_revision_key")
@@ -738,6 +762,62 @@ model PublicationStateTransition {
   @@unique([organizationId, publicationId, toVersion], map: "state_transitions_publication_version_key")
   @@index([organizationId, publicationId, occurredAt(sort: Desc)], map: "state_transitions_org_publication_time_idx")
   @@map("publication_state_transitions")
+}
+
+/// Orden de publicación: agrupa un intento por destino sobre un snapshot
+/// aprobado. El estado agregado no se guarda acá, se calcula sobre los
+/// destinos; guardarlo permitiría que se desincronice de lo que pasó.
+model PublicationOrder {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId           String    @map("organization_id") @db.Uuid
+  publicationId            String    @map("publication_id") @db.Uuid
+  approvalSnapshotId       String    @map("approval_snapshot_id") @db.Uuid
+  requestedByMembershipId  String    @map("requested_by_membership_id") @db.Uuid
+  cancelledAt              DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledReasonCode      String?   @map("cancelled_reason_code") @db.VarChar(80)
+  settledAt                DateTime? @map("settled_at") @db.Timestamptz(3)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  targets          PublicationOrderTarget[]
+  approvalSnapshot ApprovalSnapshot       @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication            @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  requestedBy      OrganizationMembership @relation("PublicationOrderRequestedBy", fields: [organizationId, requestedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, id], map: "publication_orders_organization_id_key")
+  @@index([organizationId, publicationId, createdAt(sort: Desc)], map: "publication_orders_org_publication_idx")
+  @@index([organizationId, settledAt], map: "publication_orders_org_settled_idx")
+  @@map("publication_orders")
+}
+
+/// Intento contra un destino. Es la fila que el diario de intentos lee y
+/// escribe: `sequence` sólo avanza de a uno, y esa condición en el UPDATE es lo
+/// que impide que dos trabajadores publiquen dos veces el mismo destino.
+model PublicationOrderTarget {
+  id                 String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String                  @map("organization_id") @db.Uuid
+  orderId            String                  @map("order_id") @db.Uuid
+  target             PublicationTargetKind
+  attemptId          String?                 @map("attempt_id") @db.VarChar(120)
+  state              PublicationAttemptState @default(pending)
+  sequence           Int                     @default(0)
+  stagedMediaId      String?                 @map("staged_media_id") @db.VarChar(160)
+  remotePostId       String?                 @map("remote_post_id") @db.VarChar(200)
+  remotePermalink    String?                 @map("remote_permalink") @db.VarChar(500)
+  failureCode        String?                 @map("failure_code") @db.VarChar(80)
+  failureDetail      String?                 @map("failure_detail") @db.VarChar(300)
+  failureRetryable   Boolean?                @map("failure_retryable")
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order        PublicationOrder @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, orderId, target], map: "publication_order_targets_order_target_key")
+  @@unique([organizationId, id], map: "publication_order_targets_organization_id_key")
+  @@index([organizationId, orderId, state], map: "publication_order_targets_order_state_idx")
+  @@map("publication_order_targets")
 }
 
 model AuditEvent {

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   contentBriefGenerationTopic,
   generationRunTopic,
+  publicationOrderTopic,
   publicationRenderTopic,
   type ContentBriefRunRepository,
   type OutboxRepository,
@@ -25,6 +26,8 @@ import { MediaLifecycleService } from "../media/media-lifecycle.service.ts";
 import { DESIGN_RENDERER } from "../rendering/rendering.module.ts";
 import { PublicationRenderOutboxTransport } from "../rendering/publication-render.service.ts";
 import type { DesignRenderer } from "@aramayo/design-engine";
+import { PUBLICATION_ORDER_TRANSPORT } from "../publishing/publishing.module.ts";
+import type { PublicationOrderOutboxTransport } from "../publishing/publication-order.transport.ts";
 import { OutboxConsumerService } from "./outbox-consumer.service.ts";
 import { OutboxDispatcherService } from "./outbox-dispatcher.service.ts";
 import { TopicRoutingOutboxTransport } from "./topic-routing-outbox.transport.ts";
@@ -57,13 +60,21 @@ export class OutboxModule {
       module: OutboxModule,
       providers: [
         {
-          inject: [...renderInjection, ...briefInjection],
+          // El grupo del brief va último porque es el único opcional: Nest
+          // inyecta por posición y dos grupos opcionales correrían los
+          // parámetros del otro cuando sólo uno está presente.
+          inject: [
+            ...renderInjection,
+            PUBLICATION_ORDER_TRANSPORT,
+            ...briefInjection,
+          ],
           provide: OUTBOX_TRANSPORT,
           useFactory: (
             repository: PublicationProductionRepository,
             renderer: DesignRenderer,
             media: MediaLifecycleService,
             generation: ImageGenerationRunService,
+            publishing: PublicationOrderOutboxTransport | null,
             brief?: ContentBriefGenerationService,
             runs?: ContentBriefRunRepository,
           ): OutboxTransport =>
@@ -82,6 +93,9 @@ export class OutboxModule {
                     [contentBriefGenerationTopic]:
                       new ContentBriefOutboxTransport(brief, runs),
                   }),
+              ...(publishing === null
+                ? {}
+                : { [publicationOrderTopic]: publishing }),
             }),
         },
         {

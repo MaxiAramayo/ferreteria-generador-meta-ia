@@ -131,3 +131,49 @@ export interface PublicationApprovalResponse {
   readonly status: "approved";
   readonly version: number;
 }
+
+/**
+ * Destino de una orden de publicación. El contrato público no reutiliza el tipo
+ * del dominio: un destino nuevo tiene que ser una decisión explícita del
+ * contrato y no un efecto colateral de agregarlo adentro.
+ */
+export type PublicationOrderTargetKind =
+  "facebook_page" | "instagram_feed" | "instagram_story";
+
+export interface PublicationOrderRequestResponse {
+  readonly orderId: string;
+  readonly publicationId: string;
+  readonly status: "publishing";
+  readonly version: number;
+}
+
+export interface PublicationOrderTargetResponse {
+  /** Código estable del fallo; nunca el mensaje del proveedor. */
+  readonly failureCode?: string;
+  readonly failureDetail?: string;
+  readonly failureRetryable?: boolean;
+  readonly permalink?: string;
+  /** Identificador remoto, cuando el destino lo confirmó. */
+  readonly remotePostId?: string;
+  readonly state:
+    | "failed"
+    | "media_staged"
+    | "outcome_unknown"
+    | "pending"
+    | "published"
+    | "published_unconfirmed";
+  readonly target: PublicationOrderTargetKind;
+  readonly updatedAt: string;
+}
+
+export interface PublicationOrderResponse {
+  readonly cancelledAt?: string;
+  readonly createdAt: string;
+  readonly id: string;
+  readonly publicationId: string;
+  /** Agregado calculado sobre los destinos, no un campo almacenado. */
+  readonly status:
+    "partially_published" | "publish_failed" | "published" | "publishing";
+  readonly targets: readonly PublicationOrderTargetResponse[];
+  readonly updatedAt: string;
+}

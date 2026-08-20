@@ -493,8 +493,8 @@ resultado coherente con Instagram.
 
 ## P5-T05 — Orquestar publicación multidestino
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T06`, `P5-T03`, `P5-T04`
 - Riesgo: Alto
 
@@ -511,18 +511,18 @@ estado agregado sin ocultar fallos parciales.
 
 ### Criterios de aceptación
 
-- [ ] La orden referencia un snapshot aprobado e inmutable.
-- [ ] Cada destino tiene clave idempotente y estado propio.
-- [ ] El agregado es `published` solo si todos los destinos requeridos tuvieron éxito.
-- [ ] Un fallo parcial muestra qué destino falló y cuál se publicó.
-- [ ] Cancelar antes del inicio evita nuevos intentos; no borra éxitos previos.
-- [ ] Acciones y respuestas remotas quedan auditadas sin tokens.
+- [x] La orden referencia un snapshot aprobado e inmutable.
+- [x] Cada destino tiene clave idempotente y estado propio.
+- [x] El agregado es `published` solo si todos los destinos requeridos tuvieron éxito.
+- [x] Un fallo parcial muestra qué destino falló y cuál se publicó.
+- [x] Cancelar antes del inicio evita nuevos intentos; no borra éxitos previos.
+- [x] Acciones y respuestas remotas quedan auditadas sin tokens.
 
 ### Verificación obligatoria
 
-- [ ] E2E con éxito total, fallo total y fallo parcial.
-- [ ] Requests duplicados y workers concurrentes.
-- [ ] Confirmar que un snapshot no aprobado se rechaza.
+- [x] E2E con éxito total, fallo total y fallo parcial.
+- [x] Requests duplicados y workers concurrentes.
+- [x] Confirmar que un snapshot no aprobado se rechaza.
 
 ### Fuera de alcance
 
@@ -530,11 +530,99 @@ estado agregado sin ocultar fallos parciales.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-19.
+- Estado real: dominio, persistencia, orquestación, API y cableado del worker
+  implementados y verificados con dobles. Falta la verificación contra
+  PostgreSQL real.
+- Archivos: `packages/domain/src/publication-publishing.ts` con su prueba;
+  `infrastructure/database/prisma/schema.prisma` y la migración
+  `20260819230000_publication_orders`;
+  `infrastructure/database/src/publication-order-repository.ts`;
+  `apps/api/src/content/publication-order.{service,controller}.ts`, su DTO y su
+  prueba; `apps/worker/src/publishing/publication-order.transport.ts`,
+  `meta-credential.adapter.ts` y `publishing.module.ts` con sus pruebas;
+  contratos públicos en `packages/contracts/src/publication-draft.ts`.
+- **El estado agregado se calcula, no se guarda.** Un campo puede quedar
+  diciendo `published` sobre una orden cuyo destino falló; una función pura de
+  los estados por destino no. Su regla central es negativa: `published` exige
+  que **todos** los destinos requeridos hayan salido.
+- **`outcome_unknown` deja la orden abierta a propósito.** Un destino ambiguo no
+  es éxito ni fallo, así que la orden se queda en `publishing`: cerrarla exigiría
+  elegir entre duplicar y abandonar. El detalle por destino muestra cuál está en
+  duda.
+- **La regla de secuencia vive en el `WHERE` del `UPDATE`.** La decide el motor y
+  no la aplicación: dos trabajadores sobre el mismo destino compiten en la base y
+  gana exactamente uno.
+- **El repositorio implementa dos contratos sobre las mismas dos tablas** —ciclo
+  de la orden y diario de intentos—, porque separarlos obligaría a mantener el
+  estado del intento sincronizado en dos lugares.
+- **Lo que se publica sale del snapshot, no del borrador**, y el checksum del
+  activo almacenado se compara contra el que el snapshot fijó: una pieza
+  cambiada aborta en vez de publicar algo que nadie revisó.
+- Los publicadores quedaron cableados al worker. Hasta ahora estaban sueltos a
+  propósito: sin diario persistente, un publicador conectado podía duplicar tras
+  un reinicio.
+- Defecto encontrado y corregido en la propia revisión: Nest inyecta por
+  posición, y con dos grupos opcionales —brief y publicación— un brief
+  deshabilitado con publicación habilitada habría entregado el transporte de
+  publicación en el parámetro del brief. El token de publicación se provee
+  siempre, con `null` cuando Meta falta.
+- Verificaciones ejecutadas: 29 pruebas nuevas —11 del agregado, 9 de la
+  orquestación y 9 de la API— y `pnpm verify` completo en verde.
+- Fecha: 2026-08-20. La verificación contra PostgreSQL real quedó hecha y
+  cerró los dos criterios que faltaban.
+- **La corrida contra PostgreSQL encontró dos defectos que los dobles no podían
+  encontrar, y los dos estaban en el repositorio, no en las pruebas.** Ninguno
+  se veía compilando: `pnpm verify` estaba en verde con los dos presentes.
+- **Defecto 1: `request()` nunca pudo crear una orden.** El `create` anidado de
+  los destinos pasaba `organizationId` explícito, y Prisma lo deriva de la clave
+  foránea compuesta de la orden padre; como argumento desconocido, la creación
+  fallaba entera. TypeScript no lo vio porque el literal viaja como tipo de
+  retorno inferido de un `map`, donde no corre el chequeo de propiedades
+  excedentes. Sin base real, ninguna prueba lo podía tocar.
+- **Defecto 2: la transición de estado violaba un CHECK anterior.**
+  `state_transitions_approval_check` reserva `approval_snapshot_id` al comando
+  `approve`, y las dos transiciones `advance` de la orden —pedido y cierre— lo
+  escribían. `publication-production-repository.ts` ya lo hacía bien; la orden
+  era la excepción. Se quitó la columna de ambas: la orden guarda a qué snapshot
+  apunta, así que no se pierde trazabilidad.
+- **La migración no tenía `down.sql`.** Se escribió, y con ella el ciclo revertir
+  y reaplicar corre completo. Revierte los dos ENUM además de las dos tablas:
+  un tipo que sobrevive a su tabla hace fallar la reaplicación con «type already
+  exists», y esa falla sólo aparece al reaplicar, no al revertir.
+- `verify.ts` apuntaba a `20260815000000_meta_connections` como última
+  migración. Ahora apunta a la de órdenes, y sus aserciones de reversión se
+  dieron vuelta: Meta ya no es la última, así que tiene que sobrevivir.
+- Detalle que costó una corrida: PostgreSQL ordena un ENUM por el orden de
+  declaración de sus valores, no alfabéticamente. `instagram_feed` va antes que
+  `facebook_page` al ordenar por `target`.
+- Verificaciones ejecutadas: 8 pruebas de integración nuevas contra PostgreSQL
+  real —éxito total, fallo total, fallo parcial, destino en duda, pedidos
+  duplicados concurrentes, dos trabajadores sobre el mismo destino, cancelación
+  y rechazo de estados imposibles—, `pnpm db:test` completo y `pnpm verify`
+  completo, los dos en verde.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm db:test` en verde el 2026-08-20: migración aplicada desde una base
+  vacía, seed verificado, 31 pruebas de integración en verde, migración
+  revertida con `down.sql` y reaplicada con las pruebas repetidas.
+- `pnpm verify` completo en verde: formato, build, lint, typecheck, pruebas,
+  línea base de diseño y smoke de `api`, `web` y `worker`.
+- Las pruebas que cierran los criterios abiertos viven en
+  `infrastructure/database/src/repositories.integration.test.ts`: «la orden E2E
+  publica todos sus destinos y cierra como published», «…cierra como
+  publish_failed», «…cierra como partially_published», «dos pedidos duplicados
+  de publicación crean una sola orden» y «dos trabajadores sobre el mismo
+  destino publican una sola vez».
+- Queda en pie una molestia de entorno ajena a la tarea: `pnpm infra:up` y el
+  resto de los comandos `infra:*` rechazan el `.env` local por dos claves en
+  minúscula —`correo` y `password`, líneas 45 y 46—, porque
+  `tools/local-infrastructure/environment.ts` exige `^[A-Z][A-Z0-9_]*$`. No se
+  tocaron por parecer credenciales personales. La verificación se corrió
+  levantando los contenedores con el mismo `docker compose` que `infra:up`
+  ejecuta, cuyo parser sí las acepta; `pnpm db:test` no las mira porque usa
+  `parseEnv` de Node.
 
 ## P5-T06 — Implementar reintentos y reconciliación remota
 

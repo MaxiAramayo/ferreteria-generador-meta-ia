@@ -10,6 +10,8 @@ import {
   PrismaKnowledgeDocumentRepository,
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
+  PrismaMetaConnectionRepository,
+  PrismaPublicationOrderRepository,
   PrismaPublicationProductionRepository,
 } from "@aramayo/database";
 import type {
@@ -20,6 +22,7 @@ import type {
   GenerationAttemptLedgerRepository,
   KnowledgeDocumentRepository,
   MediaAssetRepository,
+  MetaConnectionRepository,
   OutboxRepository,
   PublicationProductionRepository,
 } from "@aramayo/domain";
@@ -35,6 +38,8 @@ import {
   GENERATION_POLICY_REPOSITORY,
   GENERATION_ATTEMPT_LEDGER_REPOSITORY,
   KNOWLEDGE_DOCUMENT_REPOSITORY,
+  META_CONNECTION_REPOSITORY,
+  PUBLICATION_ORDER_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
@@ -51,7 +56,9 @@ export class DatabaseModule {
         GENERATION_ATTEMPT_LEDGER_REPOSITORY,
         KNOWLEDGE_DOCUMENT_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
+        META_CONNECTION_REPOSITORY,
         OUTBOX_REPOSITORY,
+        PUBLICATION_ORDER_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
       ],
       global: true,
@@ -107,6 +114,22 @@ export class DatabaseModule {
             database: DatabaseClient,
           ): PublicationProductionRepository =>
             new PrismaPublicationProductionRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: META_CONNECTION_REPOSITORY,
+          useFactory: (database: DatabaseClient): MetaConnectionRepository =>
+            new PrismaMetaConnectionRepository(database),
+        },
+        {
+          // Una sola instancia sirve al ciclo de la orden y al diario de
+          // intentos: son dos contratos sobre las mismas filas.
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_ORDER_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PrismaPublicationOrderRepository =>
+            new PrismaPublicationOrderRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

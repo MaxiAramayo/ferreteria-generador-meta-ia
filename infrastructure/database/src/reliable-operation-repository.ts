@@ -6,6 +6,7 @@ import type {
   OutboxMessageRecord,
   OutboxMessageStatus,
   OutboxRepository,
+  ReliableMutationContext,
   ReliableOperationCommitInput,
   ReliableOperationRepository,
   SafeJsonObject,
@@ -540,4 +541,54 @@ export class PrismaOutboxRepository implements OutboxRepository {
     `);
     return Object.freeze({ deleted: deleted.length });
   }
+}
+
+/**
+ * Arma el commit de una operación confiable.
+ *
+ * Los tres pedazos —auditoría, idempotencia y outbox— se escriben juntos o no
+ * se escriben: una respuesta idempotente guardada sin su evento de outbox
+ * dejaría al pedido contestado y sin trabajo encolado. La firma es estructural
+ * a propósito, para que cada repositorio la use sin que este módulo tenga que
+ * conocer sus tipos de entrada.
+ */
+export function reliableCommit(
+  input: Readonly<{
+    actorMembershipId: string;
+    organizationId: string;
+    reliableOperation: ReliableMutationContext;
+  }>,
+  recordId: string,
+  responseBody: SafeJsonObject,
+  operation: Readonly<{
+    readonly entityId: string;
+    readonly entityType: string;
+    readonly metadata: SafeJsonObject;
+    readonly outbox: ReliableOperationCommitInput["outbox"];
+  }>,
+): ReliableOperationCommitInput {
+  return {
+    audit: {
+      actorMembershipId: input.actorMembershipId,
+      entityId: operation.entityId,
+      entityType: operation.entityType,
+      eventId: input.reliableOperation.auditEventId,
+      metadata: operation.metadata,
+      occurredAt: input.reliableOperation.occurredAt,
+      operation: input.reliableOperation.claim.operation,
+      organizationId: input.organizationId,
+      outcome: "success",
+    },
+    idempotency: {
+      actorMembershipId: input.actorMembershipId,
+      expiresAt: input.reliableOperation.completedExpiresAt,
+      keyHash: input.reliableOperation.claim.keyHash,
+      operation: input.reliableOperation.claim.operation,
+      organizationId: input.organizationId,
+      recordId,
+      responseBody,
+      responseStatus: 200,
+    },
+    outbox: operation.outbox,
+  };
 }

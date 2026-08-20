@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260815000000_meta_connections";
+const latestMigrationName = "20260819230000_publication_orders";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -174,6 +174,10 @@ async function verifyDatabase(): Promise<void> {
         meta_connections_table: string | null;
         meta_oauth_table: string | null;
         outbox_table: string | null;
+        publication_attempt_state_type: string | null;
+        publication_order_targets_table: string | null;
+        publication_orders_table: string | null;
+        publication_target_kind_type: string | null;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
       }>(
@@ -224,6 +228,10 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.audit_events')::text AS "audit_table",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
             to_regclass('public.outbox_messages')::text AS "outbox_table",
+            to_regclass('public.publication_orders')::text AS "publication_orders_table",
+            to_regclass('public.publication_order_targets')::text AS "publication_order_targets_table",
+            to_regtype('public.publication_target_kind')::text AS "publication_target_kind_type",
+            to_regtype('public.publication_attempt_state')::text AS "publication_attempt_state_type",
             to_regclass('public.knowledge_documents')::text AS "knowledge_documents_table",
             to_regclass('public.knowledge_document_versions')::text AS "knowledge_versions_table",
             to_regclass('public.meta_connections')::text AS "meta_connections_table",
@@ -273,11 +281,26 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparecen conexión,
-      // activos y transacciones Meta; la genealogía y todo lo anterior quedan.
-      assert.equal(rollbackEvidence.meta_connections_table, null);
-      assert.equal(rollbackEvidence.meta_assets_table, null);
-      assert.equal(rollbackEvidence.meta_oauth_table, null);
+      // La reversión afecta sólo a la última migración: desaparecen la orden,
+      // sus destinos y los dos tipos que sólo ellos usan. Los tipos importan
+      // tanto como las tablas: un ENUM que sobrevive a su tabla hace fallar la
+      // reaplicación con «type already exists», y esa falla sólo aparece al
+      // reaplicar, no al revertir.
+      assert.equal(rollbackEvidence.publication_orders_table, null);
+      assert.equal(rollbackEvidence.publication_order_targets_table, null);
+      assert.equal(rollbackEvidence.publication_target_kind_type, null);
+      assert.equal(rollbackEvidence.publication_attempt_state_type, null);
+      // Meta ya no es la última migración: revertir órdenes no puede llevarse
+      // por delante la conexión que las publica.
+      assert.equal(rollbackEvidence.meta_connections_table, "meta_connections");
+      assert.equal(
+        rollbackEvidence.meta_assets_table,
+        "meta_connection_assets",
+      );
+      assert.equal(
+        rollbackEvidence.meta_oauth_table,
+        "meta_oauth_transactions",
+      );
       assert.equal(rollbackEvidence.generation_lineage_exists, true);
       assert.equal(rollbackEvidence.admission_mode_exists, true);
       assert.equal(
