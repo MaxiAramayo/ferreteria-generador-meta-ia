@@ -30,8 +30,34 @@ export type PublishRequestResult =
   | Readonly<{ kind: "indeterminate"; message: string }>
   | Readonly<{ kind: "rejected"; message: string }>;
 
+/**
+ * Lo que se le muestra a alguien antes de confirmar.
+ *
+ * Sale de la revisión **aprobada**, no de la última: lo que se va a publicar es
+ * el snapshot que alguien revisó, y mostrar un borrador más nuevo haría que la
+ * confirmación describiera algo distinto de lo que sale. `approved` viaja
+ * explícito para que la pantalla pueda decirlo en vez de suponerlo.
+ */
+export type PublishConfirmationResult =
+  | Readonly<{
+      approved: boolean;
+      caption: string;
+      checksumSha256: string;
+      kind: "ready";
+      previewAlt: string;
+      previewUrl: string;
+      title: string;
+    }>
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>;
+
 export type PublicationOrderLoadResult =
   | Readonly<{ kind: "ready"; order: PublicationOrderResponse }>
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>;
+
+export type PublicationOrderHistoryResult =
+  | Readonly<{ items: readonly PublicationOrderResponse[]; kind: "ready" }>
   | Readonly<{ kind: "forbidden" }>
   | Readonly<{ kind: "error"; message: string }>;
 
@@ -146,6 +172,64 @@ export async function requestPublication(
   }
 }
 
+export async function loadPublishConfirmation(
+  apiBaseUrl: string,
+  publicationId: string,
+): Promise<PublishConfirmationResult> {
+  try {
+    const response = await fetch(
+      new URL(`publications/${publicationId}`, apiBaseUrl),
+      {
+        cache: "no-store",
+        credentials: "include",
+        headers: { accept: "application/json" },
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const body = objectRecord(await payload(response));
+    const revision = objectRecord(body?.["latestRevision"]);
+    const content = objectRecord(revision?.["content"]);
+    const rendered = objectRecord(revision?.["renderedMedia"]);
+    const caption = content?.["caption"];
+    const title = body?.["title"];
+    const previewUrl = rendered?.["secureUrl"];
+    const checksumSha256 = rendered?.["checksumSha256"];
+    if (
+      !response.ok ||
+      typeof caption !== "string" ||
+      typeof title !== "string" ||
+      typeof previewUrl !== "string" ||
+      typeof checksumSha256 !== "string"
+    ) {
+      // Sin pieza verificable o sin copy no hay nada que confirmar. Mostrar la
+      // pantalla a medias invitaría a publicar sin haber visto qué sale.
+      return {
+        kind: "error",
+        message:
+          "La publicación todavía no tiene copy y PNG confirmados para revisar.",
+      };
+    }
+    return {
+      approved:
+        revision?.["status"] === "approved" &&
+        typeof revision["approvalSnapshotId"] === "string",
+      caption,
+      checksumSha256,
+      kind: "ready",
+      previewAlt: `PNG aprobado de ${title}`,
+      previewUrl,
+      title,
+    };
+  } catch {
+    return {
+      kind: "error",
+      message: "No se pudo leer qué se va a publicar.",
+    };
+  }
+}
+
 export async function loadPublicationOrder(
   apiBaseUrl: string,
   orderId: string,
@@ -173,6 +257,44 @@ export async function loadPublicationOrder(
     return {
       kind: "error",
       message: "La API no respondió al consultar la publicación.",
+    };
+  }
+}
+
+/**
+ * Historial de órdenes de una publicación.
+ *
+ * Una pieza que salió a medias y se reintentó tiene más de una, y mirarlas en
+ * orden es lo que permite entender qué pasó sin adivinar.
+ */
+export async function loadPublicationOrders(
+  apiBaseUrl: string,
+  publicationId: string,
+): Promise<PublicationOrderHistoryResult> {
+  try {
+    const response = await fetch(
+      new URL(`publications/${publicationId}/orders`, apiBaseUrl),
+      {
+        cache: "no-store",
+        credentials: "include",
+        headers: { accept: "application/json" },
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const body = objectRecord(await payload(response));
+    const items = body?.["items"];
+    return response.ok && Array.isArray(items) && items.every(isOrder)
+      ? { items: Object.freeze(items), kind: "ready" }
+      : {
+          kind: "error",
+          message: "No se pudo leer el historial de publicación.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "La API no respondió al consultar el historial.",
     };
   }
 }

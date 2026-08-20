@@ -1,5 +1,6 @@
 import type {
   PublicationManualActionListResponse,
+  PublicationOrderListResponse,
   PublicationOrderRequestResponse,
   PublicationOrderResponse,
 } from "@aramayo/contracts";
@@ -73,6 +74,15 @@ export class PublicationOrderController {
       body.targets,
       idempotencyKey,
     );
+  }
+
+  @Get("publications/:publicationId/orders")
+  @RequirePermission("publishing:execute")
+  history(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
+  ): Promise<PublicationOrderListResponse> {
+    return this.#service.list(session.actor, publicationId);
   }
 
   @Get("publication-orders/:orderId")

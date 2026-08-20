@@ -12,6 +12,7 @@
  */
 
 import type {
+  PublicationOrderListResponse,
   PublicationOrderRequestResponse,
   PublicationOrderResponse,
   PublicationOrderTargetResponse,
@@ -77,6 +78,9 @@ function orderResponse(
     updatedAt: order.updatedAt,
   });
 }
+
+/** Cota del historial: es para mirar atrás, no para auditar en profundidad. */
+const orderHistoryLimit = 20;
 
 @Injectable()
 export class PublicationOrderService {
@@ -146,6 +150,28 @@ export class PublicationOrderService {
       case "not-found":
         throw new NotFoundException("No se encontró la publicación.");
     }
+  }
+
+  /**
+   * Historial de la publicación.
+   *
+   * Una pieza puede tener más de una orden, y el estado agregado de cada una se
+   * vuelve a calcular al leer: mostrar el de la orden vieja tal como quedó
+   * guardado sería mostrar un campo que nadie garantiza.
+   */
+  async list(
+    actor: AuthenticatedActor,
+    publicationId: string,
+  ): Promise<PublicationOrderListResponse> {
+    this.#require(actor);
+    const orders = await this.#repository.listByPublication(
+      actor.organizationId,
+      publicationId,
+      orderHistoryLimit,
+    );
+    return Object.freeze({
+      items: Object.freeze(orders.map(orderResponse)),
+    });
   }
 
   async find(

@@ -475,6 +475,20 @@ export class PrismaPublicationOrderRepository
     return row === null ? null : mapOrder(row);
   }
 
+  async listByPublication(
+    organizationId: string,
+    publicationId: string,
+    limit: number,
+  ): Promise<readonly PublicationOrderRecord[]> {
+    const rows = await this.#database.publicationOrder.findMany({
+      orderBy: { createdAt: "desc" },
+      select: orderSelection,
+      take: limit,
+      where: { organizationId, publicationId },
+    });
+    return Object.freeze(rows.map(mapOrder));
+  }
+
   async findJob(
     organizationId: string,
     orderId: string,

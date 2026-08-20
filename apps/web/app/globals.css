@@ -1819,3 +1819,218 @@ a {
     width: 100%;
   }
 }
+
+/* Confirmación de publicación e inspección por destino (P5-T07). */
+
+.publication-publish-blocked {
+  align-self: center;
+  color: var(--workspace-muted);
+  font:
+    0.78rem/1.3 "Archivo",
+    sans-serif;
+  max-width: 34ch;
+}
+
+.publish-confirmation {
+  background: var(--workspace-cream);
+  border-left: 4px solid var(--workspace-rust);
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.2rem;
+  padding: 1.1rem 1.2rem;
+}
+
+.publish-confirmation h3 {
+  font:
+    700 1.15rem/1.15 "Saira Condensed",
+    "Archivo",
+    sans-serif;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.publish-confirmation header p {
+  color: var(--workspace-muted);
+  margin: 0.25rem 0 0;
+}
+
+.publish-confirmation-preview {
+  margin: 0;
+}
+
+.publish-confirmation-preview img {
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  height: auto;
+  max-width: 16rem;
+}
+
+.publish-confirmation-copy h4 {
+  font:
+    700 0.8rem/1 "Archivo",
+    sans-serif;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.publish-confirmation-copy p {
+  background: var(--workspace-paper);
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+}
+
+.publish-confirmation-targets {
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.publish-confirmation-targets legend {
+  font:
+    700 0.78rem/1 "Archivo",
+    sans-serif;
+  text-transform: uppercase;
+}
+
+.publish-confirmation-targets label {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.publish-confirmation-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.publish-confirmation-actions button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    700 0.82rem/1 "Archivo",
+    sans-serif;
+  padding: 0.6rem 0.9rem;
+}
+
+/* El control irreversible se distingue del que sólo cierra la pantalla. */
+.publish-confirmation-actions button:last-child {
+  background: var(--workspace-rust);
+  border-color: var(--workspace-rust);
+  color: var(--workspace-paper);
+}
+
+.publish-confirmation-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.publish-confirmation-notice:empty {
+  display: none;
+}
+
+.publication-order-history {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.publication-order {
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  padding: 0.9rem 1rem;
+}
+
+.publication-order h3 {
+  font:
+    700 1rem/1.15 "Saira Condensed",
+    "Archivo",
+    sans-serif;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.publication-order header p {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  margin: 0.2rem 0 0;
+}
+
+.publication-order-targets {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+
+/*
+ * El color no es lo único que separa los cuatro desenlaces: la etiqueta los
+ * nombra y el borde los agrupa. Quien no distingue rojo de verde tiene que
+ * poder leer qué pasó igual.
+ */
+.publication-order-target {
+  border-left: 4px solid var(--workspace-muted);
+  padding: 0.5rem 0.75rem;
+}
+
+.publication-order-target--published {
+  border-left-color: var(--state-ok);
+}
+
+.publication-order-target--failed {
+  border-left-color: var(--state-error);
+}
+
+.publication-order-target--unknown {
+  border-left-color: var(--workspace-safety);
+}
+
+.publication-order-target--in-flight {
+  border-left-color: var(--workspace-muted);
+}
+
+.publication-order-target-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.publication-order-target-heading span {
+  font:
+    700 0.74rem/1 "Archivo",
+    sans-serif;
+  text-transform: uppercase;
+}
+
+.publication-order-target-failure,
+.publication-order-target-reason {
+  color: var(--workspace-muted);
+  font-size: 0.8rem;
+  margin: 0.3rem 0 0;
+}
+
+.publication-order-target-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.publication-order-target-actions button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    700 0.74rem/1 "Archivo",
+    sans-serif;
+  padding: 0.45rem 0.6rem;
+}
+
+.publication-order-target-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

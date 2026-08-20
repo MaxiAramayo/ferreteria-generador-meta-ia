@@ -166,6 +166,11 @@ export interface PublicationOrderTargetResponse {
   readonly updatedAt: string;
 }
 
+export interface PublicationOrderListResponse {
+  /** De la más reciente a la más vieja. */
+  readonly items: readonly PublicationOrderResponse[];
+}
+
 /**
  * Un destino detenido esperando a una persona.
  *

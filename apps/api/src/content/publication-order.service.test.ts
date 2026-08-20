@@ -69,6 +69,12 @@ class StubRepository implements PublicationOrderRepository {
     return Promise.resolve(this.#order);
   }
 
+  listByPublication(): Promise<readonly PublicationOrderRecord[]> {
+    return Promise.resolve(
+      this.#order === null ? Object.freeze([]) : Object.freeze([this.#order]),
+    );
+  }
+
   findJob(): Promise<null> {
     return Promise.resolve(null);
   }
