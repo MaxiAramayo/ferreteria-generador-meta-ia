@@ -13,6 +13,8 @@
  * y este archivo sin criterio propio.
  */
 
+import { randomUUID } from "node:crypto";
+
 import {
   planPublicationRetry,
   type PublicationRetryRepository,
@@ -30,13 +32,25 @@ export interface PublicationRetryPlanningSummary {
   readonly skipped: number;
 }
 
+export interface PublicationRetryDispatchSummary {
+  /** Órdenes que ya no admiten intentos: canceladas, cerradas o ausentes. */
+  readonly closed: number;
+  readonly dispatched: number;
+  readonly reviewed: number;
+  /** Despachos que perdieron la carrera contra otro barrido o publicador. */
+  readonly skipped: number;
+}
+
 export interface PublicationRetryOptions {
+  /** Identificador del evento reencolado. Se inyecta para poder comprobarlo. */
+  readonly eventId?: () => string;
   /** Sorteo del jitter. Se inyecta para que la prueba sea determinista. */
   readonly jitter?: () => number;
   readonly now?: () => Date;
 }
 
 export class PublicationRetryService {
+  readonly #eventId: () => string;
   readonly #jitter: () => number;
   readonly #now: () => Date;
   readonly #retries: PublicationRetryRepository;
@@ -45,9 +59,50 @@ export class PublicationRetryService {
     retries: PublicationRetryRepository,
     options: PublicationRetryOptions = {},
   ) {
+    this.#eventId = options.eventId ?? ((): string => randomUUID());
     this.#jitter = options.jitter ?? ((): number => Math.random());
     this.#now = options.now ?? ((): Date => new Date());
     this.#retries = retries;
+  }
+
+  /**
+   * Devuelve a la cola los reintentos cuya fecha llegó.
+   *
+   * No publica: deja el destino en `pending` y reencola el evento de la orden,
+   * que es lo que el transporte ya sabe atender. Reintentar por un camino
+   * distinto al de la primera vez sería mantener dos caminos que tienen que
+   * comportarse igual.
+   */
+  async dispatchDueBatch(
+    limit: number,
+  ): Promise<PublicationRetryDispatchSummary> {
+    const due = await this.#retries.dueRetries(
+      this.#now().toISOString(),
+      limit,
+    );
+    let closed = 0;
+    let dispatched = 0;
+    let skipped = 0;
+
+    for (const target of due) {
+      const result = await this.#retries.dispatchDueRetry({
+        availableAt: this.#now().toISOString(),
+        eventId: this.#eventId(),
+        organizationId: target.organizationId,
+        publicationTargetId: target.publicationTargetId,
+        sequence: target.sequence,
+      });
+      if (result === "dispatched") dispatched += 1;
+      if (result === "closed") closed += 1;
+      if (result === "conflict") skipped += 1;
+    }
+
+    return Object.freeze({
+      closed,
+      dispatched,
+      reviewed: due.length,
+      skipped,
+    });
   }
 
   async planBatch(limit: number): Promise<PublicationRetryPlanningSummary> {

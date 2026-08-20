@@ -37,6 +37,8 @@ import {
   type PublicationOrderTargetRecord,
   type PublicationTarget,
   type ConfirmRemotePublicationInput,
+  type DispatchDueRetryInput,
+  type DispatchDueRetryResult,
   type MetaPublishingFailureCode,
   type PublicationManualReason,
   type PublicationRetryRepository,
@@ -61,9 +63,12 @@ import {
 
 const targetSelection = {
   attemptId: true,
+  attempts: true,
   failureCode: true,
   failureDetail: true,
   failureRetryable: true,
+  manualReason: true,
+  nextAttemptAt: true,
   remotePermalink: true,
   remotePostId: true,
   sequence: true,
@@ -110,9 +115,15 @@ function mapTarget(
   orderId: string,
   row: TargetRow,
 ): PublicationOrderTargetRecord {
+  const manualReason = asManualReason(row.manualReason);
   return Object.freeze({
+    attempts: row.attempts,
     ...(row.failureCode === null ? {} : { failureCode: row.failureCode }),
     ...(row.failureDetail === null ? {} : { failureDetail: row.failureDetail }),
+    ...(manualReason === null ? {} : { manualReason }),
+    ...(row.nextAttemptAt === null
+      ? {}
+      : { nextAttemptAt: row.nextAttemptAt.toISOString() }),
     ...(row.failureRetryable === null
       ? {}
       : { failureRetryable: row.failureRetryable }),
@@ -647,6 +658,70 @@ export class PrismaPublicationOrderRepository
       },
     });
     return Object.freeze(rows.map(mapRetryTarget));
+  }
+
+  /**
+   * Devuelve el destino a la cola y reencola el evento, en una transacción.
+   *
+   * El `WHERE` exige que la fecha siga puesta además de la secuencia: dos
+   * barridos concurrentes sobre el mismo destino vencido compiten en el motor y
+   * sólo uno reencola. Sin esa condición, el segundo crearía un evento más para
+   * la misma orden y el destino se intentaría dos veces.
+   */
+  async dispatchDueRetry(
+    input: DispatchDueRetryInput,
+  ): Promise<DispatchDueRetryResult> {
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return "conflict";
+    // Se copia ya estrechado: dentro del closure de la transacción TypeScript
+    // vuelve a ensanchar el acceso a la propiedad.
+    const target = key.target;
+    if (!isPublicationTarget(target)) return "conflict";
+
+    return this.#database.$transaction(async (transaction) => {
+      const order = await transaction.publicationOrder.findFirst({
+        select: { cancelledAt: true, publicationId: true, settledAt: true },
+        where: { id: key.orderId, organizationId: input.organizationId },
+      });
+      if (order === null) return "closed";
+      // Una orden cancelada no admite intentos nuevos aunque conserve la fecha,
+      // y una cerrada ya movió la publicación a su estado final.
+      if (order.cancelledAt !== null || order.settledAt !== null) {
+        return "closed";
+      }
+
+      const updated = await transaction.publicationOrderTarget.updateMany({
+        data: {
+          nextAttemptAt: null,
+          sequence: input.sequence + 1,
+          state: "pending",
+        },
+        where: {
+          nextAttemptAt: { not: null },
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          sequence: input.sequence,
+          target,
+        },
+      });
+      if (updated.count !== 1) return "conflict";
+
+      await transaction.outboxMessage.create({
+        data: {
+          aggregateId: key.orderId,
+          aggregateType: "publication_order",
+          availableAt: new Date(input.availableAt),
+          id: input.eventId,
+          organizationId: input.organizationId,
+          payload: {
+            orderId: key.orderId,
+            publicationId: order.publicationId,
+          },
+          topic: publicationOrderTopic,
+        },
+      });
+      return "dispatched";
+    });
   }
 
   async scheduleRetry(

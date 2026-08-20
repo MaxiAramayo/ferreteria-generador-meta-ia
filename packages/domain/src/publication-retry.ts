@@ -370,6 +370,18 @@ export interface RequireManualActionInput extends PublicationRetryWriteInput {
   readonly reason: PublicationManualReason;
 }
 
+export interface DispatchDueRetryInput extends PublicationRetryWriteInput {
+  readonly availableAt: string;
+  /** Identificador del evento nuevo. Lo sortea quien llama. */
+  readonly eventId: string;
+}
+
+export type DispatchDueRetryResult =
+  | "conflict"
+  | "dispatched"
+  /** La orden ya no admite intentos: cancelada, cerrada o inexistente. */
+  | "closed";
+
 export interface ConfirmRemotePublicationInput extends PublicationRetryWriteInput {
   readonly reconciledAt: string;
   readonly remotePermalink?: string;
@@ -399,6 +411,17 @@ export interface PublicationRetryRepository {
     at: string,
     limit: number,
   ): Promise<readonly PublicationRetryTargetRecord[]>;
+  /**
+   * Devuelve el destino a la cola y reencola el evento de la orden.
+   *
+   * Las dos cosas van en la misma transacción, y no es un detalle: un destino
+   * que vuelve a `pending` sin evento que lo levante se queda esperando para
+   * siempre, y un evento sin destino habilitado no hace nada. Separarlas
+   * convierte una caída en el medio en una orden colgada.
+   */
+  dispatchDueRetry(
+    input: DispatchDueRetryInput,
+  ): Promise<DispatchDueRetryResult>;
   /** Destinos cuyo desenlace remoto sigue abierto. */
   openOutcomes(limit: number): Promise<readonly PublicationRetryTargetRecord[]>;
   /**

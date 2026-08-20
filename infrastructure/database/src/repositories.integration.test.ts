@@ -5696,3 +5696,206 @@ test("la base rechaza un destino publicado que sigue esperando algo", async () =
     }),
   );
 });
+
+test("el reintento vencido vuelve a la cola y reencola el evento en una transacción", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, key, 1, "rate-limit")),
+    "saved",
+  );
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T12:10:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const eventId = randomUUID();
+  assert.equal(
+    await orders.dispatchDueRetry({
+      availableAt: "2026-08-20T12:11:00.000Z",
+      eventId,
+      organizationId,
+      publicationTargetId: key,
+      sequence: 2,
+    }),
+    "dispatched",
+  );
+
+  // El destino vuelve a admitir intento y deja de tener fecha.
+  const target = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(target.state, "pending");
+  assert.equal(target.nextAttemptAt, null);
+  assert.equal(target.attempts, 1);
+  // Y el evento quedó encolado en la misma transacción: un destino sin evento
+  // se queda esperando para siempre.
+  const message = await database.outboxMessage.findUniqueOrThrow({
+    where: { id: eventId },
+  });
+  assert.equal(message.topic, "content.publication.publish-requested");
+  assert.equal(message.aggregateId, orderId);
+
+  // Un segundo despacho con la secuencia vieja no reencola nada.
+  assert.equal(
+    await orders.dispatchDueRetry({
+      availableAt: "2026-08-20T12:12:00.000Z",
+      eventId: randomUUID(),
+      organizationId,
+      publicationTargetId: key,
+      sequence: 2,
+    }),
+    "conflict",
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateId: orderId, organizationId },
+    }),
+    // El de la solicitud original más el del reintento. Ninguno más.
+    2,
+  );
+});
+
+test("una orden cancelada no recibe el reintento aunque tenga fecha", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, key, 1, "rate-limit")),
+    "saved",
+  );
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T12:10:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+      sequence: 1,
+    }),
+    "saved",
+  );
+  assert.equal(
+    (
+      await orders.cancel({
+        actorMembershipId: membershipId,
+        cancelledAt: "2026-08-20T12:09:00.000Z",
+        orderId,
+        organizationId,
+        reasonCode: "operator-cancelled",
+      })
+    ).status,
+    "cancelled",
+  );
+
+  assert.equal(
+    await orders.dispatchDueRetry({
+      availableAt: "2026-08-20T12:11:00.000Z",
+      eventId: randomUUID(),
+      organizationId,
+      publicationTargetId: key,
+      sequence: 2,
+    }),
+    "closed",
+  );
+  // El destino sigue fallido: cancelar no reabre nada.
+  const target = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(target.state, "failed");
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateId: orderId, organizationId },
+    }),
+    1,
+  );
+});
+
+test("la reconciliación arregla un destino fallido que en Meta sí salió", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const divergente = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      publishedAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+        "remote-instagram",
+      ),
+    ),
+    "saved",
+  );
+  // El estado inconsistente conocido: acá figura fallido con un código ambiguo
+  // y en Meta la publicación existe.
+  assert.equal(
+    await orders.save(
+      failedAttempt(organizationId, divergente, 1, "request-timeout"),
+    ),
+    "saved",
+  );
+
+  // Un fallo ambiguo deja la orden abierta y aparece en el barrido.
+  const beforeOrder = await orders.findById(organizationId, orderId);
+  assert.ok(beforeOrder);
+  assert.equal(publicationOrderStatus(beforeOrder.targets), "publishing");
+  const open = await orders.openOutcomes(100);
+  assert.ok(
+    open.some((entry) => entry.publicationTargetId === divergente),
+    "el fallo ambiguo no entró al barrido de desenlaces abiertos",
+  );
+  // Y no se planifica como reintento: republicarlo duplicaría.
+  const unplanned = await orders.unplannedFailures(100);
+  assert.equal(
+    unplanned.some((entry) => entry.publicationTargetId === divergente),
+    false,
+  );
+
+  assert.equal(
+    await orders.confirmRemotePublication({
+      organizationId,
+      publicationTargetId: divergente,
+      reconciledAt: "2026-08-20T12:30:00.000Z",
+      remotePostId: "252222471780140_1587397416410955",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const after = await orders.findById(organizationId, orderId);
+  assert.ok(after);
+  // La orden pasa de abierta a publicada sin haber publicado nada de nuevo.
+  assert.equal(publicationOrderStatus(after.targets), "published");
+  const byTarget = new Map(after.targets.map((entry) => [entry.target, entry]));
+  assert.equal(byTarget.get("facebook_page")?.state, "published");
+  // El fallo sigue anotado: falló de verdad y después se comprobó que salió.
+  assert.equal(byTarget.get("facebook_page")?.failureCode, "request-timeout");
+});

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   publicationRetryLimits,
+  type DispatchDueRetryInput,
+  type DispatchDueRetryResult,
   type MetaPublishingFailureCode,
   type PublicationRetryRepository,
   type PublicationRetryTargetRecord,
@@ -41,7 +43,10 @@ function failure(
 class RetryRepositoryDouble implements PublicationRetryRepository {
   readonly scheduled: ScheduleRetryInput[] = [];
   readonly manual: RequireManualActionInput[] = [];
+  readonly dispatched: DispatchDueRetryInput[] = [];
+  dispatchResult: DispatchDueRetryResult = "dispatched";
   writeResult: PublicationRetryWriteResult = "saved";
+  due: readonly PublicationRetryTargetRecord[] = Object.freeze([]);
   #failures: readonly PublicationRetryTargetRecord[];
 
   constructor(failures: readonly PublicationRetryTargetRecord[]) {
@@ -53,7 +58,14 @@ class RetryRepositoryDouble implements PublicationRetryRepository {
   }
 
   dueRetries(): Promise<readonly PublicationRetryTargetRecord[]> {
-    return Promise.resolve(Object.freeze([]));
+    return Promise.resolve(this.due);
+  }
+
+  dispatchDueRetry(
+    input: DispatchDueRetryInput,
+  ): Promise<DispatchDueRetryResult> {
+    this.dispatched.push(input);
+    return Promise.resolve(this.dispatchResult);
   }
 
   openOutcomes(): Promise<readonly PublicationRetryTargetRecord[]> {
@@ -97,6 +109,7 @@ function serviceFor(
   return Object.freeze({
     repository,
     service: new PublicationRetryService(repository, {
+      eventId: () => "evento-1",
       jitter: () => 0,
       now: () => now,
     }),
@@ -175,4 +188,42 @@ test("un destino que rompe no impide planificar los demás", async () => {
   assert.equal(summary.planned, 2);
   assert.equal(summary.manual, 1);
   assert.equal(repository.scheduled.length, 2);
+});
+
+test("un reintento vencido vuelve a la cola con su propio evento", async () => {
+  const { repository, service } = serviceFor([]);
+  repository.due = Object.freeze([failure("rate-limit", 1)]);
+
+  const summary = await service.dispatchDueBatch(10);
+
+  assert.equal(summary.dispatched, 1);
+  assert.equal(summary.reviewed, 1);
+  const [sent] = repository.dispatched;
+  assert.ok(sent);
+  assert.equal(sent.eventId, "evento-1");
+  assert.equal(sent.publicationTargetId, "orden-1:instagram_feed");
+  // Escribe contra la secuencia leída: si un publicador movió la fila, pierde.
+  assert.equal(sent.sequence, 1);
+});
+
+test("una orden cerrada o cancelada no recibe el reintento", async () => {
+  const { repository, service } = serviceFor([]);
+  repository.due = Object.freeze([failure("rate-limit", 1)]);
+  repository.dispatchResult = "closed";
+
+  const summary = await service.dispatchDueBatch(10);
+
+  assert.equal(summary.closed, 1);
+  assert.equal(summary.dispatched, 0);
+});
+
+test("perder la carrera del despacho no reencola dos veces", async () => {
+  const { repository, service } = serviceFor([]);
+  repository.due = Object.freeze([failure("rate-limit", 1)]);
+  repository.dispatchResult = "conflict";
+
+  const summary = await service.dispatchDueBatch(10);
+
+  assert.equal(summary.skipped, 1);
+  assert.equal(summary.dispatched, 0);
 });

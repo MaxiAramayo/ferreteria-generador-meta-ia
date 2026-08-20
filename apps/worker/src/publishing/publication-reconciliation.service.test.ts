@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   type ConfirmRemotePublicationInput,
+  type DispatchDueRetryResult,
   type MetaConnectionRecord,
   type MetaConnectionRepository,
   type MetaPublishingAttemptJournal,
@@ -121,6 +122,10 @@ class RetryRepositoryDouble implements PublicationRetryRepository {
 
   dueRetries(): Promise<readonly PublicationRetryTargetRecord[]> {
     return Promise.resolve(Object.freeze([]));
+  }
+
+  dispatchDueRetry(): Promise<DispatchDueRetryResult> {
+    return Promise.reject(new Error("La reconciliación no despacha nada."));
   }
 
   scheduleRetry(): Promise<PublicationRetryWriteResult> {

@@ -123,12 +123,89 @@ test("un destino exitoso no vuelve a intentarse", () => {
   const pending = pendingPublicationTargets(
     order([
       targetAt("instagram_feed", "published"),
-      targetAt("facebook_page", "failed"),
+      targetAt("facebook_page", "pending"),
     ]),
   );
   assert.deepEqual(
     pending.map((entry) => entry.target),
     ["facebook_page"],
+  );
+});
+
+test("un destino caído espera su fecha en vez de reintentarse al instante", () => {
+  // Devolverlo acá haría que cualquier reentrega del evento reintentara todos
+  // los destinos caídos de una, tirando el backoff recién calculado.
+  const pending = pendingPublicationTargets(
+    order([
+      targetAt("instagram_feed", "published"),
+      targetAt("facebook_page", "failed"),
+    ]),
+  );
+  assert.deepEqual(pending, []);
+});
+
+test("un fallo temporal deja la orden abierta hasta agotar sus intentos", () => {
+  const retryable = Object.freeze({
+    ...targetAt("facebook_page", "failed"),
+    attempts: 1,
+    failureCode: "rate-limit",
+  });
+  // Todavía queda algo que el sistema va a hacer solo: la orden no cerró.
+  assert.equal(
+    publicationOrderStatus([
+      targetAt("instagram_feed", "published"),
+      retryable,
+    ]),
+    "publishing",
+  );
+  // Agotados los intentos, el fallo es final y la orden cierra parcial.
+  assert.equal(
+    publicationOrderStatus([
+      targetAt("instagram_feed", "published"),
+      Object.freeze({ ...retryable, attempts: 5 }),
+    ]),
+    "partially_published",
+  );
+});
+
+test("un fallo permanente cierra la orden sin esperar reintentos", () => {
+  assert.equal(
+    publicationOrderStatus([
+      Object.freeze({
+        ...targetAt("facebook_page", "failed"),
+        failureCode: "media-invalid",
+      }),
+    ]),
+    "publish_failed",
+  );
+});
+
+test("un fallo ambiguo deja la orden abierta hasta reconciliar", () => {
+  // `failed` con un código ambiguo significa «la llamada no salió bien», no
+  // «la publicación no existe».
+  assert.equal(
+    publicationOrderStatus([
+      Object.freeze({
+        ...targetAt("facebook_page", "failed"),
+        attempts: 99,
+        failureCode: "request-timeout",
+      }),
+    ]),
+    "publishing",
+  );
+});
+
+test("un motivo manual registrado cierra el destino aunque la causa fuera temporal", () => {
+  assert.equal(
+    publicationOrderStatus([
+      Object.freeze({
+        ...targetAt("facebook_page", "failed"),
+        attempts: 1,
+        failureCode: "rate-limit",
+        manualReason: "attempts-exhausted" as const,
+      }),
+    ]),
+    "publish_failed",
   );
 });
 

@@ -538,6 +538,7 @@ export {
 } from "./visual-prompt.ts";
 export * from "./publication.ts";
 export {
+  isMetaPublishingFailureCode,
   isPubliclyFetchableMediaUrl,
   metaPublishingAttemptStates,
   metaPublishingFailureCodes,
@@ -636,4 +637,6 @@ export {
   type RequireManualActionInput,
   type ScheduleRetryInput,
   type ConfirmRemotePublicationInput,
+  type DispatchDueRetryInput,
+  type DispatchDueRetryResult,
 } from "./publication-retry.ts";
