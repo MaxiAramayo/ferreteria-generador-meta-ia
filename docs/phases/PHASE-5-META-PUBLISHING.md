@@ -644,17 +644,17 @@ publicaciones ni declarar éxito sin evidencia.
 
 ### Criterios de aceptación
 
-- [ ] Errores permanentes no se reintentan automáticamente.
-- [ ] Timeout después de enviar consulta estado antes de volver a publicar.
-- [ ] Backoff y jitter respetan límites de Meta.
+- [x] Errores permanentes no se reintentan automáticamente.
+- [x] Timeout después de enviar consulta estado antes de volver a publicar.
+- [x] Backoff y jitter respetan límites de Meta.
 - [ ] Agotar intentos genera alerta y acción manual clara.
-- [ ] Reconciliación actualiza evidencia, no sobreescribe historial.
-- [ ] Reintentar un solo destino no toca destinos exitosos.
+- [x] Reconciliación actualiza evidencia, no sobreescribe historial.
+- [x] Reintentar un solo destino no toca destinos exitosos.
 
 ### Verificación obligatoria
 
-- [ ] Simular timeout antes y después de aceptación remota.
-- [ ] Simular rate limit y token expirado.
+- [x] Simular timeout antes y después de aceptación remota.
+- [x] Simular rate limit y token expirado.
 - [ ] Ejecutar reconciliación sobre estados inconsistentes conocidos.
 
 ### Fuera de alcance
@@ -663,11 +663,59 @@ publicaciones ni declarar éxito sin evidencia.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-20.
+- Estado real: política, persistencia y los dos barridos implementados y
+  verificados con dobles; la persistencia además contra PostgreSQL real.
+  **Falta cablearlos al worker, despachar los reintentos vencidos y ofrecer las
+  acciones manuales.** La tarea sigue `[ ]`.
+- Archivos: `packages/domain/src/publication-retry.ts` con su prueba;
+  la migración `20260820120000_publication_retry_schedule`;
+  `infrastructure/database/src/publication-order-repository.ts`;
+  `apps/worker/src/publishing/publication-retry.service.ts`,
+  `publication-reconciliation.service.ts` y
+  `meta-publication-lookup.adapter.ts`, cada uno con su prueba.
+- **Un fallo se resuelve en tres salidas y no en un booleano.** `scheduled` para
+  lo que cambia solo, `manual` para lo que no cambia esperando y `reconcile`
+  para los dos casos en que la publicación puede existir sin que la plataforma
+  lo sepa. El `retryable` que traen los adaptadores contesta otra pregunta —si
+  conviene repetir la llamada en el acto—, y confundir las dos es lo que
+  duplica.
+- **La tabla de salidas es un `Record` completo a propósito.** Un `default`
+  silencioso habría mandado a reintento automático los códigos que nadie
+  clasificó.
+- **El planificador está separado del publicador**, y es lo que hace que la
+  política sobreviva a un reinicio: el publicador registra el fallo y ahí
+  termina su corrida, así que un plan que viviera dentro de ella se perdería con
+  la caída. El barrido vuelve a encontrar los fallos que nadie planificó.
+- **La reconciliación no publica.** Todas sus llamadas son lecturas, así que
+  correrla de más no puede duplicar; lo peor que pasa es gastar cuota. El paso
+  que decide si hay que publicar de nuevo tiene que ser incapaz de publicar.
+- **Las dos redes obligan a reglas asimétricas.** La Page nunca prueba una
+  ausencia —`page_story_id` ausente es desconocimiento, no negativa—, así que un
+  destino de Facebook en duda sólo puede confirmarse, jamás republicarse solo.
+  El contenedor de Instagram sí prueba las dos cosas, pero cuando prueba que
+  salió no devuelve la media: por eso existe `published-unidentified`, y
+  tratarlo como ausencia republicaría algo ya publicado.
+- **Reconciliar no borra el fallo.** El destino falló de verdad y después se
+  comprobó que había salido; las dos cosas son ciertas.
+- Dos `CHECK` nuevos: un destino no puede esperar el reintento y esperar a una
+  persona al mismo tiempo, y un destino publicado no puede esperar nada. El
+  segundo es lo que impide que un barrido vuelva a tocar lo que ya salió.
+- Verificaciones ejecutadas: 39 pruebas nuevas —18 de la política, 7 de
+  persistencia contra PostgreSQL real, 6 de planificación, 6 de reconciliación y
+  7 de traducción—, `pnpm verify` y `pnpm db:test` completos en verde.
+- **Lo que falta, en orden:** cablear los dos servicios en
+  `apps/worker/src/publishing/publishing.module.ts` con su disparador
+  periódico; despachar los reintentos vencidos —`dueRetries` ya los encuentra,
+  pero devolver el destino a `pending` y reencolar el evento de la orden todavía
+  no está escrito—; exponer las acciones manuales y la alerta que pide el
+  criterio abierto; y correr la reconciliación contra estados inconsistentes en
+  PostgreSQL real, que es la verificación que sigue abierta.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: faltan el cableado al worker, el despacho de reintentos vencidos y
+  las acciones manuales con su alerta.
 
 ## P5-T07 — Construir UI de conexiones, aprobación y publicación
 

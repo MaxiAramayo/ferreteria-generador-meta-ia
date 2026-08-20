@@ -107,10 +107,33 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T06` — reintentos y reconciliación remota. Su única dependencia,
-`P5-T05`, quedó cerrada, y es lo que falta para que un desenlace ambiguo deje de
-esperar a una persona: política de retry por categoría, jobs de reconciliación y
-acciones manuales seguras sobre los destinos que quedaron en duda.
+Terminar `P5-T06` — reintentos y reconciliación remota. La política, la
+persistencia y los dos barridos están implementados y verificados; **falta
+cablearlos al worker, despachar los reintentos vencidos y ofrecer las acciones
+manuales**, que es el criterio de aceptación que sigue abierto junto con la
+verificación de reconciliación sobre estados inconsistentes reales.
+
+Lo implementado el 2026-08-20 para `P5-T06`:
+
+- **política por categoría**: cada código de fallo se resuelve en `scheduled`,
+  `manual` o `reconcile`, no en un booleano. El `retryable` de los adaptadores
+  contesta otra pregunta —si conviene repetir la llamada en el acto— y
+  confundirlas es lo que duplica;
+- **backoff con jitter y pisos de Meta**: `rate-limit` y
+  `publishing-limit-reached` no se reintentan dentro de la ventana que los
+  rechazó;
+- **calendario persistido** con dos `CHECK`: un destino no puede esperar el
+  reintento y a una persona a la vez, y un destino publicado no puede esperar
+  nada —eso es lo que impide que un barrido toque lo que ya salió—;
+- **barrido de planificación** separado del publicador, para que la política
+  sobreviva a un reinicio;
+- **barrido de reconciliación que no publica**: todas sus llamadas son lecturas,
+  así que correrlo de más no puede duplicar nada.
+
+La asimetría entre las dos redes quedó explícita: la Page nunca prueba una
+ausencia, así que un destino de Facebook en duda sólo puede confirmarse; el
+contenedor de Instagram sí prueba las dos cosas, pero cuando prueba que salió no
+devuelve la media, y ese caso tiene estado propio para no republicarlo.
 
 `P5-T05` quedó cerrada el 2026-08-20. La orden multidestino existe, corre contra
 PostgreSQL real y su verificación está completa:
