@@ -493,8 +493,8 @@ resultado coherente con Instagram.
 
 ## P5-T05 — Orquestar publicación multidestino
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T06`, `P5-T03`, `P5-T04`
 - Riesgo: Alto
 
@@ -520,8 +520,8 @@ estado agregado sin ocultar fallos parciales.
 
 ### Verificación obligatoria
 
-- [ ] E2E con éxito total, fallo total y fallo parcial.
-- [ ] Requests duplicados y workers concurrentes.
+- [x] E2E con éxito total, fallo total y fallo parcial.
+- [x] Requests duplicados y workers concurrentes.
 - [x] Confirmar que un snapshot no aprobado se rechaza.
 
 ### Fuera de alcance
@@ -569,20 +569,60 @@ estado agregado sin ocultar fallos parciales.
   siempre, con `null` cuando Meta falta.
 - Verificaciones ejecutadas: 29 pruebas nuevas —11 del agregado, 9 de la
   orquestación y 9 de la API— y `pnpm verify` completo en verde.
-- **Verificación pendiente y bloqueo:** la migración no se aplicó nunca contra
-  PostgreSQL. `pnpm db:test` necesita Docker corriendo, y `pnpm infra:up`
-  además rechaza el `.env` local por dos líneas en minúscula —`correo` y
-  `password`— ajenas a esta tarea. Sin eso no puede darse por buena la
-  migración ni probarse concurrencia real, que es lo que piden los dos
-  criterios de verificación abiertos.
-- Próximo paso exacto: levantar Docker, correr `pnpm db:test` para aplicar,
-  revertir y reaplicar la migración, y escribir el E2E que cubra éxito total,
-  fallo total y fallo parcial con requests duplicados y dos trabajadores sobre
-  la misma orden.
+- Fecha: 2026-08-20. La verificación contra PostgreSQL real quedó hecha y
+  cerró los dos criterios que faltaban.
+- **La corrida contra PostgreSQL encontró dos defectos que los dobles no podían
+  encontrar, y los dos estaban en el repositorio, no en las pruebas.** Ninguno
+  se veía compilando: `pnpm verify` estaba en verde con los dos presentes.
+- **Defecto 1: `request()` nunca pudo crear una orden.** El `create` anidado de
+  los destinos pasaba `organizationId` explícito, y Prisma lo deriva de la clave
+  foránea compuesta de la orden padre; como argumento desconocido, la creación
+  fallaba entera. TypeScript no lo vio porque el literal viaja como tipo de
+  retorno inferido de un `map`, donde no corre el chequeo de propiedades
+  excedentes. Sin base real, ninguna prueba lo podía tocar.
+- **Defecto 2: la transición de estado violaba un CHECK anterior.**
+  `state_transitions_approval_check` reserva `approval_snapshot_id` al comando
+  `approve`, y las dos transiciones `advance` de la orden —pedido y cierre— lo
+  escribían. `publication-production-repository.ts` ya lo hacía bien; la orden
+  era la excepción. Se quitó la columna de ambas: la orden guarda a qué snapshot
+  apunta, así que no se pierde trazabilidad.
+- **La migración no tenía `down.sql`.** Se escribió, y con ella el ciclo revertir
+  y reaplicar corre completo. Revierte los dos ENUM además de las dos tablas:
+  un tipo que sobrevive a su tabla hace fallar la reaplicación con «type already
+  exists», y esa falla sólo aparece al reaplicar, no al revertir.
+- `verify.ts` apuntaba a `20260815000000_meta_connections` como última
+  migración. Ahora apunta a la de órdenes, y sus aserciones de reversión se
+  dieron vuelta: Meta ya no es la última, así que tiene que sobrevivir.
+- Detalle que costó una corrida: PostgreSQL ordena un ENUM por el orden de
+  declaración de sus valores, no alfabéticamente. `instagram_feed` va antes que
+  `facebook_page` al ordenar por `target`.
+- Verificaciones ejecutadas: 8 pruebas de integración nuevas contra PostgreSQL
+  real —éxito total, fallo total, fallo parcial, destino en duda, pedidos
+  duplicados concurrentes, dos trabajadores sobre el mismo destino, cancelación
+  y rechazo de estados imposibles—, `pnpm db:test` completo y `pnpm verify`
+  completo, los dos en verde.
 
 ### Evidencia de cierre
 
-- Pendiente: falta la verificación contra PostgreSQL real.
+- `pnpm db:test` en verde el 2026-08-20: migración aplicada desde una base
+  vacía, seed verificado, 31 pruebas de integración en verde, migración
+  revertida con `down.sql` y reaplicada con las pruebas repetidas.
+- `pnpm verify` completo en verde: formato, build, lint, typecheck, pruebas,
+  línea base de diseño y smoke de `api`, `web` y `worker`.
+- Las pruebas que cierran los criterios abiertos viven en
+  `infrastructure/database/src/repositories.integration.test.ts`: «la orden E2E
+  publica todos sus destinos y cierra como published», «…cierra como
+  publish_failed», «…cierra como partially_published», «dos pedidos duplicados
+  de publicación crean una sola orden» y «dos trabajadores sobre el mismo
+  destino publican una sola vez».
+- Queda en pie una molestia de entorno ajena a la tarea: `pnpm infra:up` y el
+  resto de los comandos `infra:*` rechazan el `.env` local por dos claves en
+  minúscula —`correo` y `password`, líneas 45 y 46—, porque
+  `tools/local-infrastructure/environment.ts` exige `^[A-Z][A-Z0-9_]*$`. No se
+  tocaron por parecer credenciales personales. La verificación se corrió
+  levantando los contenedores con el mismo `docker compose` que `infra:up`
+  ejecuta, cuyo parser sí las acepta; `pnpm db:test` no las mira porque usa
+  `parseEnv` de Node.
 
 ## P5-T06 — Implementar reintentos y reconciliación remota
 

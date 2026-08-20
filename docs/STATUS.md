@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-19
+Actualizado: 2026-08-20
 
 ## Fase activa
 
@@ -107,18 +107,13 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Terminar `P5-T05` — orquestación multidestino. Los seis criterios de aceptación
-están cumplidos y verificados con dobles; **faltan las dos verificaciones que
-necesitan PostgreSQL real**: el E2E de éxito total, fallo total y fallo parcial,
-y la prueba de requests duplicados con dos trabajadores concurrentes.
+Comenzar `P5-T06` — reintentos y reconciliación remota. Su única dependencia,
+`P5-T05`, quedó cerrada, y es lo que falta para que un desenlace ambiguo deje de
+esperar a una persona: política de retry por categoría, jobs de reconciliación y
+acciones manuales seguras sobre los destinos que quedaron en duda.
 
-**Bloqueo concreto:** la migración `20260819230000_publication_orders` nunca se
-aplicó contra PostgreSQL. `pnpm db:test` necesita Docker corriendo, y
-`pnpm infra:up` además rechaza el `.env` local por dos líneas en minúscula
-—`correo` y `password`, línea 45— ajenas a esta tarea y que no se tocaron por
-parecer credenciales.
-
-Lo implementado el 2026-08-19 para `P5-T05`:
+`P5-T05` quedó cerrada el 2026-08-20. La orden multidestino existe, corre contra
+PostgreSQL real y su verificación está completa:
 
 - **regla del agregado** en `packages/domain/src/publication-publishing.ts`. Se
   calcula sobre los destinos en vez de guardarse: un campo puede quedar diciendo
@@ -130,6 +125,31 @@ Lo implementado el 2026-08-19 para `P5-T05`:
   las mismas dos tablas, con la regla de secuencia en el `WHERE` del `UPDATE`;
 - **API** con `publishing:execute` y clave idempotente obligatoria;
 - **worker cableado**: los publicadores dejaron de estar sueltos.
+
+**La corrida contra PostgreSQL encontró dos defectos que los dobles no podían
+encontrar, y los dos estaban en el repositorio.** Ninguno se veía compilando:
+`pnpm verify` estaba en verde con los dos presentes.
+
+- **`request()` nunca pudo crear una orden.** El `create` anidado de los destinos
+  pasaba `organizationId` explícito y Prisma lo deriva de la clave foránea
+  compuesta de la orden padre; como argumento desconocido, la creación fallaba
+  entera. TypeScript no lo vio porque el literal viaja como tipo de retorno
+  inferido de un `map`, donde no corre el chequeo de propiedades excedentes.
+- **La transición de estado violaba un CHECK anterior.**
+  `state_transitions_approval_check` reserva `approval_snapshot_id` al comando
+  `approve`, y las dos transiciones `advance` de la orden lo escribían. Se quitó
+  de ambas: la orden ya guarda a qué snapshot apunta.
+
+La migración tampoco tenía `down.sql` y `verify.ts` seguía apuntando a
+`meta_connections` como última migración; las dos cosas quedaron corregidas, así
+que el ciclo de revertir y reaplicar vuelve a cubrir lo último que se agregó.
+
+**Molestia de entorno que sigue en pie y es ajena a la tarea:** `pnpm infra:up` y
+el resto de los comandos `infra:*` rechazan el `.env` local por dos claves en
+minúscula —`correo` y `password`, líneas 45 y 46—, porque
+`tools/local-infrastructure/environment.ts` exige `^[A-Z][A-Z0-9_]*$`. No se
+tocaron por parecer credenciales personales. Sacarlas del `.env` devuelve
+`infra:up`, `infra:health` y `infra:down` sin tocar nada más.
 
 `P5-T03` y `P5-T04` quedaron cerradas el 2026-08-19 con **publicación real en
 los activos de Aramayo**, autorizada explícitamente por el usuario. La enmienda
