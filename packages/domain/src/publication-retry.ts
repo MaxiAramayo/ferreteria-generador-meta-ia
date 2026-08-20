@@ -158,7 +158,16 @@ export type PublicationManualReason =
   /** La causa no cambia sola: hay que corregir contenido, permiso o conexión. */
   | "permanent-failure"
   /** El desenlace remoto sigue sin resolverse después de reconciliar. */
-  | "outcome-unresolved";
+  | "outcome-unresolved"
+  /**
+   * Una persona lo dio por perdido.
+   *
+   * No es una espera: es el final. El estado del intento se deja como estaba
+   * —un desenlace en duda sigue en duda— porque abandonar es dejar de intentar,
+   * no averiguar. Cerrar la orden afirmando un fallo que nadie comprobó sería
+   * exactamente la mentira que el resto del modelo evita.
+   */
+  | "abandoned-by-operator";
 
 export type PublicationRetryPlan =
   | Readonly<{ nextAttemptAt: string; status: "scheduled" }>
@@ -434,6 +443,17 @@ export interface PublicationRetryRepository {
   confirmRemotePublication(
     input: ConfirmRemotePublicationInput,
   ): Promise<PublicationRetryWriteResult>;
+  /**
+   * Destinos detenidos esperando a una persona. Es la alerta consultable.
+   */
+  pendingManualActions(
+    organizationId: string,
+    limit: number,
+  ): Promise<readonly PublicationManualActionRecord[]>;
+  /** Ejecuta lo que una persona decidió sobre un destino detenido. */
+  applyManualAction(
+    input: ApplyPublicationManualActionInput,
+  ): Promise<ApplyPublicationManualActionResult>;
   /** Deja el destino esperando a una persona, con el motivo. */
   requireManualAction(
     input: RequireManualActionInput,
@@ -456,4 +476,108 @@ export interface PublicationRetryRepository {
   scheduleRetry(
     input: ScheduleRetryInput,
   ): Promise<PublicationRetryWriteResult>;
+}
+
+/**
+ * Lo que una persona puede hacer con un destino detenido.
+ *
+ * `retry` no está siempre disponible, y esa ausencia es el punto entero de la
+ * lista: forzar otro intento sobre un destino cuyo desenlace nadie conoce es
+ * exactamente la publicación duplicada que la vertical evita. Ofrecerlo y
+ * confiar en que la persona no lo apriete no es una salvaguarda.
+ */
+export type PublicationManualAction =
+  /** Forzar otro intento. Sólo cuando se probó que no quedó nada a medias. */
+  | "retry"
+  /** Volver a preguntarle al proveedor ahora, sin esperar al barrido. */
+  | "reconcile"
+  /** Darlo por perdido. No borra nada remoto ni toca los demás destinos. */
+  | "abandon";
+
+/**
+ * Acciones seguras para un destino detenido.
+ *
+ * `outcome-unresolved` es el caso que manda: la publicación puede existir, así
+ * que no se ofrece reintentar. Queda preguntar de nuevo —que es gratis y puede
+ * resolverlo— o abandonar, que es admitir que nadie va a saberlo desde acá.
+ *
+ * En los otros dos motivos el reintento es seguro porque la política sólo los
+ * asigna a códigos que prueban que Meta no creó nada: un rechazo explícito o
+ * una causa temporal que nunca llegó a publicar.
+ */
+export function publicationManualActions(
+  reason: PublicationManualReason,
+): readonly PublicationManualAction[] {
+  // Ya se decidió: no queda nada que ofrecer.
+  if (reason === "abandoned-by-operator") return Object.freeze([]);
+  return reason === "outcome-unresolved"
+    ? Object.freeze(["reconcile", "abandon"] as const)
+    : Object.freeze(["retry", "abandon"] as const);
+}
+
+/**
+ * Todos los motivos declarados.
+ *
+ * La lista de motivos accionables se deriva de ésta y no al revés: mantener dos
+ * listas a mano deja caer en silencio el motivo que se agregue a una sola, y acá
+ * ese olvido significa una orden que no cierra nunca.
+ */
+export const publicationManualReasons: readonly PublicationManualReason[] =
+  Object.freeze([
+    "abandoned-by-operator",
+    "attempts-exhausted",
+    "outcome-unresolved",
+    "permanent-failure",
+  ]);
+
+/** Motivos que todavía esperan que alguien haga algo. Es la alerta. */
+export const actionablePublicationManualReasons: readonly PublicationManualReason[] =
+  Object.freeze(
+    publicationManualReasons.filter(
+      (reason) => publicationManualActions(reason).length > 0,
+    ),
+  );
+
+export function isPublicationManualActionAllowed(
+  reason: PublicationManualReason,
+  action: PublicationManualAction,
+): boolean {
+  return publicationManualActions(reason).includes(action);
+}
+
+/**
+ * Un destino esperando a una persona, con lo que hace falta para decidir.
+ *
+ * Es la alerta: no se emite a ningún lado, se expone. Un destino detenido que
+ * nadie mira es un fallo silencioso, y una lista consultable es lo que el resto
+ * del sistema ya usa para lo mismo.
+ */
+export interface PublicationManualActionRecord {
+  readonly actions: readonly PublicationManualAction[];
+  readonly attempts: number;
+  readonly failureCode?: MetaPublishingFailureCode;
+  readonly failureDetail?: string;
+  readonly orderId: string;
+  readonly publicationId: string;
+  readonly publicationTargetId: string;
+  readonly reason: PublicationManualReason;
+  readonly state: MetaPublishingAttemptState;
+  readonly target: PublicationTarget;
+  readonly updatedAt: string;
+}
+
+export type ApplyPublicationManualActionResult =
+  | Readonly<{ status: "applied" }>
+  /** El destino dejó de esperar a una persona entre la lectura y la escritura. */
+  | Readonly<{ status: "conflict" }>
+  /** La acción no está permitida para el motivo por el que se detuvo. */
+  | Readonly<{ status: "not-allowed" }>
+  | Readonly<{ status: "not-found" }>;
+
+export interface ApplyPublicationManualActionInput {
+  readonly action: PublicationManualAction;
+  readonly actorMembershipId: string;
+  readonly occurredAt: string;
+  readonly organizationId: string;
+  readonly publicationTargetId: string;
 }

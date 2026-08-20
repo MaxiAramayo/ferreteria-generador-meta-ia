@@ -39,3 +39,16 @@ export class CancelPublicationOrderDto {
   @Matches(/^[a-z0-9][a-z0-9._-]{0,79}$/u)
   reasonCode!: string;
 }
+
+/** Acciones que una persona puede pedir sobre un destino detenido. */
+const publicationManualActions = ["abandon", "reconcile", "retry"] as const;
+
+export class ApplyPublicationManualActionDto {
+  /**
+   * Que la acción exista no significa que se pueda: el servidor la vuelve a
+   * comprobar contra el motivo guardado del destino. Esto sólo descarta lo que
+   * ni siquiera es una acción.
+   */
+  @IsIn(publicationManualActions)
+  action!: (typeof publicationManualActions)[number];
+}

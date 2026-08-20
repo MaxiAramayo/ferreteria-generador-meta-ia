@@ -245,3 +245,28 @@ test("un destino pendiente se intenta", () => {
     ["instagram_feed", "facebook_page"],
   );
 });
+
+test("abandonar cierra la orden sin afirmar cómo terminó el destino", () => {
+  // El intento sigue en duda y así queda registrado: abandonar es dejar de
+  // intentar, no averiguar.
+  const abandoned = Object.freeze({
+    ...targetAt("facebook_page", "outcome_unknown"),
+    manualReason: "abandoned-by-operator" as const,
+  });
+  assert.equal(abandoned.state, "outcome_unknown");
+  assert.equal(
+    publicationOrderStatus([
+      targetAt("instagram_feed", "published"),
+      abandoned,
+    ]),
+    "partially_published",
+  );
+  // Sin abandonar, esa misma duda deja la orden abierta.
+  assert.equal(
+    publicationOrderStatus([
+      targetAt("instagram_feed", "published"),
+      targetAt("facebook_page", "outcome_unknown"),
+    ]),
+    "publishing",
+  );
+});

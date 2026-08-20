@@ -166,6 +166,38 @@ export interface PublicationOrderTargetResponse {
   readonly updatedAt: string;
 }
 
+/**
+ * Un destino detenido esperando a una persona.
+ *
+ * `actions` viene del servidor y no se deduce en el panel: qué es seguro hacer
+ * depende de por qué se detuvo, y esa regla no puede vivir en dos lugares.
+ * Reintentar un destino cuyo desenlace nadie conoce publicaría dos veces.
+ */
+export interface PublicationManualActionResponse {
+  readonly actions: readonly ("abandon" | "reconcile" | "retry")[];
+  readonly attempts: number;
+  readonly failureCode?: string;
+  readonly failureDetail?: string;
+  readonly orderId: string;
+  readonly publicationId: string;
+  readonly publicationTargetId: string;
+  readonly reason:
+    "attempts-exhausted" | "outcome-unresolved" | "permanent-failure";
+  readonly state:
+    | "failed"
+    | "media_staged"
+    | "outcome_unknown"
+    | "pending"
+    | "published"
+    | "published_unconfirmed";
+  readonly target: "facebook_page" | "instagram_feed" | "instagram_story";
+  readonly updatedAt: string;
+}
+
+export interface PublicationManualActionListResponse {
+  readonly items: readonly PublicationManualActionResponse[];
+}
+
 export interface PublicationOrderResponse {
   readonly cancelledAt?: string;
   readonly createdAt: string;

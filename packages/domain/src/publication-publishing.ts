@@ -110,6 +110,10 @@ export function isSettledPublicationTarget(
   ) {
     return true;
   }
+  // Una persona lo dio por perdido: la orden puede cerrar aunque el intento
+  // siga en duda. El estado no se reescribe, así que la orden queda cerrada sin
+  // afirmar un desenlace que nadie comprobó.
+  if (target.manualReason === "abandoned-by-operator") return true;
   return target.state === "failed" && isFinalPublicationFailure(target);
 }
 

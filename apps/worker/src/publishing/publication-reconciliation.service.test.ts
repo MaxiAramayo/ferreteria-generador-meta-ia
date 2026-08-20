@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  type ApplyPublicationManualActionResult,
   type ConfirmRemotePublicationInput,
   type DispatchDueRetryResult,
   type MetaConnectionRecord,
@@ -12,6 +13,7 @@ import {
   type MetaPublishingAttemptState,
   type MetaPublishingAttemptWriteResult,
   type PublicationRetryRepository,
+  type PublicationManualActionRecord,
   type PublicationRetryTargetRecord,
   type PublicationRetryWriteInput,
   type PublicationRetryWriteResult,
@@ -126,6 +128,13 @@ class RetryRepositoryDouble implements PublicationRetryRepository {
 
   dispatchDueRetry(): Promise<DispatchDueRetryResult> {
     return Promise.reject(new Error("La reconciliación no despacha nada."));
+  }
+  pendingManualActions(): Promise<readonly PublicationManualActionRecord[]> {
+    return Promise.reject(new Error("El barrido no consulta la alerta."));
+  }
+
+  applyManualAction(): Promise<ApplyPublicationManualActionResult> {
+    return Promise.reject(new Error("El barrido no ejecuta acciones humanas."));
   }
 
   scheduleRetry(): Promise<PublicationRetryWriteResult> {

@@ -617,8 +617,12 @@ export {
   type RequestPublicationOrderResult,
 } from "./publication-publishing.ts";
 export {
+  actionablePublicationManualReasons,
+  isPublicationManualActionAllowed,
   needsPublicationReconciliation,
   planPublicationRetry,
+  publicationManualActions,
+  publicationManualReasons,
   publicationRetryDelayMilliseconds,
   publicationRetryDisposition,
   publicationRetryLimits,
@@ -637,6 +641,10 @@ export {
   type RequireManualActionInput,
   type ScheduleRetryInput,
   type ConfirmRemotePublicationInput,
+  type ApplyPublicationManualActionInput,
+  type ApplyPublicationManualActionResult,
   type DispatchDueRetryInput,
   type DispatchDueRetryResult,
+  type PublicationManualAction,
+  type PublicationManualActionRecord,
 } from "./publication-retry.ts";

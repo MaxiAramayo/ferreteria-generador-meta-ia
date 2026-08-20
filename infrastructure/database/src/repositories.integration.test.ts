@@ -5899,3 +5899,234 @@ test("la reconciliación arregla un destino fallido que en Meta sí salió", asy
   // El fallo sigue anotado: falló de verdad y después se comprobó que salió.
   assert.equal(byTarget.get("facebook_page")?.failureCode, "request-timeout");
 });
+
+test("la alerta lista destinos detenidos y sus acciones seguras", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const agotado = publicationTargetKey(orderId, "instagram_feed");
+  const enDuda = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, agotado, 1, "rate-limit")),
+    "saved",
+  );
+  assert.equal(
+    await orders.save(unknownAttempt(organizationId, enDuda, 1)),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId,
+      publicationTargetId: agotado,
+      reason: "attempts-exhausted",
+      sequence: 1,
+    }),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId,
+      publicationTargetId: enDuda,
+      reason: "outcome-unresolved",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const pending = await orders.pendingManualActions(organizationId, 50);
+  const byId = new Map(
+    pending.map((entry) => [entry.publicationTargetId, entry]),
+  );
+  assert.equal(pending.length, 2);
+  assert.deepEqual(
+    [...(byId.get(agotado)?.actions ?? [])],
+    ["retry", "abandon"],
+  );
+  // El que puede haber salido no ofrece reintentar: sería duplicar.
+  assert.deepEqual(
+    [...(byId.get(enDuda)?.actions ?? [])],
+    ["reconcile", "abandon"],
+  );
+  assert.equal(byId.get(agotado)?.publicationId, publicationId);
+});
+
+test("la base rechaza reintentar a mano un destino que puede haber salido", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["facebook_page"],
+  );
+  const key = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(unknownAttempt(organizationId, key, 1)),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId,
+      publicationTargetId: key,
+      reason: "outcome-unresolved",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  // El permiso se comprueba contra el motivo guardado, no contra lo que llegó:
+  // un panel con una lista vieja no alcanza para forzar la duplicación.
+  assert.deepEqual(
+    await orders.applyManualAction({
+      action: "retry",
+      actorMembershipId: membershipId,
+      occurredAt: "2026-08-20T13:00:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+    }),
+    { status: "not-allowed" },
+  );
+  const intact = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(intact.state, "outcome_unknown");
+  assert.equal(intact.nextAttemptAt, null);
+});
+
+test("reintentar a mano devuelve el destino al mismo despacho con presupuesto nuevo", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, key, 1, "rate-limit")),
+    "saved",
+  );
+  await database.publicationOrderTarget.updateMany({
+    data: { attempts: 5 },
+    where: { orderId, organizationId },
+  });
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId,
+      publicationTargetId: key,
+      reason: "attempts-exhausted",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  assert.deepEqual(
+    await orders.applyManualAction({
+      action: "retry",
+      actorMembershipId: membershipId,
+      occurredAt: "2026-08-20T13:00:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+    }),
+    { status: "applied" },
+  );
+
+  const stored = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  // Deja de esperar a una persona y pasa a esperar al despacho, que es el
+  // mismo camino que usan los reintentos automáticos.
+  assert.equal(stored.manualReason, null);
+  assert.equal(stored.nextAttemptAt?.toISOString(), "2026-08-20T13:00:00.000Z");
+  // Presupuesto nuevo: sin esto el primer fallo siguiente lo agotaría de nuevo.
+  assert.equal(stored.attempts, 0);
+  // El fallo que lo detuvo sigue registrado.
+  assert.equal(stored.failureCode, "rate-limit");
+  // Y ya no figura en la alerta.
+  assert.equal(
+    (await orders.pendingManualActions(organizationId, 50)).length,
+    0,
+  );
+});
+
+test("abandonar cierra la orden sin afirmar cómo terminó el destino", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const publicado = publicationTargetKey(orderId, "instagram_feed");
+  const enDuda = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      publishedAttempt(organizationId, publicado, 1, "remote-instagram"),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.save(unknownAttempt(organizationId, enDuda, 1)),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId,
+      publicationTargetId: enDuda,
+      reason: "outcome-unresolved",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  assert.deepEqual(
+    await orders.applyManualAction({
+      action: "abandon",
+      actorMembershipId: membershipId,
+      occurredAt: "2026-08-20T13:00:00.000Z",
+      organizationId,
+      publicationTargetId: enDuda,
+    }),
+    { status: "applied" },
+  );
+
+  const stored = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId, target: "facebook_page" },
+  });
+  // El intento sigue en duda y así queda: abandonar es dejar de intentar, no
+  // averiguar. No se inventa un fallo que nadie comprobó.
+  assert.equal(stored.state, "outcome_unknown");
+  assert.equal(stored.failureCode, null);
+  assert.equal(stored.manualReason, "abandoned-by-operator");
+
+  // Pero la orden ya puede cerrar, y cierra como parcial.
+  const order = await orders.findById(organizationId, orderId);
+  assert.ok(order);
+  assert.equal(publicationOrderStatus(order.targets), "partially_published");
+  // Y deja de aparecer en la alerta y en el barrido de desenlaces abiertos.
+  assert.equal(
+    (await orders.pendingManualActions(organizationId, 50)).length,
+    0,
+  );
+  assert.equal(
+    (await orders.openOutcomes(200)).some(
+      (entry) => entry.publicationTargetId === enDuda,
+    ),
+    false,
+  );
+});

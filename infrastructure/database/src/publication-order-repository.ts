@@ -20,7 +20,11 @@
  */
 
 import {
+  actionablePublicationManualReasons,
+  isPublicationManualActionAllowed,
   metaPublishingFailureCodes,
+  publicationManualActions,
+  publicationManualReasons,
   publicationOrderStatus,
   reconcilableFailureCodes,
   publicationOrderTopic,
@@ -36,10 +40,14 @@ import {
   type PublicationOrderRepository,
   type PublicationOrderTargetRecord,
   type PublicationTarget,
+  type ApplyPublicationManualActionInput,
+  type ApplyPublicationManualActionResult,
   type ConfirmRemotePublicationInput,
   type DispatchDueRetryInput,
   type DispatchDueRetryResult,
   type MetaPublishingFailureCode,
+  type PublicationManualAction,
+  type PublicationManualActionRecord,
   type PublicationManualReason,
   type PublicationRetryRepository,
   type PublicationRetryTargetRecord,
@@ -184,12 +192,6 @@ type RetryRow = Prisma.PublicationOrderTargetGetPayload<{
   select: typeof retrySelection;
 }>;
 
-const manualReasons: readonly PublicationManualReason[] = Object.freeze([
-  "attempts-exhausted",
-  "outcome-unresolved",
-  "permanent-failure",
-]);
-
 /**
  * La base guarda texto y el dominio tiene uniones cerradas. Un valor que no
  * pertenece se descarta en vez de viajar disfrazado: prefiero un campo ausente
@@ -203,7 +205,8 @@ function asFailureCode(value: string | null): MetaPublishingFailureCode | null {
 }
 
 function asManualReason(value: string | null): PublicationManualReason | null {
-  return value !== null && (manualReasons as readonly string[]).includes(value)
+  return value !== null &&
+    (publicationManualReasons as readonly string[]).includes(value)
     ? (value as PublicationManualReason)
     : null;
 }
@@ -225,6 +228,46 @@ function mapRetryTarget(row: RetryRow): PublicationRetryTargetRecord {
     state: row.state,
     target: row.target,
   });
+}
+
+/**
+ * Qué cambia en la fila según lo que la persona eligió.
+ *
+ * `retry` devuelve el destino a la cola sin fecha: lo levanta el próximo
+ * despacho. `reconcile` sólo lo saca de la espera humana para que el barrido de
+ * desenlaces abiertos vuelva a mirarlo —el estado no se toca porque sigue tan
+ * en duda como antes—. `abandon` lo deja fallido y explícito.
+ */
+function manualActionMutation(
+  action: PublicationManualAction,
+  occurredAt: string,
+): Prisma.PublicationOrderTargetUpdateManyMutationInput {
+  if (action === "retry") {
+    // No se limpia el fallo: el destino sigue `failed` hasta que el despacho lo
+    // devuelva a la cola, y la base exige que un `failed` conserve su código.
+    // Borrarlo además perdería por qué hizo falta la decisión.
+    //
+    // La fecha lo deja en manos del mismo despacho que atiende los reintentos
+    // automáticos, en vez de abrir un segundo camino que tendría que
+    // comportarse igual. Y el presupuesto vuelve a cero porque una persona
+    // acaba de concederlo de nuevo: sin eso, el primer fallo siguiente lo
+    // declararía agotado otra vez.
+    return {
+      attempts: 0,
+      manualReason: null,
+      nextAttemptAt: new Date(occurredAt),
+      stagedMediaId: null,
+    };
+  }
+  if (action === "reconcile") {
+    return { manualReason: null };
+  }
+  // Abandonar no reescribe el intento: el estado, el código y el detalle quedan
+  // como estaban. Lo único que cambia es que la plataforma deja de intentar.
+  return {
+    manualReason: "abandoned-by-operator",
+    nextAttemptAt: null,
+  };
 }
 
 function isPublicationTarget(value: string): value is PublicationTarget {
@@ -617,18 +660,36 @@ export class PrismaPublicationOrderRepository
       select: retrySelection,
       take: limit,
       where: {
-        OR: [
+        AND: [
           {
-            state: {
-              in: ["media_staged", "outcome_unknown", "published_unconfirmed"],
-            },
+            OR: [
+              {
+                state: {
+                  in: [
+                    "media_staged",
+                    "outcome_unknown",
+                    "published_unconfirmed",
+                  ],
+                },
+              },
+              // Un fallo ambiguo también deja el desenlace abierto: `failed`
+              // con uno de esos códigos significa que la llamada no salió
+              // bien, no que la publicación no exista.
+              {
+                failureCode: { in: [...reconcilableFailureCodes] },
+                state: "failed",
+              },
+            ],
           },
-          // Un fallo ambiguo también deja el desenlace abierto: `failed` con
-          // uno de esos códigos significa que la llamada no salió bien, no que
-          // la publicación no exista.
           {
-            failureCode: { in: [...reconcilableFailureCodes] },
-            state: "failed",
+            // Un destino que una persona dio por perdido no se vuelve a
+            // consultar. El nulo se nombra aparte a propósito: en SQL una
+            // desigualdad contra NULL no es cierta, así que un `NOT` a secas
+            // habría descartado justo los destinos que nadie tocó.
+            OR: [
+              { manualReason: null },
+              { manualReason: { not: "abandoned-by-operator" } },
+            ],
           },
         ],
       },
@@ -721,6 +782,121 @@ export class PrismaPublicationOrderRepository
         },
       });
       return "dispatched";
+    });
+  }
+
+  /**
+   * Destinos detenidos esperando a una persona.
+   *
+   * Se acota a la organización, a diferencia de los barridos: esto lo consulta
+   * el panel de alguien, no el worker.
+   */
+  async pendingManualActions(
+    organizationId: string,
+    limit: number,
+  ): Promise<readonly PublicationManualActionRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { updatedAt: "asc" },
+      select: {
+        attempts: true,
+        failureCode: true,
+        failureDetail: true,
+        manualReason: true,
+        order: { select: { publicationId: true } },
+        orderId: true,
+        state: true,
+        target: true,
+        updatedAt: true,
+      },
+      take: limit,
+      where: {
+        manualReason: { in: [...actionablePublicationManualReasons] },
+        organizationId,
+      },
+    });
+
+    return Object.freeze(
+      rows.flatMap((row) => {
+        const reason = asManualReason(row.manualReason);
+        // Un motivo que el dominio no reconoce no se puede accionar; mostrarlo
+        // sin acciones sería ofrecer un botón que no hace nada.
+        if (reason === null) return [];
+        const failureCode = asFailureCode(row.failureCode);
+        return [
+          Object.freeze({
+            actions: publicationManualActions(reason),
+            attempts: row.attempts,
+            ...(failureCode === null ? {} : { failureCode }),
+            ...(row.failureDetail === null
+              ? {}
+              : { failureDetail: row.failureDetail }),
+            orderId: row.orderId,
+            publicationId: row.order.publicationId,
+            publicationTargetId: publicationTargetKey(row.orderId, row.target),
+            reason,
+            state: row.state,
+            target: row.target,
+            updatedAt: row.updatedAt.toISOString(),
+          }),
+        ];
+      }),
+    );
+  }
+
+  /**
+   * Ejecuta lo que una persona decidió.
+   *
+   * El permiso se comprueba contra el motivo guardado y no contra lo que llegó
+   * en el pedido: el panel puede estar mostrando una lista vieja, y entre que
+   * se dibujó y se apretó el botón el destino pudo pasar a un motivo donde esa
+   * acción ya no es segura. `retry` sobre un desenlace en duda es la que
+   * duplicaría.
+   *
+   * `abandon` no borra nada remoto. Deja el destino fallido y explícito, que es
+   * lo único honesto: la plataforma deja de intentar, y lo que haya en Meta
+   * sigue estando donde está.
+   */
+  async applyManualAction(
+    input: ApplyPublicationManualActionInput,
+  ): Promise<ApplyPublicationManualActionResult> {
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return Object.freeze({ status: "not-found" });
+    const target = key.target;
+    if (!isPublicationTarget(target)) {
+      return Object.freeze({ status: "not-found" });
+    }
+
+    return this.#database.$transaction(async (transaction) => {
+      const row = await transaction.publicationOrderTarget.findFirst({
+        select: { manualReason: true, sequence: true },
+        where: {
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          target,
+        },
+      });
+      if (row === null) return Object.freeze({ status: "not-found" });
+      const reason = asManualReason(row.manualReason);
+      if (reason === null) return Object.freeze({ status: "conflict" });
+      if (!isPublicationManualActionAllowed(reason, input.action)) {
+        return Object.freeze({ status: "not-allowed" });
+      }
+
+      const updated = await transaction.publicationOrderTarget.updateMany({
+        data: manualActionMutation(input.action, input.occurredAt),
+        where: {
+          // El motivo viaja en el `WHERE`: si cambió entre la lectura y esta
+          // línea, la escritura no entra.
+          manualReason: reason,
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          sequence: row.sequence,
+          target,
+        },
+      });
+      return updated.count === 1
+        ? Object.freeze({ status: "applied" })
+        : Object.freeze({ status: "conflict" });
     });
   }
 

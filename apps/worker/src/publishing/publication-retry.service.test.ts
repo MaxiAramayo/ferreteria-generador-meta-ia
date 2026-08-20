@@ -3,10 +3,12 @@ import test from "node:test";
 
 import {
   publicationRetryLimits,
+  type ApplyPublicationManualActionResult,
   type DispatchDueRetryInput,
   type DispatchDueRetryResult,
   type MetaPublishingFailureCode,
   type PublicationRetryRepository,
+  type PublicationManualActionRecord,
   type PublicationRetryTargetRecord,
   type PublicationRetryWriteResult,
   type RequireManualActionInput,
@@ -70,6 +72,13 @@ class RetryRepositoryDouble implements PublicationRetryRepository {
 
   openOutcomes(): Promise<readonly PublicationRetryTargetRecord[]> {
     return Promise.resolve(Object.freeze([]));
+  }
+  pendingManualActions(): Promise<readonly PublicationManualActionRecord[]> {
+    return Promise.reject(new Error("El barrido no consulta la alerta."));
+  }
+
+  applyManualAction(): Promise<ApplyPublicationManualActionResult> {
+    return Promise.reject(new Error("El barrido no ejecuta acciones humanas."));
   }
 
   scheduleRetry(

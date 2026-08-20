@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  actionablePublicationManualReasons,
+  isPublicationManualActionAllowed,
   metaPublishingFailureCodes,
+  publicationManualActions,
   needsPublicationReconciliation,
   planPublicationRetry,
   publicationRetryDelayMilliseconds,
@@ -278,4 +281,39 @@ test("volver a confirmar sin identificador lo que ya estaba así no escribe", ()
     }),
     { status: "already-settled" },
   );
+});
+
+test("un desenlace en duda no ofrece reintentar", () => {
+  // Forzar otro intento sobre algo que puede existir es la publicación
+  // duplicada que la vertical evita. Ofrecerlo y confiar en que nadie lo
+  // apriete no es una salvaguarda.
+  assert.deepEqual(publicationManualActions("outcome-unresolved"), [
+    "reconcile",
+    "abandon",
+  ]);
+  assert.equal(
+    isPublicationManualActionAllowed("outcome-unresolved", "retry"),
+    false,
+  );
+});
+
+test("un fallo que probó no haber publicado sí ofrece reintentar", () => {
+  for (const reason of ["attempts-exhausted", "permanent-failure"] as const) {
+    assert.deepEqual(publicationManualActions(reason), ["retry", "abandon"]);
+    assert.equal(isPublicationManualActionAllowed(reason, "retry"), true);
+  }
+});
+
+test("un destino abandonado no ofrece nada ni figura en la alerta", () => {
+  assert.deepEqual(publicationManualActions("abandoned-by-operator"), []);
+  assert.equal(
+    actionablePublicationManualReasons.includes("abandoned-by-operator"),
+    false,
+  );
+  // Los tres que sí esperan a alguien están todos.
+  assert.deepEqual([...actionablePublicationManualReasons].toSorted(), [
+    "attempts-exhausted",
+    "outcome-unresolved",
+    "permanent-failure",
+  ]);
 });
