@@ -808,6 +808,10 @@ model PublicationOrderTarget {
   failureCode        String?                 @map("failure_code") @db.VarChar(80)
   failureDetail      String?                 @map("failure_detail") @db.VarChar(300)
   failureRetryable   Boolean?                @map("failure_retryable")
+  attempts           Int                     @default(0)
+  nextAttemptAt      DateTime?               @map("next_attempt_at") @db.Timestamptz(3)
+  manualReason       String?                 @map("manual_reason") @db.VarChar(40)
+  reconciledAt       DateTime?               @map("reconciled_at") @db.Timestamptz(3)
   createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt          DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -817,6 +821,8 @@ model PublicationOrderTarget {
   @@unique([organizationId, orderId, target], map: "publication_order_targets_order_target_key")
   @@unique([organizationId, id], map: "publication_order_targets_organization_id_key")
   @@index([organizationId, orderId, state], map: "publication_order_targets_order_state_idx")
+  @@index([organizationId, nextAttemptAt], map: "publication_order_targets_retry_due_idx")
+  @@index([organizationId, manualReason], map: "publication_order_targets_manual_idx")
   @@map("publication_order_targets")
 }
 

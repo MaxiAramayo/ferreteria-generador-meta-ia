@@ -58,6 +58,19 @@ export type MetaPublishingFailureCode =
   (typeof metaPublishingFailureCodes)[number];
 
 /**
+ * Si un texto guardado es uno de los códigos declarados.
+ *
+ * La base guarda texto libre acotado y el dominio tiene una unión cerrada. Sin
+ * esta pregunta, un valor viejo o inventado viajaría disfrazado de código y la
+ * política decidiría un reintento sobre algo que no clasificó nadie.
+ */
+export function isMetaPublishingFailureCode(
+  value: string,
+): value is MetaPublishingFailureCode {
+  return (metaPublishingFailureCodes as readonly string[]).includes(value);
+}
+
+/**
  * Fallo de publicación.
  *
  * El mensaje es fijo y `detail` es texto propio: una respuesta del proveedor

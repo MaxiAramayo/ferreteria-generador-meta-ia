@@ -626,8 +626,8 @@ estado agregado sin ocultar fallos parciales.
 
 ## P5-T06 — Implementar reintentos y reconciliación remota
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T05`
 - Riesgo: Alto
 
@@ -644,18 +644,18 @@ publicaciones ni declarar éxito sin evidencia.
 
 ### Criterios de aceptación
 
-- [ ] Errores permanentes no se reintentan automáticamente.
-- [ ] Timeout después de enviar consulta estado antes de volver a publicar.
-- [ ] Backoff y jitter respetan límites de Meta.
-- [ ] Agotar intentos genera alerta y acción manual clara.
-- [ ] Reconciliación actualiza evidencia, no sobreescribe historial.
-- [ ] Reintentar un solo destino no toca destinos exitosos.
+- [x] Errores permanentes no se reintentan automáticamente.
+- [x] Timeout después de enviar consulta estado antes de volver a publicar.
+- [x] Backoff y jitter respetan límites de Meta.
+- [x] Agotar intentos genera alerta y acción manual clara.
+- [x] Reconciliación actualiza evidencia, no sobreescribe historial.
+- [x] Reintentar un solo destino no toca destinos exitosos.
 
 ### Verificación obligatoria
 
-- [ ] Simular timeout antes y después de aceptación remota.
-- [ ] Simular rate limit y token expirado.
-- [ ] Ejecutar reconciliación sobre estados inconsistentes conocidos.
+- [x] Simular timeout antes y después de aceptación remota.
+- [x] Simular rate limit y token expirado.
+- [x] Ejecutar reconciliación sobre estados inconsistentes conocidos.
 
 ### Fuera de alcance
 
@@ -663,11 +663,105 @@ publicaciones ni declarar éxito sin evidencia.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-20.
+- Estado real: política, persistencia y los dos barridos implementados y
+  verificados con dobles; la persistencia además contra PostgreSQL real.
+  **Falta cablearlos al worker, despachar los reintentos vencidos y ofrecer las
+  acciones manuales.** La tarea sigue `[ ]`.
+- Archivos: `packages/domain/src/publication-retry.ts` con su prueba;
+  la migración `20260820120000_publication_retry_schedule`;
+  `infrastructure/database/src/publication-order-repository.ts`;
+  `apps/worker/src/publishing/publication-retry.service.ts`,
+  `publication-reconciliation.service.ts` y
+  `meta-publication-lookup.adapter.ts`, cada uno con su prueba.
+- **Un fallo se resuelve en tres salidas y no en un booleano.** `scheduled` para
+  lo que cambia solo, `manual` para lo que no cambia esperando y `reconcile`
+  para los dos casos en que la publicación puede existir sin que la plataforma
+  lo sepa. El `retryable` que traen los adaptadores contesta otra pregunta —si
+  conviene repetir la llamada en el acto—, y confundir las dos es lo que
+  duplica.
+- **La tabla de salidas es un `Record` completo a propósito.** Un `default`
+  silencioso habría mandado a reintento automático los códigos que nadie
+  clasificó.
+- **El planificador está separado del publicador**, y es lo que hace que la
+  política sobreviva a un reinicio: el publicador registra el fallo y ahí
+  termina su corrida, así que un plan que viviera dentro de ella se perdería con
+  la caída. El barrido vuelve a encontrar los fallos que nadie planificó.
+- **La reconciliación no publica.** Todas sus llamadas son lecturas, así que
+  correrla de más no puede duplicar; lo peor que pasa es gastar cuota. El paso
+  que decide si hay que publicar de nuevo tiene que ser incapaz de publicar.
+- **Las dos redes obligan a reglas asimétricas.** La Page nunca prueba una
+  ausencia —`page_story_id` ausente es desconocimiento, no negativa—, así que un
+  destino de Facebook en duda sólo puede confirmarse, jamás republicarse solo.
+  El contenedor de Instagram sí prueba las dos cosas, pero cuando prueba que
+  salió no devuelve la media: por eso existe `published-unidentified`, y
+  tratarlo como ausencia republicaría algo ya publicado.
+- **Reconciliar no borra el fallo.** El destino falló de verdad y después se
+  comprobó que había salido; las dos cosas son ciertas.
+- Dos `CHECK` nuevos: un destino no puede esperar el reintento y esperar a una
+  persona al mismo tiempo, y un destino publicado no puede esperar nada. El
+  segundo es lo que impide que un barrido vuelva a tocar lo que ya salió.
+- Verificaciones ejecutadas: 39 pruebas nuevas —18 de la política, 7 de
+  persistencia contra PostgreSQL real, 6 de planificación, 6 de reconciliación y
+  7 de traducción—, `pnpm verify` y `pnpm db:test` completos en verde.
+- Fecha: 2026-08-20. Los barridos quedaron corriendo, el despacho escrito y las
+  acciones manuales expuestas. La tarea cierra.
+- **Cablear los reintentos obligó a corregir un defecto de `P5-T05`.** La orden
+  se cerraba como `publish_failed` en el mismo instante en que el planificador
+  iba a programarle un reintento, así que ningún reintento habría corrido nunca.
+  `failed` no alcanza para dar por cerrado un destino: la pregunta correcta no
+  es «¿está fallido?» sino «¿queda algo que el sistema vaya a hacer solo?». Un
+  fallo cuenta como resuelto sólo cuando la política ya no se va a ocupar de él
+  —causa permanente, intentos agotados o motivo manual registrado— y uno ambiguo
+  nunca, porque espera a que la reconciliación pregunte.
+- **`pendingPublicationTargets` dejó de devolver los destinos caídos.** Un fallo
+  vuelve a la cola sólo cuando el calendario lo pone en `pending`, en su fecha.
+  Dejarlo adentro habría hecho que cualquier reentrega del evento reintentara al
+  instante todos los destinos caídos, tirando el backoff recién calculado.
+- **El despacho es transaccional.** Devolver el destino a `pending` y reencolar
+  el evento van juntos: un destino sin evento espera para siempre y un evento
+  sin destino habilitado no hace nada. Una orden cancelada o cerrada no recibe
+  nada.
+- **El barrido corre planificar, reconciliar y despachar en ese orden**, y no es
+  casual: un destino que la consulta acaba de confirmar deja de tener reintento
+  pendiente antes de que el despacho lo mire.
+- **La alerta se expone, no se emite.** Un destino detenido que nadie mira es un
+  fallo silencioso, y una notificación que nadie recibe también. El servidor
+  decide qué acciones son seguras y las vuelve a comprobar contra el motivo
+  guardado al ejecutar: un panel con una lista vieja no alcanza para forzar un
+  reintento sobre un desenlace en duda.
+- **Abandonar no reescribe el intento.** Un destino en duda queda en duda y así
+  se guarda; lo único que cambia es que la plataforma deja de intentar y la
+  orden puede cerrar. Cerrarla afirmando un fallo que nadie comprobó sería la
+  mentira que el resto del modelo evita.
+- Dos defectos propios corregidos contra PostgreSQL real: una lista de motivos
+  mantenida a mano en el repositorio se desincronizó del dominio y dejaba las
+  órdenes abandonadas sin cerrar nunca —ahora se deriva de una sola lista—, y un
+  `NOT` de Prisma sobre una columna nullable descartaba las filas con nulo por la
+  lógica ternaria de SQL, que eran justamente los destinos que nadie había
+  tocado.
+- Nota de cableado: `PublicationMaintenanceService` no lleva `@Injectable()`. El
+  módulo lo provee con `useFactory`, así que Nest nunca resuelve sus parámetros
+  por metadatos, y el decorador además impediría probarlo porque el borrado de
+  tipos de Node no admite decoradores.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm verify` y `pnpm db:test` completos en verde el 2026-08-20, con la
+  migración `20260820120000_publication_retry_schedule` aplicada desde una base
+  vacía, revertida con su `down.sql` y reaplicada.
+- 78 pruebas nuevas: 21 de la política y la reconciliación en el dominio, 6 más
+  del agregado en `publication-publishing.test.ts`, 26 de los servicios del
+  worker —9 de planificación y despacho, 6 de reconciliación, 7 de traducción de
+  respuestas de Meta y 4 del orden del barrido—, 7 de la API de acciones
+  manuales y 14 de integración contra PostgreSQL real.
+- Las pruebas que cierran cada verificación: «un timeout después de que Meta
+  aceptó se cierra con la evidencia remota» y «un timeout antes de que Meta
+  aceptara devuelve el destino a la cola» para el desenlace ambiguo; «un límite
+  de Meta se reintenta después de su ventana» y «un token vencido no se
+  reintenta: se reconecta» para los dos fallos del criterio; y «la reconciliación
+  arregla un destino fallido que en Meta sí salió» para el estado inconsistente
+  conocido.
 
 ## P5-T07 — Construir UI de conexiones, aprobación y publicación
 

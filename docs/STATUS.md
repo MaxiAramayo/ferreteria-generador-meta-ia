@@ -107,10 +107,52 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T06` — reintentos y reconciliación remota. Su única dependencia,
-`P5-T05`, quedó cerrada, y es lo que falta para que un desenlace ambiguo deje de
-esperar a una persona: política de retry por categoría, jobs de reconciliación y
-acciones manuales seguras sobre los destinos que quedaron en duda.
+Comenzar `P5-T07` — UI de conexiones, aprobación y publicación. Sus dependencias
+`P5-T02` y `P5-T05` están cerradas, y es lo que falta para que publicar deje de
+ser una operación de API: confirmación con preview, cuenta, destino y copy
+exactos, estado parcial que distinga éxito de error, y las acciones de reintento
+que `P5-T06` ya expone con sus permisos.
+
+`P5-T06` quedó cerrada el 2026-08-20 con los seis criterios y las tres
+verificaciones cumplidas:
+
+- **política por categoría**: cada código de fallo se resuelve en `scheduled`,
+  `manual` o `reconcile`, no en un booleano. El `retryable` de los adaptadores
+  contesta otra pregunta —si conviene repetir la llamada en el acto— y
+  confundirlas es lo que duplica;
+- **backoff con jitter y pisos de Meta**: `rate-limit` y
+  `publishing-limit-reached` no se reintentan dentro de la ventana que los
+  rechazó;
+- **calendario persistido** con dos `CHECK`: un destino no puede esperar el
+  reintento y a una persona a la vez, y un destino publicado no puede esperar
+  nada —eso es lo que impide que un barrido toque lo que ya salió—;
+- **barrido de planificación** separado del publicador, para que la política
+  sobreviva a un reinicio;
+- **barrido de reconciliación que no publica**: todas sus llamadas son lecturas,
+  así que correrlo de más no puede duplicar nada.
+
+- **acciones manuales seguras**: la alerta se expone como lista consultable y el
+  servidor decide qué se puede hacer con cada destino detenido. Un desenlace en
+  duda no ofrece reintentar, y el permiso se vuelve a comprobar contra el motivo
+  guardado al ejecutar.
+
+La asimetría entre las dos redes quedó explícita: la Page nunca prueba una
+ausencia, así que un destino de Facebook en duda sólo puede confirmarse; el
+contenedor de Instagram sí prueba las dos cosas, pero cuando prueba que salió no
+devuelve la media, y ese caso tiene estado propio para no republicarlo.
+
+**Cablear los reintentos obligó a corregir un defecto de `P5-T05`.** La orden se
+cerraba como `publish_failed` en el mismo instante en que el planificador iba a
+programarle un reintento, así que ningún reintento habría corrido nunca. `failed`
+dejó de alcanzar para dar por cerrado un destino: la pregunta ahora es si queda
+algo que el sistema vaya a hacer solo. Y `pendingPublicationTargets` dejó de
+devolver los destinos caídos, porque volver a intentarlos en cualquier reentrega
+del evento tiraba el backoff recién calculado.
+
+Abandonar un destino no reescribe su intento: uno en duda queda en duda y así se
+guarda. Lo único que cambia es que la plataforma deja de intentar y la orden
+puede cerrar; afirmar un fallo que nadie comprobó sería la mentira que el resto
+del modelo evita.
 
 `P5-T05` quedó cerrada el 2026-08-20. La orden multidestino existe, corre contra
 PostgreSQL real y su verificación está completa:

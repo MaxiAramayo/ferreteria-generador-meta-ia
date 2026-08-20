@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260819230000_publication_orders";
+const latestMigrationName = "20260820120000_publication_retry_schedule";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -178,6 +178,10 @@ async function verifyDatabase(): Promise<void> {
         publication_order_targets_table: string | null;
         publication_orders_table: string | null;
         publication_target_kind_type: string | null;
+        retry_attempts_exists: boolean;
+        retry_manual_reason_exists: boolean;
+        retry_next_attempt_exists: boolean;
+        retry_reconciled_at_exists: boolean;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
       }>(
@@ -232,6 +236,34 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.publication_order_targets')::text AS "publication_order_targets_table",
             to_regtype('public.publication_target_kind')::text AS "publication_target_kind_type",
             to_regtype('public.publication_attempt_state')::text AS "publication_attempt_state_type",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_order_targets'
+                AND column_name = 'attempts'
+            ) AS "retry_attempts_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_order_targets'
+                AND column_name = 'next_attempt_at'
+            ) AS "retry_next_attempt_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_order_targets'
+                AND column_name = 'manual_reason'
+            ) AS "retry_manual_reason_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_order_targets'
+                AND column_name = 'reconciled_at'
+            ) AS "retry_reconciled_at_exists",
             to_regclass('public.knowledge_documents')::text AS "knowledge_documents_table",
             to_regclass('public.knowledge_document_versions')::text AS "knowledge_versions_table",
             to_regclass('public.meta_connections')::text AS "meta_connections_table",
@@ -281,17 +313,30 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparecen la orden,
-      // sus destinos y los dos tipos que sólo ellos usan. Los tipos importan
-      // tanto como las tablas: un ENUM que sobrevive a su tabla hace fallar la
-      // reaplicación con «type already exists», y esa falla sólo aparece al
-      // reaplicar, no al revertir.
-      assert.equal(rollbackEvidence.publication_orders_table, null);
-      assert.equal(rollbackEvidence.publication_order_targets_table, null);
-      assert.equal(rollbackEvidence.publication_target_kind_type, null);
-      assert.equal(rollbackEvidence.publication_attempt_state_type, null);
-      // Meta ya no es la última migración: revertir órdenes no puede llevarse
-      // por delante la conexión que las publica.
+      // La reversión afecta sólo a la última migración: desaparecen las cuatro
+      // columnas del calendario de reintentos y nada más.
+      assert.equal(rollbackEvidence.retry_attempts_exists, false);
+      assert.equal(rollbackEvidence.retry_next_attempt_exists, false);
+      assert.equal(rollbackEvidence.retry_manual_reason_exists, false);
+      assert.equal(rollbackEvidence.retry_reconciled_at_exists, false);
+      // La orden y sus destinos son de la migración anterior: revertir el
+      // calendario no puede llevarse por delante lo que programa.
+      assert.equal(
+        rollbackEvidence.publication_orders_table,
+        "publication_orders",
+      );
+      assert.equal(
+        rollbackEvidence.publication_order_targets_table,
+        "publication_order_targets",
+      );
+      assert.equal(
+        rollbackEvidence.publication_target_kind_type,
+        "publication_target_kind",
+      );
+      assert.equal(
+        rollbackEvidence.publication_attempt_state_type,
+        "publication_attempt_state",
+      );
       assert.equal(rollbackEvidence.meta_connections_table, "meta_connections");
       assert.equal(
         rollbackEvidence.meta_assets_table,

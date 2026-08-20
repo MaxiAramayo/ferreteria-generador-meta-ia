@@ -36,11 +36,19 @@ import {
 } from "./instagram-graph.adapter.ts";
 import { InstagramPublisher } from "./instagram-publisher.service.ts";
 import { MetaPageCredentialAdapter } from "./meta-credential.adapter.ts";
+import { MetaPublicationLookupAdapter } from "./meta-publication-lookup.adapter.ts";
+import { PublicationMaintenanceService } from "./publication-maintenance.service.ts";
 import { PublicationOrderOutboxTransport } from "./publication-order.transport.ts";
+import { PublicationReconciliationService } from "./publication-reconciliation.service.ts";
+import { PublicationRetryService } from "./publication-retry.service.ts";
 import { TokenDecipher } from "./token-decipher.ts";
 
 export const PUBLICATION_ORDER_TRANSPORT = Symbol(
   "PUBLICATION_ORDER_TRANSPORT",
+);
+export const PUBLICATION_RETRY_SERVICE = Symbol("PUBLICATION_RETRY_SERVICE");
+export const PUBLICATION_RECONCILIATION_SERVICE = Symbol(
+  "PUBLICATION_RECONCILIATION_SERVICE",
 );
 
 @Module({})
@@ -53,7 +61,20 @@ export class PublishingModule {
       return {
         exports: [PUBLICATION_ORDER_TRANSPORT],
         module: PublishingModule,
-        providers: [{ provide: PUBLICATION_ORDER_TRANSPORT, useValue: null }],
+        providers: [
+          { provide: PUBLICATION_ORDER_TRANSPORT, useValue: null },
+          { provide: PUBLICATION_RETRY_SERVICE, useValue: null },
+          { provide: PUBLICATION_RECONCILIATION_SERVICE, useValue: null },
+          {
+            inject: [
+              PUBLICATION_RETRY_SERVICE,
+              PUBLICATION_RECONCILIATION_SERVICE,
+            ],
+            provide: PublicationMaintenanceService,
+            useFactory: (): PublicationMaintenanceService =>
+              new PublicationMaintenanceService(null, null),
+          },
+        ],
       };
     }
     const graphApiVersion = configuration.meta.credentials.graphApiVersion;
@@ -62,6 +83,46 @@ export class PublishingModule {
       exports: [PUBLICATION_ORDER_TRANSPORT],
       module: PublishingModule,
       providers: [
+        {
+          inject: [PUBLICATION_ORDER_REPOSITORY],
+          provide: PUBLICATION_RETRY_SERVICE,
+          useFactory: (
+            orders: PublicationOrderRepositoryWithJournal,
+          ): PublicationRetryService => new PublicationRetryService(orders),
+        },
+        {
+          inject: [PUBLICATION_ORDER_REPOSITORY, META_CONNECTION_REPOSITORY],
+          provide: PUBLICATION_RECONCILIATION_SERVICE,
+          useFactory: (
+            orders: PublicationOrderRepositoryWithJournal,
+            connections: MetaConnectionRepository,
+          ): PublicationReconciliationService =>
+            new PublicationReconciliationService(
+              orders,
+              orders,
+              connections,
+              new MetaPageCredentialAdapter(
+                connections,
+                new TokenDecipher(configuration.tokenEncryption),
+              ),
+              new MetaPublicationLookupAdapter(
+                new InstagramGraphAdapter(graphApiVersion),
+                new FacebookGraphPublishingAdapter(graphApiVersion),
+              ),
+            ),
+        },
+        {
+          inject: [
+            PUBLICATION_RETRY_SERVICE,
+            PUBLICATION_RECONCILIATION_SERVICE,
+          ],
+          provide: PublicationMaintenanceService,
+          useFactory: (
+            retries: PublicationRetryService,
+            reconciliation: PublicationReconciliationService,
+          ): PublicationMaintenanceService =>
+            new PublicationMaintenanceService(retries, reconciliation),
+        },
         {
           inject: [
             PUBLICATION_ORDER_REPOSITORY,
@@ -110,4 +171,5 @@ export class PublishingModule {
 type PublicationOrderRepositoryWithJournal = ConstructorParameters<
   typeof PublicationOrderOutboxTransport
 >[0] &
-  ConstructorParameters<typeof InstagramPublisher>[1];
+  ConstructorParameters<typeof InstagramPublisher>[1] &
+  ConstructorParameters<typeof PublicationRetryService>[0];

@@ -20,7 +20,13 @@
  */
 
 import {
+  actionablePublicationManualReasons,
+  isPublicationManualActionAllowed,
+  metaPublishingFailureCodes,
+  publicationManualActions,
+  publicationManualReasons,
   publicationOrderStatus,
+  reconcilableFailureCodes,
   publicationOrderTopic,
   type CancelPublicationOrderInput,
   type CancelPublicationOrderResult,
@@ -34,9 +40,24 @@ import {
   type PublicationOrderRepository,
   type PublicationOrderTargetRecord,
   type PublicationTarget,
+  type ApplyPublicationManualActionInput,
+  type ApplyPublicationManualActionResult,
+  type ConfirmRemotePublicationInput,
+  type DispatchDueRetryInput,
+  type DispatchDueRetryResult,
+  type MetaPublishingFailureCode,
+  type PublicationManualAction,
+  type PublicationManualActionRecord,
+  type PublicationManualReason,
+  type PublicationRetryRepository,
+  type PublicationRetryTargetRecord,
+  type PublicationRetryWriteInput,
+  type PublicationRetryWriteResult,
   type RequestPublicationOrderInput,
   type RequestPublicationOrderResult,
+  type RequireManualActionInput,
   type SafeJsonObject,
+  type ScheduleRetryInput,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
@@ -50,9 +71,12 @@ import {
 
 const targetSelection = {
   attemptId: true,
+  attempts: true,
   failureCode: true,
   failureDetail: true,
   failureRetryable: true,
+  manualReason: true,
+  nextAttemptAt: true,
   remotePermalink: true,
   remotePostId: true,
   sequence: true,
@@ -99,9 +123,15 @@ function mapTarget(
   orderId: string,
   row: TargetRow,
 ): PublicationOrderTargetRecord {
+  const manualReason = asManualReason(row.manualReason);
   return Object.freeze({
+    attempts: row.attempts,
     ...(row.failureCode === null ? {} : { failureCode: row.failureCode }),
     ...(row.failureDetail === null ? {} : { failureDetail: row.failureDetail }),
+    ...(manualReason === null ? {} : { manualReason }),
+    ...(row.nextAttemptAt === null
+      ? {}
+      : { nextAttemptAt: row.nextAttemptAt.toISOString() }),
     ...(row.failureRetryable === null
       ? {}
       : { failureRetryable: row.failureRetryable }),
@@ -146,6 +176,100 @@ function splitTargetKey(
   });
 }
 
+const retrySelection = {
+  attempts: true,
+  failureCode: true,
+  manualReason: true,
+  nextAttemptAt: true,
+  orderId: true,
+  organizationId: true,
+  sequence: true,
+  state: true,
+  target: true,
+} satisfies Prisma.PublicationOrderTargetSelect;
+
+type RetryRow = Prisma.PublicationOrderTargetGetPayload<{
+  select: typeof retrySelection;
+}>;
+
+/**
+ * La base guarda texto y el dominio tiene uniones cerradas. Un valor que no
+ * pertenece se descarta en vez de viajar disfrazado: prefiero un campo ausente
+ * a un código inventado que después decida un reintento.
+ */
+function asFailureCode(value: string | null): MetaPublishingFailureCode | null {
+  return value !== null &&
+    (metaPublishingFailureCodes as readonly string[]).includes(value)
+    ? (value as MetaPublishingFailureCode)
+    : null;
+}
+
+function asManualReason(value: string | null): PublicationManualReason | null {
+  return value !== null &&
+    (publicationManualReasons as readonly string[]).includes(value)
+    ? (value as PublicationManualReason)
+    : null;
+}
+
+function mapRetryTarget(row: RetryRow): PublicationRetryTargetRecord {
+  const failureCode = asFailureCode(row.failureCode);
+  const manualReason = asManualReason(row.manualReason);
+  return Object.freeze({
+    attempts: row.attempts,
+    ...(failureCode === null ? {} : { failureCode }),
+    ...(manualReason === null ? {} : { manualReason }),
+    ...(row.nextAttemptAt === null
+      ? {}
+      : { nextAttemptAt: row.nextAttemptAt.toISOString() }),
+    orderId: row.orderId,
+    organizationId: row.organizationId,
+    publicationTargetId: publicationTargetKey(row.orderId, row.target),
+    sequence: row.sequence,
+    state: row.state,
+    target: row.target,
+  });
+}
+
+/**
+ * Qué cambia en la fila según lo que la persona eligió.
+ *
+ * `retry` devuelve el destino a la cola sin fecha: lo levanta el próximo
+ * despacho. `reconcile` sólo lo saca de la espera humana para que el barrido de
+ * desenlaces abiertos vuelva a mirarlo —el estado no se toca porque sigue tan
+ * en duda como antes—. `abandon` lo deja fallido y explícito.
+ */
+function manualActionMutation(
+  action: PublicationManualAction,
+  occurredAt: string,
+): Prisma.PublicationOrderTargetUpdateManyMutationInput {
+  if (action === "retry") {
+    // No se limpia el fallo: el destino sigue `failed` hasta que el despacho lo
+    // devuelva a la cola, y la base exige que un `failed` conserve su código.
+    // Borrarlo además perdería por qué hizo falta la decisión.
+    //
+    // La fecha lo deja en manos del mismo despacho que atiende los reintentos
+    // automáticos, en vez de abrir un segundo camino que tendría que
+    // comportarse igual. Y el presupuesto vuelve a cero porque una persona
+    // acaba de concederlo de nuevo: sin eso, el primer fallo siguiente lo
+    // declararía agotado otra vez.
+    return {
+      attempts: 0,
+      manualReason: null,
+      nextAttemptAt: new Date(occurredAt),
+      stagedMediaId: null,
+    };
+  }
+  if (action === "reconcile") {
+    return { manualReason: null };
+  }
+  // Abandonar no reescribe el intento: el estado, el código y el detalle quedan
+  // como estaban. Lo único que cambia es que la plataforma deja de intentar.
+  return {
+    manualReason: "abandoned-by-operator",
+    nextAttemptAt: null,
+  };
+}
+
 function isPublicationTarget(value: string): value is PublicationTarget {
   return (
     value === "instagram_feed" ||
@@ -179,7 +303,10 @@ function replayedOrder(responseBody: unknown): RequestPublicationOrderResult {
 }
 
 export class PrismaPublicationOrderRepository
-  implements PublicationOrderRepository, MetaPublishingAttemptJournal
+  implements
+    PublicationOrderRepository,
+    MetaPublishingAttemptJournal,
+    PublicationRetryRepository
 {
   readonly #database: DatabaseClient;
 
@@ -474,6 +601,379 @@ export class PrismaPublicationOrderRepository
         },
       });
       return Object.freeze({ status: "completed", version });
+    });
+  }
+
+  // --- PublicationRetryRepository ---
+
+  /**
+   * Escritura del calendario, con la misma defensa que usa el diario.
+   *
+   * `sequence` que entra es la que se leyó, y la condición del `WHERE` exige que
+   * la fila siga ahí. Programar un reintento sobre un destino que un publicador
+   * acaba de mover sería programarlo contra un estado que ya no existe, y esa
+   * es la carrera que termina publicando dos veces.
+   */
+  async #writeTarget(
+    input: PublicationRetryWriteInput,
+    data: Prisma.PublicationOrderTargetUpdateManyMutationInput,
+  ): Promise<PublicationRetryWriteResult> {
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null || !isPublicationTarget(key.target)) return "conflict";
+    const updated = await this.#database.publicationOrderTarget.updateMany({
+      data: { ...data, sequence: input.sequence + 1 },
+      where: {
+        orderId: key.orderId,
+        organizationId: input.organizationId,
+        sequence: input.sequence,
+        target: key.target,
+      },
+    });
+    return updated.count === 1 ? "saved" : "conflict";
+  }
+
+  async dueRetries(
+    at: string,
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { nextAttemptAt: "asc" },
+      select: retrySelection,
+      take: limit,
+      where: { nextAttemptAt: { lte: new Date(at) } },
+    });
+    return Object.freeze(rows.map(mapRetryTarget));
+  }
+
+  /**
+   * Destinos cuyo desenlace remoto sigue abierto.
+   *
+   * No se filtran los que ya esperan a una persona. Reconciliar es una lectura
+   * y no puede duplicar nada, así que volver a preguntar es gratis y a veces
+   * resuelve solo lo que se había derivado a decisión humana.
+   */
+  async openOutcomes(
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { updatedAt: "asc" },
+      select: retrySelection,
+      take: limit,
+      where: {
+        AND: [
+          {
+            OR: [
+              {
+                state: {
+                  in: [
+                    "media_staged",
+                    "outcome_unknown",
+                    "published_unconfirmed",
+                  ],
+                },
+              },
+              // Un fallo ambiguo también deja el desenlace abierto: `failed`
+              // con uno de esos códigos significa que la llamada no salió
+              // bien, no que la publicación no exista.
+              {
+                failureCode: { in: [...reconcilableFailureCodes] },
+                state: "failed",
+              },
+            ],
+          },
+          {
+            // Un destino que una persona dio por perdido no se vuelve a
+            // consultar. El nulo se nombra aparte a propósito: en SQL una
+            // desigualdad contra NULL no es cierta, así que un `NOT` a secas
+            // habría descartado justo los destinos que nadie tocó.
+            OR: [
+              { manualReason: null },
+              { manualReason: { not: "abandoned-by-operator" } },
+            ],
+          },
+        ],
+      },
+    });
+    return Object.freeze(rows.map(mapRetryTarget));
+  }
+
+  /**
+   * Fallos sin plan.
+   *
+   * `nextAttemptAt` y `manualReason` en nulo es exactamente «nadie decidió
+   * todavía qué hacer con esto». Los ambiguos quedan afuera porque los resuelve
+   * la reconciliación, no el reintento.
+   */
+  async unplannedFailures(
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { updatedAt: "asc" },
+      select: retrySelection,
+      take: limit,
+      where: {
+        failureCode: { notIn: [...reconcilableFailureCodes] },
+        manualReason: null,
+        nextAttemptAt: null,
+        state: "failed",
+      },
+    });
+    return Object.freeze(rows.map(mapRetryTarget));
+  }
+
+  /**
+   * Devuelve el destino a la cola y reencola el evento, en una transacción.
+   *
+   * El `WHERE` exige que la fecha siga puesta además de la secuencia: dos
+   * barridos concurrentes sobre el mismo destino vencido compiten en el motor y
+   * sólo uno reencola. Sin esa condición, el segundo crearía un evento más para
+   * la misma orden y el destino se intentaría dos veces.
+   */
+  async dispatchDueRetry(
+    input: DispatchDueRetryInput,
+  ): Promise<DispatchDueRetryResult> {
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return "conflict";
+    // Se copia ya estrechado: dentro del closure de la transacción TypeScript
+    // vuelve a ensanchar el acceso a la propiedad.
+    const target = key.target;
+    if (!isPublicationTarget(target)) return "conflict";
+
+    return this.#database.$transaction(async (transaction) => {
+      const order = await transaction.publicationOrder.findFirst({
+        select: { cancelledAt: true, publicationId: true, settledAt: true },
+        where: { id: key.orderId, organizationId: input.organizationId },
+      });
+      if (order === null) return "closed";
+      // Una orden cancelada no admite intentos nuevos aunque conserve la fecha,
+      // y una cerrada ya movió la publicación a su estado final.
+      if (order.cancelledAt !== null || order.settledAt !== null) {
+        return "closed";
+      }
+
+      const updated = await transaction.publicationOrderTarget.updateMany({
+        data: {
+          nextAttemptAt: null,
+          sequence: input.sequence + 1,
+          state: "pending",
+        },
+        where: {
+          nextAttemptAt: { not: null },
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          sequence: input.sequence,
+          target,
+        },
+      });
+      if (updated.count !== 1) return "conflict";
+
+      await transaction.outboxMessage.create({
+        data: {
+          aggregateId: key.orderId,
+          aggregateType: "publication_order",
+          availableAt: new Date(input.availableAt),
+          id: input.eventId,
+          organizationId: input.organizationId,
+          payload: {
+            orderId: key.orderId,
+            publicationId: order.publicationId,
+          },
+          topic: publicationOrderTopic,
+        },
+      });
+      return "dispatched";
+    });
+  }
+
+  /**
+   * Destinos detenidos esperando a una persona.
+   *
+   * Se acota a la organización, a diferencia de los barridos: esto lo consulta
+   * el panel de alguien, no el worker.
+   */
+  async pendingManualActions(
+    organizationId: string,
+    limit: number,
+  ): Promise<readonly PublicationManualActionRecord[]> {
+    const rows = await this.#database.publicationOrderTarget.findMany({
+      orderBy: { updatedAt: "asc" },
+      select: {
+        attempts: true,
+        failureCode: true,
+        failureDetail: true,
+        manualReason: true,
+        order: { select: { publicationId: true } },
+        orderId: true,
+        state: true,
+        target: true,
+        updatedAt: true,
+      },
+      take: limit,
+      where: {
+        manualReason: { in: [...actionablePublicationManualReasons] },
+        organizationId,
+      },
+    });
+
+    return Object.freeze(
+      rows.flatMap((row) => {
+        const reason = asManualReason(row.manualReason);
+        // Un motivo que el dominio no reconoce no se puede accionar; mostrarlo
+        // sin acciones sería ofrecer un botón que no hace nada.
+        if (reason === null) return [];
+        const failureCode = asFailureCode(row.failureCode);
+        return [
+          Object.freeze({
+            actions: publicationManualActions(reason),
+            attempts: row.attempts,
+            ...(failureCode === null ? {} : { failureCode }),
+            ...(row.failureDetail === null
+              ? {}
+              : { failureDetail: row.failureDetail }),
+            orderId: row.orderId,
+            publicationId: row.order.publicationId,
+            publicationTargetId: publicationTargetKey(row.orderId, row.target),
+            reason,
+            state: row.state,
+            target: row.target,
+            updatedAt: row.updatedAt.toISOString(),
+          }),
+        ];
+      }),
+    );
+  }
+
+  /**
+   * Ejecuta lo que una persona decidió.
+   *
+   * El permiso se comprueba contra el motivo guardado y no contra lo que llegó
+   * en el pedido: el panel puede estar mostrando una lista vieja, y entre que
+   * se dibujó y se apretó el botón el destino pudo pasar a un motivo donde esa
+   * acción ya no es segura. `retry` sobre un desenlace en duda es la que
+   * duplicaría.
+   *
+   * `abandon` no borra nada remoto. Deja el destino fallido y explícito, que es
+   * lo único honesto: la plataforma deja de intentar, y lo que haya en Meta
+   * sigue estando donde está.
+   */
+  async applyManualAction(
+    input: ApplyPublicationManualActionInput,
+  ): Promise<ApplyPublicationManualActionResult> {
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return Object.freeze({ status: "not-found" });
+    const target = key.target;
+    if (!isPublicationTarget(target)) {
+      return Object.freeze({ status: "not-found" });
+    }
+
+    return this.#database.$transaction(async (transaction) => {
+      const row = await transaction.publicationOrderTarget.findFirst({
+        select: { manualReason: true, sequence: true },
+        where: {
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          target,
+        },
+      });
+      if (row === null) return Object.freeze({ status: "not-found" });
+      const reason = asManualReason(row.manualReason);
+      if (reason === null) return Object.freeze({ status: "conflict" });
+      if (!isPublicationManualActionAllowed(reason, input.action)) {
+        return Object.freeze({ status: "not-allowed" });
+      }
+
+      const updated = await transaction.publicationOrderTarget.updateMany({
+        data: manualActionMutation(input.action, input.occurredAt),
+        where: {
+          // El motivo viaja en el `WHERE`: si cambió entre la lectura y esta
+          // línea, la escritura no entra.
+          manualReason: reason,
+          orderId: key.orderId,
+          organizationId: input.organizationId,
+          sequence: row.sequence,
+          target,
+        },
+      });
+      return updated.count === 1
+        ? Object.freeze({ status: "applied" })
+        : Object.freeze({ status: "conflict" });
+    });
+  }
+
+  async scheduleRetry(
+    input: ScheduleRetryInput,
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      attempts: { increment: 1 },
+      manualReason: null,
+      nextAttemptAt: new Date(input.nextAttemptAt),
+    });
+  }
+
+  async requireManualAction(
+    input: RequireManualActionInput,
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      manualReason: input.reason,
+      nextAttemptAt: null,
+    });
+  }
+
+  /**
+   * El fallo registrado no se borra.
+   *
+   * El destino falló de verdad y después se comprobó que había salido: las dos
+   * cosas son ciertas. Limpiar el código dejaría un `published` impecable sobre
+   * una corrida que no lo fue, y el historial es justamente lo que permite
+   * entender por qué hizo falta reconciliar.
+   */
+  async confirmRemotePublication(
+    input: ConfirmRemotePublicationInput,
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      manualReason: null,
+      nextAttemptAt: null,
+      reconciledAt: new Date(input.reconciledAt),
+      remotePermalink: input.remotePermalink ?? null,
+      remotePostId: input.remotePostId,
+      state: "published",
+    });
+  }
+
+  /**
+   * Cierra el destino como salido sin identificador.
+   *
+   * `published_unconfirmed` es el estado que existe para esto: el proveedor
+   * confirmó y no devolvió la media. El destino queda resuelto —no espera
+   * reintento ni persona— aunque nadie pueda abrir la publicación.
+   */
+  async confirmWithoutIdentifier(
+    input: PublicationRetryWriteInput & { readonly reconciledAt: string },
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      manualReason: null,
+      nextAttemptAt: null,
+      reconciledAt: new Date(input.reconciledAt),
+      state: "published_unconfirmed",
+    });
+  }
+
+  /**
+   * Devuelve el destino a la cola recién cuando se comprobó que no existe.
+   *
+   * El medio preparado se descarta a propósito: si la publicación no está, el
+   * contenedor que la iba a producir no sirve como evidencia de nada y puede
+   * haber vencido. Reintentar prepara otro.
+   */
+  async reopenForRepublish(
+    input: PublicationRetryWriteInput & { readonly reconciledAt: string },
+  ): Promise<PublicationRetryWriteResult> {
+    return this.#writeTarget(input, {
+      manualReason: null,
+      nextAttemptAt: null,
+      reconciledAt: new Date(input.reconciledAt),
+      stagedMediaId: null,
+      state: "pending",
     });
   }
 

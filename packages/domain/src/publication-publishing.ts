@@ -22,7 +22,15 @@
  * duplicar y abandonar, que es justamente lo que la vertical evita.
  */
 
-import type { MetaPublishingAttemptState } from "./meta-publishing-attempt.ts";
+import {
+  isMetaPublishingFailureCode,
+  type MetaPublishingAttemptState,
+} from "./meta-publishing-attempt.ts";
+import {
+  publicationRetryDisposition,
+  publicationRetryLimits,
+  type PublicationManualReason,
+} from "./publication-retry.ts";
 import type { PublicationStatus, PublicationTarget } from "./publication.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
 
@@ -33,9 +41,15 @@ export type PublicationOrderStatus = Extract<
 >;
 
 export interface PublicationOrderTargetRecord {
+  /** Intentos automáticos ya consumidos por este destino. */
+  readonly attempts?: number;
   readonly failureCode?: string;
   readonly failureDetail?: string;
   readonly failureRetryable?: boolean;
+  /** Motivo por el que dejó de reintentarse solo, si ya se decidió. */
+  readonly manualReason?: PublicationManualReason;
+  /** Instante del reintento programado, si lo hay. */
+  readonly nextAttemptAt?: string;
   /** Clave idempotente del destino. Es lo que el diario de intentos usa. */
   readonly publicationTargetId: string;
   readonly remotePermalink?: string;
@@ -58,19 +72,49 @@ export interface PublicationOrderRecord {
 }
 
 /**
+ * Un fallo del que la política ya no se va a ocupar sola.
+ *
+ * `failed` no alcanza para dar por cerrado un destino: desde `P5-T06` un fallo
+ * temporal tiene reintento por delante, y declararlo resuelto cerraría la orden
+ * antes de que ese reintento llegue a correr. La pregunta correcta no es «¿está
+ * fallido?» sino «¿queda algo que el sistema vaya a hacer por su cuenta?».
+ *
+ * Un fallo sin código se trata como final porque no se puede clasificar, y uno
+ * ambiguo nunca lo es: espera a que la reconciliación pregunte.
+ */
+function isFinalPublicationFailure(
+  target: PublicationOrderTargetRecord,
+): boolean {
+  if (target.manualReason !== undefined) return true;
+  if (target.failureCode === undefined) return true;
+  if (!isMetaPublishingFailureCode(target.failureCode)) return true;
+  const disposition = publicationRetryDisposition(target.failureCode);
+  if (disposition === "reconcile") return false;
+  if (disposition === "manual") return true;
+  return (target.attempts ?? 0) >= publicationRetryLimits.attemptsMaximum;
+}
+
+/**
  * Un intento que ya no va a cambiar solo.
  *
  * `outcome_unknown` no entra: sigue esperando una decisión humana, y tratarlo
- * como resuelto haría que la orden se declarara terminada sin estarlo.
+ * como resuelto haría que la orden se declarara terminada sin estarlo. Un
+ * `failed` con reintento pendiente tampoco, por el mismo motivo.
  */
 export function isSettledPublicationTarget(
-  state: MetaPublishingAttemptState,
+  target: PublicationOrderTargetRecord,
 ): boolean {
-  return (
-    state === "published" ||
-    state === "published_unconfirmed" ||
-    state === "failed"
-  );
+  if (
+    target.state === "published" ||
+    target.state === "published_unconfirmed"
+  ) {
+    return true;
+  }
+  // Una persona lo dio por perdido: la orden puede cerrar aunque el intento
+  // siga en duda. El estado no se reescribe, así que la orden queda cerrada sin
+  // afirmar un desenlace que nadie comprobó.
+  if (target.manualReason === "abandoned-by-operator") return true;
+  return target.state === "failed" && isFinalPublicationFailure(target);
 }
 
 /** Un destino que salió, con identificador confirmado o sin él. */
@@ -100,7 +144,7 @@ export function publicationOrderStatus(
     isSuccessfulPublicationTarget(entry.state),
   ).length;
   const settled = targets.filter((entry) =>
-    isSettledPublicationTarget(entry.state),
+    isSettledPublicationTarget(entry),
   ).length;
 
   // Algo sigue en curso o en duda: la orden no se resuelve.
@@ -110,11 +154,17 @@ export function publicationOrderStatus(
 }
 
 /**
- * Destinos que todavía admiten un intento.
+ * Destinos que admiten un intento **ahora**.
  *
  * Un destino exitoso nunca se reintenta —esa es la garantía contra duplicar— y
  * uno en duda tampoco, porque puede haber salido. Una orden cancelada no admite
  * ninguno, aunque conserve los que ya salieron.
+ *
+ * `failed` queda afuera desde `P5-T06`, y es un cambio con consecuencia: un
+ * fallo vuelve a la cola sólo cuando el calendario lo devuelve a `pending`, en
+ * su fecha. Dejarlo adentro haría que cualquier reentrega del evento reintentara
+ * al instante todos los destinos caídos, que es precisamente el backoff que la
+ * política acaba de calcular tirado a la basura.
  */
 export function pendingPublicationTargets(
   order: PublicationOrderRecord,
@@ -122,10 +172,7 @@ export function pendingPublicationTargets(
   if (order.cancelledAt !== undefined) return Object.freeze([]);
   return Object.freeze(
     order.targets.filter(
-      (entry) =>
-        entry.state !== "published" &&
-        entry.state !== "published_unconfirmed" &&
-        entry.state !== "outcome_unknown",
+      (entry) => entry.state === "pending" || entry.state === "media_staged",
     ),
   );
 }

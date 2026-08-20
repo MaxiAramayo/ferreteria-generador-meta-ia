@@ -538,6 +538,7 @@ export {
 } from "./visual-prompt.ts";
 export * from "./publication.ts";
 export {
+  isMetaPublishingFailureCode,
   isPubliclyFetchableMediaUrl,
   metaPublishingAttemptStates,
   metaPublishingFailureCodes,
@@ -615,3 +616,35 @@ export {
   type RequestPublicationOrderInput,
   type RequestPublicationOrderResult,
 } from "./publication-publishing.ts";
+export {
+  actionablePublicationManualReasons,
+  isPublicationManualActionAllowed,
+  needsPublicationReconciliation,
+  planPublicationRetry,
+  publicationManualActions,
+  publicationManualReasons,
+  publicationRetryDelayMilliseconds,
+  publicationRetryDisposition,
+  publicationRetryLimits,
+  reconcilableFailureCodes,
+  reconcilePublicationTarget,
+  type PlanPublicationRetryInput,
+  type PublicationManualReason,
+  type PublicationReconciliation,
+  type PublicationRetryDisposition,
+  type PublicationRetryPlan,
+  type PublicationRetryRepository,
+  type PublicationRetryTargetRecord,
+  type PublicationRetryWriteInput,
+  type PublicationRetryWriteResult,
+  type RemotePublicationEvidence,
+  type RequireManualActionInput,
+  type ScheduleRetryInput,
+  type ConfirmRemotePublicationInput,
+  type ApplyPublicationManualActionInput,
+  type ApplyPublicationManualActionResult,
+  type DispatchDueRetryInput,
+  type DispatchDueRetryResult,
+  type PublicationManualAction,
+  type PublicationManualActionRecord,
+} from "./publication-retry.ts";
