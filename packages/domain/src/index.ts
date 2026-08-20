@@ -627,5 +627,12 @@ export {
   type PublicationReconciliation,
   type PublicationRetryDisposition,
   type PublicationRetryPlan,
+  type PublicationRetryRepository,
+  type PublicationRetryTargetRecord,
+  type PublicationRetryWriteInput,
+  type PublicationRetryWriteResult,
   type RemotePublicationEvidence,
+  type RequireManualActionInput,
+  type ScheduleRetryInput,
+  type ConfirmRemotePublicationInput,
 } from "./publication-retry.ts";

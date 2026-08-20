@@ -5374,3 +5374,325 @@ test("la base rechaza destinos y órdenes que no describen nada real", async () 
   assert.equal(intact.targets[0]?.state, "pending");
   assert.equal(intact.cancelledAt, undefined);
 });
+
+test("el calendario programa el reintento y respeta la secuencia leída", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, key, 1, "provider-error")),
+    "saved",
+  );
+
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T12:10:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  // Una escritura con la secuencia vieja llega tarde: la fila ya avanzó.
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T13:00:00.000Z",
+      organizationId,
+      publicationTargetId: key,
+      sequence: 1,
+    }),
+    "conflict",
+  );
+
+  const stored = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(stored.attempts, 1);
+  assert.equal(stored.sequence, 2);
+  assert.equal(stored.nextAttemptAt?.toISOString(), "2026-08-20T12:10:00.000Z");
+  // El fallo que causó el reintento sigue registrado.
+  assert.equal(stored.failureCode, "provider-error");
+});
+
+test("el barrido devuelve sólo los reintentos que ya vencieron", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const vencido = publicationTargetKey(orderId, "instagram_feed");
+  const futuro = publicationTargetKey(orderId, "facebook_page");
+  for (const key of [vencido, futuro]) {
+    assert.equal(
+      await orders.save(failedAttempt(organizationId, key, 1, "rate-limit")),
+      "saved",
+    );
+  }
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T12:00:00.000Z",
+      organizationId,
+      publicationTargetId: vencido,
+      sequence: 1,
+    }),
+    "saved",
+  );
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T18:00:00.000Z",
+      organizationId,
+      publicationTargetId: futuro,
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const due = await orders.dueRetries("2026-08-20T12:05:00.000Z", 50);
+  const fromThisOrder = due.filter((entry) => entry.orderId === orderId);
+  assert.deepEqual(
+    fromThisOrder.map((entry) => entry.publicationTargetId),
+    [vencido],
+  );
+  const [programado] = fromThisOrder;
+  assert.ok(programado);
+  assert.equal(programado.attempts, 1);
+  assert.equal(programado.failureCode, "rate-limit");
+  assert.equal(programado.sequence, 2);
+});
+
+test("reconciliar anota la evidencia remota sin borrar el fallo", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["facebook_page"],
+  );
+  const key = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(unknownAttempt(organizationId, key, 1)),
+    "saved",
+  );
+
+  // El destino en duda aparece en el barrido de desenlaces abiertos.
+  const open = await orders.openOutcomes(50);
+  assert.ok(
+    open.some((entry) => entry.publicationTargetId === key),
+    "el destino en duda no apareció en el barrido",
+  );
+
+  assert.equal(
+    await orders.confirmRemotePublication({
+      organizationId,
+      publicationTargetId: key,
+      reconciledAt: "2026-08-20T12:30:00.000Z",
+      remotePermalink: "https://www.facebook.com/1/posts/2",
+      remotePostId: "252222471780140_1587397416410955",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const stored = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(stored.state, "published");
+  assert.equal(stored.remotePostId, "252222471780140_1587397416410955");
+  assert.equal(stored.reconciledAt?.toISOString(), "2026-08-20T12:30:00.000Z");
+  // Un destino resuelto no espera nada más.
+  assert.equal(stored.nextAttemptAt, null);
+  assert.equal(stored.manualReason, null);
+
+  // Y la orden cierra como publicada gracias a la evidencia reconciliada.
+  assert.equal(
+    (await orders.settle(organizationId, orderId, "2026-08-20T12:31:00.000Z"))
+      .status,
+    "completed",
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(publication.status, "published");
+});
+
+test("un destino comprobado ausente vuelve a la cola y descarta el medio", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(stagedAttempt(organizationId, key, 1, "contenedor-1")),
+    "saved",
+  );
+
+  assert.equal(
+    await orders.reopenForRepublish({
+      organizationId,
+      publicationTargetId: key,
+      reconciledAt: "2026-08-20T12:40:00.000Z",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const stored = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId },
+  });
+  assert.equal(stored.state, "pending");
+  // El contenedor que iba a producir la publicación ya no sirve como evidencia.
+  assert.equal(stored.stagedMediaId, null);
+
+  // Y el destino vuelve a estar pendiente para la orden.
+  const order = await orders.findById(organizationId, orderId);
+  assert.ok(order);
+  assert.equal(pendingPublicationTargets(order).length, 1);
+});
+
+test("reintentar un destino no toca los que ya se publicaron", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const publicado = publicationTargetKey(orderId, "instagram_feed");
+  const caido = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      publishedAttempt(organizationId, publicado, 1, "remote-instagram"),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.save(failedAttempt(organizationId, caido, 1, "rate-limit")),
+    "saved",
+  );
+
+  assert.equal(
+    await orders.scheduleRetry({
+      nextAttemptAt: "2026-08-20T12:20:00.000Z",
+      organizationId,
+      publicationTargetId: caido,
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  // El destino exitoso queda intacto: mismo estado, mismo identificador, misma
+  // secuencia y sin nada programado.
+  const intacto = await database.publicationOrderTarget.findFirstOrThrow({
+    where: { orderId, organizationId, target: "instagram_feed" },
+  });
+  assert.equal(intacto.state, "published");
+  assert.equal(intacto.remotePostId, "remote-instagram");
+  assert.equal(intacto.sequence, 1);
+  assert.equal(intacto.attempts, 0);
+  assert.equal(intacto.nextAttemptAt, null);
+  // Y el barrido nunca lo levanta.
+  const due = await orders.dueRetries("2026-08-20T12:25:00.000Z", 50);
+  assert.equal(
+    due.some((entry) => entry.publicationTargetId === publicado),
+    false,
+  );
+});
+
+test("la base rechaza un destino que espera dos futuros a la vez", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+
+  // Esperar el reintento y esperar a una persona describen dos futuros
+  // distintos: el worker leería uno y el panel el otro.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: {
+        manualReason: "attempts-exhausted",
+        nextAttemptAt: new Date("2026-08-20T12:20:00.000Z"),
+      },
+      where: { orderId, organizationId },
+    }),
+  );
+  // Un motivo manual con forma inválida no se puede clasificar después.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { manualReason: "Agotado!" },
+      where: { orderId, organizationId },
+    }),
+  );
+  // Los intentos no pueden ser negativos.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { attempts: -1 },
+      where: { orderId, organizationId },
+    }),
+  );
+});
+
+test("la base rechaza un destino publicado que sigue esperando algo", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(
+      publishedAttempt(organizationId, key, 1, "remote-instagram"),
+    ),
+    "saved",
+  );
+
+  // Es la regla que impide que un barrido vuelva a tocar lo que ya salió.
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { nextAttemptAt: new Date("2026-08-20T12:20:00.000Z") },
+      where: { orderId, organizationId },
+    }),
+  );
+  await assert.rejects(
+    database.publicationOrderTarget.updateMany({
+      data: { manualReason: "attempts-exhausted" },
+      where: { orderId, organizationId },
+    }),
+  );
+});

@@ -283,3 +283,84 @@ export function reconcilePublicationTarget(
     ? Object.freeze({ status: "unresolved" })
     : Object.freeze({ status: "republishable" });
 }
+
+/**
+ * Un destino esperando algo, con lo justo para decidir qué.
+ *
+ * Trae `sequence` porque toda escritura sobre el destino compite con la del
+ * publicador que lo está atendiendo, y la única defensa es la misma que usa el
+ * diario: escribir sólo si la fila sigue en la secuencia que se leyó.
+ */
+export interface PublicationRetryTargetRecord {
+  readonly attempts: number;
+  readonly failureCode?: MetaPublishingFailureCode;
+  readonly manualReason?: PublicationManualReason;
+  readonly nextAttemptAt?: string;
+  readonly orderId: string;
+  readonly organizationId: string;
+  readonly publicationTargetId: string;
+  readonly sequence: number;
+  readonly state: MetaPublishingAttemptState;
+}
+
+export type PublicationRetryWriteResult = "conflict" | "saved";
+
+export interface PublicationRetryWriteInput {
+  readonly organizationId: string;
+  readonly publicationTargetId: string;
+  /** Secuencia leída. La escritura entra sólo si la fila sigue ahí. */
+  readonly sequence: number;
+}
+
+export interface ScheduleRetryInput extends PublicationRetryWriteInput {
+  readonly nextAttemptAt: string;
+}
+
+export interface RequireManualActionInput extends PublicationRetryWriteInput {
+  readonly reason: PublicationManualReason;
+}
+
+export interface ConfirmRemotePublicationInput extends PublicationRetryWriteInput {
+  readonly reconciledAt: string;
+  readonly remotePermalink?: string;
+  readonly remotePostId: string;
+}
+
+/**
+ * Calendario de reintentos y reconciliación.
+ *
+ * Los dos barridos no llevan organización: el worker recorre todas, igual que
+ * el despachador de outbox. El registro sí la trae, porque cada escritura
+ * posterior vuelve a acotarse a su organización.
+ */
+export interface PublicationRetryRepository {
+  /** Destinos con reintento programado que ya venció. */
+  dueRetries(
+    at: string,
+    limit: number,
+  ): Promise<readonly PublicationRetryTargetRecord[]>;
+  /** Destinos cuyo desenlace remoto sigue abierto. */
+  openOutcomes(limit: number): Promise<readonly PublicationRetryTargetRecord[]>;
+  /**
+   * Anota la evidencia remota y cierra el destino como publicado.
+   *
+   * No borra el fallo que quedó registrado: el destino falló de verdad y
+   * después se comprobó que había salido. Las dos cosas son ciertas y el
+   * historial tiene que conservar ambas.
+   */
+  confirmRemotePublication(
+    input: ConfirmRemotePublicationInput,
+  ): Promise<PublicationRetryWriteResult>;
+  /** Deja el destino esperando a una persona, con el motivo. */
+  requireManualAction(
+    input: RequireManualActionInput,
+  ): Promise<PublicationRetryWriteResult>;
+  /** Habilita otro intento sobre un destino que se comprobó ausente. */
+  reopenForRepublish(
+    input: PublicationRetryWriteInput & { readonly reconciledAt: string },
+  ): Promise<PublicationRetryWriteResult>;
+  /** Programa el intento siguiente y consume uno del presupuesto. */
+  scheduleRetry(
+    input: ScheduleRetryInput,
+  ): Promise<PublicationRetryWriteResult>;
+}
