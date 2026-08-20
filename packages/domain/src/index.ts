@@ -615,3 +615,17 @@ export {
   type RequestPublicationOrderInput,
   type RequestPublicationOrderResult,
 } from "./publication-publishing.ts";
+export {
+  needsPublicationReconciliation,
+  planPublicationRetry,
+  publicationRetryDelayMilliseconds,
+  publicationRetryDisposition,
+  publicationRetryLimits,
+  reconcilePublicationTarget,
+  type PlanPublicationRetryInput,
+  type PublicationManualReason,
+  type PublicationReconciliation,
+  type PublicationRetryDisposition,
+  type PublicationRetryPlan,
+  type RemotePublicationEvidence,
+} from "./publication-retry.ts";
