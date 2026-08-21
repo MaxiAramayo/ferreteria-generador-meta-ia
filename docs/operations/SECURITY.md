@@ -79,6 +79,9 @@ y respuesta ante exposición están en [`SECRETS.md`](SECRETS.md).
 - Límite de tamaño.
 - URLs salientes permitidas o normalizadas.
 - Webhooks con firma y protección contra replay.
+- Los callbacks de eliminación y desautorización de Meta validan la solicitud
+  firmada con HMAC-SHA256 y comparación en tiempo constante antes de resolver
+  una cuenta. No confían en el identificador sin firma.
 - OAuth con `state` aleatorio de 32 bytes, hash SHA-256 persistido, redirect
   exacto, expiración de diez minutos y organización, membresía y sesión
   asociadas. El callback consume `state` atómicamente una sola vez.

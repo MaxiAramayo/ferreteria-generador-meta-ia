@@ -138,6 +138,17 @@ export interface RevokeMetaConnectionInput {
   readonly revokedAt: string;
 }
 
+export type MetaExternalRemovalReason = "data-deletion" | "deauthorization";
+
+export interface RemoveMetaConnectionFromProviderInput {
+  readonly audit: AuditEventInput;
+  readonly metaConnectionId: string;
+  readonly organizationId: string;
+  readonly providerAccountId: string;
+  readonly reason: MetaExternalRemovalReason;
+  readonly removedAt: string;
+}
+
 export type MetaConnectionMutationResult =
   | Readonly<{ connection: MetaConnectionRecord; status: "updated" }>
   | Readonly<{ status: "not-found" }>;
@@ -169,6 +180,22 @@ export interface MetaConnectionRepository {
   save(input: SaveMetaConnectionInput): Promise<MetaConnectionRecord>;
   updateHealth(
     input: UpdateMetaConnectionHealthInput,
+  ): Promise<MetaConnectionMutationResult>;
+}
+
+/**
+ * Operaciones iniciadas por callbacks firmados de Meta.
+ *
+ * No reciben un actor local: la firma de la aplicación autentica al proveedor
+ * y el repositorio vuelve a limitar cada escritura por organización, conexión
+ * e identificador de cuenta resueltos desde la base.
+ */
+export interface MetaComplianceRepository {
+  findByProviderAccountId(
+    providerAccountId: string,
+  ): Promise<readonly MetaConnectionRecord[]>;
+  removeFromProvider(
+    input: RemoveMetaConnectionFromProviderInput,
   ): Promise<MetaConnectionMutationResult>;
 }
 

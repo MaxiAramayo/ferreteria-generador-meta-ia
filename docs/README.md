@@ -32,6 +32,9 @@
 - [`integrations/KNOWLEDGE-POLICY-SCENARIOS.md`](integrations/KNOWLEDGE-POLICY-SCENARIOS.md):
   revisión de ausencia, contradicción, retiro y aislamiento.
 - [`integrations/META.md`](integrations/META.md)
+- [`integrations/META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md):
+  URLs legales, justificación de permisos, usuario temporal, guion, bloqueo y
+  checklist de presentación.
 
 ## Operación
 

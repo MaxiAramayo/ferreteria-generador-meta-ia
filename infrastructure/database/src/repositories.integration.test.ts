@@ -4117,6 +4117,99 @@ test("Meta aísla state y conexiones, cifra secretos y revoca con auditoría", a
     }),
     2,
   );
+
+  const reconnected = await repository.save({
+    accessSecret: encrypted,
+    accountName: "Administrador Meta",
+    actor,
+    assets: Object.freeze([
+      Object.freeze({
+        accessSecret: {
+          ...encrypted,
+          ciphertext: "encrypted-page-token-not-plain-text",
+        },
+        kind: "page",
+        name: "Aramayo",
+        providerAssetId: "page-1",
+      }),
+      Object.freeze({
+        kind: "instagram_business",
+        name: "@ferreteria_aramayo",
+        providerAssetId: "ig-1",
+        username: "ferreteria_aramayo",
+      }),
+    ]),
+    audit: {
+      actorMembershipId: membershipId,
+      entityType: "meta_connection",
+      eventId: randomUUID(),
+      metadata: { assetCount: 2, provider: "meta" },
+      occurredAt: new Date(now.getTime() + 2_000).toISOString(),
+      operation: "meta.connection.connected",
+      organizationId,
+      outcome: "success",
+    },
+    grantedPermissions: ["instagram_basic", "instagram_content_publish"],
+    health: "healthy",
+    occurredAt: new Date(now.getTime() + 2_000).toISOString(),
+    providerAccountId: "meta-account-1",
+  });
+  assert.equal(reconnected.id, connected.id);
+  assert.equal(
+    (await repository.findByProviderAccountId("meta-account-1")).length,
+    1,
+  );
+
+  const deleted = await repository.removeFromProvider({
+    audit: {
+      entityId: connected.id,
+      entityType: "meta_connection",
+      eventId: randomUUID(),
+      metadata: {
+        initiatedBy: "meta",
+        provider: "meta",
+        reason: "data-deletion",
+      },
+      occurredAt: new Date(now.getTime() + 3_000).toISOString(),
+      operation: "meta.connection.data_deleted",
+      organizationId,
+      outcome: "success",
+    },
+    metaConnectionId: connected.id,
+    organizationId,
+    providerAccountId: "meta-account-1",
+    reason: "data-deletion",
+    removedAt: new Date(now.getTime() + 3_000).toISOString(),
+  });
+  assert.equal(deleted.status, "updated");
+  assert.equal(deleted.connection.accountName, "Cuenta Meta eliminada");
+  assert.equal(deleted.connection.grantedPermissions.length, 0);
+  assert.equal(
+    (await repository.findByProviderAccountId("meta-account-1")).length,
+    0,
+  );
+  const erasedConnection = await database.metaConnection.findUniqueOrThrow({
+    include: { assets: true },
+    where: { id: connected.id },
+  });
+  assert.equal(erasedConnection.providerAccountId, `deleted:${connected.id}`);
+  assert.equal(erasedConnection.accessCiphertext, null);
+  assert.equal(
+    erasedConnection.assets.every(
+      (asset) =>
+        asset.providerAssetId === `deleted:${asset.id}` &&
+        asset.name === "Activo Meta eliminado" &&
+        asset.username === null &&
+        asset.accessCiphertext === null,
+    ),
+    true,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: { entityType: "meta_connection", organizationId },
+    }),
+    4,
+  );
 });
 
 test("dos pedidos concurrentes con la misma clave lanzan un solo lote", async () => {

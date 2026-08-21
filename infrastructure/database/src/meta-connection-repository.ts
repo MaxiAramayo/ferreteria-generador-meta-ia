@@ -6,6 +6,7 @@ import {
   type MetaAssetSecretRecord,
   type MetaConnectionRecord,
   type MetaConnectionRepository,
+  type MetaComplianceRepository,
   type MetaConnectionSecretRecord,
   type PersistedMetaAssetInput,
 } from "@aramayo/domain";
@@ -263,7 +264,9 @@ async function reconcileAssets(
   });
 }
 
-export class PrismaMetaConnectionRepository implements MetaConnectionRepository {
+export class PrismaMetaConnectionRepository
+  implements MetaConnectionRepository, MetaComplianceRepository
+{
   readonly #database: DatabaseClient;
 
   constructor(database: DatabaseClient) {
@@ -372,6 +375,97 @@ export class PrismaMetaConnectionRepository implements MetaConnectionRepository 
       where: { organizationId },
     });
     return Object.freeze(rows.map(mapMetaConnection));
+  }
+
+  async findByProviderAccountId(
+    providerAccountId: string,
+  ): Promise<readonly MetaConnectionRecord[]> {
+    const rows = await this.#database.metaConnection.findMany({
+      orderBy: [{ organizationId: "asc" }, { id: "asc" }],
+      select: metaConnectionSelection,
+      where: { providerAccountId },
+    });
+    return Object.freeze(rows.map(mapMetaConnection));
+  }
+
+  async removeFromProvider(
+    input: Parameters<MetaComplianceRepository["removeFromProvider"]>[0],
+  ): Promise<
+    Awaited<ReturnType<MetaComplianceRepository["removeFromProvider"]>>
+  > {
+    return this.#database.$transaction(async (transaction) => {
+      const removedAt = new Date(input.removedAt);
+      const shouldEraseIdentifiers = input.reason === "data-deletion";
+      const result = await transaction.metaConnection.updateMany({
+        data: {
+          accessCiphertext: null,
+          accessIv: null,
+          accessKeyVersion: null,
+          accessTag: null,
+          ...(shouldEraseIdentifiers
+            ? {
+                accountName: "Cuenta Meta eliminada",
+                expiresAt: null,
+                grantedPermissions: [],
+                providerAccountId: `deleted:${input.metaConnectionId}`,
+              }
+            : {}),
+          health: "revoked",
+          revokedAt: removedAt,
+          version: { increment: 1 },
+        },
+        where: {
+          id: input.metaConnectionId,
+          organizationId: input.organizationId,
+          providerAccountId: input.providerAccountId,
+          ...(shouldEraseIdentifiers ? {} : { health: { not: "revoked" } }),
+        },
+      });
+      if (result.count !== 1) return Object.freeze({ status: "not-found" });
+
+      const assets = await transaction.metaConnectionAsset.findMany({
+        select: { id: true },
+        where: {
+          metaConnectionId: input.metaConnectionId,
+          organizationId: input.organizationId,
+        },
+      });
+      for (const asset of assets) {
+        await transaction.metaConnectionAsset.update({
+          data: {
+            accessCiphertext: null,
+            accessIv: null,
+            accessKeyVersion: null,
+            accessTag: null,
+            ...(shouldEraseIdentifiers
+              ? {
+                  name: "Activo Meta eliminado",
+                  providerAssetId: `deleted:${asset.id}`,
+                  username: null,
+                }
+              : {}),
+            removedAt,
+            status: "removed",
+          },
+          where: { id: asset.id },
+        });
+      }
+
+      await transaction.auditEvent.create({ data: auditData(input.audit) });
+      const row = await transaction.metaConnection.findUniqueOrThrow({
+        select: metaConnectionSelection,
+        where: {
+          organizationId_id: {
+            id: input.metaConnectionId,
+            organizationId: input.organizationId,
+          },
+        },
+      });
+      return Object.freeze({
+        connection: mapMetaConnection(row),
+        status: "updated",
+      });
+    });
   }
 
   async renew(

@@ -31,6 +31,7 @@ import type {
   IdentityRepository,
   MediaAssetRepository,
   MetaConnectionRepository,
+  MetaComplianceRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
   PublicationOrderRepository,
@@ -54,6 +55,7 @@ import {
   IDENTITY_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   META_CONNECTION_REPOSITORY,
+  META_COMPLIANCE_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
@@ -78,6 +80,7 @@ export class DatabaseModule {
         IDENTITY_REPOSITORY,
         MEDIA_ASSET_REPOSITORY,
         META_CONNECTION_REPOSITORY,
+        META_COMPLIANCE_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
@@ -89,6 +92,12 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: META_COMPLIANCE_REPOSITORY,
+          useFactory: (database: DatabaseClient): MetaComplianceRepository =>
+            new PrismaMetaConnectionRepository(database),
+        },
         {
           inject: [DATABASE_CLIENT],
           provide: META_CONNECTION_REPOSITORY,
