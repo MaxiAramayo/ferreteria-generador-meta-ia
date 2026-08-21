@@ -8,21 +8,20 @@ Revisado contra la implementación y la documentación oficial disponible:
 El paquete técnico está **preparado localmente pero no listo para enviar**.
 Las URLs, callbacks, justificaciones y guion están definidos. El negocio eligió
 usar la Page real de Aramayo y `@ferreteria_aramayo`; no se crearán activos de
-prueba separados. Antes de presentar la revisión faltan dos aprobaciones
-humanas:
+prueba separados. Las dos aprobaciones humanas requeridas fueron recibidas:
 
-1. aprobación administrativa del texto legal y del nombre público;
-2. aprobación concreta del bitmap, copy, destinos, ventana y responsable de la
-   publicación técnica sobre los activos reales.
+1. ~~aprobación administrativa del texto legal y del nombre público~~ —recibida
+   el 2026-08-21;
+2. ~~aprobación concreta del bitmap, copy, destinos, ventana y responsable de
+   la publicación técnica sobre los activos reales~~ —recibida el 2026-08-21.
 
 El segundo punto es un conflicto con
 [ADR-019](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md):
 esa decisión rechaza activos Meta de prueba separados y exige autorización
 concreta para cada escritura en los activos existentes. App Review puede probar
 la aplicación siguiendo el screencast, y los dos permisos de publicación sólo
-se demuestran con una escritura. No se entregará al revisor un usuario
-publisher contra los activos reales hasta completar la autorización acotada que
-se define debajo.
+se demuestran con una escritura. La autorización acotada quedó vinculada al
+checksum, copy, destinos y ventana que se definen debajo.
 
 ## Aprobaciones requeridas del negocio
 
@@ -47,18 +46,23 @@ el preview y checksum del bitmap. Debe quedar fijada con estos límites:
 |---|---|
 | Activos | Page real de Aramayo y `@ferreteria_aramayo` |
 | Dataset visible | Sólo “Muestra técnica de App Review” en staging |
-| Media | Bitmap final rotulado “PRUEBA TÉCNICA · APP REVIEW”, sin producto, precio, stock ni promoción; checksum pendiente |
-| Copy propuesto | “Publicación de prueba para la revisión técnica de Aramayo Content Platform. Sin oferta comercial.” |
+| Media | [`assets/meta-app-review-technical.png`](assets/meta-app-review-technical.png), 1080×1350, 103.721 bytes, rotulado “PRUEBA TÉCNICA · APP REVIEW”, sin producto, precio, stock ni promoción |
+| SHA-256 | `91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0` |
+| Copy aprobado | “Publicación de prueba para la revisión técnica de Aramayo Content Platform. Sin oferta comercial.” |
 | Destinos | `instagram_feed` y `facebook_page`; no historia |
 | Límite | Una publicación confirmada por destino mediante una única orden idempotente |
-| Ventana | Fecha y horario de inicio/fin pendientes de aprobación |
-| Supervisión | Responsable humano pendiente de identificar |
-| Retiro | Manual después de confirmada la revisión o cuando lo pida el negocio; nunca compensación automática |
+| Ventana | Desde la entrega de credenciales temporales hasta la decisión de Meta, con máximo de 30 días corridos |
+| Supervisión | Responsable del negocio que otorgó la aprobación y asumió la supervisión humana |
+| Retiro | Manual después de la decisión de Meta; nunca compensación automática |
 
 El revisor no recibe permiso para crear otra pieza, cambiar el copy, agregar un
 destino, publicar historias ni repetir una orden con otra clave. Si la respuesta
 remota es ambigua, el sistema reconcilia y deriva a una persona; no vuelve a
 publicar.
+
+La autorización fue recibida el 2026-08-21. Cualquier regeneración reemplaza el
+checksum y devuelve el artefacto a estado pendiente; no se puede heredar esta
+aprobación a otros bytes.
 
 ## Identidad y URLs exactas
 
@@ -141,15 +145,16 @@ Condiciones del usuario:
 - pertenece sólo al ambiente staging;
 - no reutiliza la identidad ni contraseña de una persona real;
 - expira o se revoca al terminar la revisión;
-- recibe admin, editor, approver, publisher y viewer sólo si la decisión sobre
-  activos permite el recorrido completo;
+- recibe admin, editor, approver, publisher y viewer sólo durante la ventana
+  aprobada y para el dataset sintético;
 - ve una publicación sintética rotulada para revisión, sin precios, stock,
   clientes ni información comercial interna;
 - no accede a infraestructura, secretos ni configuración del proveedor.
 
 Con los activos reales elegidos, el usuario de staging sólo debe ver el dataset
 sintético de revisión. El bitmap, copy, ventana, destinos, responsable y retiro
-posterior deben aprobarse por escrito antes de entregar ese usuario.
+posterior ya quedaron aprobados por escrito; antes de entregar el usuario se
+deben verificar nuevamente contra el manifiesto.
 
 ## Guion del screencast
 
@@ -206,12 +211,13 @@ eliminación real y transaccional en PostgreSQL.
 
 ### Checklist antes de enviar
 
-- [ ] Responsable del negocio aprobó privacidad, términos y canales de contacto.
+- [x] Responsable del negocio aprobó privacidad, términos y canales de contacto
+      el 2026-08-21.
 - [ ] Administrador de Meta confirmó nombre, ícono, dominio y URLs.
 - [x] Se eligió y documentó la estrategia de activos para el revisor: activos
-      reales con autorización puntual pendiente.
+      reales con autorización puntual recibida el 2026-08-21.
 - [ ] Usuario temporal creado y credenciales cargadas sólo en Meta.
-- [ ] Dataset sintético aprobado y sin afirmaciones comerciales.
+- [x] Dataset sintético aprobado y sin afirmaciones comerciales.
 - [ ] Guion recorrido de punta a punta en staging.
 - [ ] Screencast final reproduce exactamente las instrucciones.
 - [ ] Los cinco permisos y ningún otro están en la presentación.

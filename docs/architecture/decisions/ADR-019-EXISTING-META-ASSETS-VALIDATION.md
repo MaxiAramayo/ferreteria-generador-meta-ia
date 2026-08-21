@@ -137,3 +137,36 @@ El usuario temporal de staging sólo verá el dataset sintético de App Review. 
 autorización no cubre historias, publicaciones comerciales, piezas diferentes,
 reintentos manuales ni acciones fuera del flujo idempotente del panel. Una
 respuesta ambigua se reconcilia; no se vuelve a publicar a ciegas.
+
+### Aprobación administrativa recibida
+
+El 2026-08-21 el usuario aprobó expresamente para App Review:
+
+- el nombre público **Aramayo Content Platform**;
+- la marca responsable **Ferretería y Lubricentro Aramayo**;
+- el dominio `staging.content.ferreteriaaramayo.com.ar`;
+- los textos vigentes de privacidad, términos y eliminación de datos;
+- el teléfono `3854 403534` y los domicilios República de Siria 365 y
+  Rivadavia 673, Frías, como canales públicos correctos.
+
+Esta aprobación satisface el punto 5 anterior. No autoriza la publicación
+técnica: bitmap, checksum, copy, destinos, ventana y supervisión se presentan en
+una autorización separada.
+
+### Autorización concreta de App Review recibida
+
+El 2026-08-21 el usuario aprobó el bitmap SHA-256
+`91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0` y
+el copy exacto documentado para una única orden idempotente, con una publicación
+en el feed de `@ferreteria_aramayo` y otra en la Page real de Aramayo.
+
+La ventana empieza cuando se entreguen las credenciales temporales y termina al
+recibirse la decisión de Meta o al cumplirse 30 días corridos, lo que ocurra
+primero. El responsable del negocio asume supervisión y retiro manual posterior.
+Una respuesta ambigua sólo autoriza reconciliación; no autoriza volver a
+publicar.
+
+Esta aprobación satisface los puntos 1 a 4 para ese archivo exacto. Cualquier
+cambio de bytes, copy, destino, límite o ventana exige una aprobación nueva. No
+autoriza despliegue, configuración remota, creación de credenciales ni la
+publicación inmediata por parte del agente.

@@ -146,6 +146,12 @@ importers:
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.7.0(jiti@2.7.0))
+      '@fontsource/archivo':
+        specifier: 'catalog:'
+        version: 5.2.8
+      '@fontsource/saira-condensed':
+        specifier: 'catalog:'
+        version: 5.2.8
       '@next/eslint-plugin-next':
         specifier: 'catalog:'
         version: 16.2.11
@@ -155,6 +161,12 @@ importers:
       '@types/pg':
         specifier: 'catalog:'
         version: 8.20.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.17)
       argon2:
         specifier: 'catalog:'
         version: 0.45.1
@@ -191,6 +203,9 @@ importers:
       redis:
         specifier: 'catalog:'
         version: 6.1.0
+      sharp:
+        specifier: 'catalog:'
+        version: 0.34.5
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

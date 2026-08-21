@@ -113,11 +113,13 @@ firmados de eliminación/desautorización, estado opaco y el paquete completo de
 justificaciones, usuario temporal y guion.
 
 El usuario decidió el 2026-08-21 que App Review use la Page real de Aramayo y
-`@ferreteria_aramayo`. Antes de crear el usuario temporal, desplegar URLs, grabar
-o enviar la revisión todavía hay que aprobar administrativamente identidad,
-textos y canales, y autorizar el bitmap, copy, destinos, ventana y responsable
-exactos de la única publicación técnica permitida. El detalle reproducible está
-en
+`@ferreteria_aramayo`, y aprobó nombre, marca responsable, dominio, textos
+legales, teléfono y domicilios. El candidato técnico final quedó generado sin IA
+ni afirmaciones comerciales. El negocio aprobó también su bitmap y checksum,
+copy, destinos, ventana máxima de 30 días, supervisión y retiro manual. La tarea
+volvió a estar en progreso: falta preparar el despliegue, presentar los cambios
+externos exactos, configurar callbacks, crear el usuario temporal y recorrer y
+grabar el guion. El detalle reproducible está en
 [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres

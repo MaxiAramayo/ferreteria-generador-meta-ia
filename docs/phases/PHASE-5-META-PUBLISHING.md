@@ -887,7 +887,7 @@ de una acción externa irreversible.
 ## P5-T08 — Preparar requisitos legales y App Review
 
 - [ ] Tarea completada
-- Estado: BLOQUEADA
+- Estado: EN PROGRESO
 - Dependencias: `P5-T07`
 - Riesgo: Alto
 
@@ -915,7 +915,7 @@ integración con usuarios y activos reales.
 
 - [ ] Recorrer el guion completo como usuario de revisión.
 - [x] Probar eliminación/revocación y conservar evidencia.
-- [ ] Revisión legal/administrativa antes de enviar.
+- [x] Revisión legal/administrativa antes de enviar.
 
 ### Fuera de alcance
 
@@ -942,23 +942,29 @@ integración con usuarios y activos reales.
 - El 2026-08-21 el negocio eligió que App Review use la Page real de Aramayo y
   `@ferreteria_aramayo`; no se crearán activos separados. La decisión quedó en
   la enmienda de ADR-019 y no autoriza por sí sola una escritura.
-- Bloqueo de cierre: antes de entregar un usuario `publisher`, el negocio debe
-  aprobar el bitmap y checksum, copy, destinos, ventana, responsable y retiro de
-  la única publicación técnica permitida. También debe aprobar
-  administrativamente identidad, textos legales, dominios y canales.
+- El mismo día el negocio aprobó nombre público, marca responsable, dominio,
+  textos de privacidad/términos/eliminación, teléfono y domicilios. Se generó
+  además el candidato técnico code-native de 1080×1350, sin IA ni afirmaciones
+  comerciales, con SHA-256
+  `91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0`.
+- El negocio aprobó ese bitmap y checksum, el copy exacto, una publicación en
+  cada destino mediante una única orden idempotente, la ventana desde la entrega
+  de credenciales hasta la decisión de Meta con máximo de 30 días, la
+  supervisión humana y el retiro manual. Una respuesta ambigua sólo se
+  reconcilia.
 - Archivos principales: vertical `connections` de API, repositorio de
   conexiones, contratos, tres rutas legales, seguridad, runbook y paquete de
   revisión.
 - Verificaciones ejecutadas: 105 pruebas de API; typecheck y build de web;
   `pnpm db:test` con migración, seed, aislamiento y rollback/reapply completos;
   `pnpm verify` completo; y recorrido visual local en escritorio y móvil de las
-  tres rutas legales, sin overflow ni errores de consola. Quedan pendientes,
-  después de resolver el bloqueo, despliegue/recorrido remoto y screencast.
-- Próximo paso exacto: aprobar identidad, textos y canales; luego producir el
-  bitmap final y obtener la autorización concreta de publicación detallada en
-  `META-APP-REVIEW.md`. Recién entonces desplegar URLs estables, configurar
-  callbacks, crear el usuario temporal y recorrer/grabar el guion remoto antes
-  de enviar a App Review.
+  tres rutas legales, sin overflow ni errores de consola. El generador del
+  artefacto suma typecheck, dos unitarias, doble render con comparación de
+  píxeles, validación PNG, dimensiones y checksum; `pnpm verify` volvió a pasar
+  con esa cobertura. Quedan pendientes despliegue/recorrido remoto y screencast.
+- Próximo paso exacto: preparar el despliegue de URLs estables y presentar al
+  usuario los cambios externos exactos antes de configurar callbacks, crear el
+  usuario temporal y recorrer/grabar el guion remoto para App Review.
 
 ### Evidencia de cierre
 
