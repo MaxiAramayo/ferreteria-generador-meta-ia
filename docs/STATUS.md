@@ -107,11 +107,39 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T07` — UI de conexiones, aprobación y publicación. Sus dependencias
-`P5-T02` y `P5-T05` están cerradas, y es lo que falta para que publicar deje de
-ser una operación de API: confirmación con preview, cuenta, destino y copy
-exactos, estado parcial que distinga éxito de error, y las acciones de reintento
-que `P5-T06` ya expone con sus permisos.
+Terminar `P5-T07` — UI de conexiones, aprobación y publicación. Los seis
+criterios de aceptación están cumplidos y la auditoría de accesibilidad quedó
+cerrada; **falta el E2E de navegador por rol y estado**, y con él la prueba de
+navegación atrás y refresh durante una publicación.
+
+Ese E2E necesita la vertical entera levantada con datos sembrados —base efímera
+migrada, usuarios por rol, una conexión Meta sana con sus tokens cifrados y una
+pieza aprobada con PNG—. `playwright-core` ya está en el catálogo y
+`tools/design-review` muestra cómo se lanza Chrome, así que no hace falta cambiar
+el stack: falta el arnés que arme ese entorno, y conviene tratarlo como
+entregable propio.
+
+Lo implementado el 2026-08-20 para `P5-T07`:
+
+- **la puerta de publicación** en funciones puras: el rol se pregunta primero
+  —quien no puede publicar no se entera del estado de la conexión ni de la
+  pieza—, y los destinos salen de los activos de la conexión y no de una lista
+  fija;
+- **confirmación en dos pasos** con preview, cuenta, destinos y el copy exacto
+  del snapshot aprobado. El botón dice «Publicar…» y abre la pantalla; no
+  publica;
+- **doble defensa contra el doble envío**: el botón deshabilitado defiende la
+  experiencia y la clave idempotente defiende el dato, conservándose entre
+  reintentos del mismo intento;
+- **resultado por destino en cuatro desenlaces**, nombrados además de pintados,
+  con las acciones manuales que el servidor autoriza;
+- **`/diseno/publicacion`**, el harness que hace auditables esos estados, que de
+  otro modo sólo aparecen después de una publicación que salió mal.
+
+La auditoría encontró una sección sin nombre accesible en el workspace de
+publicaciones —nunca detectada porque esa pantalla exige sesión y el auditor no
+llega— y un `role="dialog"` que prometía foco atrapado y cierre con Escape sin
+cumplirlos.
 
 `P5-T06` quedó cerrada el 2026-08-20 con los seis criterios y las tres
 verificaciones cumplidas:

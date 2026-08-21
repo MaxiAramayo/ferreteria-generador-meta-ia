@@ -783,17 +783,17 @@ de una acción externa irreversible.
 
 ### Criterios de aceptación
 
-- [ ] La confirmación muestra preview, cuenta, destino y copy exactos.
-- [ ] No existe publicación con un clic accidental desde el editor.
-- [ ] La UI impide publicar si falta aprobación o conexión sana.
-- [ ] Estado parcial diferencia claramente éxito y error.
-- [ ] Acciones de retry requieren rol y contexto correctos.
-- [ ] Todos los controles tienen estados de carga y evitan doble envío.
+- [x] La confirmación muestra preview, cuenta, destino y copy exactos.
+- [x] No existe publicación con un clic accidental desde el editor.
+- [x] La UI impide publicar si falta aprobación o conexión sana.
+- [x] Estado parcial diferencia claramente éxito y error.
+- [x] Acciones de retry requieren rol y contexto correctos.
+- [x] Todos los controles tienen estados de carga y evitan doble envío.
 
 ### Verificación obligatoria
 
 - [ ] E2E por rol y estado.
-- [ ] Auditoría de accesibilidad.
+- [x] Auditoría de accesibilidad.
 - [ ] Prueba manual de doble clic, navegación atrás y refresh durante publicación.
 
 ### Fuera de alcance
@@ -802,11 +802,65 @@ de una acción externa irreversible.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-20.
+- Estado real: los seis criterios de aceptación cumplidos y la auditoría de
+  accesibilidad cerrada con la herramienta del proyecto. **Falta el E2E de
+  navegador**; la tarea sigue `[ ]`.
+- Archivos: `apps/web/lib/publication-publishing-presentation.ts` y
+  `publication-publishing-api.ts` con sus pruebas;
+  `apps/web/app/publicaciones/publish-confirmation.tsx`,
+  `publication-order-panel.tsx` y `publication-target-result.tsx`;
+  `apps/web/app/diseno/publicacion/page.tsx`; `GET publications/:id/orders` en
+  `apps/api/src/content/publication-order.{service,controller}.ts`.
+- **La decisión de si el botón existe vive en funciones puras, no en el JSX.**
+  Una regla escondida en un `&&` no se puede probar y termina siendo distinta de
+  la del servidor. El orden de las preguntas de la puerta es deliberado: el rol
+  primero, porque quien no puede publicar no necesita enterarse del estado de la
+  conexión ni de la pieza.
+- **Los destinos salen de los activos de la conexión, no de una lista fija.**
+  Prometer Instagram cuando sólo hay una Page hace que el problema aparezca
+  después de confirmar algo irreversible.
+- **El copy y la pieza salen de la revisión aprobada, no de la última.** Mostrar
+  un borrador más nuevo haría que la confirmación describiera algo distinto de
+  lo que sale.
+- **Doble defensa contra el doble envío, y protegen cosas distintas.** El botón
+  deshabilitado y el guard del manejador defienden la experiencia; la clave
+  idempotente defiende el dato. Un reintento después de un rechazo conserva la
+  clave del intento anterior: si el primer pedido llegó y lo que se perdió fue
+  la respuesta, el segundo devuelve la orden original en vez de crear otra.
+- **Un pedido sin respuesta queda indeterminado, no fallido.** Puede haber
+  salido, y afirmar un fallo sería inventar un desenlace con una acción
+  irreversible atrás.
+- **El resultado por destino distingue cuatro desenlaces y no dos**, y no sólo
+  por color: la etiqueta los nombra. La duda se ve distinta del error porque un
+  fallo se reintenta y una duda no.
+- **`/diseno/publicacion` existe porque esos estados casi nunca se pueden
+  mirar.** Aparecen después de una publicación que salió mal, y para entonces
+  nadie está revisando accesibilidad. Para auditarlos, el resultado por destino
+  se separó en un componente que sólo recibe props: lo que se audita es el
+  marcado real y no una copia.
+- La auditoría encontró una sección sin nombre accesible **y también en el
+  workspace de publicaciones**, donde nunca se había detectado porque esa
+  pantalla exige sesión y el auditor no llega. Y se quitó un `role="dialog"` que
+  prometía foco atrapado y cierre con Escape sin cumplirlos; la confirmación
+  recibe el foco al abrirse, que es lo que hacía falta de verdad.
+- Verificaciones ejecutadas: 23 pruebas del panel —incluida la matriz de cinco
+  roles por nueve estados—, `pnpm design:review --harness` sin hallazgos en
+  `/diseno/publicacion`, y `pnpm verify` completo en verde.
+- **Lo que falta y por qué:** el E2E de navegador y la prueba manual de
+  navegación atrás y refresh durante una publicación necesitan la vertical
+  entera levantada con datos sembrados —base efímera migrada, usuarios por rol,
+  una conexión Meta sana con sus tokens cifrados y una pieza aprobada con PNG—.
+  `playwright-core` ya está en el catálogo y `tools/design-review` muestra cómo
+  se lanza Chrome, así que no hace falta cambiar el stack; falta el arnés que
+  arme ese entorno. Es un entregable propio y conviene tratarlo como tal.
+- El doble clic sí quedó verificado, pero en la máquina de estados del envío y
+  no en el navegador.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta el E2E de navegador por rol y estado, y con él la prueba de
+  navegación atrás y refresh durante una publicación.
 
 ## P5-T08 — Preparar requisitos legales y App Review
 
