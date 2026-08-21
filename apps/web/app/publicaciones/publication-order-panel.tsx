@@ -30,13 +30,10 @@ import {
   type PublicationOrderHistoryResult,
 } from "../../lib/publication-publishing-api.ts";
 import {
-  manualActionLabels,
-  manualReasonLabels,
-  publicationTargetLabels,
   publicationTargetOutcome,
-  publicationTargetOutcomeLabels,
   visibleManualActions,
 } from "../../lib/publication-publishing-presentation.ts";
+import { PublicationTargetResult } from "./publication-target-result.tsx";
 
 export interface PublicationOrderPanelProps {
   readonly actor: AuthenticatedActor;
@@ -66,6 +63,9 @@ export function PublicationOrderPanel({
   >([]);
   /** Destino con una acción en vuelo. Impide el segundo clic y el cruce. */
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<
+    "abandon" | "reconcile" | "retry" | null
+  >(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   /**
@@ -119,6 +119,7 @@ export function PublicationOrderPanel({
     ): Promise<void> => {
       if (actingOn !== null) return;
       setActingOn(publicationTargetId);
+      setBusyAction(action);
       setNotice(null);
       const result: ManualActionListResult = await applyManualAction(
         apiBaseUrl,
@@ -136,6 +137,7 @@ export function PublicationOrderPanel({
         );
       }
       setActingOn(null);
+      setBusyAction(null);
     },
     [actingOn, apiBaseUrl, refresh],
   );
@@ -186,69 +188,34 @@ export function PublicationOrderPanel({
 
           <ul className="publication-order-targets">
             {order.targets.map((target) => {
-              const outcome = publicationTargetOutcome(target);
               const entry = stoppedByKey.get(`${order.id}:${target.target}`);
               const actions =
                 entry === undefined ? [] : visibleManualActions(actor, entry);
+              const busy =
+                actingOn !== null && actingOn === entry?.publicationTargetId;
               return (
-                <li
-                  className={`publication-order-target publication-order-target--${outcome}`}
+                <PublicationTargetResult
+                  actions={actions}
+                  {...(entry === undefined ? {} : { attempts: entry.attempts })}
+                  {...(busy && busyAction !== null ? { busyAction } : {})}
+                  disabled={actingOn !== null}
+                  {...(target.failureCode === undefined
+                    ? {}
+                    : { failureCode: target.failureCode })}
+                  {...(target.failureDetail === undefined
+                    ? {}
+                    : { failureDetail: target.failureDetail })}
                   key={target.target}
-                >
-                  <div className="publication-order-target-heading">
-                    <strong>{publicationTargetLabels[target.target]}</strong>
-                    <span data-outcome={outcome}>
-                      {publicationTargetOutcomeLabels[outcome]}
-                    </span>
-                  </div>
-
-                  {target.permalink === undefined ? null : (
-                    <a
-                      href={target.permalink}
-                      rel="noreferrer noopener"
-                      target="_blank"
-                    >
-                      Ver la publicación
-                      <span className="visually-hidden">
-                        {" "}
-                        (se abre en una pestaña nueva)
-                      </span>
-                    </a>
-                  )}
-                  {target.failureCode === undefined ? null : (
-                    <p className="publication-order-target-failure">
-                      <code>{target.failureCode}</code>
-                      {target.failureDetail === undefined
-                        ? null
-                        : ` · ${target.failureDetail}`}
-                    </p>
-                  )}
-                  {entry === undefined ? null : (
-                    <p className="publication-order-target-reason">
-                      {manualReasonLabels[entry.reason]} · {entry.attempts}{" "}
-                      {entry.attempts === 1 ? "intento" : "intentos"}
-                    </p>
-                  )}
-
-                  {actions.length === 0 ? null : (
-                    <div className="publication-order-target-actions">
-                      {actions.map((action) => (
-                        <button
-                          disabled={actingOn !== null}
-                          key={action}
-                          onClick={() => {
-                            void act(entry?.publicationTargetId ?? "", action);
-                          }}
-                          type="button"
-                        >
-                          {actingOn === entry?.publicationTargetId
-                            ? "Aplicando…"
-                            : manualActionLabels[action]}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </li>
+                  onAct={(action) => {
+                    void act(entry?.publicationTargetId ?? "", action);
+                  }}
+                  outcome={publicationTargetOutcome(target)}
+                  {...(target.permalink === undefined
+                    ? {}
+                    : { permalink: target.permalink })}
+                  {...(entry === undefined ? {} : { reason: entry.reason })}
+                  target={target.target}
+                />
               );
             })}
           </ul>

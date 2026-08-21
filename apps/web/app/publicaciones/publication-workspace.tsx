@@ -388,10 +388,12 @@ export function PublicationWorkspace({
         </p>
       </header>
 
-      <section className="workspace-intro">
+      <section aria-labelledby="mesa-de-contenido" className="workspace-intro">
         <div>
           <p className="workspace-eyebrow">Mesa de contenido</p>
-          <h1>De la idea al borrador, sin saltos ocultos.</h1>
+          <h1 id="mesa-de-contenido">
+            De la idea al borrador, sin saltos ocultos.
+          </h1>
         </div>
         <p>
           Cada pieza conserva su estado real. Guardar, revisar, aprobar y
