@@ -41,3 +41,17 @@ export interface MetaOAuthCallbackResponse {
   readonly connection: MetaConnectionResponse;
   readonly status: "connected";
 }
+
+/** Respuesta exacta requerida por el callback de eliminación de Meta. */
+export interface MetaDataDeletionCallbackResponse {
+  readonly confirmation_code: string;
+  readonly url: string;
+}
+
+export type MetaDataDeletionStatusResponse =
+  | Readonly<{ completedAt: string; status: "completed" }>
+  | Readonly<{ status: "not-found" }>;
+
+export interface MetaDeauthorizationResponse {
+  readonly status: "acknowledged";
+}

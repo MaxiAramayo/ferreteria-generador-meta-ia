@@ -387,3 +387,28 @@ La salida a producción requiere, según corresponda:
 - pruebas en una Page/cuenta controlada.
 
 No habilitar publicación automática mientras la app esté en modo de prueba.
+
+### Implementación de requisitos legales y callbacks (2026-08-21)
+
+Las URLs, justificaciones, usuario temporal, guion y checklist viven en
+[META-APP-REVIEW.md](META-APP-REVIEW.md). El paquete no se presenta todavía:
+la revisión administrativa del texto está pendiente y ADR-019 no permite dar
+a un revisor externo capacidad de publicar en los activos reales ni mantiene
+activos de prueba separados.
+
+La API implementa los callbacks públicos definidos en la matriz de ambientes:
+
+- ambos aceptan la solicitud firmada de Meta y verifican HMAC-SHA256 con el App
+  Secret antes de buscar una conexión;
+- desautorizar borra tokens y corta publicación aunque la conexión ya no pueda
+  contactar a Meta;
+- eliminar borra además permisos, nombres, usernames e identificadores externos
+  de cuenta y activos, reemplazándolos por referencias internas que conservan
+  las relaciones de auditoría;
+- la respuesta de eliminación devuelve la URL y un código opaco firmado que no
+  contiene el identificador de la cuenta;
+- la página pública consulta ese código y sólo informa estado e instante.
+
+Una firma inválida no consulta ni modifica persistencia. Un callback repetido
+sobre una cuenta ya eliminada se reconoce como completado: ausencia de datos es
+el estado final correcto.

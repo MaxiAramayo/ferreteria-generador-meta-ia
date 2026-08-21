@@ -107,11 +107,20 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T08` — requisitos legales y App Review. Su única dependencia,
-`P5-T07`, quedó cerrada, y es lo que falta para que la integración pueda operar
-con usuarios y activos reales: política de privacidad, términos y eliminación de
-datos, screencast y pasos de revisión, justificación de permisos y usuario de
-prueba.
+Continuar `P5-T08` — requisitos legales y App Review. La implementación local ya
+incluye política de privacidad, términos, instrucciones públicas, callbacks
+firmados de eliminación/desautorización, estado opaco y el paquete completo de
+justificaciones, usuario temporal y guion.
+
+El cierre está bloqueado por una decisión de negocio concreta: `ADR-019` rechazó
+activos de prueba separados y toda escritura en los activos reales requiere
+autorización puntual. Un revisor con capacidad de demostrar
+`pages_manage_posts` e `instagram_content_publish` podría publicar en esos
+activos fuera de esa autorización. Antes de crear el usuario, desplegar URLs,
+grabar o enviar la revisión hay que aprobar activos controlados o una excepción
+acotada sobre los reales, y aprobar administrativamente los textos y nombre.
+El detalle reproducible está en
+[`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
 verificaciones cumplidas. Lo implementado:

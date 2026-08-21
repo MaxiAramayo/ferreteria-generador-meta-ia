@@ -887,7 +887,7 @@ de una acción externa irreversible.
 ## P5-T08 — Preparar requisitos legales y App Review
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: BLOQUEADA
 - Dependencias: `P5-T07`
 - Riesgo: Alto
 
@@ -907,14 +907,14 @@ integración con usuarios y activos reales.
 - [ ] Las URLs legales son públicas, estables y corresponden al sistema.
 - [ ] Cada permiso solicitado aparece en un flujo visible del screencast.
 - [ ] El revisor puede acceder sin conocer datos internos reales.
-- [ ] Eliminación y revocación tienen procedimiento probado.
+- [x] Eliminación y revocación tienen procedimiento probado.
 - [ ] Marca, nombre y dominios de la app son consistentes.
-- [ ] Solo se solicitan permisos usados por el alcance inicial.
+- [x] Solo se solicitan permisos usados por el alcance inicial.
 
 ### Verificación obligatoria
 
 - [ ] Recorrer el guion completo como usuario de revisión.
-- [ ] Probar eliminación/revocación y conservar evidencia.
+- [x] Probar eliminación/revocación y conservar evidencia.
 - [ ] Revisión legal/administrativa antes de enviar.
 
 ### Fuera de alcance
@@ -923,7 +923,40 @@ integración con usuarios y activos reales.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-08-21: se implementó la superficie legal pública en
+  `/legal/privacy`, `/legal/terms` y `/legal/data-deletion`. Los textos describen
+  el sistema real: panel interno sin registro público, credenciales Meta
+  cifradas, proveedores acotados, auditoría mínima y canales comerciales
+  aprobados de Aramayo.
+- Se implementaron `POST /integrations/meta/data-deletion`,
+  `POST /integrations/meta/deauthorize` y la consulta pública del estado. Los
+  callbacks validan `signed_request` mediante HMAC-SHA256 y comparación en
+  tiempo constante antes de resolver `user_id`. La desautorización corta tokens
+  y publicación; la eliminación sustituye además cuenta, permisos, nombres,
+  usernames e identificadores de activos. El código de confirmación es opaco y
+  firmado.
+- El paquete de revisión quedó en
+  [`META-APP-REVIEW.md`](../integrations/META-APP-REVIEW.md): matriz de URLs,
+  cinco justificaciones, usuario temporal, pasos exactos, guion por minuto,
+  callbacks y checklist.
+- Bloqueo de cierre: ADR-019 rechazó activos de prueba separados y exige
+  autorización concreta para cada escritura en los activos reales. Un revisor
+  con `publisher` podría probar los dos permisos de publicación sobre esos
+  activos sin una confirmación en tiempo real, lo que contradice la decisión.
+  El negocio debe aprobar activos controlados de revisión o una excepción
+  acotada sobre los reales. También debe aprobar administrativamente los textos,
+  nombre y canales antes de publicarlos en Meta.
+- Archivos principales: vertical `connections` de API, repositorio de
+  conexiones, contratos, tres rutas legales, seguridad, runbook y paquete de
+  revisión.
+- Verificaciones ejecutadas: 105 pruebas de API; typecheck y build de web;
+  `pnpm db:test` con migración, seed, aislamiento y rollback/reapply completos;
+  `pnpm verify` completo; y recorrido visual local en escritorio y móvil de las
+  tres rutas legales, sin overflow ni errores de consola. Quedan pendientes,
+  después de resolver el bloqueo, despliegue/recorrido remoto y screencast.
+- Próximo paso exacto: obtener la decisión sobre activos y la aprobación legal;
+  luego desplegar URLs estables, configurar callbacks, crear el usuario temporal
+  y recorrer/grabar el guion remoto antes de enviar a App Review.
 
 ### Evidencia de cierre
 

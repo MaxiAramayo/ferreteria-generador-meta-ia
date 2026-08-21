@@ -23,6 +23,27 @@ Debe incluir:
 - reanudar trabajos no vencidos;
 - auditar.
 
+## Eliminación o desautorización solicitada desde Meta
+
+1. Confirmar que el callback respondió HTTP 200; nunca copiar la solicitud
+   firmada ni el App Secret al ticket o al log.
+2. Buscar el evento de auditoría por conexión y operación, no por el
+   identificador externo eliminado.
+3. Para desautorización, comprobar estado `revoked`, tokens nulos y activos
+   removidos.
+4. Para eliminación, comprobar además permisos vacíos, nombres sustituidos,
+   usernames nulos e identificadores externos reemplazados por referencias
+   internas.
+5. Abrir la URL pública devuelta y comprobar “Solicitud completada”. Esa URL no
+   debe revelar cuenta, Page, Instagram ni organización.
+6. Repetir el callback firmado en el ambiente controlado: debe responder
+   completado y no crear otra conexión, credencial ni publicación.
+7. Si una transacción falla, devolver error para que Meta reintente. No emitir
+   un código de confirmación antes de que todas las conexiones encontradas
+   terminen.
+8. No borrar publicaciones remotas: la solicitud elimina datos de la
+   integración, no deshace acciones comerciales previas.
+
 ## OpenAI no disponible
 
 - conservar solicitud y fotos;
