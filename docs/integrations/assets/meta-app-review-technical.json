@@ -1,0 +1,26 @@
+{
+  "administrativeApprovalAt": "2026-08-21",
+  "aiCalls": 0,
+  "altText": "Placa técnica de Aramayo Content Platform rotulada App Review y sin oferta comercial.",
+  "approvalStatus": "approved-for-review-window",
+  "byteLength": 103721,
+  "copy": "Publicación de prueba para la revisión técnica de Aramayo Content Platform. Sin oferta comercial.",
+  "file": "meta-app-review-technical.png",
+  "height": 1350,
+  "publicationApproval": {
+    "ambiguousOutcome": "reconcile-only",
+    "approvedAt": "2026-08-21",
+    "maximumWindowDays": 30,
+    "removal": "manual-after-meta-decision",
+    "startsAt": "temporary-credentials-delivered",
+    "supervision": "business-owner"
+  },
+  "renderComparison": {
+    "differentChannels": 12,
+    "maximumDelta": 1
+  },
+  "sha256": "91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0",
+  "targets": ["instagram_feed", "facebook_page"],
+  "version": "meta-app-review/2026-08-21.1",
+  "width": 1080
+}
