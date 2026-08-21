@@ -112,14 +112,12 @@ incluye política de privacidad, términos, instrucciones públicas, callbacks
 firmados de eliminación/desautorización, estado opaco y el paquete completo de
 justificaciones, usuario temporal y guion.
 
-El cierre está bloqueado por una decisión de negocio concreta: `ADR-019` rechazó
-activos de prueba separados y toda escritura en los activos reales requiere
-autorización puntual. Un revisor con capacidad de demostrar
-`pages_manage_posts` e `instagram_content_publish` podría publicar en esos
-activos fuera de esa autorización. Antes de crear el usuario, desplegar URLs,
-grabar o enviar la revisión hay que aprobar activos controlados o una excepción
-acotada sobre los reales, y aprobar administrativamente los textos y nombre.
-El detalle reproducible está en
+El usuario decidió el 2026-08-21 que App Review use la Page real de Aramayo y
+`@ferreteria_aramayo`. Antes de crear el usuario temporal, desplegar URLs, grabar
+o enviar la revisión todavía hay que aprobar administrativamente identidad,
+textos y canales, y autorizar el bitmap, copy, destinos, ventana y responsable
+exactos de la única publicación técnica permitida. El detalle reproducible está
+en
 [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres

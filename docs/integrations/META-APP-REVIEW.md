@@ -6,12 +6,14 @@ Revisado contra la implementación y la documentación oficial disponible:
 ## Estado
 
 El paquete técnico está **preparado localmente pero no listo para enviar**.
-Las URLs, callbacks, justificaciones y guion están definidos. Antes de presentar
-la revisión faltan dos decisiones humanas:
+Las URLs, callbacks, justificaciones y guion están definidos. El negocio eligió
+usar la Page real de Aramayo y `@ferreteria_aramayo`; no se crearán activos de
+prueba separados. Antes de presentar la revisión faltan dos aprobaciones
+humanas:
 
 1. aprobación administrativa del texto legal y del nombre público;
-2. resolver el acceso del revisor sin darle capacidad de publicar libremente en
-   los activos reales.
+2. aprobación concreta del bitmap, copy, destinos, ventana y responsable de la
+   publicación técnica sobre los activos reales.
 
 El segundo punto es un conflicto con
 [ADR-019](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md):
@@ -19,11 +21,44 @@ esa decisión rechaza activos Meta de prueba separados y exige autorización
 concreta para cada escritura en los activos existentes. App Review puede probar
 la aplicación siguiendo el screencast, y los dos permisos de publicación sólo
 se demuestran con una escritura. No se entregará al revisor un usuario
-publisher contra los activos reales mientras el negocio no elija entre:
+publisher contra los activos reales hasta completar la autorización acotada que
+se define debajo.
 
-- crear una Page y una cuenta Instagram Business controladas para revisión; o
-- aprobar una ventana, copy y procedimiento limitados para que Meta pruebe sobre
-  los activos reales.
+## Aprobaciones requeridas del negocio
+
+### Identidad, textos y canales
+
+El responsable debe aprobar expresamente:
+
+- nombre público: **Aramayo Content Platform**;
+- marca responsable: **Ferretería y Lubricentro Aramayo**;
+- dominio: **staging.content.ferreteriaaramayo.com.ar** y los endpoints API
+  listados en la matriz;
+- política de privacidad, términos e instrucciones de eliminación vigentes;
+- teléfono **3854 403534** y domicilios **República de Siria 365** y
+  **Rivadavia 673**, Frías, como canales públicos correctos.
+
+### Única prueba de publicación permitida
+
+La autorización concreta final se registra sólo después de presentar al negocio
+el preview y checksum del bitmap. Debe quedar fijada con estos límites:
+
+| Término | Valor a aprobar |
+|---|---|
+| Activos | Page real de Aramayo y `@ferreteria_aramayo` |
+| Dataset visible | Sólo “Muestra técnica de App Review” en staging |
+| Media | Bitmap final rotulado “PRUEBA TÉCNICA · APP REVIEW”, sin producto, precio, stock ni promoción; checksum pendiente |
+| Copy propuesto | “Publicación de prueba para la revisión técnica de Aramayo Content Platform. Sin oferta comercial.” |
+| Destinos | `instagram_feed` y `facebook_page`; no historia |
+| Límite | Una publicación confirmada por destino mediante una única orden idempotente |
+| Ventana | Fecha y horario de inicio/fin pendientes de aprobación |
+| Supervisión | Responsable humano pendiente de identificar |
+| Retiro | Manual después de confirmada la revisión o cuando lo pida el negocio; nunca compensación automática |
+
+El revisor no recibe permiso para crear otra pieza, cambiar el copy, agregar un
+destino, publicar historias ni repetir una orden con otra clave. Si la respuesta
+remota es ambigua, el sistema reconcilia y deriva a una persona; no vuelve a
+publicar.
 
 ## Identidad y URLs exactas
 
@@ -112,9 +147,9 @@ Condiciones del usuario:
   clientes ni información comercial interna;
 - no accede a infraestructura, secretos ni configuración del proveedor.
 
-Con activos separados, staging debe descubrir exclusivamente esos dos activos.
-Con una excepción sobre activos reales, el copy, horario, destinos y retiro
-posterior deben aprobarse por escrito antes de entregar el usuario.
+Con los activos reales elegidos, el usuario de staging sólo debe ver el dataset
+sintético de revisión. El bitmap, copy, ventana, destinos, responsable y retiro
+posterior deben aprobarse por escrito antes de entregar ese usuario.
 
 ## Guion del screencast
 
@@ -173,7 +208,8 @@ eliminación real y transaccional en PostgreSQL.
 
 - [ ] Responsable del negocio aprobó privacidad, términos y canales de contacto.
 - [ ] Administrador de Meta confirmó nombre, ícono, dominio y URLs.
-- [ ] Se eligió y documentó la estrategia de activos para el revisor.
+- [x] Se eligió y documentó la estrategia de activos para el revisor: activos
+      reales con autorización puntual pendiente.
 - [ ] Usuario temporal creado y credenciales cargadas sólo en Meta.
 - [ ] Dataset sintético aprobado y sin afirmaciones comerciales.
 - [ ] Guion recorrido de punta a punta en staging.

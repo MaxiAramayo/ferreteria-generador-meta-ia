@@ -115,3 +115,25 @@ Los secretos que hubo que cargar en el servidor para la corrida —credenciales 
 Cloudinary staging— se eliminaron al terminar. El servidor queda sin capacidad
 de volver a publicar sin una preparación deliberada, que es la postura que
 corresponde a una autorización puntual.
+
+## Enmienda 2026-08-21 — estrategia de activos para App Review
+
+El usuario decidió que App Review use los activos reales existentes: la Page de
+Aramayo y `@ferreteria_aramayo`. No se crearán activos separados para el
+revisor.
+
+Esta decisión resuelve **qué activos** se usarán, pero no autoriza todavía una
+escritura. Antes de habilitar el usuario temporal o entregar las instrucciones a
+Meta siguen siendo obligatorios:
+
+1. aprobar el bitmap final y su checksum;
+2. aprobar el copy exacto y los destinos;
+3. fijar una ventana de revisión y un límite de una publicación por destino;
+4. identificar a la persona responsable de supervisar y, si corresponde,
+   retirar manualmente el contenido después de la revisión;
+5. aprobar nombre público, textos legales, dominios y canales de contacto.
+
+El usuario temporal de staging sólo verá el dataset sintético de App Review. La
+autorización no cubre historias, publicaciones comerciales, piezas diferentes,
+reintentos manuales ni acciones fuera del flujo idempotente del panel. Una
+respuesta ambigua se reconcilia; no se vuelve a publicar a ciegas.

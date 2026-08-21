@@ -939,13 +939,13 @@ integración con usuarios y activos reales.
   [`META-APP-REVIEW.md`](../integrations/META-APP-REVIEW.md): matriz de URLs,
   cinco justificaciones, usuario temporal, pasos exactos, guion por minuto,
   callbacks y checklist.
-- Bloqueo de cierre: ADR-019 rechazó activos de prueba separados y exige
-  autorización concreta para cada escritura en los activos reales. Un revisor
-  con `publisher` podría probar los dos permisos de publicación sobre esos
-  activos sin una confirmación en tiempo real, lo que contradice la decisión.
-  El negocio debe aprobar activos controlados de revisión o una excepción
-  acotada sobre los reales. También debe aprobar administrativamente los textos,
-  nombre y canales antes de publicarlos en Meta.
+- El 2026-08-21 el negocio eligió que App Review use la Page real de Aramayo y
+  `@ferreteria_aramayo`; no se crearán activos separados. La decisión quedó en
+  la enmienda de ADR-019 y no autoriza por sí sola una escritura.
+- Bloqueo de cierre: antes de entregar un usuario `publisher`, el negocio debe
+  aprobar el bitmap y checksum, copy, destinos, ventana, responsable y retiro de
+  la única publicación técnica permitida. También debe aprobar
+  administrativamente identidad, textos legales, dominios y canales.
 - Archivos principales: vertical `connections` de API, repositorio de
   conexiones, contratos, tres rutas legales, seguridad, runbook y paquete de
   revisión.
@@ -954,9 +954,11 @@ integración con usuarios y activos reales.
   `pnpm verify` completo; y recorrido visual local en escritorio y móvil de las
   tres rutas legales, sin overflow ni errores de consola. Quedan pendientes,
   después de resolver el bloqueo, despliegue/recorrido remoto y screencast.
-- Próximo paso exacto: obtener la decisión sobre activos y la aprobación legal;
-  luego desplegar URLs estables, configurar callbacks, crear el usuario temporal
-  y recorrer/grabar el guion remoto antes de enviar a App Review.
+- Próximo paso exacto: aprobar identidad, textos y canales; luego producir el
+  bitmap final y obtener la autorización concreta de publicación detallada en
+  `META-APP-REVIEW.md`. Recién entonces desplegar URLs estables, configurar
+  callbacks, crear el usuario temporal y recorrer/grabar el guion remoto antes
+  de enviar a App Review.
 
 ### Evidencia de cierre
 
