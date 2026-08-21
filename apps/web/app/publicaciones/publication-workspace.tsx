@@ -3,10 +3,19 @@
 import type {
   PublicationStatusResponse,
   PublicationSummaryResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import Link from "next/link";
 import Image from "next/image";
 import { startTransition, useCallback, useEffect, useState } from "react";
+
+import { loadPublishingReadiness } from "../../lib/publication-publishing-api.ts";
+import {
+  publishGate,
+  type PublishGate,
+} from "../../lib/publication-publishing-presentation.ts";
+import { PublicationOrderPanel } from "./publication-order-panel.tsx";
+import { PublishConfirmation } from "./publish-confirmation.tsx";
 
 import {
   approvePublication,
@@ -52,15 +61,21 @@ function statusLabel(status: PublicationStatusResponse): string {
 function PublicationRow({
   canApprove,
   canEdit,
+  gate,
   onApprove,
+  onHistory,
   onPreview,
+  onPublish,
   onRender,
   publication,
 }: {
   readonly canApprove: boolean;
   readonly canEdit: boolean;
+  readonly gate: PublishGate;
   readonly onApprove: (publication: PublicationSummaryResponse) => void;
+  readonly onHistory: (publication: PublicationSummaryResponse) => void;
   readonly onPreview: (publication: PublicationSummaryResponse) => void;
+  readonly onPublish: (publication: PublicationSummaryResponse) => void;
   readonly onRender: (publication: PublicationSummaryResponse) => void;
   readonly publication: PublicationSummaryResponse;
 }) {
@@ -133,6 +148,36 @@ function PublicationRow({
             Aprobar snapshot
           </button>
         ) : null}
+        {gate.kind === "ready" ? (
+          // Abre la confirmación; no publica. Los puntos suspensivos son la
+          // convención de «esto sigue en otra pantalla», y acá esa pantalla es
+          // lo único que separa un clic de una acción irreversible.
+          <button
+            onClick={() => {
+              onPublish(publication);
+            }}
+            type="button"
+          >
+            Publicar…
+          </button>
+        ) : gate.reason === "missing-role" ? null : (
+          // El motivo se muestra en vez de esconder el control: alguien que
+          // esperaba publicar necesita saber qué falta, no un botón ausente.
+          <span className="publication-publish-blocked">{gate.message}</span>
+        )}
+        {publication.status === "publishing" ||
+        publication.status === "published" ||
+        publication.status === "partially_published" ||
+        publication.status === "publish_failed" ? (
+          <button
+            onClick={() => {
+              onHistory(publication);
+            }}
+            type="button"
+          >
+            Ver resultado
+          </button>
+        ) : null}
       </div>
     </li>
   );
@@ -188,6 +233,17 @@ export function PublicationWorkspace({
   >({ kind: "loading" });
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<PublicationPreviewResult | null>(null);
+  const [readiness, setReadiness] =
+    useState<PublishingReadinessResponse | null>(null);
+  /**
+   * Publicación cuya confirmación está abierta, y publicación cuyo resultado se
+   * está mirando. Son estados distintos a propósito: confirmar es antes de una
+   * acción irreversible y mirar el resultado es después.
+   */
+  const [confirming, setConfirming] =
+    useState<PublicationSummaryResponse | null>(null);
+  const [inspecting, setInspecting] =
+    useState<PublicationSummaryResponse | null>(null);
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
     setReloadToken((token) => token + 1);
@@ -242,6 +298,16 @@ export function PublicationWorkspace({
     },
     [apiBaseUrl],
   );
+
+  useEffect(() => {
+    let active = true;
+    void loadPublishingReadiness(apiBaseUrl).then((result) => {
+      if (active) setReadiness(result);
+    });
+    return () => {
+      active = false;
+    };
+  }, [apiBaseUrl, reloadToken]);
 
   useEffect(() => {
     let active = true;
@@ -321,10 +387,12 @@ export function PublicationWorkspace({
         </p>
       </header>
 
-      <section className="workspace-intro">
+      <section aria-labelledby="mesa-de-contenido" className="workspace-intro">
         <div>
           <p className="workspace-eyebrow">Mesa de contenido</p>
-          <h1>De la idea al borrador, sin saltos ocultos.</h1>
+          <h1 id="mesa-de-contenido">
+            De la idea al borrador, sin saltos ocultos.
+          </h1>
         </div>
         <p>
           Cada pieza conserva su estado real. Guardar, revisar, aprobar y
@@ -354,12 +422,21 @@ export function PublicationWorkspace({
               <PublicationRow
                 canApprove={initial.canApprove}
                 canEdit={initial.canEdit}
+                gate={publishGate(initial.actor, publication, readiness)}
                 key={publication.id}
                 onApprove={(selected) => {
                   void runCommand(selected, "approve");
                 }}
+                onHistory={(selected) => {
+                  setConfirming(null);
+                  setInspecting(selected);
+                }}
                 onPreview={(selected) => {
                   void showPreview(selected);
+                }}
+                onPublish={(selected) => {
+                  setInspecting(null);
+                  setConfirming(selected);
                 }}
                 onRender={(selected) => {
                   void runCommand(selected, "render");
@@ -368,6 +445,43 @@ export function PublicationWorkspace({
               />
             ))}
           </ul>
+        )}
+        {confirming === null
+          ? null
+          : (() => {
+              const gate = publishGate(initial.actor, confirming, readiness);
+              // Se vuelve a evaluar al dibujar: entre que se abrió la
+              // confirmación y ahora, la pieza o la conexión pudieron cambiar.
+              return gate.kind === "ready" ? (
+                <PublishConfirmation
+                  accountName={gate.accountName}
+                  apiBaseUrl={apiBaseUrl}
+                  availableTargets={gate.targets}
+                  onCancel={() => {
+                    setConfirming(null);
+                    reload();
+                  }}
+                  onPublished={() => {
+                    const published = confirming;
+                    setConfirming(null);
+                    setInspecting(published);
+                    setCommandNotice(
+                      "Publicación pedida. Seguí el resultado por destino.",
+                    );
+                    reload();
+                  }}
+                  publication={confirming}
+                />
+              ) : (
+                <p role="alert">{gate.message}</p>
+              );
+            })()}
+        {inspecting === null ? null : (
+          <PublicationOrderPanel
+            actor={initial.actor}
+            apiBaseUrl={apiBaseUrl}
+            publicationId={inspecting.id}
+          />
         )}
         {commandNotice === null ? null : (
           <p aria-live="polite" className="publication-command-notice">

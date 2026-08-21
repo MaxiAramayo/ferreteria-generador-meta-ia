@@ -120,6 +120,10 @@ class StubOrders implements PublicationOrderRepository {
     throw new Error("no usado");
   }
 
+  listByPublication(): Promise<readonly PublicationOrderRecord[]> {
+    return Promise.reject(new Error("El transporte no lee historial."));
+  }
+
   findById(): Promise<PublicationOrderRecord | null> {
     return Promise.resolve(
       Object.freeze({

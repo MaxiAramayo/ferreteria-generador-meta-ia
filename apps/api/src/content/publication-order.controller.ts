@@ -1,7 +1,9 @@
 import type {
   PublicationManualActionListResponse,
+  PublicationOrderListResponse,
   PublicationOrderRequestResponse,
   PublicationOrderResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
@@ -25,18 +27,31 @@ import {
 } from "./dto/publication-order.dto.ts";
 import { PublicationManualActionService } from "./publication-manual-action.service.ts";
 import { PublicationOrderService } from "./publication-order.service.ts";
+import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 
 @Controller()
 export class PublicationOrderController {
   readonly #manual: PublicationManualActionService;
+  readonly #readiness: PublishingReadinessService;
   readonly #service: PublicationOrderService;
 
   constructor(
     service: PublicationOrderService,
     manual: PublicationManualActionService,
+    readiness: PublishingReadinessService,
   ) {
     this.#manual = manual;
+    this.#readiness = readiness;
     this.#service = service;
+  }
+
+  /** Lo mínimo para decidir si ofrecer publicar, con el permiso de publicar. */
+  @Get("publishing/readiness")
+  @RequirePermission("publishing:execute")
+  readiness(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+  ): Promise<PublishingReadinessResponse> {
+    return this.#readiness.read(session.actor);
   }
 
   /** La alerta: destinos detenidos esperando que alguien decida. */
@@ -73,6 +88,15 @@ export class PublicationOrderController {
       body.targets,
       idempotencyKey,
     );
+  }
+
+  @Get("publications/:publicationId/orders")
+  @RequirePermission("publishing:execute")
+  history(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
+  ): Promise<PublicationOrderListResponse> {
+    return this.#service.list(session.actor, publicationId);
   }
 
   @Get("publication-orders/:orderId")

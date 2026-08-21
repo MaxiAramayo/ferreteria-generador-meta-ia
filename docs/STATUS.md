@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-20
+Actualizado: 2026-08-21
 
 ## Fase activa
 
@@ -107,11 +107,48 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Comenzar `P5-T07` — UI de conexiones, aprobación y publicación. Sus dependencias
-`P5-T02` y `P5-T05` están cerradas, y es lo que falta para que publicar deje de
-ser una operación de API: confirmación con preview, cuenta, destino y copy
-exactos, estado parcial que distinga éxito de error, y las acciones de reintento
-que `P5-T06` ya expone con sus permisos.
+Comenzar `P5-T08` — requisitos legales y App Review. Su única dependencia,
+`P5-T07`, quedó cerrada, y es lo que falta para que la integración pueda operar
+con usuarios y activos reales: política de privacidad, términos y eliminación de
+datos, screencast y pasos de revisión, justificación de permisos y usuario de
+prueba.
+
+`P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
+verificaciones cumplidas. Lo implementado:
+
+- **la puerta de publicación** en funciones puras: el rol se pregunta primero
+  —quien no puede publicar no se entera del estado de la conexión ni de la
+  pieza—, y los destinos salen de los activos de la conexión y no de una lista
+  fija;
+- **confirmación en dos pasos** con preview, cuenta, destinos y el copy exacto
+  del snapshot aprobado. El botón dice «Publicar…» y abre la pantalla; no
+  publica;
+- **doble defensa contra el doble envío**: el botón deshabilitado defiende la
+  experiencia y la clave idempotente defiende el dato, conservándose entre
+  reintentos del mismo intento;
+- **resultado por destino en cuatro desenlaces**, nombrados además de pintados,
+  con las acciones manuales que el servidor autoriza;
+- **`/diseno/publicacion`**, el harness que hace auditables esos estados, que de
+  otro modo sólo aparecen después de una publicación que salió mal.
+
+- **`pnpm e2e:publishing`**, que levanta base efímera, API y panel y los recorre
+  con Chrome: siete comprobaciones por rol, por estado, con doble clic, refresh
+  y navegación atrás.
+
+La auditoría encontró una sección sin nombre accesible en el workspace de
+publicaciones —nunca detectada porque esa pantalla exige sesión y el auditor no
+llega— y un `role="dialog"` que prometía foco atrapado y cierre con Escape sin
+cumplirlos.
+
+**Y el E2E encontró un defecto que ninguna otra prueba podía encontrar.** El
+panel decidía si ofrecer el botón de publicar leyendo el listado de conexiones,
+que exige `connections:manage`; el rol `publisher` no lo tiene, así que quien
+está autorizado a publicar nunca veía el control. Se agregó
+`GET publishing/readiness` bajo `publishing:execute`, con una respuesta
+deliberadamente pobre —si se puede publicar, contra qué cuenta y a qué
+destinos— para no filtrar la administración de conexiones a un rol que no la
+administra. Es exactamente la clase de desincronización que una prueba del panel
+con la API simulada no puede ver.
 
 `P5-T06` quedó cerrada el 2026-08-20 con los seis criterios y las tres
 verificaciones cumplidas:

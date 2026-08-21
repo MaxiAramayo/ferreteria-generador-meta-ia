@@ -765,8 +765,8 @@ publicaciones ni declarar éxito sin evidencia.
 
 ## P5-T07 — Construir UI de conexiones, aprobación y publicación
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T02`, `P5-T05`
 - Riesgo: Medio
 
@@ -783,18 +783,18 @@ de una acción externa irreversible.
 
 ### Criterios de aceptación
 
-- [ ] La confirmación muestra preview, cuenta, destino y copy exactos.
-- [ ] No existe publicación con un clic accidental desde el editor.
-- [ ] La UI impide publicar si falta aprobación o conexión sana.
-- [ ] Estado parcial diferencia claramente éxito y error.
-- [ ] Acciones de retry requieren rol y contexto correctos.
-- [ ] Todos los controles tienen estados de carga y evitan doble envío.
+- [x] La confirmación muestra preview, cuenta, destino y copy exactos.
+- [x] No existe publicación con un clic accidental desde el editor.
+- [x] La UI impide publicar si falta aprobación o conexión sana.
+- [x] Estado parcial diferencia claramente éxito y error.
+- [x] Acciones de retry requieren rol y contexto correctos.
+- [x] Todos los controles tienen estados de carga y evitan doble envío.
 
 ### Verificación obligatoria
 
-- [ ] E2E por rol y estado.
-- [ ] Auditoría de accesibilidad.
-- [ ] Prueba manual de doble clic, navegación atrás y refresh durante publicación.
+- [x] E2E por rol y estado.
+- [x] Auditoría de accesibilidad.
+- [x] Prueba manual de doble clic, navegación atrás y refresh durante publicación.
 
 ### Fuera de alcance
 
@@ -802,11 +802,87 @@ de una acción externa irreversible.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-08-20.
+- Estado real: los seis criterios de aceptación y las tres verificaciones
+  cumplidos. La tarea cierra.
+- Archivos: `apps/web/lib/publication-publishing-presentation.ts` y
+  `publication-publishing-api.ts` con sus pruebas;
+  `apps/web/app/publicaciones/publish-confirmation.tsx`,
+  `publication-order-panel.tsx` y `publication-target-result.tsx`;
+  `apps/web/app/diseno/publicacion/page.tsx`; `GET publications/:id/orders` y
+  `GET publishing/readiness` en `apps/api/src/content/`; el arnés en
+  `tools/e2e-publishing/`.
+- **La decisión de si el botón existe vive en funciones puras, no en el JSX.**
+  Una regla escondida en un `&&` no se puede probar y termina siendo distinta de
+  la del servidor. El orden de las preguntas de la puerta es deliberado: el rol
+  primero, porque quien no puede publicar no necesita enterarse del estado de la
+  conexión ni de la pieza.
+- **Los destinos salen de los activos de la conexión, no de una lista fija.**
+  Prometer Instagram cuando sólo hay una Page hace que el problema aparezca
+  después de confirmar algo irreversible.
+- **El copy y la pieza salen de la revisión aprobada, no de la última.** Mostrar
+  un borrador más nuevo haría que la confirmación describiera algo distinto de
+  lo que sale.
+- **Doble defensa contra el doble envío, y protegen cosas distintas.** El botón
+  deshabilitado y el guard del manejador defienden la experiencia; la clave
+  idempotente defiende el dato. Un reintento después de un rechazo conserva la
+  clave del intento anterior: si el primer pedido llegó y lo que se perdió fue
+  la respuesta, el segundo devuelve la orden original en vez de crear otra.
+- **Un pedido sin respuesta queda indeterminado, no fallido.** Puede haber
+  salido, y afirmar un fallo sería inventar un desenlace con una acción
+  irreversible atrás.
+- **El resultado por destino distingue cuatro desenlaces y no dos**, y no sólo
+  por color: la etiqueta los nombra. La duda se ve distinta del error porque un
+  fallo se reintenta y una duda no.
+- **`/diseno/publicacion` existe porque esos estados casi nunca se pueden
+  mirar.** Aparecen después de una publicación que salió mal, y para entonces
+  nadie está revisando accesibilidad. Para auditarlos, el resultado por destino
+  se separó en un componente que sólo recibe props: lo que se audita es el
+  marcado real y no una copia.
+- La auditoría encontró una sección sin nombre accesible **y también en el
+  workspace de publicaciones**, donde nunca se había detectado porque esa
+  pantalla exige sesión y el auditor no llega. Y se quitó un `role="dialog"` que
+  prometía foco atrapado y cierre con Escape sin cumplirlos; la confirmación
+  recibe el foco al abrirse, que es lo que hacía falta de verdad.
+- Verificaciones ejecutadas: 23 pruebas del panel —incluida la matriz de cinco
+  roles por nueve estados—, `pnpm design:review --harness` sin hallazgos en
+  `/diseno/publicacion`, y `pnpm verify` completo en verde.
+- **`pnpm e2e:publishing` levanta la vertical entera y la recorre con Chrome.**
+  Base efímera migrada y sembrada, API, panel y navegador. Existe porque las
+  reglas que gobiernan publicar están escritas dos veces a propósito —el panel
+  decide qué ofrecer y la API decide qué permitir— y sólo una corrida de punta a
+  punta demuestra que dicen lo mismo. Una prueba del panel con la API simulada
+  habría pasado igual el día que se desincronizaran.
+- **Y se desincronizaron: el E2E encontró un defecto que ninguna otra prueba
+  podía encontrar.** El panel decidía si ofrecer el botón leyendo el listado de
+  conexiones, y ese listado exige `connections:manage`, que el rol `publisher`
+  no tiene. La consecuencia era silenciosa y total: quien está autorizado a
+  publicar nunca veía el control. Se agregó `GET publishing/readiness` bajo
+  `publishing:execute`, con una respuesta deliberadamente pobre —si se puede
+  publicar, contra qué cuenta y a qué destinos— para no filtrar la superficie de
+  administración de conexiones a un rol que no la administra.
+- El E2E siembra con contraseña real hasheada por el mismo hasher de la API y
+  entra por `auth/login`: una sesión escrita a mano probaría el panel contra un
+  guard que nunca corrió.
+- Detalles que costaron corridas y quedan anotados porque cualquier arnés futuro
+  los va a encontrar: una publicación sin revisión hace que el panel rechace el
+  listado entero; un documento de diseño de mentira devuelve 500 al leer la
+  revisión; una conexión sana no puede existir sin credencial cifrada; y la
+  credencial de una persona es indivisible —hash, versión e instante van juntos—.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- `pnpm e2e:publishing` en verde el 2026-08-21, con siete comprobaciones sobre
+  Chrome: una editora no ve el control y la API la rechaza aunque llame directo;
+  sólo la pieza aprobada ofrece publicar y el borrador explica por qué; la
+  confirmación nombra la cuenta y muestra el copy aprobado; dos clics seguidos
+  dejan una sola orden; recargar durante la publicación no duplica y la pieza en
+  curso no se vuelve a pedir; y volver atrás tampoco duplica ni reabre el
+  control.
+- `pnpm design:review --harness` sin hallazgos en `/diseno/publicacion`.
+- `pnpm verify` y `pnpm db:test` completos en verde.
+- 28 pruebas del panel y 5 del servicio de disponibilidad, además de la matriz
+  de cinco roles por nueve estados.
 
 ## P5-T08 — Preparar requisitos legales y App Review
 

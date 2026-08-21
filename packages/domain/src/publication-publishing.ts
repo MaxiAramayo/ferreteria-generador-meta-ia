@@ -249,6 +249,18 @@ export interface PublicationOrderRepository {
     organizationId: string,
     orderId: string,
   ): Promise<PublicationOrderRecord | null>;
+  /**
+   * Órdenes de una publicación, de la más reciente a la más vieja.
+   *
+   * Una pieza puede tener más de una: si la primera salió a medias, reintentar
+   * los destinos caídos no borra la evidencia de lo que ya se publicó. El
+   * historial es lo que permite mirar atrás sin adivinar.
+   */
+  listByPublication(
+    organizationId: string,
+    publicationId: string,
+    limit: number,
+  ): Promise<readonly PublicationOrderRecord[]>;
   findJob(
     organizationId: string,
     orderId: string,

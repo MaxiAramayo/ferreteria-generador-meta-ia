@@ -167,6 +167,29 @@ export interface PublicationOrderTargetResponse {
 }
 
 /**
+ * Si se puede publicar, y contra qué cuenta.
+ *
+ * Existe separado del listado de conexiones porque las dos preguntas tienen
+ * dueños distintos: administrar conexiones es de `connections:manage` y decidir
+ * si una pieza se puede publicar es de `publishing:execute`. Sin esto, el panel
+ * de quien publica tendría que leer datos que su rol no puede ver, y el control
+ * nunca se habilitaría.
+ */
+export interface PublishingReadinessResponse {
+  /** Cuenta contra la que se publicaría. Ausente si no hay conexión sana. */
+  readonly accountName?: string;
+  readonly canPublish: boolean;
+  readonly targets: readonly (
+    "facebook_page" | "instagram_feed" | "instagram_story"
+  )[];
+}
+
+export interface PublicationOrderListResponse {
+  /** De la más reciente a la más vieja. */
+  readonly items: readonly PublicationOrderResponse[];
+}
+
+/**
  * Un destino detenido esperando a una persona.
  *
  * `actions` viene del servidor y no se deduce en el panel: qué es seguro hacer

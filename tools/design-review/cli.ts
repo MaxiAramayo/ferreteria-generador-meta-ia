@@ -207,7 +207,11 @@ async function auditHarness(
 ): Promise<readonly string[]> {
   const problems: string[] = [];
 
-  for (const path of ["/diseno/primitivas", "/diseno/layouts"]) {
+  for (const path of [
+    "/diseno/primitivas",
+    "/diseno/layouts",
+    "/diseno/publicacion",
+  ]) {
     const page = await browser.newPage({
       viewport: { height: 900, width: 1280 },
     });
