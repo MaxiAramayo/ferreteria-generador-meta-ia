@@ -2034,3 +2034,24 @@ a {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+/*
+ * Texto para lectores de pantalla.
+ *
+ * No usa `display: none` ni `visibility: hidden` porque las dos lo sacan del
+ * árbol de accesibilidad, que es exactamente lo contrario de lo que se busca.
+ */
+.visually-hidden {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* El foco de la confirmación se ve: recibe el foco al abrirse. */
+.publish-confirmation:focus-visible {
+  outline: 3px solid var(--workspace-rust);
+  outline-offset: 2px;
+}

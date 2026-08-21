@@ -209,6 +209,10 @@ export function PublicationOrderPanel({
                       target="_blank"
                     >
                       Ver la publicación
+                      <span className="visually-hidden">
+                        {" "}
+                        (se abre en una pestaña nueva)
+                      </span>
                     </a>
                   )}
                   {target.failureCode === undefined ? null : (

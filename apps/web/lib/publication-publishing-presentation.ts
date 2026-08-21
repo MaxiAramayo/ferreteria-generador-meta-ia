@@ -205,3 +205,61 @@ export const manualReasonLabels: Readonly<
   "outcome-unresolved": "Meta no confirma si la publicación existe",
   "permanent-failure": "La causa no se arregla reintentando",
 });
+
+/**
+ * Estado de un envío de publicación.
+ *
+ * Existe como máquina aparte y no como banderas sueltas dentro del componente
+ * porque encierra la regla que protege una acción irreversible, y una regla que
+ * no se puede probar no es una garantía. La clave idempotente vive acá adentro
+ * a propósito: es parte del estado del intento, no un detalle del `submit`.
+ */
+export type PublishSubmission =
+  | Readonly<{ kind: "idle" }>
+  | Readonly<{ idempotencyKey: string; kind: "sending" }>
+  /** El pedido salió y no se supo el desenlace. Puede haber publicado. */
+  | Readonly<{ idempotencyKey: string; kind: "indeterminate"; message: string }>
+  | Readonly<{ idempotencyKey: string; kind: "rejected"; message: string }>;
+
+/**
+ * Empieza —o reintenta— un envío.
+ *
+ * Devuelve `null` cuando ya hay uno en curso, y ese `null` es la barrera contra
+ * el doble clic: el segundo evento no produce una segunda llamada.
+ *
+ * Un reintento después de un rechazo **conserva la clave del intento anterior**.
+ * Es lo que hace que la protección funcione de verdad: si el primer pedido llegó
+ * al servidor y lo que se perdió fue la respuesta, el segundo llega con la misma
+ * clave y la API devuelve la orden original en lugar de crear otra. Sortear una
+ * clave nueva en cada clic convertiría el reintento en la duplicación que se
+ * quiere evitar.
+ */
+export function beginPublishSubmission(
+  current: PublishSubmission,
+  mintKey: () => string,
+): PublishSubmission | null {
+  if (current.kind === "sending") return null;
+  return Object.freeze({
+    idempotencyKey:
+      current.kind === "idle" ? mintKey() : current.idempotencyKey,
+    kind: "sending",
+  });
+}
+
+/** Cierra el envío con lo que contestó la API. */
+export function settlePublishSubmission(
+  current: PublishSubmission,
+  outcome:
+    | Readonly<{ kind: "accepted" }>
+    | Readonly<{ kind: "indeterminate"; message: string }>
+    | Readonly<{ kind: "rejected"; message: string }>,
+): PublishSubmission {
+  if (outcome.kind === "accepted") return Object.freeze({ kind: "idle" });
+  // Sin clave previa no hay intento que continuar; se sortea una al empezar.
+  const idempotencyKey = current.kind === "idle" ? "" : current.idempotencyKey;
+  return Object.freeze({
+    idempotencyKey,
+    kind: outcome.kind,
+    message: outcome.message,
+  });
+}

@@ -11,6 +11,8 @@ import type { AuthenticatedActor, OrganizationRole } from "@aramayo/domain";
 
 import {
   availablePublishTargets,
+  beginPublishSubmission,
+  settlePublishSubmission,
   publicationTargetOutcome,
   publishGate,
   visibleManualActions,
@@ -240,4 +242,122 @@ test("las acciones manuales llegan del servidor y el panel sólo suma el rol", (
     ["reconcile", "abandon"],
   );
   assert.deepEqual([...visibleManualActions(actor(["editor"]), stopped())], []);
+});
+
+test("un segundo clic mientras el envío está en curso no produce otra llamada", () => {
+  let minted = 0;
+  const mint = (): string => `clave-${String((minted += 1))}`;
+
+  const first = beginPublishSubmission({ kind: "idle" }, mint);
+  assert.ok(first);
+  assert.equal(first.kind, "sending");
+  // El segundo evento se descarta: `null` es la barrera contra el doble clic.
+  assert.equal(beginPublishSubmission(first, mint), null);
+  assert.equal(minted, 1);
+});
+
+test("reintentar después de un rechazo conserva la clave del intento", () => {
+  let minted = 0;
+  const mint = (): string => `clave-${String((minted += 1))}`;
+
+  const started = beginPublishSubmission({ kind: "idle" }, mint);
+  assert.ok(started);
+  const rejected = settlePublishSubmission(started, {
+    kind: "rejected",
+    message: "La API rechazó la publicación.",
+  });
+  const retried = beginPublishSubmission(rejected, mint);
+  assert.ok(retried);
+
+  // Es lo que hace que la protección funcione de verdad: si el primer pedido
+  // llegó y lo que se perdió fue la respuesta, el segundo trae la misma clave y
+  // la API devuelve la orden original en lugar de crear otra.
+  assert.equal(retried.kind, "sending");
+  assert.equal(retried.idempotencyKey, "clave-1");
+  assert.equal(minted, 1);
+});
+
+test("un desenlace indeterminado conserva la clave para poder reintentar", () => {
+  const started = beginPublishSubmission({ kind: "idle" }, () => "clave-1");
+  assert.ok(started);
+  const unknown = settlePublishSubmission(started, {
+    kind: "indeterminate",
+    message: "No sabemos si el pedido llegó.",
+  });
+  assert.equal(unknown.kind, "indeterminate");
+  assert.equal(unknown.idempotencyKey, "clave-1");
+});
+
+test("una publicación aceptada cierra el envío y suelta la clave", () => {
+  const started = beginPublishSubmission({ kind: "idle" }, () => "clave-1");
+  assert.ok(started);
+  const done = settlePublishSubmission(started, { kind: "accepted" });
+  assert.deepEqual(done, { kind: "idle" });
+
+  // El intento siguiente es otro pedido y merece su propia clave: reutilizar la
+  // de una orden ya creada devolvería esa orden en vez de crear la nueva.
+  const next = beginPublishSubmission(done, () => "clave-2");
+  assert.ok(next);
+  assert.equal(next.kind, "sending");
+  assert.equal(next.idempotencyKey, "clave-2");
+});
+
+test("la puerta cubre la matriz de roles por estado sin dejar huecos", () => {
+  const states = [
+    "approved",
+    "draft",
+    "generation_failed",
+    "partially_published",
+    "publish_failed",
+    "published",
+    "publishing",
+    "ready_for_review",
+    "scheduled",
+  ] as const;
+  const roles = [
+    ["publisher"],
+    ["admin"],
+    ["approver"],
+    ["editor"],
+    ["viewer"],
+  ] as const;
+
+  for (const currentRoles of roles) {
+    const publishes =
+      publishGate(actor(currentRoles), publication("approved"), [connection()])
+        .kind === "ready";
+    for (const status of states) {
+      const gate = publishGate(actor(currentRoles), publication(status), [
+        connection(),
+      ]);
+      if (!publishes) {
+        // Sin el permiso, ningún estado abre la puerta y el motivo es siempre
+        // el rol: el resto del estado no se filtra.
+        assert.deepEqual(
+          gate,
+          {
+            kind: "blocked",
+            message: "Tu rol no permite publicar.",
+            reason: "missing-role",
+          },
+          `${currentRoles.join()} sobre ${status}`,
+        );
+        continue;
+      }
+      // Con el permiso, sólo dos estados publican. Cualquier otro queda
+      // bloqueado con un motivo explícito, nunca en silencio.
+      const shouldPublish = status === "approved" || status === "scheduled";
+      assert.equal(
+        gate.kind === "ready",
+        shouldPublish,
+        `${currentRoles.join()} sobre ${status}`,
+      );
+      if (!shouldPublish) {
+        assert.ok(
+          gate.kind === "blocked" && gate.message.length > 0,
+          `${status} quedó bloqueado sin explicar por qué`,
+        );
+      }
+    }
+  }
 });

@@ -32,7 +32,12 @@ import {
   requestPublication,
   type PublishConfirmationResult,
 } from "../../lib/publication-publishing-api.ts";
-import { publicationTargetLabels } from "../../lib/publication-publishing-presentation.ts";
+import {
+  beginPublishSubmission,
+  publicationTargetLabels,
+  settlePublishSubmission,
+  type PublishSubmission,
+} from "../../lib/publication-publishing-presentation.ts";
 
 export interface PublishConfirmationProps {
   readonly accountName: string;
@@ -43,12 +48,6 @@ export interface PublishConfirmationProps {
   readonly publication: PublicationSummaryResponse;
 }
 
-type SubmitState =
-  | Readonly<{ kind: "idle" }>
-  | Readonly<{ kind: "sending" }>
-  | Readonly<{ kind: "indeterminate"; message: string }>
-  | Readonly<{ kind: "rejected"; message: string }>;
-
 export function PublishConfirmation({
   accountName,
   apiBaseUrl,
@@ -58,18 +57,25 @@ export function PublishConfirmation({
   publication,
 }: PublishConfirmationProps): React.JSX.Element {
   const headingId = useId();
+  const container = useRef<HTMLElement>(null);
   const [detail, setDetail] = useState<
     PublishConfirmationResult | Readonly<{ kind: "loading" }>
   >({ kind: "loading" });
   const [selected, setSelected] =
     useState<readonly PublicationTarget[]>(availableTargets);
-  const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
+  const [submit, setSubmit] = useState<PublishSubmission>({ kind: "idle" });
+
   /**
-   * La clave del intento en curso. Se conserva entre reintentos del mismo
-   * envío: sortear una nueva convertiría un doble envío en dos órdenes, que es
-   * exactamente lo que la clave existe para impedir.
+   * El foco se mueve a la confirmación al abrirla.
+   *
+   * Sin esto, quien navega con teclado o lector de pantalla aprieta «Publicar…»
+   * y no se entera de que apareció nada: el foco se queda en una fila de la
+   * lista mientras la pantalla que decide una acción irreversible pasa
+   * desapercibida.
    */
-  const idempotencyKey = useRef<string | null>(null);
+  useEffect(() => {
+    container.current?.focus();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -90,34 +96,30 @@ export function PublishConfirmation({
   }, []);
 
   const confirm = useCallback(async (): Promise<void> => {
-    // Segunda barrera además del `disabled`: si el envío ya está en curso, no
-    // se sortea otra clave ni se hace otra llamada.
-    if (submit.kind === "sending") return;
-    setSubmit({ kind: "sending" });
-    idempotencyKey.current ??= crypto.randomUUID();
+    // Segunda barrera además del `disabled`. `null` significa que ya hay un
+    // envío en curso: el segundo clic no produce una segunda llamada.
+    const started = beginPublishSubmission(submit, () => crypto.randomUUID());
+    if (started === null || started.kind !== "sending") return;
+    setSubmit(started);
     const result = await requestPublication(
       apiBaseUrl,
       publication.id,
       publication.version,
       selected,
-      idempotencyKey.current,
+      started.idempotencyKey,
     );
     if (result.kind === "accepted") {
-      idempotencyKey.current = null;
+      setSubmit(settlePublishSubmission(started, { kind: "accepted" }));
       onPublished(result.order.orderId);
       return;
     }
-    if (result.kind === "forbidden") {
-      setSubmit({
-        kind: "rejected",
-        message: "La sesión no permite publicar.",
-      });
-      return;
-    }
     setSubmit(
-      result.kind === "indeterminate"
-        ? { kind: "indeterminate", message: result.message }
-        : { kind: "rejected", message: result.message },
+      settlePublishSubmission(
+        started,
+        result.kind === "forbidden"
+          ? { kind: "rejected", message: "La sesión no permite publicar." }
+          : result,
+      ),
     );
   }, [
     apiBaseUrl,
@@ -125,7 +127,7 @@ export function PublishConfirmation({
     publication.id,
     publication.version,
     selected,
-    submit.kind,
+    submit,
   ]);
 
   const sending = submit.kind === "sending";
@@ -134,11 +136,15 @@ export function PublishConfirmation({
     ready && detail.approved && selected.length > 0 && !sending;
 
   return (
+    // Sin `role="dialog"`: es contenido en el flujo de la página, no un modal.
+    // Anunciarlo como diálogo prometería foco atrapado y cierre con Escape, y
+    // prometer una semántica que no se cumple es peor que no tenerla.
     <section
       aria-busy={detail.kind === "loading" || sending}
       aria-labelledby={headingId}
       className="publish-confirmation"
-      role="dialog"
+      ref={container}
+      tabIndex={-1}
     >
       <header>
         <h3 id={headingId}>Revisá antes de publicar</h3>
