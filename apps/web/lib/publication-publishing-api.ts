@@ -17,6 +17,7 @@ import type {
   PublicationManualActionListResponse,
   PublicationOrderRequestResponse,
   PublicationOrderResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import type { PublicationTarget } from "@aramayo/domain";
 
@@ -169,6 +170,41 @@ export async function requestPublication(
       message:
         "No sabemos si el pedido llegó. Recargá para ver si la orden se creó.",
     };
+  }
+}
+
+/**
+ * Si se puede publicar, leído con el permiso de publicar.
+ *
+ * No usa el listado de conexiones a propósito: ese exige `connections:manage`,
+ * que el rol `publisher` no tiene, y decidir con datos que la sesión no puede
+ * leer dejaba el control apagado para justamente quien está autorizado.
+ */
+export async function loadPublishingReadiness(
+  apiBaseUrl: string,
+): Promise<PublishingReadinessResponse | null> {
+  try {
+    const response = await fetch(new URL("publishing/readiness", apiBaseUrl), {
+      cache: "no-store",
+      credentials: "include",
+      headers: { accept: "application/json" },
+    });
+    const body = objectRecord(await payload(response));
+    if (!response.ok || body === null) return null;
+    const targets = body["targets"];
+    if (typeof body["canPublish"] !== "boolean" || !Array.isArray(targets)) {
+      return null;
+    }
+    return Object.freeze({
+      ...(typeof body["accountName"] === "string"
+        ? { accountName: body["accountName"] }
+        : {}),
+      canPublish: body["canPublish"],
+      targets: Object.freeze(targets) as PublishingReadinessResponse["targets"],
+    });
+  } catch {
+    // Sin respuesta se asume que no se puede publicar: es la lectura segura.
+    return null;
   }
 }
 

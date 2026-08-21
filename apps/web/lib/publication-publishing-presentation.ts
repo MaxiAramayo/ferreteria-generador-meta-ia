@@ -15,10 +15,10 @@
  */
 
 import type {
-  MetaConnectionResponse,
   PublicationManualActionResponse,
   PublicationOrderTargetResponse,
   PublicationSummaryResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import {
   authorizeActor,
@@ -67,31 +67,6 @@ function blocked(reason: PublishBlockReason): PublishGate {
 }
 
 /**
- * Destinos que la conexión puede atender.
- *
- * Se derivan de los activos y no se ofrecen fijos: prometer Instagram cuando la
- * conexión sólo tiene una Page es hacer que la persona descubra el problema
- * después de confirmar una acción irreversible.
- */
-export function availablePublishTargets(
-  connection: MetaConnectionResponse,
-): readonly PublicationTarget[] {
-  const active = new Set(
-    connection.assets
-      .filter((asset) => asset.status === "active")
-      .map((asset) => asset.kind),
-  );
-  const targets: PublicationTarget[] = [];
-  if (active.has("instagram_business")) {
-    targets.push("instagram_feed", "instagram_story");
-  }
-  if (active.has("page")) {
-    targets.push("facebook_page");
-  }
-  return Object.freeze(targets);
-}
-
-/**
  * Si se puede ofrecer publicar, y con qué.
  *
  * El orden de las preguntas es deliberado. El rol va primero porque una persona
@@ -103,7 +78,7 @@ export function availablePublishTargets(
 export function publishGate(
   actor: AuthenticatedActor,
   publication: PublicationSummaryResponse,
-  connections: readonly MetaConnectionResponse[],
+  readiness: PublishingReadinessResponse | null,
 ): PublishGate {
   if (
     !authorizeActor(actor, "publishing:execute", actor.organizationId).allowed
@@ -116,15 +91,17 @@ export function publishGate(
     return blocked("not-approved");
   }
 
-  const connection = connections.find((entry) => entry.canPublish);
-  if (connection === undefined) return blocked("no-healthy-connection");
-  const targets = availablePublishTargets(connection);
-  if (targets.length === 0) return blocked("no-target-available");
+  // `null` es «todavía no se leyó», y se trata como no publicable: ofrecer el
+  // control antes de saber si hay conexión sería ofrecerlo a ciegas.
+  if (readiness === null || !readiness.canPublish) {
+    return blocked("no-healthy-connection");
+  }
+  if (readiness.targets.length === 0) return blocked("no-target-available");
 
   return Object.freeze({
-    accountName: connection.accountName,
+    accountName: readiness.accountName ?? "la cuenta conectada",
     kind: "ready",
-    targets,
+    targets: Object.freeze([...readiness.targets]),
   });
 }
 

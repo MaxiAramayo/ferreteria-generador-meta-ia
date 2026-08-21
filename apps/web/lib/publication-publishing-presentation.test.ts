@@ -2,15 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type {
-  MetaConnectionResponse,
   PublicationManualActionResponse,
   PublicationOrderTargetResponse,
   PublicationSummaryResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedActor, OrganizationRole } from "@aramayo/domain";
 
 import {
-  availablePublishTargets,
   beginPublishSubmission,
   settlePublishSubmission,
   publicationTargetOutcome,
@@ -50,43 +49,23 @@ function publication(
   });
 }
 
-function connection(
-  overrides: Partial<MetaConnectionResponse> = {},
-): MetaConnectionResponse {
+function readiness(
+  overrides: Partial<PublishingReadinessResponse> = {},
+): PublishingReadinessResponse {
   return Object.freeze({
     accountName: "Ferretería y Lubricentro Aramayo",
-    assets: Object.freeze([
-      Object.freeze({
-        id: "asset-page",
-        kind: "page" as const,
-        name: "Aramayo",
-        providerAssetId: "page-1",
-        status: "active" as const,
-      }),
-      Object.freeze({
-        id: "asset-ig",
-        kind: "instagram_business" as const,
-        name: "@ferreteria_aramayo",
-        providerAssetId: "ig-1",
-        status: "active" as const,
-      }),
-    ]),
     canPublish: true,
-    createdAt: "2026-08-18T12:00:00.000Z",
-    grantedPermissions: Object.freeze(["instagram_basic"]),
-    health: "healthy" as const,
-    id: "conexion-1",
-    lastCheckedAt: "2026-08-20T09:00:00.000Z",
-    missingPermissions: Object.freeze([]),
-    provider: "meta" as const,
-    updatedAt: "2026-08-20T09:00:00.000Z",
-    version: 5,
+    targets: Object.freeze([
+      "instagram_feed" as const,
+      "instagram_story" as const,
+      "facebook_page" as const,
+    ]),
     ...overrides,
   });
 }
 
 test("una pieza aprobada con conexión sana ofrece publicar y nombra la cuenta", () => {
-  const gate = publishGate(actor(), publication(), [connection()]);
+  const gate = publishGate(actor(), publication(), readiness());
 
   assert.equal(gate.kind, "ready");
   // La cuenta se muestra antes de confirmar: publicar en la cuenta equivocada
@@ -100,7 +79,7 @@ test("una pieza aprobada con conexión sana ofrece publicar y nombra la cuenta",
 
 test("sin el rol de publicar no se ofrece nada ni se revela el resto", () => {
   for (const roles of [["editor"], ["approver"], ["viewer"]] as const) {
-    const gate = publishGate(actor(roles), publication("draft"), []);
+    const gate = publishGate(actor(roles), publication("draft"), null);
     // La pieza está en borrador y no hay conexión, y aun así el motivo es el
     // rol: quien no puede publicar no necesita el estado del resto.
     assert.deepEqual(gate, {
@@ -117,7 +96,7 @@ test("una pieza sin aprobar no se puede publicar", () => {
     "ready_for_review",
     "generating_assets",
   ] as const) {
-    const gate = publishGate(actor(), publication(status), [connection()]);
+    const gate = publishGate(actor(), publication(status), readiness());
     assert.equal(gate.kind, "blocked");
     assert.equal(gate.reason, "not-approved");
   }
@@ -125,70 +104,59 @@ test("una pieza sin aprobar no se puede publicar", () => {
 
 test("una pieza programada sí se puede publicar", () => {
   assert.equal(
-    publishGate(actor(), publication("scheduled"), [connection()]).kind,
+    publishGate(actor(), publication("scheduled"), readiness()).kind,
     "ready",
   );
 });
 
 test("una publicación en curso o ya publicada no se vuelve a pedir", () => {
-  const enCurso = publishGate(actor(), publication("publishing"), [
-    connection(),
-  ]);
+  const enCurso = publishGate(actor(), publication("publishing"), readiness());
   assert.equal(enCurso.kind, "blocked");
   assert.equal(enCurso.reason, "already-publishing");
 
-  const publicada = publishGate(actor(), publication("published"), [
-    connection(),
-  ]);
+  const publicada = publishGate(actor(), publication("published"), readiness());
   assert.equal(publicada.kind, "blocked");
   assert.equal(publicada.reason, "already-published");
 });
 
 test("sin conexión habilitada la UI no ofrece publicar", () => {
-  const sinConexiones = publishGate(actor(), publication(), []);
-  assert.equal(sinConexiones.kind, "blocked");
-  assert.equal(sinConexiones.reason, "no-healthy-connection");
+  // Sin haber leído todavía, el control no se ofrece: hacerlo antes de saber si
+  // hay conexión sería ofrecerlo a ciegas.
+  const sinLeer = publishGate(actor(), publication(), null);
+  assert.equal(sinLeer.kind, "blocked");
+  assert.equal(sinLeer.reason, "no-healthy-connection");
 
-  // Una conexión que existe pero no puede publicar es lo mismo que ninguna.
-  const enferma = publishGate(actor(), publication(), [
-    connection({ canPublish: false, health: "permission_revoked" }),
-  ]);
+  const enferma = publishGate(
+    actor(),
+    publication(),
+    readiness({ canPublish: false, targets: Object.freeze([]) }),
+  );
   assert.equal(enferma.kind, "blocked");
   assert.equal(enferma.reason, "no-healthy-connection");
 });
 
-test("los destinos salen de los activos y no de una lista fija", () => {
-  // Prometer Instagram con una conexión que sólo tiene Page hace que el
-  // problema aparezca después de confirmar algo irreversible.
-  const soloPage = connection({
-    assets: Object.freeze([
-      Object.freeze({
-        id: "asset-page",
-        kind: "page" as const,
-        name: "Aramayo",
-        providerAssetId: "page-1",
-        status: "active" as const,
-      }),
-    ]),
-  });
-  assert.deepEqual([...availablePublishTargets(soloPage)], ["facebook_page"]);
-
-  // Un activo inactivo no cuenta.
-  const inactivo = connection({
-    assets: Object.freeze([
-      Object.freeze({
-        id: "asset-page",
-        kind: "page" as const,
-        name: "Aramayo",
-        providerAssetId: "page-1",
-        status: "removed" as const,
-      }),
-    ]),
-  });
-  assert.deepEqual([...availablePublishTargets(inactivo)], []);
-  const gate = publishGate(actor(), publication(), [inactivo]);
+test("una conexión sin destinos publicables se explica aparte", () => {
+  // No es lo mismo que no haya conexión que que la conexión no sirva: la
+  // persona tiene que saber cuál de las dos cosas arreglar.
+  const gate = publishGate(
+    actor(),
+    publication(),
+    readiness({ targets: Object.freeze([]) }),
+  );
   assert.equal(gate.kind, "blocked");
   assert.equal(gate.reason, "no-target-available");
+});
+
+test("los destinos ofrecidos son los que la API declaró", () => {
+  // El panel no los deduce de los activos: la regla vive del lado que conoce la
+  // conexión, y duplicarla acá la haría divergir.
+  const gate = publishGate(
+    actor(),
+    publication(),
+    readiness({ targets: Object.freeze(["facebook_page" as const]) }),
+  );
+  assert.equal(gate.kind, "ready");
+  assert.deepEqual([...gate.targets], ["facebook_page"]);
 });
 
 function orderTarget(
@@ -324,12 +292,14 @@ test("la puerta cubre la matriz de roles por estado sin dejar huecos", () => {
 
   for (const currentRoles of roles) {
     const publishes =
-      publishGate(actor(currentRoles), publication("approved"), [connection()])
+      publishGate(actor(currentRoles), publication("approved"), readiness())
         .kind === "ready";
     for (const status of states) {
-      const gate = publishGate(actor(currentRoles), publication(status), [
-        connection(),
-      ]);
+      const gate = publishGate(
+        actor(currentRoles),
+        publication(status),
+        readiness(),
+      );
       if (!publishes) {
         // Sin el permiso, ningún estado abre la puerta y el motivo es siempre
         // el rol: el resto del estado no se filtra.

@@ -1,15 +1,15 @@
 "use client";
 
 import type {
-  MetaConnectionResponse,
   PublicationStatusResponse,
   PublicationSummaryResponse,
+  PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import Link from "next/link";
 import Image from "next/image";
 import { startTransition, useCallback, useEffect, useState } from "react";
 
-import { loadMetaConnections } from "../../lib/meta-connections-api.ts";
+import { loadPublishingReadiness } from "../../lib/publication-publishing-api.ts";
 import {
   publishGate,
   type PublishGate,
@@ -233,9 +233,8 @@ export function PublicationWorkspace({
   >({ kind: "loading" });
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<PublicationPreviewResult | null>(null);
-  const [connections, setConnections] = useState<
-    readonly MetaConnectionResponse[]
-  >([]);
+  const [readiness, setReadiness] =
+    useState<PublishingReadinessResponse | null>(null);
   /**
    * Publicación cuya confirmación está abierta, y publicación cuyo resultado se
    * está mirando. Son estados distintos a propósito: confirmar es antes de una
@@ -302,8 +301,8 @@ export function PublicationWorkspace({
 
   useEffect(() => {
     let active = true;
-    void loadMetaConnections(apiBaseUrl).then((result) => {
-      if (active && result.kind === "ready") setConnections(result.connections);
+    void loadPublishingReadiness(apiBaseUrl).then((result) => {
+      if (active) setReadiness(result);
     });
     return () => {
       active = false;
@@ -423,7 +422,7 @@ export function PublicationWorkspace({
               <PublicationRow
                 canApprove={initial.canApprove}
                 canEdit={initial.canEdit}
-                gate={publishGate(initial.actor, publication, connections)}
+                gate={publishGate(initial.actor, publication, readiness)}
                 key={publication.id}
                 onApprove={(selected) => {
                   void runCommand(selected, "approve");
@@ -450,7 +449,7 @@ export function PublicationWorkspace({
         {confirming === null
           ? null
           : (() => {
-              const gate = publishGate(initial.actor, confirming, connections);
+              const gate = publishGate(initial.actor, confirming, readiness);
               // Se vuelve a evaluar al dibujar: entre que se abrió la
               // confirmación y ahora, la pieza o la conexión pudieron cambiar.
               return gate.kind === "ready" ? (

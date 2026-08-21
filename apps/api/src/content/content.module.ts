@@ -9,6 +9,7 @@ import { PublicationDraftController } from "./publication-draft.controller.ts";
 import { PublicationDraftService } from "./publication-draft.service.ts";
 import { PublicationManualActionService } from "./publication-manual-action.service.ts";
 import { PublicationOrderController } from "./publication-order.controller.ts";
+import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 import { PublicationOrderService } from "./publication-order.service.ts";
 import { PublicationProductionController } from "./publication-production.controller.ts";
 import { PublicationProductionService } from "./publication-production.service.ts";
@@ -29,6 +30,7 @@ import { PublicationTransitionService } from "./publication-transition.service.t
     PublicationDraftService,
     PublicationManualActionService,
     PublicationOrderService,
+    PublishingReadinessService,
     PublicationProductionService,
     PublicationTransitionService,
   ],

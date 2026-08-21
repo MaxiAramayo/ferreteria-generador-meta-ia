@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-20
+Actualizado: 2026-08-21
 
 ## Fase activa
 
@@ -107,19 +107,14 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Terminar `P5-T07` — UI de conexiones, aprobación y publicación. Los seis
-criterios de aceptación están cumplidos y la auditoría de accesibilidad quedó
-cerrada; **falta el E2E de navegador por rol y estado**, y con él la prueba de
-navegación atrás y refresh durante una publicación.
+Comenzar `P5-T08` — requisitos legales y App Review. Su única dependencia,
+`P5-T07`, quedó cerrada, y es lo que falta para que la integración pueda operar
+con usuarios y activos reales: política de privacidad, términos y eliminación de
+datos, screencast y pasos de revisión, justificación de permisos y usuario de
+prueba.
 
-Ese E2E necesita la vertical entera levantada con datos sembrados —base efímera
-migrada, usuarios por rol, una conexión Meta sana con sus tokens cifrados y una
-pieza aprobada con PNG—. `playwright-core` ya está en el catálogo y
-`tools/design-review` muestra cómo se lanza Chrome, así que no hace falta cambiar
-el stack: falta el arnés que arme ese entorno, y conviene tratarlo como
-entregable propio.
-
-Lo implementado el 2026-08-20 para `P5-T07`:
+`P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
+verificaciones cumplidas. Lo implementado:
 
 - **la puerta de publicación** en funciones puras: el rol se pregunta primero
   —quien no puede publicar no se entera del estado de la conexión ni de la
@@ -136,10 +131,24 @@ Lo implementado el 2026-08-20 para `P5-T07`:
 - **`/diseno/publicacion`**, el harness que hace auditables esos estados, que de
   otro modo sólo aparecen después de una publicación que salió mal.
 
+- **`pnpm e2e:publishing`**, que levanta base efímera, API y panel y los recorre
+  con Chrome: siete comprobaciones por rol, por estado, con doble clic, refresh
+  y navegación atrás.
+
 La auditoría encontró una sección sin nombre accesible en el workspace de
 publicaciones —nunca detectada porque esa pantalla exige sesión y el auditor no
 llega— y un `role="dialog"` que prometía foco atrapado y cierre con Escape sin
 cumplirlos.
+
+**Y el E2E encontró un defecto que ninguna otra prueba podía encontrar.** El
+panel decidía si ofrecer el botón de publicar leyendo el listado de conexiones,
+que exige `connections:manage`; el rol `publisher` no lo tiene, así que quien
+está autorizado a publicar nunca veía el control. Se agregó
+`GET publishing/readiness` bajo `publishing:execute`, con una respuesta
+deliberadamente pobre —si se puede publicar, contra qué cuenta y a qué
+destinos— para no filtrar la administración de conexiones a un rol que no la
+administra. Es exactamente la clase de desincronización que una prueba del panel
+con la API simulada no puede ver.
 
 `P5-T06` quedó cerrada el 2026-08-20 con los seis criterios y las tres
 verificaciones cumplidas:

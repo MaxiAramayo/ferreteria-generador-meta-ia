@@ -134,9 +134,15 @@ importers:
       '@aramayo/brand-knowledge':
         specifier: workspace:*
         version: link:packages/brand-knowledge
+      '@aramayo/database':
+        specifier: workspace:*
+        version: link:infrastructure/database
       '@aramayo/design-engine':
         specifier: workspace:*
         version: link:packages/design-engine
+      '@aramayo/domain':
+        specifier: workspace:*
+        version: link:packages/domain
       '@eslint/js':
         specifier: 'catalog:'
         version: 10.0.1(eslint@10.7.0(jiti@2.7.0))
@@ -149,6 +155,9 @@ importers:
       '@types/pg':
         specifier: 'catalog:'
         version: 8.20.0
+      argon2:
+        specifier: 'catalog:'
+        version: 0.45.1
       eslint:
         specifier: 'catalog:'
         version: 10.7.0(jiti@2.7.0)
