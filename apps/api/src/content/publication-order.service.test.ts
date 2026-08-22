@@ -196,6 +196,25 @@ test("una orden sin destinos válidos se rechaza", async () => {
   );
 });
 
+test("una orden que difiere de los destinos aprobados se rechaza", async () => {
+  const service = serviceWith(
+    new StubRepository({ status: "target-policy-conflict" }),
+  );
+  await assert.rejects(
+    () =>
+      service.request(
+        actor(),
+        publicationId,
+        3,
+        ["instagram_feed", "instagram_story", "facebook_page"],
+        "idempotency-key-0001",
+      ),
+    (error: unknown) =>
+      error instanceof BadRequestException &&
+      /no coinciden con los que se aprobaron/u.test(error.message),
+  );
+});
+
 test("una versión vieja no publica", async () => {
   const service = serviceWith(new StubRepository({ status: "conflict" }));
   await assert.rejects(

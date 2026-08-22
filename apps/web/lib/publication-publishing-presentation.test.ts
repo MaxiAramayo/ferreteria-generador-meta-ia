@@ -11,11 +11,32 @@ import type { AuthenticatedActor, OrganizationRole } from "@aramayo/domain";
 
 import {
   beginPublishSubmission,
-  settlePublishSubmission,
   publicationTargetOutcome,
+  publishConfirmationTargetChoice,
   publishGate,
+  settlePublishSubmission,
   visibleManualActions,
 } from "./publication-publishing-presentation.ts";
+
+test("los destinos exactos reemplazan y bloquean la selección general", () => {
+  assert.deepEqual(
+    publishConfirmationTargetChoice(
+      ["instagram_feed", "instagram_story", "facebook_page"],
+      ["instagram_feed", "facebook_page"],
+    ),
+    {
+      kind: "locked",
+      targets: ["instagram_feed", "facebook_page"],
+    },
+  );
+  assert.deepEqual(
+    publishConfirmationTargetChoice(
+      ["instagram_feed", "facebook_page"],
+      ["instagram_feed", "instagram_story", "facebook_page"],
+    ),
+    { kind: "unavailable", targets: [] },
+  );
+});
 
 const organizationId = "10000000-0000-4000-8000-000000000001";
 

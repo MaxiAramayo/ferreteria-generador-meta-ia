@@ -19,7 +19,7 @@ import type {
   PublicationOrderResponse,
   PublishingReadinessResponse,
 } from "@aramayo/contracts";
-import type { PublicationTarget } from "@aramayo/domain";
+import { PUBLICATION_TARGETS, type PublicationTarget } from "@aramayo/domain";
 
 export type PublishRequestResult =
   | Readonly<{ kind: "accepted"; order: PublicationOrderRequestResponse }>
@@ -47,6 +47,7 @@ export type PublishConfirmationResult =
       kind: "ready";
       previewAlt: string;
       previewUrl: string;
+      publishingTargets?: readonly PublicationTarget[];
       title: string;
     }>
   | Readonly<{ kind: "forbidden" }>
@@ -70,6 +71,14 @@ export type ManualActionListResult =
   | Readonly<{ kind: "forbidden" }>
   | Readonly<{ kind: "error"; message: string }>;
 
+const publicationTargetValues: ReadonlySet<string> = new Set(
+  PUBLICATION_TARGETS,
+);
+
+function isPublicationTarget(value: unknown): value is PublicationTarget {
+  return typeof value === "string" && publicationTargetValues.has(value);
+}
+
 async function payload(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -82,6 +91,21 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function publicationTargets(
+  value: unknown,
+): readonly PublicationTarget[] | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  const parsed: PublicationTarget[] = [];
+  for (const entry of value) {
+    if (!isPublicationTarget(entry)) return null;
+    parsed.push(entry);
+  }
+  if (new Set(parsed).size !== parsed.length) return null;
+  return Object.freeze(parsed);
 }
 
 async function csrf(apiBaseUrl: string): Promise<string | null> {
@@ -232,12 +256,18 @@ export async function loadPublishConfirmation(
     const title = body?.["title"];
     const previewUrl = rendered?.["secureUrl"];
     const checksumSha256 = rendered?.["checksumSha256"];
+    const publishingTargetsValue = revision?.["publishingTargets"];
+    const lockedTargets =
+      publishingTargetsValue === undefined
+        ? undefined
+        : publicationTargets(publishingTargetsValue);
     if (
       !response.ok ||
       typeof caption !== "string" ||
       typeof title !== "string" ||
       typeof previewUrl !== "string" ||
-      typeof checksumSha256 !== "string"
+      typeof checksumSha256 !== "string" ||
+      lockedTargets === null
     ) {
       // Sin pieza verificable o sin copy no hay nada que confirmar. Mostrar la
       // pantalla a medias invitaría a publicar sin haber visto qué sale.
@@ -256,6 +286,9 @@ export async function loadPublishConfirmation(
       kind: "ready",
       previewAlt: `PNG aprobado de ${title}`,
       previewUrl,
+      ...(lockedTargets === undefined
+        ? {}
+        : { publishingTargets: lockedTargets }),
       title,
     };
   } catch {

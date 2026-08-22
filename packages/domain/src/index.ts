@@ -603,6 +603,7 @@ export {
   type FacebookStagedPhotoReport,
 } from "./facebook-publishing.ts";
 export {
+  approvalPublicationTargetPolicy,
   isSettledPublicationTarget,
   isSuccessfulPublicationTarget,
   pendingPublicationTargets,
@@ -610,6 +611,7 @@ export {
   publicationOrderTopic,
   type CancelPublicationOrderInput,
   type CancelPublicationOrderResult,
+  type ApprovalPublicationTargetPolicy,
   type PublicationOrderCompletionResult,
   type PublicationOrderJob,
   type PublicationOrderRecord,

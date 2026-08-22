@@ -138,6 +138,43 @@ export const publicationTargetLabels: Readonly<
   instagram_story: "Instagram historia",
 });
 
+export type PublishConfirmationTargetChoice =
+  | Readonly<{
+      kind: "locked" | "selectable";
+      targets: readonly PublicationTarget[];
+    }>
+  | Readonly<{ kind: "unavailable"; targets: readonly PublicationTarget[] }>;
+
+/**
+ * Destinos que la confirmación puede ofrecer para este snapshot.
+ *
+ * Una política exacta pertenece a la aprobación inmutable, no al estado local
+ * del formulario. Por eso reemplaza la selección interactiva y se bloquea si
+ * la conexión ya no dispone de uno de sus destinos: nunca se amplía ni se
+ * reduce silenciosamente una aprobación humana.
+ */
+export function publishConfirmationTargetChoice(
+  availableTargets: readonly PublicationTarget[],
+  approvedTargets?: readonly PublicationTarget[],
+): PublishConfirmationTargetChoice {
+  if (approvedTargets === undefined) {
+    return Object.freeze({
+      kind: "selectable",
+      targets: Object.freeze([...availableTargets]),
+    });
+  }
+  if (
+    approvedTargets.length === 0 ||
+    !approvedTargets.every((target) => availableTargets.includes(target))
+  ) {
+    return Object.freeze({ kind: "unavailable", targets: Object.freeze([]) });
+  }
+  return Object.freeze({
+    kind: "locked",
+    targets: Object.freeze([...approvedTargets]),
+  });
+}
+
 export const publicationTargetOutcomeLabels: Readonly<
   Record<PublicationTargetOutcome, string>
 > = Object.freeze({

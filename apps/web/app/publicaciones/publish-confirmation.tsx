@@ -34,6 +34,7 @@ import {
 } from "../../lib/publication-publishing-api.ts";
 import {
   beginPublishSubmission,
+  publishConfirmationTargetChoice,
   publicationTargetLabels,
   settlePublishSubmission,
   type PublishSubmission,
@@ -64,6 +65,12 @@ export function PublishConfirmation({
   const [selected, setSelected] =
     useState<readonly PublicationTarget[]>(availableTargets);
   const [submit, setSubmit] = useState<PublishSubmission>({ kind: "idle" });
+  const targetChoice = publishConfirmationTargetChoice(
+    availableTargets,
+    detail.kind === "ready" ? detail.publishingTargets : undefined,
+  );
+  const targetsForOrder =
+    targetChoice.kind === "selectable" ? selected : targetChoice.targets;
 
   /**
    * El foco se mueve a la confirmación al abrirla.
@@ -95,7 +102,7 @@ export function PublishConfirmation({
     );
   }, []);
 
-  const confirm = useCallback(async (): Promise<void> => {
+  async function confirm(): Promise<void> {
     // Segunda barrera además del `disabled`. `null` significa que ya hay un
     // envío en curso: el segundo clic no produce una segunda llamada.
     const started = beginPublishSubmission(submit, () => crypto.randomUUID());
@@ -105,7 +112,7 @@ export function PublishConfirmation({
       apiBaseUrl,
       publication.id,
       publication.version,
-      selected,
+      targetsForOrder,
       started.idempotencyKey,
     );
     if (result.kind === "accepted") {
@@ -121,19 +128,16 @@ export function PublishConfirmation({
           : result,
       ),
     );
-  }, [
-    apiBaseUrl,
-    onPublished,
-    publication.id,
-    publication.version,
-    selected,
-    submit,
-  ]);
+  }
 
   const sending = submit.kind === "sending";
   const ready = detail.kind === "ready";
   const canConfirm =
-    ready && detail.approved && selected.length > 0 && !sending;
+    ready &&
+    detail.approved &&
+    targetChoice.kind !== "unavailable" &&
+    targetsForOrder.length > 0 &&
+    !sending;
 
   return (
     // Sin `role="dialog"`: es contenido en el flujo de la página, no un modal.
@@ -189,10 +193,11 @@ export function PublishConfirmation({
 
       <fieldset className="publish-confirmation-targets" disabled={sending}>
         <legend>Destinos</legend>
-        {availableTargets.map((target) => (
+        {targetChoice.targets.map((target) => (
           <label key={target}>
             <input
-              checked={selected.includes(target)}
+              checked={targetsForOrder.includes(target)}
+              disabled={targetChoice.kind === "locked"}
               onChange={() => {
                 toggleTarget(target);
               }}
@@ -201,7 +206,16 @@ export function PublishConfirmation({
             {publicationTargetLabels[target]}
           </label>
         ))}
-        {selected.length === 0 ? (
+        {targetChoice.kind === "locked" ? (
+          <p>
+            Estos destinos forman parte del snapshot aprobado y no se editan.
+          </p>
+        ) : null}
+        {targetChoice.kind === "unavailable" ? (
+          <p role="alert">
+            La conexión ya no dispone de todos los destinos aprobados.
+          </p>
+        ) : targetsForOrder.length === 0 ? (
           <p role="alert">Elegí al menos un destino.</p>
         ) : null}
       </fieldset>

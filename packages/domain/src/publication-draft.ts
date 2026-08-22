@@ -1,5 +1,5 @@
 import type { OrganizationScope, PublicationRecord } from "./persistence.ts";
-import type { PublicationStatus } from "./publication.ts";
+import type { PublicationStatus, PublicationTarget } from "./publication.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
 
 export const publicationDraftLimits = Object.freeze({
@@ -154,6 +154,8 @@ export interface PublicationRevisionRecord {
   readonly designDocument: unknown;
   readonly id: string;
   readonly media: readonly PublicationRevisionMediaRecord[];
+  /** Destinos exactos fijados por la aprobación, cuando existe esa política. */
+  readonly publishingTargets?: readonly PublicationTarget[];
   readonly renderedMedia?: PublicationRenderedMediaRecord;
   readonly organizationId: string;
   readonly publicationId: string;

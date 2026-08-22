@@ -143,6 +143,10 @@ export class PublicationOrderService {
         throw new BadRequestException(
           "Hay que indicar al menos un destino válido.",
         );
+      case "target-policy-conflict":
+        throw new BadRequestException(
+          "Los destinos no coinciden con los que se aprobaron para esta pieza.",
+        );
       case "not-approved":
         throw new ConflictException(
           "Sólo se puede publicar una pieza aprobada con snapshot.",

@@ -61,6 +61,23 @@ function jsonStringArray(value: unknown): readonly string[] {
   return Object.freeze(value);
 }
 
+function hasExactApprovedTargets(value: unknown): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const policy = (value as Record<string, unknown>)["publishingTargetPolicy"];
+  if (policy === null || typeof policy !== "object" || Array.isArray(policy)) {
+    return false;
+  }
+  const record = policy as Record<string, unknown>;
+  return (
+    record["mode"] === "exact" &&
+    Array.isArray(record["targets"]) &&
+    record["targets"].every((target) => typeof target === "string") &&
+    sameStrings(record["targets"], metaAppReviewPackage.targets)
+  );
+}
+
 async function loadDatabaseFactory(): Promise<typeof CreateDatabaseClient> {
   const requireFromApplication = createRequire(
     join(process.cwd(), "package.json"),
@@ -216,7 +233,8 @@ async function provision(
       revision?.contentHash !== contentHash ||
       revision.renderedMedia?.checksumSha256 !== metaAppReviewPackage.sha256 ||
       existing.approvalSnapshots.length !== 1 ||
-      snapshot?.contentHash !== contentHash
+      snapshot?.contentHash !== contentHash ||
+      !hasExactApprovedTargets(snapshot.snapshot)
     ) {
       throw new Error(
         "La muestra existente no coincide con el manifiesto aprobado.",
@@ -328,6 +346,10 @@ async function provision(
         secureUrl: metaAppReviewPackage.publicAssetUrl,
         storageVersion: 1,
         width: metaAppReviewPackage.width,
+      },
+      publishingTargetPolicy: {
+        mode: "exact",
+        targets: metaAppReviewPackage.targets,
       },
       revisionId: metaAppReviewIds.revisionId,
       revisionNumber: 1,
