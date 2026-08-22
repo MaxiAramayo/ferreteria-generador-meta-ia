@@ -6,19 +6,11 @@ import { Logo } from "@aramayo/design-engine/react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { metaAppReviewPackage } from "./manifest.ts";
+
 const require = createRequire(import.meta.url);
 
-export const metaAppReviewArtifact = Object.freeze({
-  administrativeApprovalAt: "2026-08-21",
-  altText:
-    "Placa técnica de Aramayo Content Platform rotulada App Review y sin oferta comercial.",
-  copy: "Publicación de prueba para la revisión técnica de Aramayo Content Platform. Sin oferta comercial.",
-  fileName: "meta-app-review-technical.png",
-  height: 1350,
-  targets: Object.freeze(["instagram_feed", "facebook_page"] as const),
-  version: "meta-app-review/2026-08-21.1",
-  width: 1080,
-});
+export const metaAppReviewArtifact = metaAppReviewPackage;
 
 const fontStylesheetSpecifiers: readonly string[] = Object.freeze([
   "@fontsource/archivo/600.css",

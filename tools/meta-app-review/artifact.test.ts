@@ -5,6 +5,7 @@ import {
   buildMetaAppReviewArtifactHtml,
   metaAppReviewArtifact,
 } from "./artifact.ts";
+import { metaAppReviewIds, metaAppReviewPackage } from "./manifest.ts";
 
 test("la muestra declara un alcance técnico sin afirmaciones comerciales", () => {
   assert.equal(metaAppReviewArtifact.width, 1080);
@@ -33,4 +34,28 @@ test("el documento es autocontenido y conserva logo, rótulo y límites", () => 
   assert.match(html, /Facebook Page/u);
   assert.match(html, /Una publicación/u);
   assert.doesNotMatch(html, /https?:\/\//u);
+});
+
+test("el manifiesto fija acceso mínimo, bytes, URL y una única identidad de muestra", () => {
+  assert.deepEqual(metaAppReviewPackage.reviewer.roles, [
+    "admin",
+    "publisher",
+    "viewer",
+  ]);
+  assert.equal(metaAppReviewPackage.maxAccessDays, 30);
+  assert.equal(
+    metaAppReviewPackage.sha256,
+    "91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0",
+  );
+  assert.equal(
+    new URL(metaAppReviewPackage.publicAssetUrl).origin,
+    "https://staging.content.ferreteriaaramayo.com.ar",
+  );
+  assert.equal(new Set(Object.values(metaAppReviewIds)).size, 8);
+  assert.equal(
+    (
+      metaAppReviewPackage.requiredMetaPermissions as readonly string[]
+    ).includes("public_profile"),
+    false,
+  );
 });

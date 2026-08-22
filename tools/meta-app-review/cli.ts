@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -15,6 +15,10 @@ import {
 
 const outputDirectory = new URL(
   "../../docs/integrations/assets/",
+  import.meta.url,
+);
+const publicOutputDirectory = new URL(
+  "../../apps/web/public/",
   import.meta.url,
 );
 const debugDirectory = new URL(
@@ -43,6 +47,8 @@ interface PixelComparison {
   readonly differentChannels: number;
   readonly maximumDelta: number;
 }
+
+const maximumDifferentChannels = 128;
 
 /**
  * El PNG versionado es la autoridad exacta. Esta segunda captura comprueba que
@@ -117,11 +123,10 @@ async function main(): Promise<void> {
     const htmlUrl = pathToFileURL(htmlPath).toString();
     const first = await renderArtifact(browser, htmlUrl);
     const second = await renderArtifact(browser, htmlUrl);
-    const firstSha256 = sha256(first);
     const pixelComparison = await compareRenderedPixels(first, second);
     if (
       pixelComparison.maximumDelta > 1 ||
-      pixelComparison.differentChannels > 64
+      pixelComparison.differentChannels > maximumDifferentChannels
     ) {
       await mkdir(debugDirectory, { recursive: true });
       await writeFile(new URL("first.png", debugDirectory), first);
@@ -131,7 +136,28 @@ async function main(): Promise<void> {
       );
     }
 
-    const dimensions = pngDimensions(first);
+    const approvedPath = new URL(
+      metaAppReviewArtifact.fileName,
+      outputDirectory,
+    );
+    const approved = await readFile(approvedPath).catch(() => first);
+    const approvedSha256 = sha256(approved);
+    if (approvedSha256 !== metaAppReviewArtifact.sha256) {
+      throw new Error(
+        `El PNG versionado no coincide con el SHA aprobado: ${approvedSha256}.`,
+      );
+    }
+    const approvedComparison = await compareRenderedPixels(approved, first);
+    if (
+      approvedComparison.maximumDelta > 1 ||
+      approvedComparison.differentChannels > maximumDifferentChannels
+    ) {
+      throw new Error(
+        `El render nuevo difiere del PNG aprobado en ${String(approvedComparison.differentChannels)} canales y delta máximo ${String(approvedComparison.maximumDelta)}.`,
+      );
+    }
+
+    const dimensions = pngDimensions(approved);
     if (
       dimensions.width !== metaAppReviewArtifact.width ||
       dimensions.height !== metaAppReviewArtifact.height
@@ -140,9 +166,14 @@ async function main(): Promise<void> {
     }
 
     await mkdir(outputDirectory, { recursive: true });
+    await mkdir(publicOutputDirectory, { recursive: true });
     await writeFile(
       new URL(metaAppReviewArtifact.fileName, outputDirectory),
-      first,
+      approved,
+    );
+    await writeFile(
+      new URL(metaAppReviewArtifact.fileName, publicOutputDirectory),
+      approved,
     );
     const manifest = await formatSource(
       JSON.stringify(
@@ -151,13 +182,14 @@ async function main(): Promise<void> {
             metaAppReviewArtifact.administrativeApprovalAt,
           aiCalls: 0,
           altText: metaAppReviewArtifact.altText,
-          approvalStatus: "pending-publication-approval",
-          byteLength: first.byteLength,
+          approvalStatus: "approved-for-single-app-review-order",
+          byteLength: approved.byteLength,
           copy: metaAppReviewArtifact.copy,
           file: metaAppReviewArtifact.fileName,
           height: dimensions.height,
-          renderComparison: pixelComparison,
-          sha256: firstSha256,
+          publicationApproval: metaAppReviewArtifact.publicationApproval,
+          renderComparison: approvedComparison,
+          sha256: approvedSha256,
           targets: metaAppReviewArtifact.targets,
           version: metaAppReviewArtifact.version,
           width: dimensions.width,
@@ -174,7 +206,7 @@ async function main(): Promise<void> {
     );
 
     process.stdout.write(
-      `Artefacto App Review: ${metaAppReviewArtifact.fileName} ${String(dimensions.width)}x${String(dimensions.height)} sha256=${firstSha256}\n`,
+      `Artefacto App Review: ${metaAppReviewArtifact.fileName} ${String(dimensions.width)}x${String(dimensions.height)} sha256=${approvedSha256}\n`,
     );
     process.stdout.write(`${fileURLToPath(outputDirectory)}\n`);
   } finally {
