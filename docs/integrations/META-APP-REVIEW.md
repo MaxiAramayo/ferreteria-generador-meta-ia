@@ -5,7 +5,7 @@ Revisado contra la implementación y la documentación oficial disponible:
 
 ## Estado
 
-El paquete técnico está **preparado localmente pero no listo para enviar**.
+El paquete técnico está **desplegado en staging pero no listo para enviar**.
 Las URLs, callbacks, justificaciones y guion están definidos. El negocio eligió
 usar la Page real de Aramayo y `@ferreteria_aramayo`; no se crearán activos de
 prueba separados. Las dos aprobaciones humanas requeridas fueron recibidas:
@@ -22,6 +22,12 @@ concreta para cada escritura en los activos existentes. App Review puede probar
 la aplicación siguiendo el screencast, y los dos permisos de publicación sólo
 se demuestran con una escritura. La autorización acotada quedó vinculada al
 checksum, copy, destinos y ventana que se definen debajo.
+
+El 2026-08-21 el SHA `c5e9d7d4764ece01e2f1a461d443fee40379afd6`
+quedó sano en staging y la app Meta `2161967167868736` persistió nombre,
+dominio, privacidad, términos, callback de eliminación, callback de
+desautorización y redirect OAuth. No se pulsó **Publicar**, no se abrió un envío
+de App Review y no se ejecutó contenido.
 
 ## Aprobaciones requeridas del negocio
 
@@ -80,8 +86,11 @@ parte del producto.
 | Callback de desautorización | https://api.staging.content.ferreteriaaramayo.com.ar/integrations/meta/deauthorize |
 | OAuth redirect | https://api.staging.content.ferreteriaaramayo.com.ar/oauth/meta/callback |
 
-Antes de enviar, el administrador de Meta debe comprobar que el nombre visible,
-ícono, dominio y esas seis direcciones coinciden carácter por carácter.
+El Dashboard vigente ofrece instrucciones públicas y callback de eliminación
+como alternativas de un mismo campo. Se seleccionó el callback firmado; la URL
+de instrucciones continúa pública y es la referencia legal para personas. El
+nombre, dominio y las direcciones configurables se comprobaron tras recargar el
+Dashboard. El ícono todavía requiere aprobación y carga antes de enviar.
 
 ## Alcance que se presenta
 
@@ -151,6 +160,13 @@ Condiciones del usuario:
   clientes ni información comercial interna;
 - no accede a infraestructura, secretos ni configuración del proveedor.
 
+Estado operativo del 2026-08-21: la identidad fue creada individualmente en
+staging con los cinco roles, pero permanece `disabled` y sin sesiones. La base
+conserva sólo Argon2id; el texto plano está únicamente en el Llavero local. La
+auditoría exige activación explícita y máximo de 30 días desde la entrega. Como
+no se autorizó enviar la revisión, la credencial no fue cargada en Meta y la
+ventana todavía no comenzó.
+
 Con los activos reales elegidos, el usuario de staging sólo debe ver el dataset
 sintético de revisión. El bitmap, copy, ventana, destinos, responsable y retiro
 posterior ya quedaron aprobados por escrito; antes de entregar el usuario se
@@ -213,10 +229,14 @@ eliminación real y transaccional en PostgreSQL.
 
 - [x] Responsable del negocio aprobó privacidad, términos y canales de contacto
       el 2026-08-21.
-- [ ] Administrador de Meta confirmó nombre, ícono, dominio y URLs.
+- [x] Administrador de Meta confirmó nombre, dominio y URLs configurables el
+      2026-08-21.
+- [ ] Ícono público aprobado y cargado en Meta.
 - [x] Se eligió y documentó la estrategia de activos para el revisor: activos
       reales con autorización puntual recibida el 2026-08-21.
-- [ ] Usuario temporal creado y credenciales cargadas sólo en Meta.
+- [x] Usuario temporal creado `disabled`, sin sesiones y con secreto sólo en el
+      Llavero.
+- [ ] Usuario activado y credenciales cargadas sólo en el campo privado de Meta.
 - [x] Dataset sintético aprobado y sin afirmaciones comerciales.
 - [ ] Guion recorrido de punta a punta en staging.
 - [ ] Screencast final reproduce exactamente las instrucciones.

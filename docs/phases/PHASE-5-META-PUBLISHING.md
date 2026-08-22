@@ -904,11 +904,11 @@ integración con usuarios y activos reales.
 
 ### Criterios de aceptación
 
-- [ ] Las URLs legales son públicas, estables y corresponden al sistema.
+- [x] Las URLs legales son públicas, estables y corresponden al sistema.
 - [ ] Cada permiso solicitado aparece en un flujo visible del screencast.
 - [ ] El revisor puede acceder sin conocer datos internos reales.
 - [x] Eliminación y revocación tienen procedimiento probado.
-- [ ] Marca, nombre y dominios de la app son consistentes.
+- [x] Marca, nombre y dominios de la app son consistentes.
 - [x] Solo se solicitan permisos usados por el alcance inicial.
 
 ### Verificación obligatoria
@@ -961,10 +961,25 @@ integración con usuarios y activos reales.
   tres rutas legales, sin overflow ni errores de consola. El generador del
   artefacto suma typecheck, dos unitarias, doble render con comparación de
   píxeles, validación PNG, dimensiones y checksum; `pnpm verify` volvió a pasar
-  con esa cobertura. Quedan pendientes despliegue/recorrido remoto y screencast.
-- Próximo paso exacto: preparar el despliegue de URLs estables y presentar al
-  usuario los cambios externos exactos antes de configurar callbacks, crear el
-  usuario temporal y recorrer/grabar el guion remoto para App Review.
+  con esa cobertura.
+- El 2026-08-21 CI `32537920990` y la publicación de imágenes `32538174305`
+  aprobaron el SHA `c5e9d7d4764ece01e2f1a461d443fee40379afd6`. Staging lo
+  promovió con rollback preparado: migración terminó en `0`, API, web y Caddy
+  quedaron healthy, `/health`, `/ready` y las tres rutas legales respondieron
+  `200`, y worker permaneció detenido. Los dos callbacks rechazaron una firma
+  inválida con `400`.
+- La app Meta `2161967167868736` guardó y volvió a mostrar tras recarga nombre,
+  dominio, privacidad, términos, eliminación, desautorización y redirect OAuth
+  exactos. Meta modela instrucciones públicas y callback de eliminación como
+  alternativas: se eligió el callback firmado sin retirar la página pública.
+- La identidad individual de App Review fue creada `disabled`, con los cinco
+  roles, cero sesiones, Argon2id en PostgreSQL y texto plano sólo en el Llavero.
+  La auditoría fija activación explícita y máximo de 30 días desde la entrega;
+  no se activó ni se transmitió la credencial.
+- Próximo paso exacto: aprobar/cargar ícono y eventual correo de contacto,
+  preparar la muestra sintética, activar la identidad sólo con autorización y
+  recorrer/grabar el guion. El envío de App Review y las publicaciones siguen
+  expresamente fuera de la autorización vigente.
 
 ### Evidencia de cierre
 
