@@ -1,4 +1,7 @@
-import { PUBLICATION_STATUSES } from "@aramayo/domain";
+import {
+  approvalPublicationTargetPolicy,
+  PUBLICATION_STATUSES,
+} from "@aramayo/domain";
 import type {
   PaginatedRecords,
   PersistPublicationDraftInput,
@@ -46,6 +49,7 @@ const revisionFields = {
     select: {
       approvedAt: true,
       id: true,
+      snapshot: true,
     },
   },
   content: true,
@@ -206,6 +210,15 @@ function mapRenderedMedia(
 
 function mapRevision(row: RevisionRow): PublicationRevisionRecord {
   const approval = row.approvalSnapshot;
+  const targetPolicy =
+    approval === null
+      ? Object.freeze({ kind: "unrestricted" as const })
+      : approvalPublicationTargetPolicy(approval.snapshot);
+  if (targetPolicy.kind === "invalid") {
+    throw new Error(
+      "El snapshot aprobado conserva una política de destinos inválida.",
+    );
+  }
   const renderedMedia = mapRenderedMedia(row.renderedMedia, row.renderedAt);
   return Object.freeze({
     ...(approval === null
@@ -224,6 +237,9 @@ function mapRevision(row: RevisionRow): PublicationRevisionRecord {
     designDocument: row.designDocument,
     id: row.id,
     media: Object.freeze(row.media.map(mapRevisionMedia)),
+    ...(targetPolicy.kind === "exact"
+      ? { publishingTargets: targetPolicy.targets }
+      : {}),
     ...(renderedMedia === undefined ? {} : { renderedMedia }),
     organizationId: row.organizationId,
     publicationId: row.publicationId,

@@ -206,6 +206,9 @@ function revisionResponse(
     designDocument: designDocument(revision.designDocument),
     id: revision.id,
     media: revision.media,
+    ...(revision.publishingTargets === undefined
+      ? {}
+      : { publishingTargets: revision.publishingTargets }),
     ...(revision.renderedMedia === undefined
       ? {}
       : { renderedMedia: revision.renderedMedia }),

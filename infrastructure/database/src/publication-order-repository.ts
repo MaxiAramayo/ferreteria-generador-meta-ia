@@ -21,6 +21,7 @@
 
 import {
   actionablePublicationManualReasons,
+  approvalPublicationTargetPolicy,
   isPublicationManualActionAllowed,
   metaPublishingFailureCodes,
   publicationManualActions,
@@ -278,6 +279,16 @@ function isPublicationTarget(value: string): value is PublicationTarget {
   );
 }
 
+function samePublicationTargets(
+  requested: readonly PublicationTarget[],
+  approved: readonly PublicationTarget[],
+): boolean {
+  return (
+    requested.length === approved.length &&
+    requested.every((target) => approved.includes(target))
+  );
+}
+
 function replayedOrder(responseBody: unknown): RequestPublicationOrderResult {
   if (typeof responseBody !== "object" || responseBody === null) {
     throw new Error("La respuesta idempotente almacenada es inválida.");
@@ -368,7 +379,7 @@ export class PrismaPublicationOrderRepository
       }
       const snapshot = await transaction.approvalSnapshot.findFirst({
         orderBy: { approvedAt: "desc" },
-        select: { id: true },
+        select: { id: true, snapshot: true },
         where: {
           organizationId: input.organizationId,
           publicationId: input.publicationId,
@@ -377,6 +388,15 @@ export class PrismaPublicationOrderRepository
       if (snapshot === null) {
         await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "not-approved" });
+      }
+      const targetPolicy = approvalPublicationTargetPolicy(snapshot.snapshot);
+      if (
+        targetPolicy.kind === "invalid" ||
+        (targetPolicy.kind === "exact" &&
+          !samePublicationTargets(targets, targetPolicy.targets))
+      ) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "target-policy-conflict" });
       }
 
       const version = publication.version + 1;

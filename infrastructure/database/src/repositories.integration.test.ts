@@ -4813,7 +4813,11 @@ test("la base rechaza una variante que salió sin pieza o con pieza a medias", a
  * la publicación en `approved` y el snapshot creado: sin eso lo único que se
  * podría probar es el rechazo.
  */
-async function publicationOrderFixture(): Promise<{
+async function publicationOrderFixture(
+  publishingTargets?: readonly (
+    "facebook_page" | "instagram_feed" | "instagram_story"
+  )[],
+): Promise<{
   contentHash: string;
   membershipId: string;
   organizationId: string;
@@ -4901,7 +4905,18 @@ async function publicationOrderFixture(): Promise<{
       organizationId,
       publicationId,
       revisionId,
-      snapshot: { contentHash, revisionId },
+      snapshot: {
+        contentHash,
+        ...(publishingTargets === undefined
+          ? {}
+          : {
+              publishingTargetPolicy: {
+                mode: "exact",
+                targets: publishingTargets,
+              },
+            }),
+        revisionId,
+      },
     },
   });
 
@@ -5014,6 +5029,55 @@ async function requestOrder(
   }
   return requested.orderId;
 }
+
+test("una política exacta rechaza ampliar destinos sin crear efectos", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture(["instagram_feed", "facebook_page"]);
+  const orders = new PrismaPublicationOrderRepository(database);
+  const rejected = await orders.request({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "publishing:execute",
+    ),
+    targets: ["instagram_feed", "instagram_story", "facebook_page"],
+  });
+
+  assert.deepEqual(rejected, { status: "target-policy-conflict" });
+  assert.equal(
+    await database.publicationOrder.count({ where: { organizationId } }),
+    0,
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { aggregateType: "publication_order", organizationId },
+    }),
+    0,
+  );
+  const intact = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(intact.status, "approved");
+  assert.equal(intact.version, 1);
+
+  const accepted = await orders.request({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "publishing:execute",
+    ),
+    targets: ["facebook_page", "instagram_feed"],
+  });
+  assert.equal(accepted.status, "accepted");
+});
 
 test("la orden E2E publica todos sus destinos y cierra como published", async () => {
   const {

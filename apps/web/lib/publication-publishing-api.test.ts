@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   applyManualAction,
   loadPendingManualActions,
+  loadPublishConfirmation,
   loadPublicationOrder,
   requestPublication,
 } from "./publication-publishing-api.ts";
@@ -52,6 +53,35 @@ function stubFetch(
 }
 
 const csrfOk = (): Response => json({ csrfToken: "token-csrf" });
+
+test("la confirmación conserva los destinos exactos del snapshot", async () => {
+  const stub = stubFetch([
+    () =>
+      json({
+        latestRevision: {
+          approvalSnapshotId: "snapshot-1",
+          content: { caption: "Copy aprobado" },
+          publishingTargets: ["instagram_feed", "facebook_page"],
+          renderedMedia: {
+            checksumSha256: "a".repeat(64),
+            secureUrl: "https://media.example/review.png",
+          },
+          status: "approved",
+        },
+        title: "Muestra técnica",
+      }),
+  ]);
+  try {
+    const result = await loadPublishConfirmation(apiBaseUrl, publicationId);
+    assert.equal(result.kind, "ready");
+    assert.deepEqual(result.publishingTargets, [
+      "instagram_feed",
+      "facebook_page",
+    ]);
+  } finally {
+    stub.restore();
+  }
+});
 
 test("pedir la publicación manda la clave idempotente y los destinos elegidos", async () => {
   const stub = stubFetch([

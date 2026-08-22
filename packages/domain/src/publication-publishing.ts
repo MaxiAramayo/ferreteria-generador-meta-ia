@@ -31,7 +31,11 @@ import {
   publicationRetryLimits,
   type PublicationManualReason,
 } from "./publication-retry.ts";
-import type { PublicationStatus, PublicationTarget } from "./publication.ts";
+import {
+  PUBLICATION_TARGETS,
+  type PublicationStatus,
+  type PublicationTarget,
+} from "./publication.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
 
 /** Estado agregado que una orden puede alcanzar. */
@@ -69,6 +73,60 @@ export interface PublicationOrderRecord {
   readonly requestedByMembershipId: string;
   readonly targets: readonly PublicationOrderTargetRecord[];
   readonly updatedAt: string;
+}
+
+/**
+ * Restricción de destinos fijada dentro del snapshot aprobado.
+ *
+ * Ausente conserva el comportamiento histórico: la persona elige entre los
+ * destinos que ofrece su conexión. `exact` se usa cuando la aprobación humana
+ * cubrió una combinación concreta y no puede ampliarse ni reducirse al pedir la
+ * orden. Un valor presente pero mal formado es corrupción, no ausencia.
+ */
+export type ApprovalPublicationTargetPolicy =
+  | Readonly<{ kind: "invalid" }>
+  | Readonly<{ kind: "unrestricted" }>
+  | Readonly<{
+      kind: "exact";
+      targets: readonly PublicationTarget[];
+    }>;
+
+function isUnknownRecord(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const publicationTargetValues: ReadonlySet<string> = new Set(
+  PUBLICATION_TARGETS,
+);
+
+function isPublicationTarget(value: unknown): value is PublicationTarget {
+  return typeof value === "string" && publicationTargetValues.has(value);
+}
+
+export function approvalPublicationTargetPolicy(
+  snapshot: unknown,
+): ApprovalPublicationTargetPolicy {
+  if (!isUnknownRecord(snapshot)) return Object.freeze({ kind: "invalid" });
+  const candidate = snapshot["publishingTargetPolicy"];
+  if (candidate === undefined) return Object.freeze({ kind: "unrestricted" });
+  if (!isUnknownRecord(candidate) || candidate["mode"] !== "exact") {
+    return Object.freeze({ kind: "invalid" });
+  }
+  const targets = candidate["targets"];
+  if (
+    !Array.isArray(targets) ||
+    targets.length === 0 ||
+    !targets.every(isPublicationTarget) ||
+    new Set(targets).size !== targets.length
+  ) {
+    return Object.freeze({ kind: "invalid" });
+  }
+  return Object.freeze({
+    kind: "exact",
+    targets: Object.freeze([...targets]),
+  });
 }
 
 /**
@@ -203,6 +261,7 @@ export type RequestPublicationOrderResult =
   /** La publicación no está aprobada, o su snapshot no existe. */
   | Readonly<{ status: "not-approved" }>
   | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "target-policy-conflict" }>
   | Readonly<{ status: "not-found" }>;
 
 export interface CancelPublicationOrderInput {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  approvalPublicationTargetPolicy,
   pendingPublicationTargets,
   publicationOrderStatus,
   type MetaPublishingAttemptState,
@@ -9,6 +10,40 @@ import {
   type PublicationOrderTargetRecord,
   type PublicationTarget,
 } from "./index.ts";
+
+test("un snapshot puede fijar exactamente los destinos aprobados", () => {
+  assert.deepEqual(
+    approvalPublicationTargetPolicy({
+      publishingTargetPolicy: {
+        mode: "exact",
+        targets: ["instagram_feed", "facebook_page"],
+      },
+    }),
+    {
+      kind: "exact",
+      targets: ["instagram_feed", "facebook_page"],
+    },
+  );
+  assert.deepEqual(approvalPublicationTargetPolicy({ content: {} }), {
+    kind: "unrestricted",
+  });
+});
+
+test("una política presente pero vacía, duplicada o desconocida es inválida", () => {
+  for (const targets of [
+    [],
+    ["instagram_feed", "instagram_feed"],
+    ["instagram_feed", "reels"],
+  ]) {
+    assert.deepEqual(
+      approvalPublicationTargetPolicy({
+        publishingTargetPolicy: { mode: "exact", targets },
+      }),
+      { kind: "invalid" },
+    );
+  }
+  assert.deepEqual(approvalPublicationTargetPolicy(null), { kind: "invalid" });
+});
 
 function targetAt(
   target: PublicationTarget,

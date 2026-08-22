@@ -67,6 +67,8 @@ export interface PublicationRevisionResponse {
   readonly designDocument: DesignDocument;
   readonly id: string;
   readonly media: readonly PublicationRevisionMediaResponse[];
+  /** Destinos exactos fijados por el snapshot aprobado, cuando corresponde. */
+  readonly publishingTargets?: readonly PublicationOrderTargetKind[];
   readonly renderedMedia?: PublicationRenderedMediaResponse;
   readonly revisionNumber: number;
   readonly status: "approved" | "draft" | "in_review" | "superseded";
