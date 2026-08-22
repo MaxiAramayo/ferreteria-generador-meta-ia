@@ -392,9 +392,10 @@ No habilitar publicación automática mientras la app esté en modo de prueba.
 
 Las URLs, justificaciones, usuario temporal, guion y checklist viven en
 [META-APP-REVIEW.md](META-APP-REVIEW.md). El paquete no se presenta todavía:
-la revisión administrativa del texto está pendiente y ADR-019 no permite dar
-a un revisor externo capacidad de publicar en los activos reales ni mantiene
-activos de prueba separados.
+las aprobaciones administrativas y de la única prueba real fueron recibidas,
+pero no existe autorización para enviar App Review, activar/entregar la
+identidad temporal ni ejecutar publicaciones. Staging y el Dashboard de Meta ya
+conservan las URLs exactas; worker permanece detenido.
 
 La API implementa los callbacks públicos definidos en la matriz de ambientes:
 

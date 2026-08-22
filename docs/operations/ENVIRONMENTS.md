@@ -63,13 +63,14 @@ Cloudinary y Meta siguen deshabilitados. Las imágenes públicas de la release
 fueron descargadas anónimamente desde GHCR y verificadas como `linux/amd64`, sin
 crear contenedores ni volúmenes.
 
-El 2026-08-17 staging inició PostgreSQL, Redis, migración, API y web del SHA
-`4759c3d` en sus redes privadas. Luego se crearon los cuatro registros staging
-y Caddy obtuvo certificados Let's Encrypt: web, `/health` y `/ready`
-respondieron `200` por HTTPS verificado. El seed canónico creó Aramayo, marca y
-sucursales; un administrador con contraseña Argon2id almacenada en el Llavero
-local pasó login y logout remotos. Worker permanece detenido. Producción no fue
-iniciada ni modificada.
+El 2026-08-21 staging promovió el SHA
+`c5e9d7d4764ece01e2f1a461d443fee40379afd6` después de CI y publicación de
+imágenes por SHA. PostgreSQL, Redis, migración, API, web y Caddy quedaron sanos;
+web, las tres rutas legales, `/health` y `/ready` respondieron `200` por HTTPS.
+Los callbacks Meta rechazaron firmas inválidas con `400`. El administrador
+operativo conserva su contraseña Argon2id en el Llavero local y la identidad de
+App Review quedó creada, auditada y `disabled`, con cero sesiones y credencial
+separada. Worker permanece detenido. Producción no fue iniciada ni modificada.
 
 ## Matriz de URLs
 

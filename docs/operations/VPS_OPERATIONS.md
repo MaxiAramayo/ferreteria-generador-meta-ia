@@ -37,19 +37,29 @@ estaban activos.
 
 ## Estado staging verificado
 
-El 2026-08-17 se preparó la release `4759c3d` bajo
-`/opt/aramayo-content-staging`. Las imágenes web, API y migración publicadas por
-el workflow `32046279735` reportaron ese mismo label de revisión. PostgreSQL,
-Redis, migración, API y web están sanos dentro de los proyectos y volúmenes
-`aramayo-content-staging`; sólo Caddy publica `80/443`. Caddy está sano con TLS
-válido y worker permanece detenido.
+El 2026-08-21 se promovió la release
+`c5e9d7d4764ece01e2f1a461d443fee40379afd6` bajo
+`/opt/aramayo-content-staging`. CI `32537920990` y la publicación de imágenes
+`32538174305` terminaron correctamente; web, API, worker y migración reportaron
+arquitectura `linux/amd64` y ese mismo label de revisión. PostgreSQL, Redis,
+migración, API, web y Caddy quedaron sanos dentro del proyecto y los volúmenes
+`aramayo-content-staging`; sólo Caddy publica `80/443`. Worker permanece
+detenido y las releases anteriores se conservaron para rollback.
 
 La base recibió el seed canónico y un administrador staging. La contraseña no
 se escribió en el VPS ni en Git: el servidor conserva únicamente su hash
 Argon2id y la credencial operativa vive en el Llavero local con servicio
 `Aramayo-Content-Staging-Admin`. Un smoke autenticó y cerró la sesión
-correctamente. El grupo Meta está totalmente vacío hasta cargar juntos App ID,
-App Secret, callback y versión Graph.
+correctamente. El grupo Meta está completo y el Dashboard de la app staging
+conserva el redirect OAuth exacto. Las tres rutas legales respondieron `200` y
+los callbacks de eliminación y desautorización rechazaron una firma inválida
+con `400`.
+
+La identidad de App Review se provisionó individualmente en estado `disabled`,
+con cinco roles, cero sesiones y auditoría que exige activación explícita y una
+ventana máxima de 30 días desde la entrega. PostgreSQL conserva sólo Argon2id y
+la credencial vive en el Llavero local bajo
+`Aramayo-Content-Staging-Meta-App-Review`. No fue transmitida a Meta.
 
 ## DNS e ingreso público
 

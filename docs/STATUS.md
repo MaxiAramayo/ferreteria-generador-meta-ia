@@ -114,13 +114,24 @@ justificaciones, usuario temporal y guion.
 
 El usuario decidió el 2026-08-21 que App Review use la Page real de Aramayo y
 `@ferreteria_aramayo`, y aprobó nombre, marca responsable, dominio, textos
-legales, teléfono y domicilios. El candidato técnico final quedó generado sin IA
-ni afirmaciones comerciales. El negocio aprobó también su bitmap y checksum,
-copy, destinos, ventana máxima de 30 días, supervisión y retiro manual. La tarea
-volvió a estar en progreso: falta preparar el despliegue, presentar los cambios
-externos exactos, configurar callbacks, crear el usuario temporal y recorrer y
-grabar el guion. El detalle reproducible está en
-[`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
+legales, teléfono y domicilios. También aprobó el bitmap y checksum, copy,
+destinos, ventana máxima de 30 días, supervisión y retiro manual.
+
+El SHA `c5e9d7d4764ece01e2f1a461d443fee40379afd6` ya está desplegado y sano en
+staging, con worker detenido. La app Meta `2161967167868736` persistió el nombre
+**Aramayo Content Platform**, dominio, privacidad, términos, callback de
+eliminación, callback de desautorización y redirect OAuth exactos. El Dashboard
+expone las instrucciones públicas y el callback de eliminación como alternativas;
+quedó seleccionado el callback firmado y la página pública de instrucciones
+continúa disponible. La identidad temporal fue creada y auditada en estado
+`disabled`, con cero sesiones y credencial sólo en el Llavero; la ventana aún no
+empezó y no se transmitió a Meta.
+
+Falta aprobar y cargar el ícono público y, si Meta lo exige para enviar, un
+correo de contacto; preparar el dataset sintético en staging; activar y entregar
+la identidad sólo bajo nueva autorización; recorrer y grabar el guion; y enviar
+App Review. No se envió la revisión ni se ejecutó una publicación. El detalle
+reproducible está en [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
 verificaciones cumplidas. Lo implementado:
