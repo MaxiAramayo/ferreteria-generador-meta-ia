@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { createDatabaseClient as CreateDatabaseClient } from "@aramayo/database";
+import type { AuditEventInput } from "@aramayo/domain";
 import type { Prisma } from "../../infrastructure/database/src/generated/prisma/client.ts";
 
 import { metaAppReviewIds, metaAppReviewPackage } from "./manifest.ts";
@@ -12,6 +13,7 @@ type DatabaseClient = ReturnType<typeof CreateDatabaseClient>;
 
 const expectedWebOrigin = "https://staging.content.ferreteriaaramayo.com.ar";
 const implicitPermissions = new Set(["public_profile"]);
+const successfulAuditOutcome = "success" satisfies AuditEventInput["outcome"];
 
 interface ProvisionResult {
   readonly contentHash: string;
@@ -389,7 +391,7 @@ async function provision(
         occurredAt: now,
         operation: "meta.app-review:provision",
         organizationId: membership.organizationId,
-        outcome: "succeeded",
+        outcome: successfulAuditOutcome,
       },
     });
   });
