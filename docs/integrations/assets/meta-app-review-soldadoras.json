@@ -1,0 +1,112 @@
+{
+  "administrativeApprovalAt": "2026-08-21",
+  "altText": "Imagen ilustrativa de una soldadora roja y negra, careta y guantes sobre un banco de taller. La pieza presenta la soldadora LA-SER Inverter 160 A e invita a consultar el precio. Disponible en Casa Central y Rivadavia, Frías.",
+  "appIcon": {
+    "approvedSourceAt": "2026-08-31",
+    "fileName": "aramayo-app-icon.png",
+    "height": 1024,
+    "sha256": "7a9d59c2294ac3a7515ca4aae0be61bc5d02bca87f4d468dbcffccb9a5cb31b0",
+    "source": "@aramayo/design-engine/react#AramayoMark",
+    "width": 1024
+  },
+  "approvalStatus": "approved-for-single-app-review-order",
+  "approvalPackageSha256": "7e44022a2020875ba420e99736711b7f8953051d6afb6bb8d462f59a460b012e",
+  "byteLength": 1146451,
+  "chatImageGenerationCalls": 1,
+  "commercialSnapshot": {
+    "brand": "LA-SER",
+    "externalProductId": "odoo-product-3941",
+    "observedAt": "2026-08-24T23:20:16.000Z",
+    "price": {
+      "amountMinor": 23939991,
+      "currency": "ARS",
+      "evidenceReference": "odoo:product.product:3941:price:casa-central",
+      "requestId": "ee57c502-bcbd-48c8-b666-6659f25b30e3"
+    },
+    "productEvidenceReference": "odoo:product.product:3941",
+    "productName": "LA SER SOLDADORA INVERTER 160 AMP DISC 225",
+    "productRequestId": "898ca1da-8555-4701-805c-2b9064048dda",
+    "publicationRule": "revalidate-product-and-stock-before-publication",
+    "stock": [
+      {
+        "evidenceReference": "odoo:product.product:3941:stock:casa-central",
+        "locationId": "casa-central",
+        "quantity": 6,
+        "requestId": "96b1c16d-2d41-4dc3-a62f-41c08889a629"
+      },
+      {
+        "evidenceReference": "odoo:product.product:3941:stock:rivadavia",
+        "locationId": "rivadavia",
+        "quantity": 6,
+        "requestId": "f329e746-98f3-42ed-acc4-e986681ca90d"
+      }
+    ],
+    "supplierPriceReference": {
+      "amountMinor": 23328800,
+      "comparisonRule": "reference-only-do-not-overwrite-retail-price",
+      "currency": "ARS",
+      "observedAt": "2026-08-24T23:33:49.000Z",
+      "productUrl": "https://www.la-ser.com.ar/productos/discovery-225-mma/",
+      "supplierName": "LA-SER"
+    }
+  },
+  "copy": "Soldadora inverter LA-SER 160 A: para unir piezas de metal y dar forma a tus proyectos de herrería. 🔧\n\nCompacta y liviana, para llevarla donde necesitás trabajar.\n\nDisponible en nuestros negocios: Casa Central (República de Siria 365) y sucursal Rivadavia (Rivadavia 673), Frías.\n\n📲 Consultanos el precio por WhatsApp al 3854 403534.",
+  "file": "meta-app-review-soldadoras.png",
+  "height": 1350,
+  "illustrativeBase": {
+    "fileName": "meta-app-review-soldadora-base.png",
+    "height": 1024,
+    "publicAssetUrl": "https://staging.content.ferreteriaaramayo.com.ar/meta-app-review-soldadora-base.png",
+    "sha256": "731ab4ec33f85019d126d949f8999febb22e1a7d88dff45b7367e84db908a4b8",
+    "width": 1536
+  },
+  "maxAccessDays": 30,
+  "maxOrders": 1,
+  "publicationDesign": {
+    "content": {
+      "badge": "Imagen ilustrativa",
+      "callToAction": "Escribinos",
+      "category": "Soldadoras",
+      "title": "LA-SER INVERTER 160 A",
+      "validity": "Disponible en nuestros negocios: Casa Central y Rivadavia"
+    },
+    "format": "feed",
+    "layout": "producto-editorial",
+    "media": [
+      {
+        "alt": "Imagen ilustrativa de una soldadora roja y negra, careta y guantes sobre un banco de taller. La pieza presenta la soldadora LA-SER Inverter 160 A e invita a consultar el precio. Disponible en Casa Central y Rivadavia, Frías.",
+        "fit": "contain",
+        "focus": {
+          "x": 50,
+          "y": 50
+        },
+        "reference": {
+          "source": "remote",
+          "url": "https://staging.content.ferreteriaaramayo.com.ar/meta-app-review-soldadora-base.png"
+        },
+        "zoom": 1
+      }
+    ],
+    "schemaVersion": 1,
+    "slug": "la-ser-inverter-160a-app-review",
+    "theme": "taller"
+  },
+  "publicationApproval": {
+    "ambiguousOutcome": "reconcile-only",
+    "approvedAt": "2026-08-31",
+    "maximumWindowDays": 30,
+    "packageSha256": "7e44022a2020875ba420e99736711b7f8953051d6afb6bb8d462f59a460b012e",
+    "removal": "manual-after-meta-decision",
+    "startsAt": "temporary-credentials-delivered",
+    "supervision": "business-owner"
+  },
+  "renderComparison": {
+    "differentChannels": 0,
+    "maximumDelta": 0
+  },
+  "projectImageApiCalls": 0,
+  "sha256": "407de4f95c8e18f4c52fa0544785f06f81fe9832de1032a3ac7e977fa0ca7d43",
+  "targets": ["instagram_feed", "facebook_page"],
+  "version": "meta-app-review/2026-08-31.1-candidate",
+  "width": 1080
+}

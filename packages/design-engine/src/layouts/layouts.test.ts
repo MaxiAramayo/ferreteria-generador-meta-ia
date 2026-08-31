@@ -67,6 +67,9 @@ function documentFor(
   if (spec.requiredFields.includes("icon")) {
     content["icon"] = "productos";
   }
+  if (spec.requiredFields.includes("category")) {
+    content["category"] = "Equipos de taller";
+  }
   if (spec.requiredFields.includes("subtitle")) {
     content["subtitle"] = "Con el producto adecuado se resuelve en el día.";
   }
@@ -194,6 +197,44 @@ test("las piezas de feed respetan la zona segura del formato", () => {
   assert.ok(html.includes(`padding-top:${String(safeArea.top)}px`));
   assert.ok(html.includes(`padding-bottom:${String(safeArea.bottom)}px`));
   assert.ok(html.includes(`padding-left:${String(safeArea.left)}px`));
+});
+
+test("producto editorial conserva la foto completa dentro de un marco difuminado", () => {
+  const html = markupFor("producto-editorial");
+
+  assert.match(html, /data-product-editorial=""/u);
+  assert.match(html, /data-editorial-blur-frame=""/u);
+  assert.match(html, /filter:blur\(34px\)/u);
+  assert.match(html, /data-editorial-photo=""/u);
+  assert.match(html, /object-fit:contain/u);
+  assert.match(html, /data-editorial-information=""/u);
+  assert.match(html, /data-availability=""/u);
+  assert.match(html, /data-price=""/u);
+  assert.match(html, /data-logo=""/u);
+});
+
+test("producto editorial sin importe invita a consultar con texto de cuerpo", () => {
+  const html = markupFor("producto-editorial");
+  assert.doesNotMatch(html, /Precio minorista/u);
+  assert.match(
+    html,
+    /data-price=""[^>]*><span[^>]*font-family:&quot;Archivo&quot;[^>]*text-transform:none[^>]*>Consultar precio<\/span>/u,
+  );
+  const priced = renderToStaticMarkup(
+    createElement(DesignPiece, {
+      context,
+      document: documentFor("producto-editorial", {
+        content: {
+          title: "Equipo de taller",
+          category: "Herramientas",
+          price: "$ 1.000",
+        },
+      }),
+    }),
+  );
+  assert.match(priced, /Precio minorista/u);
+  assert.match(priced, /\$ 1\.000/u);
+  assert.doesNotMatch(priced, /Consultar precio/u);
 });
 
 test("las fichas de variantes exigen una escena y exponen la guía de medidas", () => {

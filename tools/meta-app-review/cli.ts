@@ -8,10 +8,17 @@ import { chromium, type Browser } from "playwright-core";
 import { format as formatSource } from "prettier";
 import sharp from "sharp";
 
+import { renderMetaAppReviewAppIcon } from "./app-icon.ts";
+import {
+  metaAppReviewApprovalHash,
+  requireMetaAppReviewApproval,
+} from "./approval.ts";
 import {
   buildMetaAppReviewArtifactHtml,
   metaAppReviewArtifact,
+  metaAppReviewIllustrativeAssetBytes,
 } from "./artifact.ts";
+import { metaAppReviewPublicationDesignInput } from "./content.ts";
 
 const outputDirectory = new URL(
   "../../docs/integrations/assets/",
@@ -23,6 +30,10 @@ const publicOutputDirectory = new URL(
 );
 const debugDirectory = new URL(
   "../../output/meta-app-review-debug/",
+  import.meta.url,
+);
+const candidateDirectory = new URL(
+  "../../output/meta-app-review-candidate/",
   import.meta.url,
 );
 
@@ -100,13 +111,27 @@ async function renderArtifact(
   try {
     await page.goto(htmlUrl, { waitUntil: "load" });
     await page.evaluate("document.fonts.ready");
-    return await page.locator("#artifact").screenshot({ type: "png" });
+    return await page.locator("[data-card]").screenshot({ type: "png" });
   } finally {
     await page.close();
   }
 }
 
 async function main(): Promise<void> {
+  const argumentsList = process.argv.slice(2);
+  const unexpectedArguments = argumentsList.filter(
+    (argument) => argument !== "--candidate",
+  );
+  if (unexpectedArguments.length > 0) {
+    throw new Error(
+      `Argumentos no admitidos: ${unexpectedArguments.join(", ")}.`,
+    );
+  }
+  const candidateMode = argumentsList.includes("--candidate");
+  const publicationDesign = metaAppReviewPublicationDesignInput();
+  const approval = candidateMode
+    ? null
+    : requireMetaAppReviewApproval(metaAppReviewArtifact, publicationDesign);
   const temporaryDirectory = await mkdtemp(
     join(tmpdir(), "aramayo-meta-review-"),
   );
@@ -114,6 +139,27 @@ async function main(): Promise<void> {
   let browser: Browser | undefined;
 
   try {
+    const appIcon = await renderMetaAppReviewAppIcon();
+    if (sha256(appIcon) !== metaAppReviewArtifact.appIcon.sha256) {
+      throw new Error(
+        "El ícono generado no coincide con el isotipo registrado.",
+      );
+    }
+    const illustrativeBase = metaAppReviewIllustrativeAssetBytes();
+    const illustrativeBaseSha256 = sha256(illustrativeBase);
+    const illustrativeBaseDimensions = pngDimensions(illustrativeBase);
+    if (
+      illustrativeBaseSha256 !==
+        metaAppReviewArtifact.illustrativeBase.sha256 ||
+      illustrativeBaseDimensions.width !==
+        metaAppReviewArtifact.illustrativeBase.width ||
+      illustrativeBaseDimensions.height !==
+        metaAppReviewArtifact.illustrativeBase.height
+    ) {
+      throw new Error(
+        "La base ilustrativa no coincide con el manifiesto de generación.",
+      );
+    }
     await writeFile(htmlPath, buildMetaAppReviewArtifactHtml(), "utf8");
     browser = await chromium.launch({
       args: ["--force-color-profile=srgb", "--font-render-hinting=none"],
@@ -136,13 +182,94 @@ async function main(): Promise<void> {
       );
     }
 
+    const renderedSha256 = sha256(first);
+    const renderedDimensions = pngDimensions(first);
+    if (
+      renderedDimensions.width !== metaAppReviewArtifact.width ||
+      renderedDimensions.height !== metaAppReviewArtifact.height
+    ) {
+      throw new Error("El PNG no respeta las dimensiones declaradas.");
+    }
+    if (candidateMode) {
+      await mkdir(candidateDirectory, { recursive: true });
+      await writeFile(
+        new URL(metaAppReviewArtifact.appIcon.fileName, candidateDirectory),
+        appIcon,
+      );
+      await writeFile(
+        new URL(metaAppReviewArtifact.fileName, candidateDirectory),
+        first,
+      );
+      const candidateManifest = await formatSource(
+        JSON.stringify(
+          {
+            altText: metaAppReviewArtifact.altText,
+            appIcon: metaAppReviewArtifact.appIcon,
+            approvalStatus: "pending-business-approval",
+            approvalPackageSha256: metaAppReviewApprovalHash(
+              metaAppReviewArtifact,
+              renderedSha256,
+              publicationDesign,
+            ),
+            byteLength: first.byteLength,
+            chatImageGenerationCalls: 1,
+            commercialSnapshot: metaAppReviewArtifact.commercialSnapshot,
+            copy: metaAppReviewArtifact.copy,
+            file: metaAppReviewArtifact.fileName,
+            height: renderedDimensions.height,
+            illustrativeBase: metaAppReviewArtifact.illustrativeBase,
+            maxAccessDays: metaAppReviewArtifact.maxAccessDays,
+            maxOrders: metaAppReviewArtifact.maxOrders,
+            publicationApproval: metaAppReviewArtifact.publicationApproval,
+            publicationDesign,
+            renderComparison: pixelComparison,
+            projectImageApiCalls: 0,
+            sha256: renderedSha256,
+            targets: metaAppReviewArtifact.targets,
+            version: metaAppReviewArtifact.version,
+            width: renderedDimensions.width,
+          },
+          null,
+          2,
+        ),
+        { parser: "json" },
+      );
+      await writeFile(
+        new URL(
+          metaAppReviewArtifact.fileName.replace(/\.png$/u, ".json"),
+          candidateDirectory,
+        ),
+        candidateManifest,
+        "utf8",
+      );
+      process.stdout.write(
+        `Candidata App Review: ${metaAppReviewArtifact.fileName} ${String(renderedDimensions.width)}x${String(renderedDimensions.height)} sha256=${renderedSha256}\n`,
+      );
+      process.stdout.write(`${fileURLToPath(candidateDirectory)}\n`);
+      return;
+    }
+    if (approval === null) {
+      throw new Error(
+        "No se verificó la aprobación del paquete de App Review.",
+      );
+    }
+
     const approvedPath = new URL(
       metaAppReviewArtifact.fileName,
       outputDirectory,
     );
-    const approved = await readFile(approvedPath).catch(() => first);
+    const approved = await readFile(approvedPath).catch((cause: unknown) => {
+      if (
+        cause instanceof Error &&
+        "code" in cause &&
+        cause.code === "ENOENT"
+      ) {
+        return first;
+      }
+      throw cause;
+    });
     const approvedSha256 = sha256(approved);
-    if (approvedSha256 !== metaAppReviewArtifact.sha256) {
+    if (approvedSha256 !== approval.bitmapSha256) {
       throw new Error(
         `El PNG versionado no coincide con el SHA aprobado: ${approvedSha256}.`,
       );
@@ -168,6 +295,10 @@ async function main(): Promise<void> {
     await mkdir(outputDirectory, { recursive: true });
     await mkdir(publicOutputDirectory, { recursive: true });
     await writeFile(
+      new URL(metaAppReviewArtifact.appIcon.fileName, outputDirectory),
+      appIcon,
+    );
+    await writeFile(
       new URL(metaAppReviewArtifact.fileName, outputDirectory),
       approved,
     );
@@ -175,20 +306,35 @@ async function main(): Promise<void> {
       new URL(metaAppReviewArtifact.fileName, publicOutputDirectory),
       approved,
     );
+    await writeFile(
+      new URL(
+        metaAppReviewArtifact.illustrativeBase.fileName,
+        publicOutputDirectory,
+      ),
+      illustrativeBase,
+    );
     const manifest = await formatSource(
       JSON.stringify(
         {
           administrativeApprovalAt:
             metaAppReviewArtifact.administrativeApprovalAt,
-          aiCalls: 0,
           altText: metaAppReviewArtifact.altText,
+          appIcon: metaAppReviewArtifact.appIcon,
           approvalStatus: "approved-for-single-app-review-order",
+          approvalPackageSha256: approval.packageSha256,
           byteLength: approved.byteLength,
+          chatImageGenerationCalls: 1,
+          commercialSnapshot: metaAppReviewArtifact.commercialSnapshot,
           copy: metaAppReviewArtifact.copy,
           file: metaAppReviewArtifact.fileName,
           height: dimensions.height,
+          illustrativeBase: metaAppReviewArtifact.illustrativeBase,
+          maxAccessDays: metaAppReviewArtifact.maxAccessDays,
+          maxOrders: metaAppReviewArtifact.maxOrders,
+          publicationDesign,
           publicationApproval: metaAppReviewArtifact.publicationApproval,
           renderComparison: approvedComparison,
+          projectImageApiCalls: 0,
           sha256: approvedSha256,
           targets: metaAppReviewArtifact.targets,
           version: metaAppReviewArtifact.version,
@@ -200,7 +346,10 @@ async function main(): Promise<void> {
       { parser: "json" },
     );
     await writeFile(
-      new URL("meta-app-review-technical.json", outputDirectory),
+      new URL(
+        metaAppReviewArtifact.fileName.replace(/\.png$/u, ".json"),
+        outputDirectory,
+      ),
       manifest,
       "utf8",
     );

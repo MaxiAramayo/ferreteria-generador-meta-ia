@@ -120,7 +120,7 @@ Para vender un SKU concreto.
 - bloque superior: `FERRETERÍA ARAMAYO · FRÍAS`;
 - centro: producto completo y un solo beneficio o uso;
 - panel comercial: nombre, medida/modelo, precio grande, condición o vigencia;
-- CTA: `CONSULTANOS POR WHATSAPP` o `CONSEGUÍLO EN FRÍAS`;
+- CTA: `ESCRIBINOS` o `CONSEGUÍLO EN FRÍAS`;
 - si la imagen es representativa: disclaimer obligatorio.
 
 ### 2. Problema + solución

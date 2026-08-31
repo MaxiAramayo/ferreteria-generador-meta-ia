@@ -12,6 +12,7 @@ import {
   ComposicionBandaSuperior,
   ComposicionCirculoCentral,
   ComposicionTercioInferior,
+  ProductoEditorial,
 } from "./composed-pieces.tsx";
 import {
   HistoriaProblemaSolucion,
@@ -81,6 +82,7 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "presentacion-marca": PresentacionMarca,
     "problema-solucion": ProblemaSolucion,
     "producto-destacado": ProductoDestacado,
+    "producto-editorial": ProductoEditorial,
     "producto-mosaico": ProductoMosaico,
     "producto-precio": ProductoPrecio,
     "promo-producto": PromoProducto,

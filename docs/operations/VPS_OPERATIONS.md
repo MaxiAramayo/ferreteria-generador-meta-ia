@@ -56,7 +56,8 @@ los callbacks de eliminación y desautorización rechazaron una firma inválida
 con `400`.
 
 La identidad de App Review se provisionó individualmente en estado `disabled`,
-con cinco roles, cero sesiones y auditoría que exige activación explícita y una
+con los roles mínimos admin, publisher y viewer, cero sesiones y auditoría que
+exige activación explícita y una
 ventana máxima de 30 días desde la entrega. PostgreSQL conserva sólo Argon2id y
 la credencial vive en el Llavero local bajo
 `Aramayo-Content-Staging-Meta-App-Review`. No fue transmitida a Meta.

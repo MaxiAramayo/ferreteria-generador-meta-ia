@@ -5,8 +5,16 @@ import { pathToFileURL } from "node:url";
 
 import type { createDatabaseClient as CreateDatabaseClient } from "@aramayo/database";
 import type { AuditEventInput } from "@aramayo/domain";
-import type { Prisma } from "../../infrastructure/database/src/generated/prisma/client.ts";
 
+import {
+  hashAppReviewContent,
+  requireMetaAppReviewApproval,
+} from "./approval.ts";
+import {
+  readMetaAppReviewDelivery,
+  type MetaAppReviewDelivery,
+} from "./delivery.ts";
+import { metaAppReviewPublicationDesignInput } from "./content.ts";
 import { metaAppReviewIds, metaAppReviewPackage } from "./manifest.ts";
 
 type DatabaseClient = ReturnType<typeof CreateDatabaseClient>;
@@ -24,19 +32,6 @@ interface ProvisionResult {
 
 function sha256(bytes: Uint8Array | string): string {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableJson).join(",")}]`;
-  }
-  if (value !== null && typeof value === "object") {
-    return `{${Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${stableJson(entry)}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function sameStrings(
@@ -97,65 +92,72 @@ async function loadDatabaseFactory(): Promise<typeof CreateDatabaseClient> {
   return databaseModule.createDatabaseClient as typeof CreateDatabaseClient;
 }
 
-async function verifyPublicAsset(): Promise<number> {
-  const response = await fetch(metaAppReviewPackage.publicAssetUrl, {
+async function verifyPublicPng(
+  label: string,
+  publicAssetUrl: string,
+  expectedSha256: string,
+): Promise<number> {
+  const response = await fetch(publicAssetUrl, {
     headers: { accept: "image/png" },
     redirect: "error",
   });
   if (!response.ok || response.headers.get("content-type") !== "image/png") {
     throw new Error(
-      `El bitmap público no está disponible como PNG (${String(response.status)}).`,
+      `${label} no está disponible como PNG (${String(response.status)}).`,
     );
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
   const checksum = sha256(bytes);
-  if (checksum !== metaAppReviewPackage.sha256) {
-    throw new Error(`El bitmap público cambió: sha256=${checksum}.`);
+  if (checksum !== expectedSha256) {
+    throw new Error(`${label} cambió: sha256=${checksum}.`);
   }
   return bytes.byteLength;
 }
 
+async function verifyPublicAssets(
+  approvedSha256: string,
+): Promise<Readonly<{ illustrative: number; rendered: number }>> {
+  const [illustrative, rendered] = await Promise.all([
+    verifyPublicPng(
+      "La base ilustrativa pública",
+      metaAppReviewPackage.illustrativeBase.publicAssetUrl,
+      metaAppReviewPackage.illustrativeBase.sha256,
+    ),
+    verifyPublicPng(
+      "El bitmap público",
+      metaAppReviewPackage.publicAssetUrl,
+      approvedSha256,
+    ),
+  ]);
+  return Object.freeze({ illustrative, rendered });
+}
+
 function reviewContent(): Readonly<{
   caption: string;
-  products: readonly never[];
+  products: readonly Readonly<{ label: string; reference: string }>[];
 }> {
   return Object.freeze({
     caption: metaAppReviewPackage.copy,
-    products: Object.freeze([]),
-  });
-}
-
-function reviewDesignDocument(): Prisma.InputJsonObject {
-  return Object.freeze({
-    content: Object.freeze({
-      badge: "App Review",
-      callToAction: "Confirmá una sola vez",
-      category: "Revisión técnica",
-      subtitle: "Sin oferta comercial",
-      title: metaAppReviewPackage.publicationTitle,
-    }),
-    format: "feed",
-    layout: "producto-destacado",
-    media: Object.freeze([
+    products: Object.freeze([
       Object.freeze({
-        alt: metaAppReviewPackage.altText,
-        reference: Object.freeze({
-          source: "remote",
-          url: metaAppReviewPackage.publicAssetUrl,
-        }),
+        label: "LA-SER Inverter 160 A",
+        reference: metaAppReviewPackage.commercialSnapshot.externalProductId,
       }),
     ]),
-    schemaVersion: 1,
-    slug: "muestra-tecnica-meta-app-review",
-    theme: "taller",
   });
 }
 
-async function provision(
+export async function provisionMetaAppReview(
   database: DatabaseClient,
-  byteLength: number,
+  byteLengths: Readonly<{ illustrative: number; rendered: number }>,
   apply: boolean,
+  delivery: MetaAppReviewDelivery,
 ): Promise<ProvisionResult> {
+  const designDocument = metaAppReviewPublicationDesignInput();
+  const approval = requireMetaAppReviewApproval(
+    metaAppReviewPackage,
+    designDocument,
+  );
   const reviewer = await database.user.findUnique({
     include: { memberships: true },
     where: { email: metaAppReviewPackage.reviewer.email },
@@ -173,6 +175,12 @@ async function provision(
     );
   }
 
+  if (delivery.organizationId !== membership.organizationId) {
+    throw new Error(
+      "El comprobante de Cloudinary pertenece a otra organización.",
+    );
+  }
+
   const connection = await database.metaConnection.findFirst({
     include: { assets: true },
     where: {
@@ -183,6 +191,23 @@ async function provision(
   });
   if (connection === null) {
     throw new Error("No existe una conexión Meta sana para la organización.");
+  }
+  const approver = await database.organizationMembership.findFirst({
+    include: { user: true },
+    where: {
+      id: connection.connectedByMembershipId,
+      organizationId: membership.organizationId,
+      status: "active",
+    },
+  });
+  if (
+    approver === null ||
+    approver.user.status !== "active" ||
+    !approver.roles.includes("approver")
+  ) {
+    throw new Error(
+      "La identidad responsable de la aprobación no está habilitada.",
+    );
   }
   const grantedPermissions = jsonStringArray(connection.grantedPermissions);
   const unexpectedPermissions = grantedPermissions.filter(
@@ -210,29 +235,51 @@ async function provision(
     throw new Error("La conexión no conserva Page e Instagram activos.");
   }
 
+  const approvedSha256 = approval.bitmapSha256;
   const content = reviewContent();
-  const designDocument = reviewDesignDocument();
-  const contentHash = sha256(stableJson({ content, designDocument }));
+  const contentHash = hashAppReviewContent({ content, designDocument });
   const existing = await database.publication.findUnique({
     include: {
       approvalSnapshots: true,
       publishingOrders: true,
-      revisions: { include: { renderedMedia: true } },
+      revisions: {
+        include: { renderedMedia: true },
+        orderBy: { revisionNumber: "desc" },
+      },
     },
     where: { id: metaAppReviewIds.publicationId },
   });
-  if (existing !== null) {
+  const technicalReplacement =
+    existing !== null &&
+    existing.organizationId === membership.organizationId &&
+    existing.title === "Muestra técnica de App Review" &&
+    existing.status === "approved" &&
+    existing.version === 3 &&
+    existing.publishingOrders.length === 0 &&
+    existing.revisions.length === 1 &&
+    existing.approvalSnapshots.length === 1 &&
+    existing.revisions[0]?.id === "5a080000-0000-4000-8000-000000000003" &&
+    existing.revisions[0].contentHash ===
+      "dcf3547af2e38076efdd8ac383beced782a50f929c956efa62bb7daecc197da5" &&
+    existing.approvalSnapshots[0]?.contentHash ===
+      existing.revisions[0].contentHash &&
+    existing.revisions[0].renderedMedia?.checksumSha256 ===
+      "91a4fd42bd7ecfd60f10f1862e8081124993683de34883a46a7bea547cbc74f0";
+  if (existing !== null && !technicalReplacement) {
     const revision = existing.revisions[0];
-    const snapshot = existing.approvalSnapshots[0];
+    const snapshot = existing.approvalSnapshots.find(
+      (entry) => entry.id === metaAppReviewIds.approvalSnapshotId,
+    );
     if (
       existing.organizationId !== membership.organizationId ||
       existing.title !== metaAppReviewPackage.publicationTitle ||
       existing.status !== "approved" ||
       existing.publishingOrders.length !== 0 ||
-      existing.revisions.length !== 1 ||
-      revision?.contentHash !== contentHash ||
-      revision.renderedMedia?.checksumSha256 !== metaAppReviewPackage.sha256 ||
-      existing.approvalSnapshots.length !== 1 ||
+      revision?.id !== metaAppReviewIds.revisionId ||
+      revision.contentHash !== contentHash ||
+      revision.renderedMedia?.checksumSha256 !== approvedSha256 ||
+      revision.renderedMedia.storageKey !== delivery.storageKey ||
+      revision.renderedMedia.storageVersion !== delivery.storageVersion ||
       snapshot?.contentHash !== contentHash ||
       !hasExactApprovedTargets(snapshot.snapshot)
     ) {
@@ -251,9 +298,9 @@ async function provision(
   const organizationPublicationCount = await database.publication.count({
     where: { organizationId: membership.organizationId },
   });
-  if (organizationPublicationCount !== 0) {
+  if (organizationPublicationCount !== (technicalReplacement ? 1 : 0)) {
     throw new Error(
-      "Staging contiene publicaciones ajenas a la muestra técnica.",
+      "Staging contiene publicaciones ajenas a la muestra aprobada.",
     );
   }
   if (!apply) {
@@ -265,12 +312,61 @@ async function provision(
     });
   }
 
+  const revisionNumber = technicalReplacement ? 2 : 1;
+  const draftVersion = technicalReplacement ? 4 : 1;
   const now = new Date();
   await database.$transaction(async (transaction) => {
+    if (technicalReplacement) {
+      // Mismo lock que la admisión de órdenes: impide reemplazar mientras publica.
+      await transaction.$queryRaw`SELECT id FROM publications WHERE id = ${metaAppReviewIds.publicationId}::uuid AND organization_id = ${membership.organizationId}::uuid FOR UPDATE`;
+      const orderCount = await transaction.publicationOrder.count({
+        where: {
+          publicationId: metaAppReviewIds.publicationId,
+          organizationId: membership.organizationId,
+        },
+      });
+      if (orderCount !== 0)
+        throw new Error(
+          "La muestra recibió una orden; no se puede reemplazar.",
+        );
+      const replacement = await transaction.publication.updateMany({
+        where: {
+          id: metaAppReviewIds.publicationId,
+          organizationId: membership.organizationId,
+          version: 3,
+          status: "approved",
+        },
+        data: {
+          title: metaAppReviewPackage.publicationTitle,
+          version: draftVersion + 2,
+        },
+      });
+      if (replacement.count !== 1)
+        throw new Error("La muestra cambió antes del reemplazo.");
+    }
     await transaction.mediaAsset.create({
       data: {
-        byteSize: BigInt(byteLength),
-        checksumSha256: metaAppReviewPackage.sha256,
+        byteSize: BigInt(byteLengths.illustrative),
+        checksumSha256: metaAppReviewPackage.illustrativeBase.sha256,
+        height: metaAppReviewPackage.illustrativeBase.height,
+        id: metaAppReviewIds.illustrativeMediaAssetId,
+        mimeType: "image/png",
+        organizationId: membership.organizationId,
+        origin: "generated",
+        originalFileName: metaAppReviewPackage.illustrativeBase.fileName,
+        ownerMembershipId: connection.connectedByMembershipId,
+        secureUrl: metaAppReviewPackage.illustrativeBase.publicAssetUrl,
+        status: "available",
+        storageKey: `meta-app-review/${metaAppReviewPackage.version}/illustrative-base`,
+        storageProvider: "brand_library",
+        storageVersion: 1,
+        width: metaAppReviewPackage.illustrativeBase.width,
+      },
+    });
+    await transaction.mediaAsset.create({
+      data: {
+        byteSize: BigInt(byteLengths.rendered),
+        checksumSha256: approvedSha256,
         height: metaAppReviewPackage.height,
         id: metaAppReviewIds.mediaAssetId,
         mimeType: "image/png",
@@ -278,24 +374,25 @@ async function provision(
         origin: "approved_library",
         originalFileName: metaAppReviewPackage.fileName,
         ownerMembershipId: connection.connectedByMembershipId,
-        secureUrl: metaAppReviewPackage.publicAssetUrl,
+        secureUrl: delivery.secureUrl,
         status: "available",
-        storageKey: `meta-app-review/${metaAppReviewPackage.version}`,
-        storageProvider: "brand_library",
-        storageVersion: 1,
+        storageKey: delivery.storageKey,
+        storageProvider: "cloudinary",
+        storageVersion: delivery.storageVersion,
         width: metaAppReviewPackage.width,
       },
     });
-    await transaction.publication.create({
-      data: {
-        createdByMembershipId: connection.connectedByMembershipId,
-        id: metaAppReviewIds.publicationId,
-        organizationId: membership.organizationId,
-        status: "approved",
-        title: metaAppReviewPackage.publicationTitle,
-        version: 3,
-      },
-    });
+    if (!technicalReplacement)
+      await transaction.publication.create({
+        data: {
+          createdByMembershipId: connection.connectedByMembershipId,
+          id: metaAppReviewIds.publicationId,
+          organizationId: membership.organizationId,
+          status: "approved",
+          title: metaAppReviewPackage.publicationTitle,
+          version: 3,
+        },
+      });
     await transaction.publicationRevision.create({
       data: {
         content,
@@ -307,7 +404,7 @@ async function provision(
         publicationId: metaAppReviewIds.publicationId,
         renderedAt: now,
         renderedMediaAssetId: metaAppReviewIds.mediaAssetId,
-        revisionNumber: 1,
+        revisionNumber,
         schemaVersion: 1,
         status: "approved",
       },
@@ -316,7 +413,7 @@ async function provision(
       data: {
         alt: metaAppReviewPackage.altText,
         id: metaAppReviewIds.revisionMediaId,
-        mediaAssetId: metaAppReviewIds.mediaAssetId,
+        mediaAssetId: metaAppReviewIds.illustrativeMediaAssetId,
         organizationId: membership.organizationId,
         revisionId: metaAppReviewIds.revisionId,
         slot: "primary",
@@ -330,21 +427,21 @@ async function provision(
       inputMedia: [
         {
           alt: metaAppReviewPackage.altText,
-          checksumSha256: metaAppReviewPackage.sha256,
-          mediaAssetId: metaAppReviewIds.mediaAssetId,
-          secureUrl: metaAppReviewPackage.publicAssetUrl,
+          checksumSha256: metaAppReviewPackage.illustrativeBase.sha256,
+          mediaAssetId: metaAppReviewIds.illustrativeMediaAssetId,
+          secureUrl: metaAppReviewPackage.illustrativeBase.publicAssetUrl,
           slot: "primary",
           storageVersion: 1,
         },
       ],
       renderedMedia: {
-        byteSize: String(byteLength),
-        checksumSha256: metaAppReviewPackage.sha256,
+        byteSize: String(byteLengths.rendered),
+        checksumSha256: approvedSha256,
         height: metaAppReviewPackage.height,
         mediaAssetId: metaAppReviewIds.mediaAssetId,
         mimeType: "image/png",
-        secureUrl: metaAppReviewPackage.publicAssetUrl,
-        storageVersion: 1,
+        secureUrl: delivery.secureUrl,
+        storageVersion: delivery.storageVersion,
         width: metaAppReviewPackage.width,
       },
       publishingTargetPolicy: {
@@ -352,7 +449,7 @@ async function provision(
         targets: metaAppReviewPackage.targets,
       },
       revisionId: metaAppReviewIds.revisionId,
-      revisionNumber: 1,
+      revisionNumber,
       snapshotSchemaVersion: 1,
     };
     await transaction.approvalSnapshot.create({
@@ -367,32 +464,48 @@ async function provision(
         snapshot,
       },
     });
+    if (technicalReplacement)
+      await transaction.publicationStateTransition.create({
+        data: {
+          actorMembershipId: connection.connectedByMembershipId,
+          commandType: "edit_approved",
+          fromStatus: "approved",
+          fromVersion: 3,
+          id: metaAppReviewIds.transitionEditId,
+          newRevisionId: metaAppReviewIds.revisionId,
+          occurredAt: now,
+          organizationId: membership.organizationId,
+          publicationId: metaAppReviewIds.publicationId,
+          toStatus: "draft",
+          toVersion: draftVersion,
+        },
+      });
     await transaction.publicationStateTransition.createMany({
       data: [
         {
           actorMembershipId: connection.connectedByMembershipId,
           commandType: "advance",
           fromStatus: "draft",
-          fromVersion: 1,
+          fromVersion: draftVersion,
           id: metaAppReviewIds.transitionReadyId,
           occurredAt: now,
           organizationId: membership.organizationId,
           publicationId: metaAppReviewIds.publicationId,
           toStatus: "ready_for_review",
-          toVersion: 2,
+          toVersion: draftVersion + 1,
         },
         {
           actorMembershipId: connection.connectedByMembershipId,
           approvalSnapshotId: metaAppReviewIds.approvalSnapshotId,
           commandType: "approve",
           fromStatus: "ready_for_review",
-          fromVersion: 2,
+          fromVersion: draftVersion + 1,
           id: metaAppReviewIds.transitionApprovedId,
           occurredAt: now,
           organizationId: membership.organizationId,
           publicationId: metaAppReviewIds.publicationId,
           toStatus: "approved",
-          toVersion: 3,
+          toVersion: draftVersion + 2,
         },
       ],
     });
@@ -403,10 +516,13 @@ async function provision(
         entityType: "publication",
         id: metaAppReviewIds.auditEventId,
         metadata: {
-          approvedBitmapSha256: metaAppReviewPackage.sha256,
+          approvedBitmapSha256: approvedSha256,
           approvedCopy: metaAppReviewPackage.copy,
-          maxOrders: 1,
+          approvedPackageSha256: approval.packageSha256,
+          maxOrders: metaAppReviewPackage.maxOrders,
           purpose: "meta_app_review",
+          replacedTechnicalRevision: technicalReplacement,
+          businessApprovalAt: approval.approvedAt,
           targets: metaAppReviewPackage.targets,
           version: metaAppReviewPackage.version,
         },
@@ -436,20 +552,42 @@ async function main(): Promise<void> {
   }
   const unexpectedArguments = process.argv
     .slice(2)
-    .filter((arg) => arg !== "--apply");
+    .filter((arg) => arg !== "--apply" && !arg.startsWith("--delivery="));
   if (unexpectedArguments.length > 0) {
     throw new Error(
       `Argumentos no admitidos: ${unexpectedArguments.join(", ")}.`,
     );
   }
   const apply = process.argv.includes("--apply");
-  const [createDatabaseClient, byteLength] = await Promise.all([
+  const approval = requireMetaAppReviewApproval(
+    metaAppReviewPackage,
+    metaAppReviewPublicationDesignInput(),
+  );
+  const deliveryPath = process.argv
+    .find((arg) => arg.startsWith("--delivery="))
+    ?.slice("--delivery=".length);
+  if (!deliveryPath)
+    throw new Error(
+      "--delivery es obligatorio para provisionar el original de Cloudinary.",
+    );
+  const delivery = await readMetaAppReviewDelivery(deliveryPath);
+  const [createDatabaseClient, byteLengths] = await Promise.all([
     loadDatabaseFactory(),
-    verifyPublicAsset(),
+    verifyPublicAssets(approval.bitmapSha256),
   ]);
+  await verifyPublicPng(
+    "El original de Cloudinary",
+    delivery.secureUrl,
+    approval.bitmapSha256,
+  );
   const database = createDatabaseClient(databaseUrl);
   try {
-    const result = await provision(database, byteLength, apply);
+    const result = await provisionMetaAppReview(
+      database,
+      byteLengths,
+      apply,
+      delivery,
+    );
     process.stdout.write(
       `${result.status} publication=${result.publicationId} contentHash=${result.contentHash}\n`,
     );
@@ -458,10 +596,15 @@ async function main(): Promise<void> {
   }
 }
 
-try {
-  await main();
-} catch (cause: unknown) {
-  const message = cause instanceof Error ? cause.message : "Error desconocido.";
-  process.stderr.write(`No se pudo provisionar App Review: ${message}\n`);
-  process.exitCode = 1;
-}
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+)
+  try {
+    await main();
+  } catch (cause: unknown) {
+    const message =
+      cause instanceof Error ? cause.message : "Error desconocido.";
+    process.stderr.write(`No se pudo provisionar App Review: ${message}\n`);
+    process.exitCode = 1;
+  }

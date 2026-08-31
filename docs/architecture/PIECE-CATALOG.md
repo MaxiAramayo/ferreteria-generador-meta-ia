@@ -41,6 +41,7 @@ afirmación de disponibilidad sin dato que la respalde.
 | Pieza | Objetivo | Contenido mínimo | CTA |
 |---|---|---|---|
 | `producto-destacado` | Mostrar un producto y su categoría | Foto, título, rubro | Consultar stock |
+| `producto-editorial` | Mostrar completa una foto generada o real, con la marca como marco | Foto, título, categoría, modelo, precio opcional y disponibilidad confirmada o explícitamente pendiente | Escribir o consultar |
 | `producto-precio` | Responder "cuánto sale" sin fricción | Foto, título; precio opcional | Reservar por WhatsApp |
 | `promo-producto` | Oferta con precio anterior y vigencia | Foto, título, precio, antes, vigencia | Reservar por WhatsApp |
 | `combo-kit` | Vender el conjunto que se compra junto | Hasta 3 productos, precio del combo | Consultar combo |
@@ -114,7 +115,7 @@ Reglas que las gobiernan:
 
 | Estado | Identificadores | Criterio |
 |---|---|---|
-| Vigente | `producto-destacado`, `promo-producto`, `producto-mosaico`, `epp-seguridad`, `tip-oficio`, `lubricentro-servicio`, `presentacion-marca`, `sucursales`, `banner-marca`, `destacada-cover`, `historia-producto`, `historia-locales` | Tienen objetivo claro y contenido real; están migradas |
+| Vigente | `producto-destacado`, `producto-editorial`, `promo-producto`, `producto-mosaico`, `epp-seguridad`, `tip-oficio`, `lubricentro-servicio`, `presentacion-marca`, `sucursales`, `banner-marca`, `destacada-cover`, `historia-producto`, `historia-locales` | Tienen objetivo claro y contenido real; están migradas |
 | Retirado | Los nueve `carrusel-*` y las historias listadas abajo | Campañas puntuales, sin contenido vigente, o reemplazadas por una pieza nueva |
 
 Piezas heredadas reemplazadas por una pieza del catálogo propio:
@@ -136,6 +137,9 @@ con la línea base congelada; componerlos falla de forma explícita.
    responder por WhatsApp, según lo que convenga a cada publicación. Las piezas
    de precio se componen igual con y sin él: sin precio, el lugar del número lo
    ocupa la invitación a consultar.
+   Para `producto-editorial`, el usuario precisó el 2026-08-31 que esa
+   invitación dice «Consultar precio» con tipografía de cuerpo y sin el
+   rótulo «Precio minorista». Las piezas con importe conservan su jerarquía.
 2. **Los turnos del lubricentro se toman por WhatsApp o en el local.** Ese es el
    CTA; no se promete reserva online.
 3. **El carrusel se conserva como formato**, pero su contenido está sin definir:

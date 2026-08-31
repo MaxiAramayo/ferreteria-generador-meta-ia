@@ -133,10 +133,10 @@ Meta siguen siendo obligatorios:
    retirar manualmente el contenido después de la revisión;
 5. aprobar nombre público, textos legales, dominios y canales de contacto.
 
-El usuario temporal de staging sólo verá el dataset sintético de App Review. La
-autorización no cubre historias, publicaciones comerciales, piezas diferentes,
-reintentos manuales ni acciones fuera del flujo idempotente del panel. Una
-respuesta ambigua se reconcilia; no se vuelve a publicar a ciegas.
+El usuario temporal de staging sólo verá el dataset acotado de App Review. La
+autorización no cubre historias, piezas diferentes, cambios de copy, reintentos
+manuales ni acciones fuera del flujo idempotente del panel. Una respuesta
+ambigua se reconcilia; no se vuelve a publicar a ciegas.
 
 ### Aprobación administrativa recibida
 
@@ -170,3 +170,74 @@ Esta aprobación satisface los puntos 1 a 4 para ese archivo exacto. Cualquier
 cambio de bytes, copy, destino, límite o ventana exige una aprobación nueva. No
 autoriza despliegue, configuración remota, creación de credenciales ni la
 publicación inmediata por parte del agente.
+
+### Reemplazo solicitado por el negocio
+
+El 2026-08-22 el usuario descartó expresamente la placa y el copy técnicos. La
+autorización concreta anterior quedó revocada antes de producir una orden o una
+escritura en Meta. La primera candidata comercial, basada en una foto propia de
+herramientas eléctricas y con SHA-256
+`21f1e5d2af47aeca4d71a353b3aac256d1b85c2d81c649398914d8bd082208c1`,
+también fue descartada antes de aprobarse: el negocio confirmó que esa misma
+publicación ya había salido.
+
+Se preparó entonces una candidata distinta sobre soldadoras. Usa una escena
+genérica generada mediante la IA integrada del chat —sin consumir la API de
+imágenes de la plataforma— y queda rotulada “Imagen ilustrativa”. El 2026-08-24
+el negocio pidió que la foto quedara completa, que la identidad funcionara como
+marco y que la pieza identificara un producto real. La API comercial GET-only
+de Odoo confirmó `odoo-product-3941`: **LA-SER Inverter 160 A, referencia DISC 225,
+SKU 7039**, precio minorista **$239.399,91** y seis unidades en cada sucursal a
+las 23:20:16Z. El snapshot conserva referencias y request IDs seguros, pero no
+el token ni campos de costo, margen o proveedor.
+
+El negocio pidió después retirar la referencia y el SKU de todo contenido
+visible. Ambos quedan sólo como evidencia interna de identidad. Odoo identifica
+a LA-SER como proveedor principal y la ficha oficial exacta mostraba
+**$233.288,00** con impuestos al 2026-08-24T23:33:49Z. Esa observación se registra
+como comparación y nunca sobreescribe automáticamente el precio minorista de
+Aramayo.
+
+El layout `producto-editorial` duplica la escena sólo para formar un fondo
+desenfocado, conserva la copia nítida completa y admite ahora precio opcional.
+El doble render determinista actualizado produjo 1080×1350, 1.149.658 bytes y
+SHA-256
+`a6022b74d3356a95e72a33bd51bbe1636df48e27d4b0a5ac56eb17de0053c19d`.
+La acción se presenta como “Escribinos” en rojo profundo de Aramayo; el verde
+de WhatsApp fue retirado del sistema visual por decisión expresa del negocio.
+Precio y stock deben revalidarse antes de cualquier publicación: una diferencia
+obliga a generar bitmap/copy nuevos y obtener otra aprobación.
+
+La nueva candidata no hereda ninguna autorización anterior: bitmap, copy exacto y SHA
+quedan pendientes de aprobación. Se conservan únicamente los destinos
+`instagram_feed` y `facebook_page`, la orden única idempotente, la ventana
+máxima, la supervisión, el retiro manual y la regla de reconciliación ya
+decididos.
+
+### Corrección comercial y selección del ícono — 2026-08-31
+
+El usuario pidió mantener la soldadora, pero retirar el precio de la candidata
+y mostrar «Consultar precio» en tipografía normal. El copy debe explicar la
+utilidad del producto al principio y decir «Disponible en nuestros negocios»
+con ambos locales; no expone la frase administrativa «al momento de la
+verificación». Se admiten pocos emojis en Instagram/Facebook. La advertencia
+«Imagen ilustrativa» permanece en el bitmap y su texto alternativo, sin
+repetirse en el caption.
+
+El precio histórico de Odoo se conserva sólo como evidencia interna. La nueva
+pieza no necesita un importe publicable, pero debe revalidar identidad y stock
+antes de una publicación real. La ficha oficial LA-SER consultada el
+2026-08-31 respalda el formato compacto y liviano con dimensiones y peso;
+el copy no promete materiales, espesores ni superioridad sin fuente.
+
+La versión `meta-app-review/2026-08-31.1-candidate` produjo 1080×1350,
+1.146.451 bytes y SHA-256
+`407de4f95c8e18f4c52fa0544785f06f81fe9832de1032a3ac7e977fa0ca7d43`.
+Este reemplazo deja sin efecto la candidata anterior, no concede aprobación
+final ni permiso para publicar, habilitar usuarios o enviar App Review.
+
+El usuario eligió la A exacta de la pieza para el ícono de la app. Se reutiliza
+`AramayoMark`, sin redibujarlo ni generar otro logotipo; su PNG para carga y el
+favicon del panel comparten geometría y colores. Falta la carga remota.
+El correo de contacto se omite salvo que Meta lo exija para enviar. El valor
+que autorizó el usuario queda fuera de Git y del contenido público.

@@ -17,7 +17,7 @@ import {
  */
 
 export interface ThemeColors {
-  /** Color del botón de acción: WhatsApp o consulta. */
+  /** Color del botón de acción, derivado de la identidad de Aramayo. */
   readonly action: string;
   readonly actionText: string;
   readonly accent: string;
@@ -37,7 +37,7 @@ export interface Theme extends ThemeDescriptor {
 const THEME_COLORS: Readonly<Record<ThemeId, ThemeColors>> = Object.freeze({
   claro: Object.freeze({
     accent: COLORS.ink,
-    action: COLORS.whatsapp,
+    action: COLORS.rustDeep,
     actionText: COLORS.white,
     background: COLORS.paper,
     border: withAlpha(COLORS.ink, 0.12),
@@ -49,7 +49,7 @@ const THEME_COLORS: Readonly<Record<ThemeId, ThemeColors>> = Object.freeze({
   }),
   lubricentro: Object.freeze({
     accent: COLORS.rust,
-    action: COLORS.whatsapp,
+    action: COLORS.rustDeep,
     actionText: COLORS.white,
     background: COLORS.graphite,
     border: withAlpha(COLORS.white, 0.12),
@@ -61,8 +61,8 @@ const THEME_COLORS: Readonly<Record<ThemeId, ThemeColors>> = Object.freeze({
   }),
   promo: Object.freeze({
     accent: COLORS.safety,
-    action: COLORS.whatsapp,
-    actionText: COLORS.white,
+    action: COLORS.paper,
+    actionText: COLORS.ink,
     background: COLORS.rust,
     border: withAlpha(COLORS.white, 0.22),
     highlight: COLORS.safety,
@@ -73,7 +73,7 @@ const THEME_COLORS: Readonly<Record<ThemeId, ThemeColors>> = Object.freeze({
   }),
   taller: Object.freeze({
     accent: COLORS.safety,
-    action: COLORS.whatsapp,
+    action: COLORS.rustDeep,
     actionText: COLORS.white,
     background: COLORS.ink,
     border: withAlpha(COLORS.white, 0.14),

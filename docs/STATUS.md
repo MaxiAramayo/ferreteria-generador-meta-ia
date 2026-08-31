@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-21
+Actualizado: 2026-08-31
 
 ## Fase activa
 
@@ -112,13 +112,46 @@ incluye política de privacidad, términos, instrucciones públicas, callbacks
 firmados de eliminación/desautorización, estado opaco y el paquete completo de
 justificaciones, usuario temporal y guion.
 
+El 2026-08-31 se reforzó la preparación local: generador y provisionador exigen
+una huella del paquete aprobado que liga bitmap, documento de diseño, copy,
+evidencia comercial, destinos y límites. Cambiar cualquiera invalida la
+aprobación anterior. El usuario aprobó el paquete exacto y ordenó publicarlo
+el 2026-08-31; la huella registra esa aprobación, no revalida datos comerciales. Detalles y procedimiento
+en el paquete de App Review.
+
 El usuario decidió el 2026-08-21 que App Review use la Page real de Aramayo y
 `@ferreteria_aramayo`, y aprobó nombre, marca responsable, dominio, textos
-legales, teléfono y domicilios. También aprobó el bitmap y checksum, copy,
-destinos, ventana máxima de 30 días, supervisión y retiro manual.
+legales, teléfono y domicilios. El 2026-08-22 descartó el bitmap y copy técnicos:
+esa aprobación ya no es válida. También rechazó la primera candidata comercial
+de herramientas eléctricas porque reutilizaba una publicación existente. La
+nueva candidata muestra completa una soldadora genérica dentro de un marco
+difuminado y la rotula como ilustrativa. La capa determinista informa el
+producto real **LA-SER Inverter 160 A**. El 2026-08-31 el usuario pidió quitar
+el importe y dejar **“Consultar precio” en tipografía normal**, explicar primero
+la utilidad y nombrar Casa Central y Rivadavia sin “al momento de la
+verificación”. El copy usa dos emojis y no repite “Imagen ilustrativa”, que
+permanece en la pieza y su texto alternativo. La ficha oficial respalda el
+formato compacto y liviano; no se agregaron prestaciones sin fuente. Odoo
+confirmó seis unidades por sucursal el 2026-08-24T23:20:16Z: identidad y stock
+deben revalidarse antes de publicar. Los precios históricos no se publican.
+La nueva candidata de 1080×1350 tiene SHA-256
+`407de4f95c8e18f4c52fa0544785f06f81fe9832de1032a3ac7e977fa0ca7d43` y
+tiene aprobación concreta del usuario para una orden con Instagram feed y
+Facebook Page. Odoo confirmó nuevamente identidad y seis unidades por sucursal
+el 2026-08-31T14:26:40Z. La conexión Meta se revalidó sana a las 14:32:09Z. La escena existente se
+conservó; esta corrección no consumió generación de imágenes.
 
-El SHA `c5e9d7d4764ece01e2f1a461d443fee40379afd6` ya está desplegado y sano en
-staging, con worker detenido. La app Meta `2161967167868736` persistió el nombre
+El usuario eligió la **A de la pieza como ícono**, ya exportada desde
+`AramayoMark` y aplicada al favicon local. El correo se omite salvo que Meta
+lo exija; el contacto autorizado quedó fuera de Git. Estas indicaciones no
+autorizaban por sí solas publicación ni envío de App Review. Posteriormente,
+el usuario pidió «publica nomas, y continua»: autoriza esta pieza concreta y
+la continuación de los preparativos, sin duplicados ni destinos adicionales.
+
+La inspección del 2026-08-31 encontró el SHA
+`bc9fdfcbe9a592a6eb867cfc57d7a1a02e0701f0` desplegado y sano en staging, sin
+worker ni órdenes. Conserva una única muestra técnica aprobada anterior que
+debe reemplazarse mediante nueva revisión, sin modificar su snapshot histórico. La app Meta `2161967167868736` persistió el nombre
 **Aramayo Content Platform**, dominio, privacidad, términos, callback de
 eliminación, callback de desautorización y redirect OAuth exactos. El Dashboard
 expone las instrucciones públicas y el callback de eliminación como alternativas;
@@ -127,11 +160,12 @@ continúa disponible. La identidad temporal fue creada y auditada en estado
 `disabled`, con cero sesiones y credencial sólo en el Llavero; la ventana aún no
 empezó y no se transmitió a Meta.
 
-Falta aprobar y cargar el ícono público y, si Meta lo exige para enviar, un
-correo de contacto; preparar el dataset sintético en staging; activar y entregar
-la identidad sólo bajo nueva autorización; recorrer y grabar el guion; y enviar
-App Review. No se envió la revisión ni se ejecutó una publicación. El detalle
-reproducible está en [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
+Falta ejecutar la publicación ya aprobada; cargar el ícono público y, si Meta
+lo exige para enviar, un correo de contacto; reemplazar el dataset en staging;
+activar y entregar la identidad sólo bajo nueva autorización; recorrer y grabar
+el guion; y enviar App Review. No se envió la revisión ni se ejecutó una
+publicación. El detalle reproducible está en
+[`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
 verificaciones cumplidas. Lo implementado:
@@ -323,9 +357,10 @@ continuar:
   resultado.** No existe el estado «generó pero no compuso»: sería
   irrecuperable. Las variantes anteriores a la migración sí quedan sin pieza y
   no pueden tenerla;
-- **el botón de acción mide 4,38:1** y el umbral de texto normal es 4,5:1. El
-  verde de WhatsApp es identidad aprobada en `P1-T06` y lo usan las dieciocho
-  piezas del catálogo; cambiarlo es una decisión de marca;
+- **el botón de acción medía 4,38:1** con la paleta original. El 2026-08-24 el
+  usuario retiró el verde de WhatsApp del sistema visual: los CTA usan ahora
+  rojo profundo de Aramayo —o papel/tinta sobre el tema rojo— y todos superan
+  el umbral de texto normal de 4,5:1;
 - **`banner-fb`, `destacada` y la región `left_column` no componen.** Un lote
   que los pida se rechaza antes de gastar.
 
@@ -442,14 +477,9 @@ local ignorado por Git.
   web. Desde `P4-T05` existe un compositor en el servidor que sabe armar la
   pieza desde el brief; usarlo acá es la decisión que falta, y el usuario
   resolvió el 2026-08-05 dejarla fuera de esa tarea. Surgió al cerrar `P3-T09`.
-- Si el verde de acción de la marca se corrige. Con texto blanco mide 4,38:1 y
-  el umbral AA para texto normal es 4,5:1. Supera el de texto grande, que es lo
-  que la composición le exige, pero queda 0,12 por debajo del general. Lo usan
-  las dieciocho piezas del catálogo, así que es una decisión de marca y no un
-  ajuste técnico. Surgió al medir el contraste en `P4-T05`.
-- Uso de emojis en el copy de Aramayo: si se admiten, en qué destinos y con qué
-  criterio. Surgió al revisar la muestra de `P3-T08`. Hasta que exista una
-  política aprobada, el prompt no los pide y la evaluación no los mide.
+- El usuario admitió pocos emojis en Instagram/Facebook el 2026-08-31; la
+  candidata usa dos. Falta trasladar esa preferencia al prompt y su evaluación
+  en una tarea específica; no se cambiaron modelo ni prompt en App Review.
 - Qué perfil visual corresponde cuando el brief combina una dirección de
   ferretería con la marca del lubricentro. Son campos independientes y ambos
   validan, así que la combinación existe. Hoy se elige el contexto propio de la

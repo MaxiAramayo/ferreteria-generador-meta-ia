@@ -490,6 +490,7 @@ export function ProductImage({
   asset,
   context,
   fallbackIcon = "productos",
+  matte,
   radius = RADII.card,
   style,
   theme,
@@ -497,6 +498,7 @@ export function ProductImage({
   readonly asset: MediaAsset | undefined;
   readonly context: LayoutContext;
   readonly fallbackIcon?: IconName | undefined;
+  readonly matte?: string | undefined;
   readonly radius?: number | undefined;
   readonly style?: CSSProperties | undefined;
   readonly theme: Theme;
@@ -516,6 +518,7 @@ export function ProductImage({
     <Photo
       asset={asset}
       assetBaseUrl={context.assetBaseUrl}
+      matte={matte}
       radius={radius}
       style={style}
     />
