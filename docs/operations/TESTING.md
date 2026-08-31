@@ -88,6 +88,9 @@ sirven de sonda de fugas:
 - `GET /ready` en 503 con PostgreSQL y Redis inalcanzables y sin credenciales en
   la respuesta;
 - worker que reporta estado y no procesa trabajo simulado;
+- arranque del worker con Meta y Cloudinary configurados con credenciales
+  falsas, para verificar la resolución real de sus dependencias NestJS sin
+  órdenes ni llamadas a proveedores;
 - cierre ordenado ante `SIGTERM` en API y worker;
 - panel que compila, renderiza su estado inicial y no expone configuración
   privada en el bundle del cliente;

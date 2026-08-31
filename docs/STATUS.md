@@ -107,19 +107,24 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T08` — la soldadora aprobada está desplegada y provisionada, pero
-**todavía no se publicó**. La versión staging
-`57d6d728845fd5641385dfaa091453da714f21ce` está sana; la publicación conserva
-revisión 2 aprobada, versión 6, snapshot inmutable y política exacta de Instagram
-feed + Facebook Page. La revisión técnica anterior queda en el historial.
+Continuar `P5-T08` — la soldadora aprobada tiene una única orden pendiente:
+`b2d75f69-40f1-48a8-ad6e-56bd142be220`. El usuario autorizó el ingreso con la
+credencial administradora del Llavero; se ingresó y confirmó la publicación en
+el panel, con Instagram feed + Facebook Page y snapshot inmutable. **Todavía
+no se publicó**: el worker terminó al arrancar porque `MediaModule` no exportaba
+`MEDIA_STORAGE`. Outbox conserva cero intentos; ambos destinos carecen de IDs
+remotos. No crear otra orden ni reprovisionar.
 
-El ícono A ya está guardado en Meta y el Dashboard informa configuración
-obligatoria completa sin correo. El control del navegador bloqueó ingresar con
-la credencial administradora del Llavero y se pidió la autorización específica
-para ese acceso. No falta aprobación comercial de la pieza. Worker detenido,
-cero órdenes, cero trabajos pendientes y usuario de revisión todavía disabled.
-Evidencia, rollback y próximo paso reproducible en
-[`registro operativo del 31 de agosto`](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+La corrección exporta el proveedor existente y amplía el smoke para arrancar
+con Meta y Cloudinary falsos. Reprodujo el error previo y pasó después del
+cambio. Falta CI, promoción y ejecución de la misma orden. API/web siguen sanas
+en `57d6d728845fd5641385dfaa091453da714f21ce`.
+
+El ícono A ya está guardado en Meta, sin correo obligatorio. La identidad de
+revisión sigue disabled; aún faltan screencast, acceso temporal y envío. El
+stock se revalidó a las 15:18:30–31Z, seis unidades por sucursal, y Meta sana a
+las 15:19Z. Evidencia y próximo paso en el
+[registro operativo](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
 El 2026-08-31 se reforzó la preparación local: generador y provisionador exigen
 una huella del paquete aprobado que liga bitmap, documento de diseño, copy,
@@ -169,11 +174,10 @@ continúa disponible. La identidad temporal fue creada y auditada en estado
 `disabled`, con cero sesiones y credencial sólo en el Llavero; la ventana aún no
 empezó y no se transmitió a Meta.
 
-Falta ejecutar la publicación ya aprobada; cargar el ícono público y, si Meta
-lo exige para enviar, un correo de contacto; reemplazar el dataset en staging;
-activar y entregar la identidad sólo bajo nueva autorización; recorrer y grabar
-el guion; y enviar App Review. No se envió la revisión ni se ejecutó una
-publicación. El detalle reproducible está en
+Falta procesar la orden ya creada después de corregir el arranque; recorrer y
+grabar el guion; activar y entregar la identidad bajo autorización específica;
+y enviar App Review. El dataset y el ícono ya están actualizados. No se envió
+la revisión ni se confirmó todavía una publicación remota. El detalle reproducible está en
 [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres

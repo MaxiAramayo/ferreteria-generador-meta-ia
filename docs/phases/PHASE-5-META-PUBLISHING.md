@@ -1108,6 +1108,19 @@ integración con usuarios y activos reales.
 
 - Pendiente.
 
+### Continuación operativa: arranque del worker, 2026-08-31
+
+- Estado real: acceso administrador autorizado e ingreso completado. Una orden
+  `b2d75f69-40f1-48a8-ad6e-56bd142be220` creada desde el panel; todavía sin
+  publicación remota. El arranque falló antes de consumir outbox.
+- Corrección acotada a P5-T08: exportar `MEDIA_STORAGE` desde `MediaModule` sin
+  duplicar instancias; smoke real de Nest con Meta/Cloudinary falsos, además
+  del caso sin proveedores. No cambia dominio, permisos, medios ni snapshot.
+- Verificaciones: fallo reproducido en smoke antes del cambio; arranque y
+  SIGTERM correctos después. Verificación integral y CI en curso.
+- Próximo paso: promover la corrección y procesar únicamente la orden existente.
+  [Registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+
 ## P5-T09 — Validar publicación real de punta a punta
 
 - [ ] Tarea completada

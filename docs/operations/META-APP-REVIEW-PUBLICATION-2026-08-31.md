@@ -4,13 +4,22 @@
 
 El usuario aprobó el PNG y copy sin precio y pidió «publica nomas, y continua».
 La pieza está desplegada y provisionada en staging, **todavía sin publicar en
-Instagram ni Facebook**. Hay cero órdenes y cero mensajes outbox. El worker
-permanece detenido.
+Instagram ni Facebook**. El usuario autorizó expresamente el ingreso con la
+credencial administradora del Llavero («si autorizo»). El ingreso y la
+confirmación visible se completaron sin volver a pedir aprobación comercial.
 
-El control del navegador rechazó ingresar a staging usando la credencial
-administradora del Llavero por falta de autorización específica para ese acceso.
-Se solicitó esa autorización y no se eludió el rechazo mediante otro ingreso.
-La aprobación comercial de la pieza ya está concedida; no debe volver a pedirse.
+Se creó una sola orden desde el panel a las 15:20:43Z:
+`b2d75f69-40f1-48a8-ad6e-56bd142be220`, snapshot
+`5a083000-0000-4000-8000-000000000004`. Ambos destinos siguen `pending`; la
+publicación pasó a versión 7. No se debe crear otra orden ni reprovisionar.
+
+El worker efímero terminó durante el arranque por `MEDIA_STORAGE` no exportado
+por `MediaModule`. Outbox conserva una fila pendiente con cero intentos y ambos
+destinos sin IDs remotos: no se llamó a Meta. La corrección exporta la instancia
+existente sin duplicar proveedores. El smoke con Meta/Cloudinary falsos
+reprodujo el fallo antes del cambio y luego verificó arranque y cierre ordenado.
+La promoción de esa corrección y el procesamiento de la misma orden están
+pendientes.
 
 ## Versión y evidencia
 
@@ -58,13 +67,17 @@ contiene credenciales.
 
 ## Verificaciones comerciales y de cuenta
 
-Odoo confirmó producto activo LA-SER Inverter 160 A y seis unidades en cada
-sucursal a las 14:26:39–40Z. Los request IDs están en el
+Odoo volvió a confirmar producto activo LA-SER Inverter 160 A y seis unidades
+en cada sucursal a las 15:18:30–31Z. Request IDs: producto
+`bf709440-6e6c-4220-a7f4-d78c90e201f7`, Casa Central
+`ac57b61f-9fff-490c-ac21-347465207b8f`, Rivadavia
+`dabe4a35-ee1a-41bd-a4ec-0d736835b993`. Los request IDs están en el
 [paquete de revisión](../integrations/META-APP-REVIEW.md). No se consultó ni
 publicó un nuevo precio. Se revalidará stock otra vez al ejecutar la orden si
 la pausa vuelve vieja esta evidencia.
 
-Meta revalidó a las 14:32:09Z los cinco permisos y los activos:
+El control visible de salud de Meta revalidó a las 15:19Z los cinco permisos
+explícitos, `public_profile` implícito y los activos:
 
 - Instagram: `@ferreteria_aramayo`, `17841478812093081`.
 - Facebook: `Ferreteria Y Lubricentro Aramayo`, `252222471780140`.
@@ -90,24 +103,20 @@ alcance definitivo. `P5-T08` sigue abierta; no se inició `P5-T09`.
 
 ## Próximo paso exacto
 
-1. Obtener la autorización específica solicitada para entrar como administrador
-   en staging, o que el usuario inicie la sesión. No volver a pedir aprobación
-   del PNG o copy ya aprobados.
-2. Revalidar stock y conexión si transcurrió tiempo. Comparar snapshot, destinos
-   y checksum anteriores. Leer órdenes existentes antes de solicitar una.
-3. Preparar credenciales Cloudinary staging sólo para el worker efímero, sin
-   OpenAI ni Odoo. El servicio worker necesita salida HTTPS: usar un override
-   temporal que lo conecte a las redes existentes `backend` y `edge`, sin
-   publicar puertos ni modificar el aislamiento de PostgreSQL/Redis.
-4. Solicitar una única orden desde la confirmación del panel. Si se usa el API
-   autorizado, el cuerpo es `expectedVersion: 6` y los dos destinos exactos;
-   conservar una sola clave idempotente
-   `app-review-soldadora-20260831-7e44022a2020875b`.
-5. Ejecutar el worker sólo para esa orden, observar los dos resultados y guardar
-   IDs y enlaces. Si alguno queda ambiguo, reconciliar; nunca crear otra orden
-   para compensar ni volver a publicar un destino confirmado.
-6. Detener el worker, retirar su entorno temporal y cerrar la sesión operativa.
-   Continuar el guion de App Review con la misma orden, sin una segunda pieza.
+1. Promover la corrección de arranque después de CI. El worker fallido está
+   detenido; sus cuatro credenciales Cloudinary y override de red temporales
+   están en `/run`, protegidos con modo 0600.
+2. Revalidar stock si transcurrió tiempo y consultar la orden existente. No
+   volver a confirmar publicación ni usar la clave API propuesta anteriormente:
+   el panel ya creó su propia orden idempotente.
+3. Ejecutar el worker corregido únicamente para la orden
+   `b2d75f69-40f1-48a8-ad6e-56bd142be220`, con las redes `backend` y `edge`,
+   sin puertos publicados, OpenAI ni Odoo.
+4. Observar los dos resultados y guardar IDs y enlaces. Si alguno queda ambiguo,
+   reconciliar; nunca crear otra orden para compensar ni volver a publicar un
+   destino confirmado.
+5. Detener y retirar el worker, eliminar su entorno temporal y cerrar la sesión
+   operativa. Continuar App Review sobre la misma orden, sin una segunda pieza.
 
 ## Validación local
 
