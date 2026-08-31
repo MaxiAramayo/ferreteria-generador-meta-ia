@@ -37,6 +37,13 @@ estaban activos.
 
 ## Estado staging verificado
 
+Actualización del 2026-08-31: staging ejecuta
+`57d6d728845fd5641385dfaa091453da714f21ce`, con API, web y dependencias sanas.
+La soldadora aprobada está provisionada como revisión 2, sin órdenes ni worker.
+Backup, rollback y estado de publicación están en el
+[registro operativo](META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+La descripción siguiente conserva el antecedente de la preparación inicial.
+
 El 2026-08-21 se promovió la release
 `c5e9d7d4764ece01e2f1a461d443fee40379afd6` bajo
 `/opt/aramayo-content-staging`. CI `32537920990` y la publicación de imágenes

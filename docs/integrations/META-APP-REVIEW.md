@@ -33,7 +33,9 @@ organización, original, formato, tamaño, cloud y espacio staging. La variante
 JPEG para Meta la resuelve el adaptador existente.
 
 
-El paquete está **en reemplazo y no está listo para enviar**.
+El paquete aprobado está **desplegado y provisionado; todavía no está listo para enviar App Review**.
+Estado remoto y bloqueo de acceso en el
+[registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 Las URLs, callbacks, justificaciones y guion están definidos. El negocio eligió
 usar la Page real de Aramayo y `@ferreteria_aramayo`; no se crearán activos de
 prueba separados. La aprobación administrativa sigue vigente, pero la
@@ -191,12 +193,13 @@ no la placa tipográfica anterior. Se reutiliza `AramayoMark` con rojo de marca
 sobre fondo oscuro, también en el favicon del panel. El PNG de 1024×1024 se
 genera junto con la candidata como `aramayo-app-icon.png`; su SHA-256 es
 `7a9d59c2294ac3a7515ca4aae0be61bc5d02bca87f4d468dbcffccb9a5cb31b0`.
-Falta cargarlo en Meta, no volver a elegir otro diseño.
+Se cargó y guardó en Meta el 2026-08-31, con el isotipo completo.
 
 El usuario indicó omitir el correo si es opcional. Sólo si Meta lo exige para
 enviar se usa el contacto autorizado, conservado localmente fuera de Git en
 `output/meta-app-review-private/contact.json`, con modo `0600`. No se incluye
-en la publicación, la imagen ni las URLs legales. No se cargó en Meta.
+en la publicación, la imagen ni las URLs legales. No se cargó en Meta: el
+Dashboard confirmó toda la configuración obligatoria completa sin correo.
 
 ## Alcance que se presenta
 
@@ -338,7 +341,7 @@ eliminación real y transaccional en PostgreSQL.
 - [x] Administrador de Meta confirmó nombre, dominio y URLs configurables el
       2026-08-21.
 - [x] Isotipo A seleccionado por el usuario el 2026-08-31 y PNG preparado.
-- [ ] Ícono público cargado en Meta.
+- [x] Ícono público cargado, guardado y comprobado tras recarga en Meta.
 - [x] Se eligió y documentó la estrategia de activos para el revisor: activos
       reales con autorización puntual recibida el 2026-08-21.
 - [x] Usuario temporal creado `disabled`, sin sesiones y con secreto sólo en el

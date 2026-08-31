@@ -107,10 +107,19 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T08` — requisitos legales y App Review. La implementación local ya
-incluye política de privacidad, términos, instrucciones públicas, callbacks
-firmados de eliminación/desautorización, estado opaco y el paquete completo de
-justificaciones, usuario temporal y guion.
+Continuar `P5-T08` — la soldadora aprobada está desplegada y provisionada, pero
+**todavía no se publicó**. La versión staging
+`57d6d728845fd5641385dfaa091453da714f21ce` está sana; la publicación conserva
+revisión 2 aprobada, versión 6, snapshot inmutable y política exacta de Instagram
+feed + Facebook Page. La revisión técnica anterior queda en el historial.
+
+El ícono A ya está guardado en Meta y el Dashboard informa configuración
+obligatoria completa sin correo. El control del navegador bloqueó ingresar con
+la credencial administradora del Llavero y se pidió la autorización específica
+para ese acceso. No falta aprobación comercial de la pieza. Worker detenido,
+cero órdenes, cero trabajos pendientes y usuario de revisión todavía disabled.
+Evidencia, rollback y próximo paso reproducible en
+[`registro operativo del 31 de agosto`](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
 El 2026-08-31 se reforzó la preparación local: generador y provisionador exigen
 una huella del paquete aprobado que liga bitmap, documento de diseño, copy,

@@ -1089,6 +1089,21 @@ integración con usuarios y activos reales.
 - Próximo paso exacto: verificar el reemplazo, desplegar el paquete aprobado y
   ejecutar una sola orden; después continuar App Review sin duplicar la pieza.
 
+- Fecha: 2026-08-31, preparación remota terminada.
+- Estado real: PR 14 integrado y SHA `57d6d728845fd5641385dfaa091453da714f21ce`
+  desplegado sano. La soldadora está en revisión 2 aprobada, versión 6, sin
+  órdenes. Ícono A cargado en Meta; no se necesitó correo.
+- Verificaciones ejecutadas: CI de PR/main e imágenes aprobados; backup con
+  catálogo verificado; HTTPS y checksums exactos; provisionador `verified`,
+  `created`, `already-provisioned`; historial anterior intacto y cero outbox.
+- Bloqueo: el control del navegador rechazó usar la credencial administradora
+  del Llavero sin autorización específica. Se la solicitó; no se eludió.
+  La pieza y los destinos ya están aprobados y no deben reconfirmarse.
+- Verificaciones pendientes: publicación y resultado por destino, recorrido y
+  screencast. Usuario temporal sigue disabled; no se envió App Review.
+- Próximo paso exacto y evidencia:
+  [registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+
 ### Evidencia de cierre
 
 - Pendiente.
