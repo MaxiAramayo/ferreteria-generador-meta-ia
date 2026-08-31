@@ -136,7 +136,7 @@ export const COLORS = {
   paper: "#f6f1ea",
   ferreteria: "#e63b1e",
   lubricentro: "#ffb200",
-  whatsapp: "#1f8a4c",
+  action: "#b62a12",
 } as const;
 
 export const FORMATS = {

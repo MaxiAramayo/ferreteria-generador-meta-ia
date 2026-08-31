@@ -137,13 +137,10 @@ export function contrastRatio(
  * reducida, y el margen extra no cuesta nada porque el color de fondo del panel
  * lo elegimos nosotros.
  *
- * `largeText` es la excepción de WCAG para tipografía grande en negrita, y acá
- * cubre un solo elemento: el botón de acción. El verde de WhatsApp con texto
- * blanco mide 4,38:1, así que supera `largeText` y queda 0,12 por debajo de
- * `text`. No se corrige acá: ese verde es identidad aprobada en `P1-T06` y lo
- * usan las dieciocho piezas del catálogo, así que cambiarlo es una decisión de
- * marca y no un ajuste de esta tarea. El umbral separado deja el dato a la
- * vista en lugar de esconderlo bajando la barra general.
+ * `largeText` conserva la excepción de WCAG para tipografía grande en negrita.
+ * Los botones de acción ya no dependen de esa excepción: sus pares de color se
+ * verifican además contra `text`, porque se leen en móvil y deben sostener el
+ * mismo margen que el resto del copy.
  */
 export const CONTRAST_THRESHOLDS = Object.freeze({
   largeText: 3,

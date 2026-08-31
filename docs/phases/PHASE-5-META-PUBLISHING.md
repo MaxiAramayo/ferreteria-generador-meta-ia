@@ -952,6 +952,30 @@ integración con usuarios y activos reales.
   de credenciales hasta la decisión de Meta con máximo de 30 días, la
   supervisión humana y el retiro manual. Una respuesta ambigua sólo se
   reconcilia.
+- El 2026-08-22 el negocio descartó la placa y el copy técnicos antes de crear
+  una orden o publicar. La primera sustitución comercial también se descartó:
+  el negocio confirmó que reutilizaba una publicación de herramientas
+  eléctricas ya emitida. Su SHA
+  `21f1e5d2af47aeca4d71a353b3aac256d1b85c2d81c649398914d8bd082208c1`
+  nunca fue aprobado.
+- Se generó una candidata distinta sobre soldadoras, con escena genérica creada
+  mediante la IA integrada del chat —cero llamadas a la API de imágenes de la
+  plataforma—, CTA rojo “Escribinos” y sin verde. El 2026-08-24 se agregó el
+  layout explícito `producto-editorial`: conserva la foto nítida completa y usa
+  una segunda copia desenfocada como marco. Después se consultó la API comercial
+  GET-only de Odoo y se fijaron LA-SER Inverter 160 A, referencia DISC 225, SKU
+  7039, precio minorista $239.399,91 y disponibilidad en ambas sucursales —seis
+  unidades en cada una a las 23:20:16Z—. El layout admite precio opcional y el
+  snapshot exige revalidar precio y stock antes de publicar. El negocio pidió
+  no mostrar referencia ni SKU; la candidata visible y su copy ya no contienen
+  esos identificadores. Odoo identifica a LA-SER como proveedor principal y su
+  ficha oficial exacta mostraba $233.288,00 con impuestos a las 23:33:49Z. La
+  comparación queda registrada sin reemplazar automáticamente el precio propio.
+  Dos renders consecutivos fueron idénticos y produjeron 1080×1350, 1.149.658
+  bytes y SHA-256
+  `a6022b74d3356a95e72a33bd51bbe1636df48e27d4b0a5ac56eb17de0053c19d`.
+  El provisionador queda bloqueado hasta que el negocio apruebe expresamente
+  ese bitmap y el nuevo copy.
 - Archivos principales: vertical `connections` de API, repositorio de
   conexiones, contratos, tres rutas legales, seguridad, runbook y paquete de
   revisión.
@@ -972,14 +996,98 @@ integración con usuarios y activos reales.
   dominio, privacidad, términos, eliminación, desautorización y redirect OAuth
   exactos. Meta modela instrucciones públicas y callback de eliminación como
   alternativas: se eligió el callback firmado sin retirar la página pública.
-- La identidad individual de App Review fue creada `disabled`, con los cinco
-  roles, cero sesiones, Argon2id en PostgreSQL y texto plano sólo en el Llavero.
+- La identidad individual de App Review fue creada `disabled`, con admin,
+  publisher y viewer, cero sesiones, Argon2id en PostgreSQL y texto plano sólo
+  en el Llavero.
   La auditoría fija activación explícita y máximo de 30 días desde la entrega;
   no se activó ni se transmitió la credencial.
-- Próximo paso exacto: aprobar/cargar ícono y eventual correo de contacto,
-  preparar la muestra sintética, activar la identidad sólo con autorización y
+- Próximo paso exacto: aprobar el nuevo bitmap y copy; aprobar/cargar ícono y
+  eventual correo de contacto; reemplazar la muestra en staging; activar la
+  identidad sólo con autorización y
   recorrer/grabar el guion. El envío de App Review y las publicaciones siguen
   expresamente fuera de la autorización vigente.
+
+- Fecha: 2026-08-31.
+- Estado real: preparación local reforzada; `P5-T08` sigue abierta. El control
+  compartido ahora liga la aprobación al paquete completo, no sólo al PNG.
+- Archivos modificados en esta continuación: `tools/meta-app-review/approval.ts`
+  y sus pruebas; integración en `manifest.ts`, `content.ts`, `cli.ts` y
+  `provision.ts`; paquete documental de App Review y `docs/STATUS.md`. Se
+  conservaron los cambios previos de diseño y las eliminaciones ya presentes
+  en Git; no se creó commit ni se alteró su staging.
+- Decisiones tomadas: huella canónica `meta-app-review-approval/v1` sobre
+  bitmap, diseño y manifiesto completo salvo los campos de aprobación; fecha
+  y checksum válidos obligatorios; control previo a navegador, red y base;
+  huella aprobada en auditoría. Implementa el alcance de ADR-019 sin ampliar
+  permisos ni autorizar publicaciones. Precio y stock siguen pendientes de
+  reconsulta real antes de publicar.
+- Verificaciones ejecutadas: `pnpm verify` completo en verde (incluye 39
+  pruebas del paquete, typecheck, lint y smokes de API, web y worker);
+  doble render local con cero diferencias entre canales, mismo PNG 1080×1350
+  de 1.149.658 bytes y SHA-256
+  `a6022b74d3356a95e72a33bd51bbe1636df48e27d4b0a5ac56eb17de0053c19d`;
+  inspección visual; `pnpm db:test` completo contra PostgreSQL 17.9 efímero,
+  con migración, aislamiento y rollback/reapply. El intento inicial contra el
+  puerto local 5432 respondió `ECONNREFUSED`; se verificó después en un
+  contenedor temporal con puerto dinámico, credencial aleatoria y volumen en
+  memoria, eliminado al terminar. No se editó `.env`.
+- Verificaciones pendientes: recorrido con identidad de revisión y screencast
+  en staging, sujetos a las aprobaciones vigentes.
+- Bloqueo: aprobación concreta de la candidata y autorizaciones externas aún
+  pendientes; generar la huella no constituye aprobación. No se consultó
+  Odoo, activó al usuario, desplegó, publicó ni envió App Review.
+- Próximo paso exacto: obtener evidencia comercial vigente y aprobación del
+  paquete concreto siguiendo
+  [`META-APP-REVIEW.md`](../integrations/META-APP-REVIEW.md#control-local-de-aprobación-del-paquete-2026-08-31),
+  luego continuar los pendientes remotos ya enumerados.
+
+- Fecha: 2026-08-31, corrección comercial posterior a la presentación.
+- Estado real: nueva candidata sin precio, pendiente de aprobación final. El
+  usuario pidió copy de venta que explique utilidad, nombres de ambos negocios,
+  pocos emojis y sin repetir el aviso ilustrativo del bitmap. La disponibilidad
+  continúa sujeta a verificación interna, aunque no se mencione ese proceso en
+  el copy. El ícono elegido es la A del motor, ya exportada y aplicada al favicon.
+- Archivos modificados en esta corrección: `tools/meta-app-review/manifest.ts`,
+  `content.ts`, `cli.ts`, `artifact.test.ts`, nuevo `app-icon.ts`;
+  `packages/design-engine/src/layouts/composed-pieces.tsx` y sus pruebas;
+  `apps/web/app/icon.tsx`; contexto social basado en indicaciones explícitas en
+  `.agents/social-media-context-sms.md`; catálogo, ADR-019, paquete de revisión
+  y `docs/STATUS.md`.
+- Decisiones tomadas: sin importe ni «Precio minorista», «Consultar precio»
+  con token de cuerpo; caption de cuatro párrafos y dos emojis, utilidad sin
+  prestaciones inventadas; reutilizar `AramayoMark`; contacto personal fuera de
+  Git, sólo si Meta exige correo. No se modificaron prompts ni modelos.
+- Verificaciones ejecutadas: `pnpm verify` completo en verde, con 39 pruebas
+  del paquete de App Review y 80 del motor; doble render idéntico de 1080×1350,
+  1.146.451 bytes, SHA-256
+  `407de4f95c8e18f4c52fa0544785f06f81fe9832de1032a3ac7e977fa0ca7d43`;
+  PNG del ícono de 1024×1024 e inspección del favicon de 128×128 producido por
+  Next.js; revisión visual de la pieza, sin precio ni desbordes.
+- Verificaciones pendientes: stock vigente y recorrido/screencast remoto bajo
+  autorización.
+- Bloqueo: falta aprobar la pieza y copy corregidos y autorizar las acciones
+  externas; no se generaron imágenes con IA, no se desplegó ni se publicó.
+- Próximo paso exacto: presentar la nueva candidata y continuar App Review
+  cuando se confirme su aprobación y las acciones remotas concretas.
+
+- Fecha: 2026-08-31, autorización de publicación recibida.
+- Estado real: el usuario aprobó la soldadora sin precio y ordenó publicarla.
+  Odoo volvió a confirmar identidad y seis unidades por sucursal; Meta revalidó
+  conexión, Page, Instagram y cinco permisos. No había órdenes ni trabajos.
+- Archivos modificados: manifiesto, pruebas de aprobación, provisionador y
+  comprobante de entrega Cloudinary; artefactos públicos exactos; documentación.
+- Decisiones: mantener la huella aprobada y registrar la consulta comercial nueva
+  por separado; sustituir la muestra técnica mediante nueva revisión y snapshot,
+  con lock, control de versión y rechazo si existe una orden. Conservar historial.
+- Verificaciones ejecutadas: `pnpm verify` completo en verde e integración
+  contra PostgreSQL 17.9 efímero: dry run sin escritura, rollback ante conflicto,
+  preservación exacta de revisión/snapshot antiguos, reejecución idempotente,
+  almacenamiento Cloudinary correcto y rechazo si ya hay una orden.
+- Verificaciones pendientes: despliegue, publicación idempotente, evidencia
+  remota y screencast. La autorización ya no
+  es un bloqueo para publicar la pieza concreta.
+- Próximo paso exacto: verificar el reemplazo, desplegar el paquete aprobado y
+  ejecutar una sola orden; después continuar App Review sin duplicar la pieza.
 
 ### Evidencia de cierre
 

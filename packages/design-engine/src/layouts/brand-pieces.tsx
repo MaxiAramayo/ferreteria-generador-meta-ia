@@ -220,7 +220,7 @@ export function BannerMarca(props: LayoutProps): ReactElement {
           <div
             style={{
               alignItems: "center",
-              backgroundColor: COLORS.whatsapp,
+              backgroundColor: COLORS.rustDeep,
               borderRadius: 18,
               color: COLORS.white,
               display: "flex",

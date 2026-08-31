@@ -95,9 +95,7 @@ export function ProductoDestacado(props: LayoutProps): ReactElement {
               justifyContent: "space-between",
             }}
           >
-            <Cta theme={theme}>
-              {content.callToAction ?? "Consultanos por WhatsApp"}
-            </Cta>
+            <Cta theme={theme}>{content.callToAction ?? "Escribinos"}</Cta>
             <Footer
               branch={footerBranch(content, context, theme)}
               context={context}
@@ -215,7 +213,7 @@ export function ProductoMosaico(props: LayoutProps): ReactElement {
             )}
           </div>
           <Cta compact theme={theme}>
-            {content.callToAction ?? "Consultanos por WhatsApp"}
+            {content.callToAction ?? "Escribinos"}
           </Cta>
         </div>
         <div style={{ marginTop: SPACING.md }}>
@@ -705,9 +703,7 @@ export function PresentacionMarca(props: LayoutProps): ReactElement {
           paddingTop: SPACING.xl,
         }}
       >
-        <Cta theme={theme}>
-          {content.callToAction ?? "Consultanos por WhatsApp"}
-        </Cta>
+        <Cta theme={theme}>{content.callToAction ?? "Escribinos"}</Cta>
         <Footer
           branch={footerBranch(content, context, theme)}
           context={context}
@@ -826,9 +822,7 @@ export function Sucursales(props: LayoutProps): ReactElement {
           marginTop: SPACING.xl,
         }}
       >
-        <Cta theme={theme}>
-          {content.callToAction ?? "Consultanos por WhatsApp"}
-        </Cta>
+        <Cta theme={theme}>{content.callToAction ?? "Escribinos"}</Cta>
         <div
           style={{
             color: theme.colors.muted,

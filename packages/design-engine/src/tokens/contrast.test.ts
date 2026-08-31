@@ -65,19 +65,19 @@ test("el texto y el precio de cada tema superan el umbral sobre su panel", () =>
   }
 });
 
-test("el verde de acción de marca no puede empeorar sin que se note", () => {
-  // 4,38:1 es lo que mide hoy el verde de WhatsApp con texto blanco: supera el
-  // umbral de texto grande y queda 0,12 por debajo del de texto normal.
-  // Cambiar ese verde es una decisión de marca; esta prueba impide que baje.
-  const measured = contrastRatio(
-    themeFor("taller").colors.actionText,
-    themeFor("taller").colors.action,
-  );
+test("cada color de acción supera el umbral de texto normal", () => {
+  for (const themeId of THEME_IDS) {
+    const theme = themeFor(themeId);
+    const measured = contrastRatio(
+      theme.colors.actionText,
+      theme.colors.action,
+    );
 
-  assert.ok(
-    Math.round(measured * 100) / 100 >= 4.38,
-    `El contraste del botón de acción bajó a ${measured.toFixed(2)}:1.`,
-  );
+    assert.ok(
+      meetsContrast(theme.colors.actionText, theme.colors.action),
+      `El botón de acción de ${themeId} mide ${measured.toFixed(2)}:1 y no llega al umbral de texto normal.`,
+    );
+  }
 });
 
 test("un color con forma desconocida se rechaza en lugar de degradarse a negro", () => {

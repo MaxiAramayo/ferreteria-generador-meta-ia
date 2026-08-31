@@ -13,6 +13,7 @@ export type PublicationLayoutId =
   | "ficha-variantes"
   | "guia-aplicacion"
   | "producto-destacado"
+  | "producto-editorial"
   | "producto-precio"
   | "combo-kit"
   | "problema-solucion"

@@ -626,7 +626,7 @@ a {
 
 .publication-state-rail[data-status="approved"],
 .publication-state-rail[data-status="published"] {
-  border-left-color: #1f8a4c;
+  border-left-color: var(--workspace-ink);
 }
 
 .publication-state-rail span,
@@ -1449,7 +1449,7 @@ a {
 }
 
 .meta-connection-card[data-health="healthy"] {
-  border-left-color: #1f8a4c;
+  border-left-color: var(--configuration-ink);
 }
 
 .meta-connection-card[data-health="revoked"],
@@ -1568,9 +1568,13 @@ a {
 }
 
 .configuration-notice-success {
-  background-color: #e4f4e9;
-  border-color: #1f8a4c;
-  color: #155d34;
+  background-color: color-mix(
+    in srgb,
+    var(--configuration-ink) 8%,
+    var(--configuration-paper)
+  );
+  border-color: var(--configuration-ink);
+  color: var(--configuration-ink);
 }
 
 .configuration-notice-conflict,

@@ -1,6 +1,8 @@
+import { COLORS } from "@aramayo/design-engine";
+import { AramayoMark } from "@aramayo/design-engine/react";
 import { ImageResponse } from "next/og";
 
-export const size = { height: 32, width: 32 };
+export const size = { height: 128, width: 128 };
 export const contentType = "image/png";
 
 export default function Icon() {
@@ -8,17 +10,14 @@ export default function Icon() {
     <div
       style={{
         alignItems: "center",
-        background: "#e63b1e",
-        color: "#ffffff",
+        background: COLORS.graphiteDeep,
         display: "flex",
-        fontSize: 22,
-        fontWeight: 900,
         height: "100%",
         justifyContent: "center",
         width: "100%",
       }}
     >
-      A
+      <AramayoMark color={COLORS.rust} size={96} />
     </div>,
     size,
   );

@@ -63,6 +63,7 @@ export const CATALOG_STATUS: Readonly<Record<LayoutId, CatalogStatus>> =
     "presentacion-marca": "current",
     "problema-solucion": "current",
     "producto-destacado": "current",
+    "producto-editorial": "current",
     "producto-mosaico": "current",
     "producto-precio": "current",
     "promo-producto": "current",

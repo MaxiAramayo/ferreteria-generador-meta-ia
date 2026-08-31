@@ -23,7 +23,6 @@ export const COLORS = Object.freeze({
   safety: "#ffb200",
   safetyDeep: "#e59400",
   steel: "#6e6a66",
-  whatsapp: "#1f8a4c",
   white: "#ffffff",
 });
 

@@ -812,12 +812,10 @@ Decisiones que conviene registrar:
 
 Desviaciones:
 
-- **El botón de acción mide 4,38:1 y el umbral de texto normal es 4,5:1.** El
-  verde de WhatsApp con texto blanco es identidad aprobada en `P1-T06` y lo usan
-  las dieciocho piezas del catálogo, así que cambiarlo es una decisión de marca
-  y no un ajuste de esta tarea. Se le exige el umbral de texto grande —es
-  tipografía grande en negrita— y una prueba impide que el valor baje. Queda
-  como decisión pendiente en `docs/STATUS.md`.
+- **Al cerrar esta tarea, el botón de acción medía 4,38:1.** La paleta original
+  usaba verde de WhatsApp con texto blanco y se verificaba como texto grande.
+  Esa decisión histórica fue reemplazada el 2026-08-24 por pedido del usuario:
+  el motor ya no usa verde de acción y los nuevos pares superan 4,5:1.
 - **`banner-fb` y `destacada` no componen.** El rectángulo reservado de un
   banner no sostiene el bloque de marca sin achicar el titular hasta que deje de
   serlo, y una portada destacada ya tiene su propia pieza. Un lote que los pida

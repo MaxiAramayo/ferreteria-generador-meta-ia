@@ -447,6 +447,23 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["subtitle", "category", "badge", "callToAction"],
       singlePhoto,
     ),
+    "producto-editorial": specFor(
+      "producto-editorial",
+      "publicacion",
+      ["feed"],
+      ["title", "category"],
+      [
+        "subtitle",
+        "price",
+        "badge",
+        "callToAction",
+        "disclaimer",
+        "validity",
+        "branch",
+        "phone",
+      ],
+      technicalScene,
+    ),
     "producto-mosaico": specFor(
       "producto-mosaico",
       "publicacion",
