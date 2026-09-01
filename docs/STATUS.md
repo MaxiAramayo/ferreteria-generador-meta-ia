@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-08-31
+Actualizado: 2026-09-01
 
 ## Fase activa
 
@@ -107,79 +107,57 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T08` — la soldadora aprobada se publicó una sola vez en ambos
-destinos. La orden `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó `published` a
-las 12:45:24Z del 2026-09-01, con Instagram `17864904492660609` y Facebook
-`252222471780140_1598131635337533`. Los enlaces visibles muestran el copy y
-bitmap aprobados; Facebook la marca pública. El panel quedó en versión 8 y
-bloquea duplicados.
+Iniciar `P5-T09` — validar la publicación real de punta a punta. `P5-T08` cerró
+el 2026-09-01.
 
-PR 15 corrigió la exportación de `MEDIA_STORAGE`; CI de PR `33508422624`, CI de
-main `33508711483` e imágenes inmutables `33508917207` pasaron. El worker
-`bc32e840ec67676198c36d69fc49bab9bc4a2ec8` procesó la fila de outbox una vez,
-sin fallos, y fue retirado junto con su entorno temporal. API/web siguen sanas
-sobre `57d6d728845fd5641385dfaa091453da714f21ce`.
+**La app está en vivo.** La persona administradora la publicó en la consola de
+Meta, que confirmó «Tu aplicación se ha publicado correctamente» y la describe
+como «disponible para su uso público»; **Acciones requeridas** no informa nada
+pendiente. Se resolvió no enviar App Review: el acceso estándar se aprueba
+automáticamente y alcanza porque quienes operan la plataforma tienen rol en la
+app; el acceso avanzado es para personas usuarias sin rol y Tech Provider, para
+operar activos de otros portfolios —una clasificación incorrecta para Aramayo e
+irreversible—. Queda en
+[`ADR-022`](architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
 
-Odoo confirmó producto activo y seis unidades por negocio inmediatamente antes
-de ejecutar. No se publicó precio, historia, promoción ni otra pieza. La
-identidad de revisión permanece disabled; faltan autorización específica para
-activarla/entregarla, recorrido con esa identidad, screencast y envío de App
-Review. El ícono A ya está guardado y Meta no exigió correo. Evidencia completa
-en el
+Consecuencia permanente: **quien conecte Meta debe tener rol en la app**. Sin
+rol no se conceden los cinco permisos, la conexión queda `permission_revoked` y
+no puede publicar.
+
+**Lo publicado.** La orden `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó
+`published` a las 12:45:24Z del 2026-09-01, con Instagram `17864904492660609` y
+Facebook `252222471780140_1598131635337533`. Los enlaces visibles muestran el
+copy y bitmap aprobados; Facebook la marca pública. El panel quedó en versión 8
+y bloquea duplicados. Odoo confirmó producto activo y seis unidades por negocio
+inmediatamente antes de ejecutar; no se publicó precio, historia ni promoción.
+API y web siguen sanas sobre `57d6d728845fd5641385dfaa091453da714f21ce`; el
+worker `bc32e840ec67676198c36d69fc49bab9bc4a2ec8` procesó la única fila de
+outbox y fue retirado con su entorno temporal. Evidencia completa en el
 [registro operativo](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
-El 2026-08-31 se reforzó la preparación local: generador y provisionador exigen
-una huella del paquete aprobado que liga bitmap, documento de diseño, copy,
-evidencia comercial, destinos y límites. Cambiar cualquiera invalida la
-aprobación anterior. El usuario aprobó el paquete exacto y ordenó publicarlo
-el 2026-08-31; la huella registra esa aprobación, no revalida datos comerciales. Detalles y procedimiento
-en el paquete de App Review.
+**Qué le sirve a `P5-T09` y qué no.** Esa orden ya evidencia publicación única
+por destino, coincidencia remota de copy y bitmap, IDs consultables desde el
+historial y bloqueo de duplicado. **No** cubre el primer criterio: la pieza no
+proviene de un brief, porque su revisión y snapshot los creó el provisionador de
+App Review. Tampoco existe todavía el fallo inducido con reconciliación que no
+altere el destino exitoso, ni el informe de fallos, latencia y reconciliación
+con auditoría de logs, base y almacenamiento sin secretos. `P5-T09` debe
+producir esos tres, y reutilizar la publicación existente como evidencia sin
+crear otra orden para la misma pieza.
 
-El usuario decidió el 2026-08-21 que App Review use la Page real de Aramayo y
-`@ferreteria_aramayo`, y aprobó nombre, marca responsable, dominio, textos
-legales, teléfono y domicilios. El 2026-08-22 descartó el bitmap y copy técnicos:
-esa aprobación ya no es válida. También rechazó la primera candidata comercial
-de herramientas eléctricas porque reutilizaba una publicación existente. La
-nueva candidata muestra completa una soldadora genérica dentro de un marco
-difuminado y la rotula como ilustrativa. La capa determinista informa el
-producto real **LA-SER Inverter 160 A**. El 2026-08-31 el usuario pidió quitar
-el importe y dejar **“Consultar precio” en tipografía normal**, explicar primero
-la utilidad y nombrar Casa Central y Rivadavia sin “al momento de la
-verificación”. El copy usa dos emojis y no repite “Imagen ilustrativa”, que
-permanece en la pieza y su texto alternativo. La ficha oficial respalda el
-formato compacto y liviano; no se agregaron prestaciones sin fuente. Odoo
-confirmó seis unidades por sucursal el 2026-08-24T23:20:16Z: identidad y stock
-deben revalidarse antes de publicar. Los precios históricos no se publican.
-La nueva candidata de 1080×1350 tiene SHA-256
-`407de4f95c8e18f4c52fa0544785f06f81fe9832de1032a3ac7e977fa0ca7d43` y
-tiene aprobación concreta del usuario para una orden con Instagram feed y
-Facebook Page. Odoo confirmó nuevamente identidad y seis unidades por sucursal
-el 2026-08-31T14:26:40Z. La conexión Meta se revalidó sana a las 14:32:09Z. La escena existente se
-conservó; esta corrección no consumió generación de imágenes.
+**Acciones operativas abiertas.** Retirar la identidad temporal de revisión de
+staging según su plan de baja —nunca se activó ni se entregó— y borrar su
+entrada del Llavero. Conservar los roles de la app para quienes operan la
+plataforma —hoy hay **una sola persona con rol**, así que cualquier otra
+necesita que se le asigne uno antes de conectar—. La app `2161967167868736` ya
+se llama `Aramayo Content Platform` y sirve el ambiente staging: el ambiente lo
+marca el dominio, no el nombre, y la Fase 7 debe decidir explícitamente si
+producción la reutiliza o registra otra.
 
-El usuario eligió la **A de la pieza como ícono**, ya exportada desde
-`AramayoMark` y aplicada al favicon local. El correo se omite salvo que Meta
-lo exija; el contacto autorizado quedó fuera de Git. Estas indicaciones no
-autorizaban por sí solas publicación ni envío de App Review. Posteriormente,
-el usuario pidió «publica nomas, y continua»: autoriza esta pieza concreta y
-la continuación de los preparativos, sin duplicados ni destinos adicionales.
-
-La inspección del 2026-08-31 encontró el SHA
-`bc9fdfcbe9a592a6eb867cfc57d7a1a02e0701f0` desplegado y sano en staging, sin
-worker ni órdenes. Conserva una única muestra técnica aprobada anterior que
-debe reemplazarse mediante nueva revisión, sin modificar su snapshot histórico. La app Meta `2161967167868736` persistió el nombre
-**Aramayo Content Platform**, dominio, privacidad, términos, callback de
-eliminación, callback de desautorización y redirect OAuth exactos. El Dashboard
-expone las instrucciones públicas y el callback de eliminación como alternativas;
-quedó seleccionado el callback firmado y la página pública de instrucciones
-continúa disponible. La identidad temporal fue creada y auditada en estado
-`disabled`, con cero sesiones y credencial sólo en el Llavero; la ventana aún no
-empezó y no se transmitió a Meta.
-
-La orden ya está publicada y verificada. Falta recorrer y grabar el guion;
-activar y entregar la identidad bajo autorización específica; y enviar App
-Review. El dataset y el ícono ya están actualizados. No se envió la revisión. El detalle reproducible está en
-[`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
+El paquete de [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md) se
+conserva como referencia de permisos, justificaciones y superficie legal; ya no
+es trabajo pendiente. No hay screencast ni guion recorrido, y así queda
+registrado.
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
 verificaciones cumplidas. Lo implementado:
@@ -446,7 +424,9 @@ reales de OpenAI producción ni de Meta.
 - El entorno remoto `production.env` existe con modo `0600 root:root`, correo
   ACME y secretos internos generados en el host. OpenAI, Cloudinary y Meta
   permanecen vacíos; Compose validó el archivo sin exponer sus valores.
-- Activos y tipo de cuenta de Meta todavía no inventariados.
+- Los activos y el tipo de cuenta de Meta quedaron inventariados el
+  2026-08-13 y la app opera publicada con acceso estándar desde el
+  2026-09-01. Producción sigue sin credenciales de Meta.
 - La credencial y el vector store del proyecto OpenAI staging están
   configurados localmente; los smokes reales de `P3-T02` y `P3-T03` pasaron.
   Producción continúa sin credenciales OpenAI. Meta no está configurada. GPT

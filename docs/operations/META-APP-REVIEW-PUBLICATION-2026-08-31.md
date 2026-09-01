@@ -88,34 +88,73 @@ No se consultó ni publicó un precio. Meta había revalidado los activos y seis
 permisos a las 15:19Z del 2026-08-31. La ejecución remota confirmó los dos IDs
 y la revisión visible de los enlaces confirmó cuenta, copy y media exactos.
 
-## App Review
+## App Review: descartada por alcance
 
 El isotipo A se cargó como `aramayo-app-icon.png`, con recorte completo, se
 guardó y volvió a verificarse tras recargar Meta. La pantalla **Publicar**
-informa que toda la configuración obligatoria está completa. No se agregó
-correo, delegado de datos, categoría ni permisos nuevos; tampoco se pulsó el
-botón final de publicación de la app.
+informó que toda la configuración obligatoria estaba completa sin correo, sin
+delegado de datos y sin permisos nuevos.
 
-La identidad temporal permanece `disabled`, sin entregar credenciales ni
-iniciar la ventana de revisión. Siguen pendientes el recorrido y screencast,
-la activación/entrega autorizada y el envío de App Review si corresponde al
-alcance definitivo. `P5-T08` sigue abierta; no se inició `P5-T09`.
+El 2026-09-01 la persona administradora pulsó **Publicar**. La consola respondió
+«Tu aplicación se ha publicado correctamente» y la describe como «disponible
+para su uso público». **Acciones requeridas** no informa nada pendiente para
+conservar el acceso.
+
+Con la app publicada se resolvió no enviar App Review. El acceso estándar se
+aprueba automáticamente y alcanza porque quienes usan la plataforma tienen rol
+en la app; el acceso avanzado existe para personas usuarias sin rol y la
+clasificación Tech Provider, para operar activos de otros portfolios. Aramayo
+opera los suyos. La decisión, sus fuentes y sus consecuencias están en
+[`ADR-022`](../architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
+
+En consecuencia no hay screencast, guion recorrido ni presentación de permisos.
+La identidad temporal permanece `disabled`, sin sesiones y sin credencial
+entregada: la ventana de 30 días nunca empezó. `P5-T08` quedó cerrada con esa
+desviación registrada. `P5-T09` todavía no se inició.
+
+**Precondición permanente**: quien conecte Meta desde el panel debe tener rol en
+la app —administración, desarrollo o prueba—. Sin ese rol el acceso estándar no
+concede los cinco permisos, la conexión queda `permission_revoked` con sus
+`missingPermissions` visibles y no puede publicar.
+
+### Lectura directa de la consola, 2026-09-01
+
+Se verificó el estado en Meta for Developers sin modificar ninguna
+configuración:
+
+| Pantalla | Lo que muestra |
+|---|---|
+| Publicar | Insignia «Publicada»; la única acción ofrecida es **Anular publicación** |
+| Acciones requeridas | «No tienes ningún elemento de acción requerida para mostrar» |
+| Permisos y funciones | Los cinco permisos en **«Listo para prueba»** —etiqueta del acceso estándar—, más `business_management` y `public_profile` que Meta agrega con los casos de uso; ningún otro añadido y ninguno con acceso avanzado |
+| Roles de la aplicación | Una sola persona con rol Administrador; cero evaluadores; la app pertenece a la cuenta empresarial Ferretería y Lubricentro Aramayo |
+| Información básica | Dominio `staging.content.ferreteriaaramayo.com.ar`, ícono `aramayo-app-icon.png`, URLs legales y callback de eliminación configurados |
+
+Llamadas registradas por permiso en la ventana que informa la consola:
+`pages_show_list` 42, `pages_read_engagement` 42, `public_profile` 38,
+`instagram_basic` 25, `instagram_content_publish` 18, `business_management` 14 y
+`pages_manage_posts` 11. Son coherentes con el descubrimiento de activos y la
+única publicación ejecutada.
+
+**El nombre de la app ya es `Aramayo Content Platform`**; «Staging» sobrevive
+sólo en la aplicación de Instagram del caso de uso, `Aramayo Content Staging-IG`.
+El ambiente lo marca el dominio, no el nombre.
 
 ## Próximo paso exacto
 
 1. Conservar esta única orden como evidencia; no volver a publicarla, editarla
    ni reprovisionarla.
-2. Obtener autorización específica antes de activar la identidad temporal de
-   App Review y entregar su credencial en el campo privado de Meta. La ventana
-   máxima de 30 días empieza en esa entrega.
-3. Recorrer el acceso con esa identidad y grabar el screencast sin contraseñas,
-   tokens ni datos privados. Como la orden ya está publicada, mostrar el
-   snapshot, ambos IDs, enlaces y bloqueo de duplicado; no confirmar otra orden.
-4. Presentar los cinco permisos y enviar App Review sólo después de revisar el
-   video e instrucciones finales. El botón **Publicar** de la app sigue siendo
-   una acción separada.
-5. Al recibir la decisión de Meta, deshabilitar la identidad y cumplir el plan
-   de baja documentado.
+2. Retirar la identidad temporal de revisión de staging según su plan de baja:
+   nunca se activó ni se entregó y ya no tiene propósito. Borrar también su
+   entrada del Llavero local.
+3. Iniciar `P5-T09` reutilizando la publicación existente, sin crear otra orden
+   para la misma pieza.
+4. Conservar los roles de la app para las personas que operan la plataforma.
+   Perder el rol equivale a perder la capacidad de publicar, aunque el panel
+   siga operativo.
+5. Reabrir `ADR-022` antes de cualquier trabajo que involucre activos de otro
+   negocio: eso exigiría Tech Provider, acceso avanzado, verificación del
+   negocio y App Review.
 
 ## Validación local
 

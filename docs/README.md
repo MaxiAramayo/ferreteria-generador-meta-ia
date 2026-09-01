@@ -34,7 +34,8 @@
 - [`integrations/META.md`](integrations/META.md)
 - [`integrations/META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md):
   URLs legales, justificación de permisos, usuario temporal, guion, bloqueo y
-  checklist de presentación.
+  checklist de presentación. El paquete no se envió: `ADR-022` resolvió operar
+  con acceso estándar sobre activos propios. Se conserva como referencia.
 
 ## Operación
 

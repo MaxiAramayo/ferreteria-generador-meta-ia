@@ -1,8 +1,9 @@
 # Paquete de Meta App Review
 
 Revisado contra la implementación y la documentación oficial disponible:
-2026-08-31. La consulta de referencias Graph devolvió HTTP 429; no se cambiaron
-permisos ni contratos. La ficha oficial del producto sí pudo verificarse.
+2026-08-31, y contra los niveles de acceso de Meta el 2026-09-01. La consulta de
+referencias Graph devolvió HTTP 429 el 2026-08-31; no se cambiaron permisos ni
+contratos. La ficha oficial del producto sí pudo verificarse.
 
 ## Estado
 
@@ -21,15 +22,27 @@ y cleanup está en el
 [registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
 La app Meta conserva nombre, dominio, URLs legales, callbacks, redirect OAuth e
-isotipo A. Meta indica que la configuración obligatoria está completa sin
-correo. La identidad temporal sigue `disabled`, sin sesiones ni entrega de
-credencial. No se abrió ni envió App Review y no se pulsó **Publicar** para
-cambiar el estado público de la app.
+isotipo A. Meta indicó que la configuración obligatoria estaba completa sin
+correo y el 2026-09-01 la persona administradora publicó la app: la consola
+respondió «Tu aplicación se ha publicado correctamente», la describe como
+«disponible para su uso público» y **Acciones requeridas** no informa nada
+pendiente para conservar el acceso.
 
-`P5-T08` continúa abierta por tres requisitos: autorización específica para
-activar y entregar la identidad temporal, recorrido/screencast con esa identidad
-y carga final de las cinco presentaciones de permisos. La evidencia publicada
-se reutiliza; no se crea otra orden.
+**Este paquete no se envía.** Con la app publicada y acceso estándar sobre
+activos propios, App Review no corresponde al alcance vigente: el acceso
+avanzado existe para personas usuarias sin rol en la app y Tech Provider, para
+operar activos de otros portfolios. La decisión y sus fuentes están en
+[`ADR-022`](../architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
+
+El documento se conserva como referencia del alcance de permisos, sus
+justificaciones, la superficie legal y el procedimiento de revisión. Si alguna
+vez se opera un activo de otro negocio, esta es la base del envío, pero antes
+hay que reabrir `ADR-022`.
+
+Nunca se abrió ni se envió App Review. No hay screencast: el guion de más abajo
+no se recorrió ni se grabó. La identidad temporal sigue `disabled`, sin sesiones
+ni credencial entregada, y debe retirarse según su plan de baja. `P5-T08` quedó
+cerrada con esa desviación registrada; `P5-T09` no se inició.
 
 ## Aprobaciones requeridas del negocio
 
@@ -223,6 +236,8 @@ el permiso no puede publicarse el snapshot aprobado en la Page.
 
 ## Usuario de revisión
 
+No se activó ni se entregó, y debe retirarse: `ADR-022` descartó el envío.
+
 Las credenciales nunca se escriben en Git, documentación, capturas o video. El
 administrador de identidad crea una cuenta individual, temporal y rotulada para
 App Review; entrega URL, usuario y contraseña únicamente en el campo privado de
@@ -252,6 +267,8 @@ acotado de revisión. El bitmap, copy, orden e IDs remotos ya están verificados
 El usuario no se activa ni se entrega sin autorización específica.
 
 ## Guion del screencast
+
+No se grabó: `ADR-022` descartó el envío. Se conserva como referencia.
 
 Grabar a resolución legible, velocidad normal y sin cortes que oculten pasos.
 El video no muestra tokens, contraseñas, variables, consola ni datos privados.
@@ -315,6 +332,10 @@ eliminación real y transaccional en PostgreSQL.
 
 ### Checklist antes de enviar
 
+El envío quedó descartado por `ADR-022`. El checklist se conserva como
+historial: los puntos sin objeto quedan sin marcar y así se conservan; ninguno
+representa trabajo pendiente.
+
 - [x] Responsable del negocio aprobó privacidad, términos y canales de contacto
       el 2026-08-21.
 - [x] Administrador de Meta confirmó nombre, dominio y URLs configurables el
@@ -325,13 +346,17 @@ eliminación real y transaccional en PostgreSQL.
       reales con autorización puntual recibida el 2026-08-21.
 - [x] Usuario temporal creado `disabled`, sin sesiones y con secreto sólo en el
       Llavero.
-- [ ] Usuario activado y credenciales cargadas sólo en el campo privado de Meta.
+- [ ] Usuario activado y credenciales cargadas sólo en el campo privado de
+      Meta — sin objeto: no se activó ni se entregó.
 - [x] Nueva pieza comercial sin precio, copy y checksum aprobados y publicada
       una sola vez; stock revalidado inmediatamente antes de ejecutar.
 - [x] Ambos IDs y enlaces remotos verificados con media y copy exactos.
-- [ ] Guion recorrido de punta a punta en staging.
-- [ ] Screencast final reproduce exactamente las instrucciones.
-- [ ] Los cinco permisos y ningún otro están en la presentación.
+- [ ] Guion recorrido de punta a punta en staging — sin objeto.
+- [ ] Screencast final reproduce exactamente las instrucciones — sin objeto:
+      no se grabó.
+- [ ] Los cinco permisos y ningún otro están en la presentación — sin objeto:
+      no hay presentación. Los cinco siguen siendo los únicos que piden la
+      URL OAuth y `metaRequiredPermissions`.
 - [x] Revocación y eliminación probadas en staging con evidencia redactada.
 - [x] Usuario temporal y conexión de revisión tienen plan de baja.
 

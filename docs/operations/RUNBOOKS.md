@@ -18,10 +18,17 @@ Debe incluir:
 - pausar trabajos del destino;
 - mostrar conexión degradada;
 - notificar administrador;
+- comprobar que quien va a reconectar tiene rol en la app de Meta;
 - reconectar;
 - validar capacidades;
 - reanudar trabajos no vencidos;
 - auditar.
+
+La app opera con acceso estándar, así que los cinco permisos sólo se conceden a
+personas con rol en la app —administración, desarrollo o prueba—. Una reconexión
+hecha por alguien sin rol deja la conexión en `permission_revoked` con sus
+`missingPermissions` visibles: es la causa esperada, no un fallo del adaptador.
+Ver [`ADR-022`](../architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
 
 ## Eliminación o desautorización solicitada desde Meta
 
