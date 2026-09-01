@@ -6,10 +6,12 @@ import { fileURLToPath } from "node:url";
 import {
   apiEnvironment,
   forbiddenClientValues,
+  publishingWorkerEnvironment,
   webEnvironment,
   withoutVariable,
   withVariable,
   workerEnvironment,
+  type SmokeEnvironment,
 } from "./environment.ts";
 import {
   requestJson,
@@ -212,6 +214,17 @@ async function smokeWorker(): Promise<void> {
     "un formato inválido detiene el arranque nombrando WORKER_CONCURRENCY sin revelar el valor",
   );
 
+  await smokeWorkerStartup(environment, "sin proveedores externos");
+  await smokeWorkerStartup(
+    publishingWorkerEnvironment(),
+    "con Meta y Cloudinary configurados con credenciales falsas",
+  );
+}
+
+async function smokeWorkerStartup(
+  environment: SmokeEnvironment,
+  providerDescription: string,
+): Promise<void> {
   const worker = startProcess({
     arguments: ["dist/main.js"],
     environment,
@@ -233,7 +246,7 @@ async function smokeWorker(): Promise<void> {
     );
     assertWithoutSecrets("El reporte de estado del worker", readyOutput);
     reportCheck(
-      "el worker arranca, reporta estado y no procesa trabajo simulado",
+      `el worker arranca ${providerDescription}, reporta estado y no procesa trabajo simulado`,
     );
 
     const shutdown = await worker.terminate();

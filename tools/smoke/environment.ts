@@ -65,6 +65,22 @@ export function workerEnvironment(): SmokeEnvironment {
   });
 }
 
+/** Conecta los módulos reales con credenciales falsas y sin trabajos en base. */
+export function publishingWorkerEnvironment(): SmokeEnvironment {
+  return Object.freeze({
+    ...workerEnvironment(),
+    CLOUDINARY_API_KEY: "smoke-cloudinary-api-key-falso",
+    CLOUDINARY_API_SECRET: fakeSecrets.cloudinaryApiSecret,
+    CLOUDINARY_CLOUD_NAME: "aramayo-smoke",
+    CLOUDINARY_FOLDER: "aramayo/smoke",
+    META_APP_ID: "1234567890",
+    META_APP_SECRET: fakeSecrets.metaAppSecret,
+    META_GRAPH_API_VERSION: "v26.0",
+    META_PAGE_ID: "1098765432109876",
+    META_REDIRECT_URI: "http://localhost:3001/oauth/meta/callback",
+  });
+}
+
 /**
  * El panel recibe además secretos de proveedores que nunca le pertenecen. Es
  * intencional: comprueba que Next.js no filtre variables privadas al cliente.

@@ -25,7 +25,7 @@ export class MediaModule {
     cloudinary: WorkerConfiguration["cloudinary"],
   ): DynamicModule {
     return {
-      exports: [MediaLifecycleService],
+      exports: [MediaLifecycleService, MEDIA_STORAGE],
       global: true,
       module: MediaModule,
       providers: [
