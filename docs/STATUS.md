@@ -107,23 +107,25 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P5-T08` — la soldadora aprobada tiene una única orden pendiente:
-`b2d75f69-40f1-48a8-ad6e-56bd142be220`. El usuario autorizó el ingreso con la
-credencial administradora del Llavero; se ingresó y confirmó la publicación en
-el panel, con Instagram feed + Facebook Page y snapshot inmutable. **Todavía
-no se publicó**: el worker terminó al arrancar porque `MediaModule` no exportaba
-`MEDIA_STORAGE`. Outbox conserva cero intentos; ambos destinos carecen de IDs
-remotos. No crear otra orden ni reprovisionar.
+Continuar `P5-T08` — la soldadora aprobada se publicó una sola vez en ambos
+destinos. La orden `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó `published` a
+las 12:45:24Z del 2026-09-01, con Instagram `17864904492660609` y Facebook
+`252222471780140_1598131635337533`. Los enlaces visibles muestran el copy y
+bitmap aprobados; Facebook la marca pública. El panel quedó en versión 8 y
+bloquea duplicados.
 
-La corrección exporta el proveedor existente y amplía el smoke para arrancar
-con Meta y Cloudinary falsos. Reprodujo el error previo y pasó después del
-cambio. Falta CI, promoción y ejecución de la misma orden. API/web siguen sanas
-en `57d6d728845fd5641385dfaa091453da714f21ce`.
+PR 15 corrigió la exportación de `MEDIA_STORAGE`; CI de PR `33508422624`, CI de
+main `33508711483` e imágenes inmutables `33508917207` pasaron. El worker
+`bc32e840ec67676198c36d69fc49bab9bc4a2ec8` procesó la fila de outbox una vez,
+sin fallos, y fue retirado junto con su entorno temporal. API/web siguen sanas
+sobre `57d6d728845fd5641385dfaa091453da714f21ce`.
 
-El ícono A ya está guardado en Meta, sin correo obligatorio. La identidad de
-revisión sigue disabled; aún faltan screencast, acceso temporal y envío. El
-stock se revalidó a las 15:18:30–31Z, seis unidades por sucursal, y Meta sana a
-las 15:19Z. Evidencia y próximo paso en el
+Odoo confirmó producto activo y seis unidades por negocio inmediatamente antes
+de ejecutar. No se publicó precio, historia, promoción ni otra pieza. La
+identidad de revisión permanece disabled; faltan autorización específica para
+activarla/entregarla, recorrido con esa identidad, screencast y envío de App
+Review. El ícono A ya está guardado y Meta no exigió correo. Evidencia completa
+en el
 [registro operativo](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
 El 2026-08-31 se reforzó la preparación local: generador y provisionador exigen
@@ -174,10 +176,9 @@ continúa disponible. La identidad temporal fue creada y auditada en estado
 `disabled`, con cero sesiones y credencial sólo en el Llavero; la ventana aún no
 empezó y no se transmitió a Meta.
 
-Falta procesar la orden ya creada después de corregir el arranque; recorrer y
-grabar el guion; activar y entregar la identidad bajo autorización específica;
-y enviar App Review. El dataset y el ícono ya están actualizados. No se envió
-la revisión ni se confirmó todavía una publicación remota. El detalle reproducible está en
+La orden ya está publicada y verificada. Falta recorrer y grabar el guion;
+activar y entregar la identidad bajo autorización específica; y enviar App
+Review. El dataset y el ícono ya están actualizados. No se envió la revisión. El detalle reproducible está en
 [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md).
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres

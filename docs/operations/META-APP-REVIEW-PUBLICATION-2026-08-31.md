@@ -2,24 +2,34 @@
 
 ## Resultado real
 
-El usuario aprobó el PNG y copy sin precio y pidió «publica nomas, y continua».
-La pieza está desplegada y provisionada en staging, **todavía sin publicar en
-Instagram ni Facebook**. El usuario autorizó expresamente el ingreso con la
-credencial administradora del Llavero («si autorizo»). El ingreso y la
-confirmación visible se completaron sin volver a pedir aprobación comercial.
+La pieza aprobada se publicó exactamente una vez en ambos destinos el
+2026-09-01. La orden `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó `published`
+y se liquidó a las 12:45:24.780Z sobre el snapshot inmutable
+`5a083000-0000-4000-8000-000000000004`:
 
-Se creó una sola orden desde el panel a las 15:20:43Z:
-`b2d75f69-40f1-48a8-ad6e-56bd142be220`, snapshot
-`5a083000-0000-4000-8000-000000000004`. Ambos destinos siguen `pending`; la
-publicación pasó a versión 7. No se debe crear otra orden ni reprovisionar.
+| Destino | Estado | ID remoto | Enlace verificado |
+|---|---|---|---|
+| Instagram feed | `published` | `17864904492660609` | [@ferreteria_aramayo/p/DcvsTvnHNGy](https://www.instagram.com/ferreteria_aramayo/p/DcvsTvnHNGy/) |
+| Facebook Page | `published` | `252222471780140_1598131635337533` | [Publicación de Ferretería y Lubricentro Aramayo](https://www.facebook.com/1587397443077619/posts/1598131635337533) |
 
-El worker efímero terminó durante el arranque por `MEDIA_STORAGE` no exportado
-por `MediaModule`. Outbox conserva una fila pendiente con cero intentos y ambos
-destinos sin IDs remotos: no se llamó a Meta. La corrección exporta la instancia
-existente sin duplicar proveedores. El smoke con Meta/Cloudinary falsos
-reprodujo el fallo antes del cambio y luego verificó arranque y cierre ordenado.
-La promoción de esa corrección y el procesamiento de la misma orden están
-pendientes.
+El panel muestra la publicación como versión 8 y bloquea volver a publicarla.
+Ambos enlaces se abrieron en las cuentas reales y mostraron el bitmap y copy
+aprobados, sin precio. Facebook la marca como pública. La publicación no se
+promocionó, programó ni envió a historias.
+
+El primer worker falló antes de contactar a Meta porque `MediaModule` no
+exportaba `MEDIA_STORAGE`. Outbox y ambos destinos conservaron cero intentos e
+IDs remotos vacíos. PR [15](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/15)
+exportó la instancia existente y agregó un smoke de arranque con Meta y
+Cloudinary falsos; `pnpm verify`, CI de PR `33508422624` y CI de main
+`33508711483` pasaron. Las imágenes inmutables del merge
+`bc32e840ec67676198c36d69fc49bab9bc4a2ec8` se publicaron en el run
+`33508917207`.
+
+Sólo el worker corregido de ese SHA se ejecutó de forma efímera. Arrancó con
+PostgreSQL y Redis `up`, OpenAI deshabilitado, Cloudinary y Meta habilitados;
+outbox registró `claimed=1 delivered=1 failed=0`. Luego se detuvo, eliminó el
+contenedor y borró el entorno y override temporales de `/run`.
 
 ## Versión y evidencia
 
@@ -44,7 +54,7 @@ pendientes.
 | Campo | Valor |
 |---|---|
 | Publicación | `5a080000-0000-4000-8000-000000000002` |
-| Estado / versión | `approved` / `6` |
+| Estado / versión | `published` / `8` |
 | Revisión actual | `5a083000-0000-4000-8000-000000000003`, número 2 |
 | Snapshot actual | `5a083000-0000-4000-8000-000000000004` |
 | Hash de contenido | `96805be93a54786ea7bf84a0d110627862a61a9e09e9842fc4edf929a3693d46` |
@@ -67,26 +77,16 @@ contiene credenciales.
 
 ## Verificaciones comerciales y de cuenta
 
-Odoo volvió a confirmar producto activo LA-SER Inverter 160 A y seis unidades
-en cada sucursal a las 15:18:30–31Z. Request IDs: producto
-`bf709440-6e6c-4220-a7f4-d78c90e201f7`, Casa Central
-`ac57b61f-9fff-490c-ac21-347465207b8f`, Rivadavia
-`dabe4a35-ee1a-41bd-a4ec-0d736835b993`. Los request IDs están en el
-[paquete de revisión](../integrations/META-APP-REVIEW.md). No se consultó ni
-publicó un nuevo precio. Se revalidará stock otra vez al ejecutar la orden si
-la pausa vuelve vieja esta evidencia.
+Inmediatamente antes de ejecutar el worker, Odoo confirmó producto activo y
+seis unidades en cada negocio a las 12:44:32–33Z del 2026-09-01. Request IDs:
 
-El control visible de salud de Meta revalidó a las 15:19Z los cinco permisos
-explícitos, `public_profile` implícito y los activos:
+- producto: `701d2c8e-896d-4224-889a-603b4a91ab36`;
+- Casa Central: `73c7973b-55c3-406f-96d6-71278eea47e5`;
+- Rivadavia: `e5a17d8f-8aef-46c1-8342-99e07265d61d`.
 
-- Instagram: `@ferreteria_aramayo`, `17841478812093081`.
-- Facebook: `Ferreteria Y Lubricentro Aramayo`, `252222471780140`.
-
-La lectura de las ocho publicaciones recientes de Instagram no encontró la
-soldadora. La lectura de `/feed` de Facebook devolvió código 10; no se agregaron
-permisos ni se asumió que esa consulta hubiera tenido éxito. La plataforma no
-tiene órdenes previas para esta muestra. Confirmar los IDs de cada destino al
-publicar y reconciliar cualquier respuesta ambigua.
+No se consultó ni publicó un precio. Meta había revalidado los activos y seis
+permisos a las 15:19Z del 2026-08-31. La ejecución remota confirmó los dos IDs
+y la revisión visible de los enlaces confirmó cuenta, copy y media exactos.
 
 ## App Review
 
@@ -103,20 +103,19 @@ alcance definitivo. `P5-T08` sigue abierta; no se inició `P5-T09`.
 
 ## Próximo paso exacto
 
-1. Promover la corrección de arranque después de CI. El worker fallido está
-   detenido; sus cuatro credenciales Cloudinary y override de red temporales
-   están en `/run`, protegidos con modo 0600.
-2. Revalidar stock si transcurrió tiempo y consultar la orden existente. No
-   volver a confirmar publicación ni usar la clave API propuesta anteriormente:
-   el panel ya creó su propia orden idempotente.
-3. Ejecutar el worker corregido únicamente para la orden
-   `b2d75f69-40f1-48a8-ad6e-56bd142be220`, con las redes `backend` y `edge`,
-   sin puertos publicados, OpenAI ni Odoo.
-4. Observar los dos resultados y guardar IDs y enlaces. Si alguno queda ambiguo,
-   reconciliar; nunca crear otra orden para compensar ni volver a publicar un
-   destino confirmado.
-5. Detener y retirar el worker, eliminar su entorno temporal y cerrar la sesión
-   operativa. Continuar App Review sobre la misma orden, sin una segunda pieza.
+1. Conservar esta única orden como evidencia; no volver a publicarla, editarla
+   ni reprovisionarla.
+2. Obtener autorización específica antes de activar la identidad temporal de
+   App Review y entregar su credencial en el campo privado de Meta. La ventana
+   máxima de 30 días empieza en esa entrega.
+3. Recorrer el acceso con esa identidad y grabar el screencast sin contraseñas,
+   tokens ni datos privados. Como la orden ya está publicada, mostrar el
+   snapshot, ambos IDs, enlaces y bloqueo de duplicado; no confirmar otra orden.
+4. Presentar los cinco permisos y enviar App Review sólo después de revisar el
+   video e instrucciones finales. El botón **Publicar** de la app sigue siendo
+   una acción separada.
+5. Al recibir la decisión de Meta, deshabilitar la identidad y cumplir el plan
+   de baja documentado.
 
 ## Validación local
 

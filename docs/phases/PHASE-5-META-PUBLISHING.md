@@ -1108,17 +1108,23 @@ integración con usuarios y activos reales.
 
 - Pendiente.
 
-### Continuación operativa: arranque del worker, 2026-08-31
+### Continuación operativa: publicación verificada, 2026-09-01
 
-- Estado real: acceso administrador autorizado e ingreso completado. Una orden
-  `b2d75f69-40f1-48a8-ad6e-56bd142be220` creada desde el panel; todavía sin
-  publicación remota. El arranque falló antes de consumir outbox.
-- Corrección acotada a P5-T08: exportar `MEDIA_STORAGE` desde `MediaModule` sin
-  duplicar instancias; smoke real de Nest con Meta/Cloudinary falsos, además
-  del caso sin proveedores. No cambia dominio, permisos, medios ni snapshot.
-- Verificaciones: fallo reproducido en smoke antes del cambio; arranque y
-  SIGTERM correctos después. Verificación integral y CI en curso.
-- Próximo paso: promover la corrección y procesar únicamente la orden existente.
+- Estado real: la única orden
+  `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó publicada en Instagram feed y
+  Facebook Page. El panel muestra versión 8 y bloquea duplicados.
+- Corrección: PR 15 exportó la instancia `MEDIA_STORAGE`; el smoke real de Nest
+  con Meta/Cloudinary falsos reprodujo el fallo previo y pasó después. CI de PR,
+  CI de main e imágenes inmutables quedaron verdes.
+- Ejecución: worker efímero `bc32e840ec67676198c36d69fc49bab9bc4a2ec8`,
+  outbox `claimed=1 delivered=1 failed=0`; luego detenido y eliminado con sus
+  archivos temporales. OpenAI permaneció deshabilitado.
+- Evidencia remota: Instagram `17864904492660609`, enlace
+  `https://www.instagram.com/ferreteria_aramayo/p/DcvsTvnHNGy/`; Facebook
+  `252222471780140_1598131635337533`, enlace guardado en la orden. Ambos se
+  revisaron visualmente con media y copy exactos.
+- P5-T08 sigue abierta sólo por identidad temporal, recorrido/screencast y envío
+  de App Review, que requieren autorización específica. No se inició P5-T09.
   [Registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
 ## P5-T09 — Validar publicación real de punta a punta
