@@ -6,60 +6,30 @@ permisos ni contratos. La ficha oficial del producto sí pudo verificarse.
 
 ## Estado
 
-### Autorización vigente del 2026-08-31
+La imagen, copy, destinos y única orden fueron aprobados y ejecutados. La orden
+`b2d75f69-40f1-48a8-ad6e-56bd142be220` publicó el 2026-09-01 el snapshot
+`5a083000-0000-4000-8000-000000000004` exactamente una vez en:
 
-El usuario aprobó la imagen y copy que figuran debajo y pidió «publica nomas,
-y continua». Se registra una orden inmediata con `instagram_feed` y
-`facebook_page`, sin precio y sin destinos adicionales. La huella presentada
-`7e44022a2020875ba420e99736711b7f8953051d6afb6bb8d462f59a460b012e`
-queda fijada en el manifiesto. Esto sustituye las menciones históricas a
-aprobación pendiente de esta misma candidata, no las restricciones de acceso
-ni el máximo de una orden. No se ha enviado todavía App Review.
+- [Instagram @ferreteria_aramayo](https://www.instagram.com/ferreteria_aramayo/p/DcvsTvnHNGy/), ID `17864904492660609`;
+- [Facebook Page](https://www.facebook.com/1587397443077619/posts/1598131635337533), ID `252222471780140_1598131635337533`.
 
-Odoo revalidó identidad y seis unidades en cada sucursal el 2026-08-31 a las
-14:26:39–40Z. Request IDs: producto `f1297c94-0fff-4c63-a01a-c38dd7b01025`,
-Casa Central `8ede2ee5-afc2-4a03-ad79-f1d595517e18`, Rivadavia
-`2021f32e-4b41-4a0b-bad5-00afeeb5d339`. Se conserva el snapshot histórico de
-la aprobación sin reescribirlo. La conexión revalidó los cinco permisos y ambos
-activos a las 14:32:09Z. No había órdenes ni trabajos pendientes.
-
-El provisionador conserva la publicación y agrega revisión, medios y snapshot
-nuevos; sólo admite reemplazar la muestra técnica exacta, sin ninguna orden,
-con lock y control de versión. Nunca edita ni elimina el snapshot anterior.
-El original PNG se carga en Cloudinary staging y se verifica por checksum;
-`--delivery=<comprobante.json>` es obligatorio para evitar una URL de publicación
-que no exista en el almacenamiento usado por el worker. El comprobante valida
-organización, original, formato, tamaño, cloud y espacio staging. La variante
-JPEG para Meta la resuelve el adaptador existente.
-
-
-El paquete aprobado está **desplegado y provisionado; todavía no está listo para enviar App Review**.
-Estado remoto y bloqueo de acceso en el
+Ambos enlaces se verificaron visualmente con el bitmap y copy aprobados. El
+panel conserva la pieza como `published`, versión 8, y bloquea repetirla. Odoo
+confirmó producto activo y seis unidades en cada negocio inmediatamente antes
+de ejecutar; no se consultó ni publicó precio. El detalle de CI, worker, outbox
+y cleanup está en el
 [registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
-Las URLs, callbacks, justificaciones y guion están definidos. El negocio eligió
-usar la Page real de Aramayo y `@ferreteria_aramayo`; no se crearán activos de
-prueba separados. La aprobación administrativa sigue vigente, pero la
-aprobación de la publicación se renovó el 2026-08-31:
 
-1. ~~aprobación administrativa del texto legal y del nombre público~~ —recibida
-   el 2026-08-21;
-2. aprobación concreta del nuevo bitmap comercial, copy, destinos, ventana y
-   responsable —**pendiente**.
+La app Meta conserva nombre, dominio, URLs legales, callbacks, redirect OAuth e
+isotipo A. Meta indica que la configuración obligatoria está completa sin
+correo. La identidad temporal sigue `disabled`, sin sesiones ni entrega de
+credencial. No se abrió ni envió App Review y no se pulsó **Publicar** para
+cambiar el estado público de la app.
 
-El segundo punto es un conflicto con
-[ADR-019](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md):
-esa decisión rechaza activos Meta de prueba separados y exige autorización
-concreta para cada escritura en los activos existentes. App Review puede probar
-la aplicación siguiendo el screencast, y los dos permisos de publicación sólo
-se demuestran con una escritura. La autorización anterior quedó revocada por el
-negocio el 2026-08-22 al descartar la placa técnica; no puede heredarse al nuevo
-checksum ni copy.
-
-El 2026-08-21 el SHA `c5e9d7d4764ece01e2f1a461d443fee40379afd6`
-quedó sano en staging y la app Meta `2161967167868736` persistió nombre,
-dominio, privacidad, términos, callback de eliminación, callback de
-desautorización y redirect OAuth. No se pulsó **Publicar**, no se abrió un envío
-de App Review y no se ejecutó contenido.
+`P5-T08` continúa abierta por tres requisitos: autorización específica para
+activar y entregar la identidad temporal, recorrido/screencast con esa identidad
+y carga final de las cinco presentaciones de permisos. La evidencia publicada
+se reutiliza; no se crea otra orden.
 
 ## Aprobaciones requeridas del negocio
 
@@ -278,8 +248,8 @@ no se autorizó enviar la revisión, la credencial no fue cargada en Meta y la
 ventana todavía no comenzó.
 
 Con los activos reales elegidos, el usuario de staging sólo debe ver el dataset
-acotado de revisión. El bitmap y copy nuevos siguen pendientes; el usuario no
-se activa ni se entrega hasta verificarlos contra el manifiesto aprobado.
+acotado de revisión. El bitmap, copy, orden e IDs remotos ya están verificados.
+El usuario no se activa ni se entrega sin autorización específica.
 
 ## Guion del screencast
 
@@ -296,12 +266,17 @@ El video no muestra tokens, contraseñas, variables, consola ni datos privados.
    instagram_basic.
 5. **02:00 — Snapshot.** Abrir la pieza comercial aprobada y mostrar bitmap,
    checksum, copy exacto, cuenta y destinos.
-6. **02:35 — Publicación.** Confirmar una vez y mostrar resultado e IDs remotos.
-   Demuestra instagram_content_publish y pages_manage_posts.
-7. **03:20 — Idempotencia.** Recargar y mostrar la misma orden sin duplicado.
-8. **03:40 — Revocación.** Revocar la conexión y mostrar que ya no publica.
-9. **04:10 — Eliminación.** Mostrar instrucciones públicas y una confirmación
-   producida por el callback firmado.
+6. **02:35 — Publicación.** Abrir el resultado de la única orden ya ejecutada;
+   mostrar ambos IDs y abrir los dos enlaces con el copy y media aprobados.
+   Demuestra el resultado de instagram_content_publish y pages_manage_posts sin
+   crear otra publicación.
+7. **03:20 — Idempotencia.** Recargar y mostrar la misma orden y el bloqueo
+   «Esta pieza ya se publicó. No se publica dos veces».
+8. **03:40 — Revocación.** Mostrar el control de revocación y la evidencia
+   redactada de la prueba ya ejecutada. No revocar durante el screencast la
+   conexión real que sostiene los enlaces de revisión.
+9. **04:10 — Eliminación.** Mostrar instrucciones públicas y la evidencia
+   redactada de una confirmación producida por el callback firmado.
 
 Las instrucciones pegadas en Meta deben seguir ese orden. Cada permiso enlaza
 al minuto en que su resultado se ve.
@@ -312,10 +287,14 @@ al minuto en que su resultado se ve.
 2. Ingresar con las credenciales temporales.
 3. Abrir **Configuración → Facebook e Instagram**.
 4. Abrir **Publicaciones** y elegir “LA-SER Inverter 160 A”.
-5. Elegir **Publicar…**, comparar bitmap, copy, cuenta y destinos, y confirmar.
-6. Esperar el resultado independiente de Instagram y Facebook.
-7. Recargar y comprobar que la orden y los identificadores son los mismos.
-8. Revocar la conexión si el paquete privado lo indica.
+5. Abrir **Ver resultado** en la pieza ya publicada y comprobar el desenlace
+   independiente de Instagram y Facebook.
+6. Abrir ambos enlaces y comparar bitmap, copy, cuenta y destinos con el
+   snapshot. No crear ni confirmar una nueva orden.
+7. Recargar y comprobar que la orden y los identificadores son los mismos y que
+   el panel bloquea duplicados.
+8. Revisar la superficie de revocación y eliminación. No revocar la conexión
+   real ni borrar las publicaciones durante la revisión.
 
 No se le pide conocer IDs, correos internos, configuración ni secretos.
 
@@ -347,14 +326,14 @@ eliminación real y transaccional en PostgreSQL.
 - [x] Usuario temporal creado `disabled`, sin sesiones y con secreto sólo en el
       Llavero.
 - [ ] Usuario activado y credenciales cargadas sólo en el campo privado de Meta.
-- [x] Nueva pieza comercial sin precio, copy y checksum aprobados; marca,
-      identidad y stock están respaldados por el snapshot de Odoo y deben
-      revalidarse antes de publicar.
+- [x] Nueva pieza comercial sin precio, copy y checksum aprobados y publicada
+      una sola vez; stock revalidado inmediatamente antes de ejecutar.
+- [x] Ambos IDs y enlaces remotos verificados con media y copy exactos.
 - [ ] Guion recorrido de punta a punta en staging.
 - [ ] Screencast final reproduce exactamente las instrucciones.
 - [ ] Los cinco permisos y ningún otro están en la presentación.
-- [ ] Revocación y eliminación probadas en staging con evidencia redactada.
-- [ ] Usuario temporal y conexión de revisión tienen plan de baja.
+- [x] Revocación y eliminación probadas en staging con evidencia redactada.
+- [x] Usuario temporal y conexión de revisión tienen plan de baja.
 
 ## Fuentes oficiales
 
