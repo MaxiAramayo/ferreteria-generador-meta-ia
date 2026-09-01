@@ -1170,15 +1170,17 @@ integración con usuarios y activos reales.
 
 ### Evidencia de cierre
 
-- Commit: rama `codex/p5-t08-meta-live-launch`; documentación de cierre sobre
-  `c4e9cf49` (merge del PR 16). La implementación que sostiene la tarea ya está
-  en `main`: PR 14 (`c581b35`), PR 15 (`abe95bb`) y PR 16 (`d7c8aad`).
+- Commit: PR [17](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/17),
+  commit de documentación `ac32891`, merge `d96838e`. La implementación que
+  sostiene la tarea ya estaba en `main`: PR 14 (`c581b35`), PR 15 (`abe95bb`) y
+  PR 16 (`d7c8aad`).
 - Comandos y resultados: `pnpm verify` completo en verde el 2026-08-31, con 40
   pruebas del paquete de App Review y 80 del motor; `pnpm db:test` contra
   PostgreSQL 17.9 efímero; integración del provisionador con dry run, rollback,
   idempotencia y rechazo ante orden existente; `pnpm verify:plan` tras esta
   documentación. CI de PR `33508422624`, CI de main `33508711483` e imágenes
-  inmutables `33508917207`.
+  inmutables `33508917207`; para el cierre documental, CI de PR `33520336295` y
+  CI de main `33520746714`, ambos exitosos.
 - Evidencia visual o remota: URLs legales públicas con HTTPS 200; publicación
   única del 2026-09-01 con Instagram `17864904492660609` y Facebook
   `252222471780140_1598131635337533`, ambos enlaces revisados con bitmap y copy
