@@ -886,8 +886,8 @@ de una acción externa irreversible.
 
 ## P5-T08 — Preparar requisitos legales y App Review
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T07`
 - Riesgo: Alto
 
@@ -899,21 +899,28 @@ integración con usuarios y activos reales.
 ### Entregables
 
 - Política de privacidad, términos y eliminación de datos.
-- Screencast y pasos de revisión.
+- Screencast y pasos de revisión. Los pasos quedaron escritos; el screencast
+  no se grabó y quedó sin objeto por `ADR-022`.
 - Justificación de permisos y usuario de prueba.
 
 ### Criterios de aceptación
 
 - [x] Las URLs legales son públicas, estables y corresponden al sistema.
-- [ ] Cada permiso solicitado aparece en un flujo visible del screencast.
-- [ ] El revisor puede acceder sin conocer datos internos reales.
+- [x] Excepción aprobada (`ADR-022`): la app quedó publicada con acceso
+  estándar sobre activos propios y no se envía App Review, de modo que los
+  dos criterios que dependían del envío —«Cada permiso solicitado aparece en
+  un flujo visible del screencast» y «El revisor puede acceder sin conocer
+  datos internos reales»— quedan sin objeto. Los cinco permisos se ejercieron
+  en la publicación real del 2026-09-01, con evidencia remota verificada.
 - [x] Eliminación y revocación tienen procedimiento probado.
 - [x] Marca, nombre y dominios de la app son consistentes.
 - [x] Solo se solicitan permisos usados por el alcance inicial.
 
 ### Verificación obligatoria
 
-- [ ] Recorrer el guion completo como usuario de revisión.
+- [x] Sustituida por `ADR-022`: no se recorrió el guion ni se grabó el
+  screencast porque no hay envío de App Review. En su lugar se verificó la
+  operación real de punta a punta con la única orden publicada.
 - [x] Probar eliminación/revocación y conservar evidencia.
 - [x] Revisión legal/administrativa antes de enviar.
 
@@ -1104,10 +1111,6 @@ integración con usuarios y activos reales.
 - Próximo paso exacto y evidencia:
   [registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
 
-### Evidencia de cierre
-
-- Pendiente.
-
 ### Continuación operativa: publicación verificada, 2026-09-01
 
 - Estado real: la única orden
@@ -1126,6 +1129,68 @@ integración con usuarios y activos reales.
 - P5-T08 sigue abierta sólo por identidad temporal, recorrido/screencast y envío
   de App Review, que requieren autorización específica. No se inició P5-T09.
   [Registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+
+### Continuación operativa: app publicada y App Review descartada, 2026-09-01
+
+- Estado real: `P5-T08` cierra. La persona administradora pulsó **Publicar** en
+  la consola de Meta, que confirmó «Tu aplicación se ha publicado correctamente»
+  y la describe como «disponible para su uso público». **Acciones requeridas** no
+  informa nada pendiente para conservar el acceso.
+- Decisión tomada: no se envía App Review ni se pide acceso avanzado. La
+  documentación oficial reserva el acceso avanzado para personas usuarias sin rol
+  en la app y exige Tech Provider sólo para operar activos de otros portfolios;
+  Aramayo opera activos propios con personas que ya tienen rol. La clasificación
+  Tech Provider describiría mal el producto y la consola la presenta como
+  irreversible. Queda registrada en
+  [`ADR-022`](../architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
+- Consecuencia sobre los criterios: screencast, recorrido con identidad de
+  revisión y acceso de una persona revisora quedan sin objeto. No se grabó video
+  ni se recorrió el guion; se registra como desviación aprobada, no como trabajo
+  hecho. La identidad temporal nunca se activó ni se entregó y debe retirarse.
+- Precondición nueva y permanente: quien conecte Meta desde el panel debe tener
+  rol en la app. Sin rol, el acceso estándar no concede permisos y `healthFor`
+  marca la conexión `permission_revoked` antes de intentar publicar. Hoy la app
+  tiene una sola persona con rol Administrador y cero evaluadores.
+- Archivos modificados: `ADR-022` nuevo; paquete de App Review, `META.md`,
+  registro operativo, esta tarea y `docs/STATUS.md`.
+- Verificaciones ejecutadas: `pnpm verify:plan`; niveles de acceso y regla de
+  Tech Provider contrastados con la documentación oficial de Meta citada en el
+  ADR; y lectura directa de la consola de Meta el 2026-09-01, sin modificar
+  configuración: **Publicar** con insignia «Publicada» y única acción **Anular
+  publicación**, **Acciones requeridas** vacía, los cinco permisos en «Listo
+  para prueba» sin acceso avanzado ni permisos extra, y un solo rol
+  Administrador. Detalle en el registro operativo.
+- Verificaciones pendientes: ninguna para esta tarea. Retirar la identidad
+  temporal de staging es una acción operativa de la persona con acceso a esa
+  base, no un requisito de cierre.
+- Bloqueo: ninguno. No se publicó contenido nuevo, no se cambió la clasificación
+  de la app, no se solicitaron permisos y no se tocaron activos remotos.
+- Próximo paso exacto: iniciar `P5-T09` reutilizando la evidencia ya publicada;
+  no crear otra orden para la misma pieza.
+
+### Evidencia de cierre
+
+- Commit: rama `codex/p5-t08-meta-live-launch`; documentación de cierre sobre
+  `c4e9cf49` (merge del PR 16). La implementación que sostiene la tarea ya está
+  en `main`: PR 14 (`c581b35`), PR 15 (`abe95bb`) y PR 16 (`d7c8aad`).
+- Comandos y resultados: `pnpm verify` completo en verde el 2026-08-31, con 40
+  pruebas del paquete de App Review y 80 del motor; `pnpm db:test` contra
+  PostgreSQL 17.9 efímero; integración del provisionador con dry run, rollback,
+  idempotencia y rechazo ante orden existente; `pnpm verify:plan` tras esta
+  documentación. CI de PR `33508422624`, CI de main `33508711483` e imágenes
+  inmutables `33508917207`.
+- Evidencia visual o remota: URLs legales públicas con HTTPS 200; publicación
+  única del 2026-09-01 con Instagram `17864904492660609` y Facebook
+  `252222471780140_1598131635337533`, ambos enlaces revisados con bitmap y copy
+  aprobados; callbacks de desautorización y eliminación probados con firma
+  válida e inválida; app publicada en la consola de Meta sin acciones
+  requeridas, verificada por lectura directa de la consola. Detalle en el
+  [registro operativo](../operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
+- Desviaciones aprobadas: `ADR-022` sustituye el envío de App Review por la
+  operación en vivo con acceso estándar sobre activos propios. No existe
+  screencast, no se recorrió el guion de revisión y la identidad temporal nunca
+  se activó ni se entregó. `ADR-019` mantiene la excepción de activos de prueba
+  separados.
 
 ## P5-T09 — Validar publicación real de punta a punta
 

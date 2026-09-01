@@ -241,3 +241,21 @@ El usuario eligió la A exacta de la pieza para el ícono de la app. Se reutiliz
 favicon del panel comparten geometría y colores. Falta la carga remota.
 El correo de contacto se omite salvo que Meta lo exija para enviar. El valor
 que autorizó el usuario queda fuera de Git y del contenido público.
+
+## Enmienda 2026-09-01 — la publicación ocurrió y App Review quedó descartada
+
+La única publicación autorizada se ejecutó el 2026-09-01 sobre los activos
+existentes: una orden, dos destinos, un identificador remoto por destino y
+ningún duplicado. Las enmiendas anteriores describen el camino hasta ahí; su
+lenguaje de «pendiente» ya no describe el presente.
+
+La app quedó publicada con acceso estándar y **no se envía App Review** mientras
+el alcance sean activos propios. Esa decisión, sus fuentes oficiales y su
+condición de reapertura viven en
+[`ADR-022`](ADR-022-META-LIVE-STANDARD-ACCESS.md). La identidad temporal de
+revisión nunca se activó ni se entregó y debe retirarse.
+
+Lo que esta enmienda **no** cambia: los límites de la decisión original siguen
+vigentes. No hay activos de prueba separados, ninguna escritura en Meta queda
+autorizada de antemano, y cada publicación futura necesita su propia
+autorización concreta con activo, media, copy, destino y efecto esperado.

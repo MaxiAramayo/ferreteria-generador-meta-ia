@@ -57,8 +57,12 @@ Meta for Developers confirmó que el portfolio de Aramayo no tenía una app
 registrada visible; las aplicaciones que aparecían al quitar el filtro
 pertenecían a otro portfolio y no se tocaron. Con autorización explícita se creó
 `Aramayo Content Staging`, vinculada al portfolio de Aramayo y con los casos de
-uso de administración de Instagram y Facebook Page. La app permanece **sin
-publicar** y su secreto nunca se mostró ni copió.
+uso de administración de Instagram y Facebook Page. Su secreto nunca se mostró
+ni copió. La app permaneció sin publicar hasta el 2026-09-01, cuando se publicó
+con acceso estándar; el ambiente que sirve sigue siendo staging. Para entonces
+ya se llamaba `Aramayo Content Platform`: «Staging» quedó sólo en la aplicación
+de Instagram del caso de uso, `Aramayo Content Staging-IG`, así que el ambiente
+lo identifica el dominio y no el nombre.
 
 Los cinco permisos que solicita la implementación quedaron `Listo para prueba`:
 `instagram_basic`, `instagram_content_publish`, `pages_manage_posts`,
@@ -374,7 +378,42 @@ resultado de Instagram porque no comparten estado, sólo contrato.
 
 ## App Review y producción
 
-La salida a producción requiere, según corresponda:
+### Nivel de acceso resuelto (2026-09-01)
+
+La app está **publicada** y opera con **acceso estándar** sobre los cinco
+permisos de `metaRequiredPermissions`. No se envió App Review y no se pidió
+acceso avanzado. La regla oficial que lo permite:
+
+| Nivel | A quién alcanza | Qué exige |
+|---|---|---|
+| Estándar | Sólo personas usuarias **con rol en la app** | Aprobación automática; sin App Review |
+| Avanzado | Cualquier persona usuaria, tenga rol o no | Verificación del negocio y App Review |
+| Tech Provider | Operar activos de **otros portfolios** | Preguntas de datos y App Review antes de publicar |
+
+Aramayo opera sus propios activos y quienes usan la plataforma tienen rol en la
+app, así que el acceso estándar alcanza. La decisión completa, con sus
+consecuencias y su condición de reapertura, está en
+[`ADR-022`](../architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
+
+**Precondición operativa**: antes de que una persona conecte Meta desde el
+panel, debe tener rol en la app —administración, desarrollo o prueba—. Sin ese
+rol el diálogo no concede los permisos, la conexión queda `permission_revoked`
+con sus `missingPermissions` visibles y no puede publicar. No es un fallo del
+adaptador: es el acceso estándar funcionando como está documentado.
+
+La lectura de la consola del 2026-09-01 confirmó que publicar la app **no**
+cambió el nivel de acceso: los cinco permisos siguen en «Listo para prueba», la
+etiqueta con la que Meta muestra el acceso estándar, y ningún permiso adicional
+quedó añadido. La app la administra la cuenta empresarial Ferretería y
+Lubricentro Aramayo y hoy tiene una sola persona con rol.
+
+Fuentes: [niveles de acceso](https://developers.facebook.com/docs/graph-api/overview/access-levels),
+[Tech Providers](https://developers.facebook.com/docs/development/release/tech-providers/).
+
+### Requisitos generales
+
+Un alcance que sí necesite App Review —hoy, sólo operar activos de otro
+negocio— requiere, según corresponda:
 
 - app configurada para negocio;
 - permisos aprobados;
@@ -391,11 +430,12 @@ No habilitar publicación automática mientras la app esté en modo de prueba.
 ### Implementación de requisitos legales y callbacks (2026-08-21)
 
 Las URLs, justificaciones, usuario temporal, guion y checklist viven en
-[META-APP-REVIEW.md](META-APP-REVIEW.md). El paquete no se presenta todavía:
-las aprobaciones administrativas y de la única prueba real fueron recibidas,
-pero no existe autorización para enviar App Review, activar/entregar la
-identidad temporal ni ejecutar publicaciones. Staging y el Dashboard de Meta ya
-conservan las URLs exactas; worker permanece detenido.
+[META-APP-REVIEW.md](META-APP-REVIEW.md). El paquete nunca se presentó y ya no
+se presentará con el alcance vigente: `ADR-022` resolvió operar con acceso
+estándar sobre activos propios. La identidad temporal no se activó ni se
+entregó. Staging y el Dashboard de Meta conservan las URLs exactas; la única
+publicación autorizada se ejecutó el 2026-09-01 y el worker volvió a quedar
+detenido.
 
 La API implementa los callbacks públicos definidos en la matriz de ambientes:
 
