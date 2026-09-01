@@ -220,6 +220,66 @@ enum PublicationTargetKind {
   @@map("publication_target_kind")
 }
 
+enum PublicationScheduleKind {
+  once    @map("once")
+  daily   @map("daily")
+  weekly  @map("weekly")
+  monthly @map("monthly")
+
+  @@map("publication_schedule_kind")
+}
+
+enum PublicationScheduleStatus {
+  active    @map("active")
+  paused    @map("paused")
+  cancelled @map("cancelled")
+  expired   @map("expired")
+  completed @map("completed")
+
+  @@map("publication_schedule_status")
+}
+
+enum PublicationOccurrenceStatus {
+  planned    @map("planned")
+  skipped    @map("skipped")
+  cancelled  @map("cancelled")
+  dispatched @map("dispatched")
+
+  @@map("publication_occurrence_status")
+}
+
+/// Cómo se resolvió la hora local contra la zona. Se guarda porque una
+/// ocurrencia corrida o ambigua tiene que poder explicarse después sin
+/// recalcular el calendario con la tzdata de hoy, que puede haber cambiado.
+enum PublicationOccurrenceResolution {
+  exact     @map("exact")
+  ambiguous @map("ambiguous")
+  shifted   @map("shifted")
+
+  @@map("publication_occurrence_resolution")
+}
+
+enum PublicationScheduleGapPolicy {
+  next_valid @map("next_valid")
+  skip       @map("skip")
+
+  @@map("publication_schedule_gap_policy")
+}
+
+enum PublicationMissedPolicy {
+  run_late @map("run_late")
+  skip     @map("skip")
+
+  @@map("publication_missed_policy")
+}
+
+enum PublicationMonthDayOverflow {
+  clamp @map("clamp")
+  skip  @map("skip")
+
+  @@map("publication_month_day_overflow")
+}
+
 enum PublicationAttemptState {
   pending               @map("pending")
   media_staged          @map("media_staged")
@@ -272,6 +332,8 @@ model Organization {
   knowledgeVersions      KnowledgeDocumentVersion[]
   outboxMessages         OutboxMessage[]
   publications           Publication[]
+  publicationSchedules   PublicationSchedule[]
+  scheduleOccurrences    PublicationScheduleOccurrence[]
   revisionMedia          PublicationRevisionMedia[]
   revisions              PublicationRevision[]
   stateTransitions       PublicationStateTransition[]
@@ -382,6 +444,7 @@ model OrganizationMembership {
   connectedMetaConnections     MetaConnection[]
   createdMedia                 MediaAsset[]
   createdPublications          Publication[]
+  createdPublicationSchedules  PublicationSchedule[]
   createdRevisions             PublicationRevision[]
   idempotencyRecords           IdempotencyRecord[]
   stateTransitions             PublicationStateTransition[]
@@ -610,6 +673,7 @@ model Publication {
   approvalSnapshots ApprovalSnapshot[]
   publishingOrders  PublicationOrder[]
   revisions         PublicationRevision[]
+  schedules         PublicationSchedule[]
   stateTransitions  PublicationStateTransition[]
 
   @@unique([organizationId, id], map: "publications_organization_id_key")
@@ -668,6 +732,7 @@ model ApprovalSnapshot {
   revision         PublicationRevision          @relation(fields: [organizationId, revisionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   approvedBy       OrganizationMembership       @relation(fields: [organizationId, approvedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   publishingOrders PublicationOrder[]
+  schedules        PublicationSchedule[]
   stateTransitions PublicationStateTransition[] @relation("TransitionApprovalSnapshot")
 
   @@unique([organizationId, revisionId], map: "approval_snapshots_revision_key")
@@ -780,6 +845,7 @@ model PublicationOrder {
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   targets          PublicationOrderTarget[]
+  occurrence       PublicationScheduleOccurrence?
   approvalSnapshot ApprovalSnapshot       @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   publication      Publication            @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
@@ -824,6 +890,81 @@ model PublicationOrderTarget {
   @@index([organizationId, nextAttemptAt], map: "publication_order_targets_retry_due_idx")
   @@index([organizationId, manualReason], map: "publication_order_targets_manual_idx")
   @@map("publication_order_targets")
+}
+
+/// Intención temporal: qué snapshot aprobado sale, a qué destinos y cuándo.
+/// No publica: materializa ocurrencias. La hora local y la zona son el dato
+/// original y el instante de cada ocurrencia es su consecuencia, de modo que
+/// una actualización de tzdata no mueva en silencio la hora que el negocio
+/// eligió.
+model PublicationSchedule {
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                       @map("organization_id") @db.Uuid
+  publicationId         String                       @map("publication_id") @db.Uuid
+  approvalSnapshotId    String                       @map("approval_snapshot_id") @db.Uuid
+  createdByMembershipId String                       @map("created_by_membership_id") @db.Uuid
+  kind                  PublicationScheduleKind
+  status                PublicationScheduleStatus    @default(active)
+  targets               PublicationTargetKind[]
+  timeZone              String                       @map("time_zone") @db.VarChar(80)
+  localTime             String                       @map("local_time") @db.Char(5)
+  effectiveFrom         DateTime                     @map("effective_from") @db.Timestamptz(3)
+  effectiveUntil        DateTime?                    @map("effective_until") @db.Timestamptz(3)
+  recurrenceInterval    Int?                         @map("recurrence_interval")
+  weekdays              Int[]                        @default([])
+  monthDay              Int?                         @map("month_day")
+  monthDayOverflow      PublicationMonthDayOverflow? @map("month_day_overflow")
+  gapPolicy             PublicationScheduleGapPolicy @default(skip) @map("gap_policy")
+  missedPolicy          PublicationMissedPolicy      @default(skip) @map("missed_policy")
+  lateToleranceMinutes  Int                          @default(0) @map("late_tolerance_minutes")
+  pausedAt              DateTime?                    @map("paused_at") @db.Timestamptz(3)
+  cancelledAt           DateTime?                    @map("cancelled_at") @db.Timestamptz(3)
+  cancelledReasonCode   String?                      @map("cancelled_reason_code") @db.VarChar(80)
+  expiredAt             DateTime?                    @map("expired_at") @db.Timestamptz(3)
+  completedAt           DateTime?                    @map("completed_at") @db.Timestamptz(3)
+  createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication                     @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshot ApprovalSnapshot                @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy        OrganizationMembership          @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  occurrences      PublicationScheduleOccurrence[]
+
+  @@unique([organizationId, id], map: "publication_schedules_organization_id_key")
+  @@index([organizationId, status, effectiveFrom], map: "publication_schedules_org_status_from_idx")
+  @@index([organizationId, publicationId, createdAt(sort: Desc)], map: "publication_schedules_org_publication_idx")
+  @@map("publication_schedules")
+}
+
+/// Un instante concreto que la programación produjo. `occurrence_key` es la
+/// hora civil local `YYYY-MM-DDTHH:mm` y es la identidad estable: volver a
+/// materializar la misma regla encuentra la fila existente en vez de duplicarla,
+/// aunque el instante se haya recalculado.
+model PublicationScheduleOccurrence {
+  id                 String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String                          @map("organization_id") @db.Uuid
+  scheduleId         String                          @map("schedule_id") @db.Uuid
+  occurrenceKey      String                          @map("occurrence_key") @db.Char(16)
+  scheduledAt        DateTime                        @map("scheduled_at") @db.Timestamptz(3)
+  resolution         PublicationOccurrenceResolution @default(exact)
+  status             PublicationOccurrenceStatus     @default(planned)
+  publicationOrderId String?                         @map("publication_order_id") @db.Uuid
+  skippedReasonCode  String?                         @map("skipped_reason_code") @db.VarChar(40)
+  cancelledAt        DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
+  dispatchedAt       DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
+  createdAt          DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  schedule         PublicationSchedule @relation(fields: [organizationId, scheduleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publicationOrder PublicationOrder?   @relation(fields: [organizationId, publicationOrderId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, scheduleId, occurrenceKey], map: "publication_occurrences_schedule_key")
+  @@unique([organizationId, publicationOrderId], map: "publication_occurrences_order_key")
+  @@unique([organizationId, id], map: "publication_occurrences_organization_id_key")
+  @@index([organizationId, status, scheduledAt], map: "publication_occurrences_due_idx")
+  @@map("publication_schedule_occurrences")
 }
 
 model AuditEvent {

@@ -16,8 +16,8 @@ idempotencia, validación previa, alertas y control humano.
 
 ## P6-T01 — Modelar programación, recurrencia y ocurrencias
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P2-T04`, `P5-T05`
 - Riesgo: Alto
 
@@ -34,18 +34,18 @@ sin confundir la intención temporal con la orden de publicación.
 
 ### Criterios de aceptación
 
-- [ ] Se guarda instante UTC y zona IANA original.
-- [ ] Una programación referencia snapshot aprobado y destinos.
-- [ ] Una regla recurrente tiene vigencia, frecuencia y política de excepción.
-- [ ] Cada ocurrencia tiene identidad estable e idempotente.
-- [ ] Editar una regla no reescribe ocurrencias ya publicadas.
-- [ ] Cancelación y expiración conservan historial.
+- [x] Se guarda instante UTC y zona IANA original.
+- [x] Una programación referencia snapshot aprobado y destinos.
+- [x] Una regla recurrente tiene vigencia, frecuencia y política de excepción.
+- [x] Cada ocurrencia tiene identidad estable e idempotente.
+- [x] Editar una regla no reescribe ocurrencias ya publicadas.
+- [x] Cancelación y expiración conservan historial.
 
 ### Verificación obligatoria
 
-- [ ] Tests de cambio de día, mes, año y zona horaria.
-- [ ] Casos de regla editada, pausada, cancelada y expirada.
-- [ ] Migración y restricciones de unicidad.
+- [x] Tests de cambio de día, mes, año y zona horaria.
+- [x] Casos de regla editada, pausada, cancelada y expirada.
+- [x] Migración y restricciones de unicidad.
 
 ### Fuera de alcance
 
@@ -53,11 +53,72 @@ sin confundir la intención temporal con la orden de publicación.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-01.
+- Estado real: el modelo, la migración y el cálculo de próxima ocurrencia están
+  implementados y verificados. La tarea cierra. Nada despacha todavía: eso es
+  `P6-T02` y sigue fuera de alcance.
+- Archivos: `packages/domain/src/publication-schedule.ts` y su prueba;
+  export en `index.ts`; dos modelos y siete enums en `schema.prisma`; migración
+  `20260901120000_publication_schedules` con su `down.sql`; seis pruebas de
+  integración en `repositories.integration.test.ts`;
+  [`ADR-023`](../architecture/decisions/ADR-023-OCCURRENCE-CIVIL-IDENTITY.md).
+- **La identidad de una ocurrencia es su hora civil local, no su instante.** El
+  instante se mueve cuando cambia tzdata o cuando se corrige la zona de una
+  programación, que es justo cuando no debe moverse. Con la clave civil,
+  volver a materializar encuentra la fila existente y el índice único impide el
+  duplicado. Está en `ADR-023` con sus alternativas descartadas.
+- **La vigencia se evalúa en fechas civiles y no en instantes.** Se descubrió
+  al probar una programación única: `effective_from` a medianoche UTC pertenece
+  al día local anterior en Córdoba, así que la ocurrencia de las nueve caía
+  antes del inicio de vigencia y desaparecía. Comparar por fecha local es lo que
+  el negocio quiere decir con «del 15 al 30», y además elimina toda esa clase de
+  error. Quedó además `singleOccurrenceRule`, que arma la regla desde la fecha
+  local elegida para que nadie tenga que calcular qué instante cae dentro del
+  día correcto.
+- **Las dos anomalías de zona son estados legítimos, no errores.** Una hora que
+  no existe se saltea o se corre según `gap_policy` y se marca `shifted`; una
+  que ocurre dos veces toma la primera y se marca `ambiguous`. La resolución se
+  guarda porque después no se puede recalcular: la tzdata de mañana puede ser
+  otra.
+- **Detectar la ambigüedad obligó a cambiar el algoritmo.** La técnica habitual
+  —suponer el instante y refinarlo con el desfasaje que devuelve— converge
+  siempre al mismo lado del salto, así que la hora repetida parecía única. Los
+  candidatos salen ahora de los desfasajes de un día antes y un día después, y
+  la prueba de la vuelta de reloj de Madrid es la que lo demuestra.
+- **Dos CHECK estaban mal escritos y las pruebas lo mostraron.** `array_length`
+  devuelve NULL sobre un arreglo vacío, y un CHECK que evalúa NULL **no** se
+  viola: la restricción de «al menos un destino» y la de «al menos un día de la
+  semana» dejaban pasar exactamente el caso que existían para impedir. Se
+  reescribieron con `cardinality`, que devuelve 0. Es la misma trampa ternaria
+  que `P5-T06` ya había encontrado en un `NOT` de Prisma.
+- **El estado de publicación no se copia a la ocurrencia.** La ocurrencia sólo
+  dice si espera, si alguien la sacó del calendario o si ya produjo una orden;
+  el desenlace remoto lo sabe la orden. La base exige que `dispatched` tenga
+  orden y que ninguna orden pertenezca a dos ocurrencias.
+- Verificaciones ejecutadas: 28 pruebas nuevas de dominio —221 en el paquete—,
+  seis de integración contra PostgreSQL real, y `pnpm verify` completo en verde.
+  La migración se aplicó desde base vacía, se revirtió con su `down.sql` y se
+  reaplicó dentro de `pnpm db:test`.
+- Desviación registrada: el PostgreSQL efímero disponible localmente fue **14.19**
+  y no el 17.9 de los entornos. Todo lo que usa la migración —enums, arreglos,
+  `cardinality`, CHECK e índices únicos parciales— existe desde 9.4, así que el
+  riesgo es bajo, pero la comprobación en 17 queda pendiente de la próxima
+  corrida con Docker disponible.
+- Próximo paso exacto: `P6-T02`, el dispatcher persistente, que consume
+  `planOccurrences` y `diffOccurrences` sin volver a resolver zonas.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: rama `codex/p6-t01-schedule-model`.
+- Comandos y resultados: `pnpm verify` completo en verde —stack, plan, formato,
+  build, lint, typecheck, 221 pruebas de dominio, línea base y smokes de API,
+  web y worker—; `pnpm db:test` completo, con migración desde base vacía,
+  reversión con `down.sql` y reaplicación; 52 pruebas de integración en verde,
+  seis de ellas nuevas.
+- Evidencia visual o remota: no aplica. La tarea no tiene superficie visible ni
+  toca proveedores externos.
+- Desviaciones aprobadas: verificación de la migración sobre PostgreSQL 14.19
+  local en lugar de 17.9, por no haber Docker disponible en la sesión.
 
 ## P6-T02 — Implementar dispatcher persistente
 

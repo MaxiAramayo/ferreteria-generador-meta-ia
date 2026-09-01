@@ -6287,3 +6287,294 @@ test("abandonar cierra la orden sin afirmar cómo terminó el destino", async ()
     false,
   );
 });
+
+// --- Programación, recurrencia y ocurrencias (`P6-T01`) ---
+
+async function scheduleFixture(
+  overrides: Record<string, unknown> = {},
+): Promise<{
+  organizationId: string;
+  publicationId: string;
+  scheduleId: string;
+  snapshotId: string;
+}> {
+  const { membershipId, organizationId, publicationId, snapshotId } =
+    await publicationOrderFixture();
+  const scheduleId = randomUUID();
+  await database.publicationSchedule.create({
+    data: {
+      approvalSnapshotId: snapshotId,
+      createdByMembershipId: membershipId,
+      effectiveFrom: new Date("2026-09-01T12:00:00.000Z"),
+      id: scheduleId,
+      kind: "daily",
+      localTime: "09:00",
+      organizationId,
+      publicationId,
+      recurrenceInterval: 1,
+      targets: ["instagram_feed"],
+      timeZone: "America/Argentina/Cordoba",
+      ...overrides,
+    },
+  });
+  return { organizationId, publicationId, scheduleId, snapshotId };
+}
+
+test("una programación sin destinos no se guarda", async () => {
+  const { membershipId, organizationId, publicationId, snapshotId } =
+    await publicationOrderFixture();
+  // `cardinality` y no `array_length`: sobre un arreglo vacío el segundo
+  // devuelve NULL y el CHECK dejaría pasar justo lo que existe para impedir.
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: {
+        approvalSnapshotId: snapshotId,
+        createdByMembershipId: membershipId,
+        effectiveFrom: new Date("2026-09-01T12:00:00.000Z"),
+        kind: "once",
+        localTime: "09:00",
+        organizationId,
+        publicationId,
+        targets: [],
+        timeZone: "America/Argentina/Cordoba",
+      },
+    }),
+  );
+});
+
+test("cada frecuencia guarda exactamente sus campos", async () => {
+  const { membershipId, organizationId, publicationId, snapshotId } =
+    await publicationOrderFixture();
+  const base = {
+    approvalSnapshotId: snapshotId,
+    createdByMembershipId: membershipId,
+    effectiveFrom: new Date("2026-09-01T12:00:00.000Z"),
+    localTime: "09:00",
+    organizationId,
+    publicationId,
+    targets: ["instagram_feed" as const],
+    timeZone: "America/Argentina/Cordoba",
+  };
+  // Una regla semanal sin días describe una repetición que nunca ocurre.
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: { ...base, kind: "weekly", recurrenceInterval: 1, weekdays: [] },
+    }),
+  );
+  // Un día del mes en una regla semanal es un campo que nadie lee: la fila
+  // diría dos cosas distintas sobre cuándo publica.
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: {
+        ...base,
+        kind: "weekly",
+        monthDay: 15,
+        recurrenceInterval: 1,
+        weekdays: [2],
+      },
+    }),
+  );
+  // Sin política de desborde, el 31 en un mes corto no tiene respuesta.
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: { ...base, kind: "monthly", monthDay: 31, recurrenceInterval: 1 },
+    }),
+  );
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: { ...base, kind: "once", recurrenceInterval: 1 },
+    }),
+  );
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: {
+        ...base,
+        kind: "weekly",
+        recurrenceInterval: 1,
+        weekdays: [8],
+      },
+    }),
+  );
+});
+
+test("un estado terminal sin su marca temporal no se guarda", async () => {
+  const { membershipId, organizationId, publicationId, snapshotId } =
+    await publicationOrderFixture();
+  const base = {
+    approvalSnapshotId: snapshotId,
+    createdByMembershipId: membershipId,
+    effectiveFrom: new Date("2026-09-01T12:00:00.000Z"),
+    kind: "once" as const,
+    localTime: "09:00",
+    organizationId,
+    publicationId,
+    targets: ["instagram_feed" as const],
+    timeZone: "America/Argentina/Cordoba",
+  };
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: { ...base, status: "cancelled" },
+    }),
+  );
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: { ...base, cancelledAt: new Date(), status: "cancelled" },
+    }),
+    "Una cancelación sin motivo no se puede auditar.",
+  );
+  // Sólo una programación única puede completarse: una recurrente vence o se
+  // cancela, pero no «termina».
+  await assert.rejects(
+    database.publicationSchedule.create({
+      data: {
+        ...base,
+        completedAt: new Date(),
+        kind: "daily",
+        recurrenceInterval: 1,
+        status: "completed",
+      },
+    }),
+  );
+});
+
+test("la clave civil identifica la ocurrencia dentro de su programación", async () => {
+  const { organizationId, scheduleId } = await scheduleFixture();
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      occurrenceKey: "2026-09-15T09:00",
+      organizationId,
+      scheduledAt: new Date("2026-09-15T12:00:00.000Z"),
+      scheduleId,
+    },
+  });
+  // Volver a materializar la misma regla tiene que encontrar esta fila, no
+  // crear otra: es lo que hace idempotente la materialización.
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        occurrenceKey: "2026-09-15T09:00",
+        organizationId,
+        scheduledAt: new Date("2026-09-15T13:00:00.000Z"),
+        scheduleId,
+      },
+    }),
+  );
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        occurrenceKey: "2026-9-15T09:00",
+        organizationId,
+        scheduledAt: new Date("2026-09-15T12:00:00.000Z"),
+        scheduleId,
+      },
+    }),
+  );
+});
+
+test("una ocurrencia despachada y su orden son la misma cosa", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const snapshot = await database.approvalSnapshot.findFirstOrThrow({
+    where: { organizationId, publicationId },
+  });
+  const scheduleId = randomUUID();
+  await database.publicationSchedule.create({
+    data: {
+      approvalSnapshotId: snapshot.id,
+      createdByMembershipId: membershipId,
+      effectiveFrom: new Date("2026-09-01T12:00:00.000Z"),
+      id: scheduleId,
+      kind: "daily",
+      localTime: "09:00",
+      organizationId,
+      publicationId,
+      recurrenceInterval: 1,
+      targets: ["instagram_feed"],
+      timeZone: "America/Argentina/Cordoba",
+    },
+  });
+
+  // Despachada sin orden describiría una ocurrencia que no produjo nada.
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        dispatchedAt: new Date(),
+        occurrenceKey: "2026-09-16T09:00",
+        organizationId,
+        scheduledAt: new Date("2026-09-16T12:00:00.000Z"),
+        scheduleId,
+        status: "dispatched",
+      },
+    }),
+  );
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchedAt: new Date(),
+      occurrenceKey: "2026-09-16T09:00",
+      organizationId,
+      publicationOrderId: orderId,
+      scheduledAt: new Date("2026-09-16T12:00:00.000Z"),
+      scheduleId,
+      status: "dispatched",
+    },
+  });
+  // Dos ocurrencias sobre la misma orden dirían que una publicación salió dos
+  // veces desde el calendario.
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        dispatchedAt: new Date(),
+        occurrenceKey: "2026-09-17T09:00",
+        organizationId,
+        publicationOrderId: orderId,
+        scheduledAt: new Date("2026-09-17T12:00:00.000Z"),
+        scheduleId,
+        status: "dispatched",
+      },
+    }),
+  );
+});
+
+test("saltear y cancelar una ocurrencia conservan su motivo", async () => {
+  const { organizationId, scheduleId } = await scheduleFixture();
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        occurrenceKey: "2026-09-18T09:00",
+        organizationId,
+        scheduledAt: new Date("2026-09-18T12:00:00.000Z"),
+        scheduleId,
+        status: "skipped",
+      },
+    }),
+  );
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      occurrenceKey: "2026-09-18T09:00",
+      organizationId,
+      scheduledAt: new Date("2026-09-18T12:00:00.000Z"),
+      scheduleId,
+      skippedReasonCode: "hora-inexistente",
+      status: "skipped",
+    },
+  });
+  await assert.rejects(
+    database.publicationScheduleOccurrence.create({
+      data: {
+        occurrenceKey: "2026-09-19T09:00",
+        organizationId,
+        scheduledAt: new Date("2026-09-19T12:00:00.000Z"),
+        scheduleId,
+        status: "cancelled",
+      },
+    }),
+  );
+});
