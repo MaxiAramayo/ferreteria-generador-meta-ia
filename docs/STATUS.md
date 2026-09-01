@@ -6,6 +6,12 @@ Actualizado: 2026-09-01
 
 **Fase 5 — Publicación mediante Meta**
 
+La fase activa sigue siendo la 5 porque `P5-T09` no cerró: espera una
+autorización de publicación, no trabajo pendiente. Mientras tanto empezó la
+Fase 6, cuyo `P6-T01` sólo dependía de `P2-T04` y `P5-T05`, ambas completas.
+Avanzar en paralelo no adelanta la fase activa ni saltea ninguna dependencia
+declarada.
+
 Las Fases 0, 1, 2 y 3 quedaron cerradas. La Fase 1 cerró el 2026-08-03: el
 usuario configuró Cloudinary staging y el smoke remoto verificó carga, variante
 HTTPS, render con navegador real y borrado idempotente, que era lo único que le
@@ -107,57 +113,53 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Iniciar `P5-T09` — validar la publicación real de punta a punta. `P5-T08` cerró
-el 2026-09-01.
+Continuar `P6-T02` — el dispatcher persistente. `P6-T01` cerró el 2026-09-01 y
+`P5-T09` está bloqueada por una autorización, así que Fase 6 avanza en paralelo:
+sus dependencias declaradas —`P2-T04` y `P5-T05`— ya estaban completas.
 
-**La app está en vivo.** La persona administradora la publicó en la consola de
-Meta, que confirmó «Tu aplicación se ha publicado correctamente» y la describe
-como «disponible para su uso público»; **Acciones requeridas** no informa nada
-pendiente. Se resolvió no enviar App Review: el acceso estándar se aprueba
-automáticamente y alcanza porque quienes operan la plataforma tienen rol en la
-app; el acceso avanzado es para personas usuarias sin rol y Tech Provider, para
-operar activos de otros portfolios —una clasificación incorrecta para Aramayo e
-irreversible—. Queda en
+**`P5-T09` necesita una decisión, no más código.** La publicación del
+2026-09-01 ya evidencia publicación única por destino, coincidencia remota de
+copy y bitmap, IDs consultables y bloqueo de duplicado. **No** cubre el primer
+criterio: esa pieza no proviene de un brief, porque su revisión y snapshot los
+creó el provisionador de App Review. Para cerrarla hay que publicar una segunda
+pieza real nacida de un brief, y `ADR-019` exige una autorización concreta con
+activo, media, copy, destino y efecto esperado. Lo demás —fallo inducido,
+reconciliación, informe y auditoría— sale de esa misma corrida.
+
+**`P6-T01` quedó cerrada.** El modelo separa la intención temporal de la orden
+de publicación: una programación materializa ocurrencias y una ocurrencia
+produce una orden. La identidad de una ocurrencia es su **hora civil local** y
+no su instante, porque el instante se mueve cuando cambia tzdata o cuando se
+corrige la zona; con la clave civil, volver a materializar encuentra la fila y
+el índice único impide el duplicado. Está en
+[`ADR-023`](architecture/decisions/ADR-023-OCCURRENCE-CIVIL-IDENTITY.md).
+
+Tres cosas que la implementación dejó aprendidas y conviene no volver a
+descubrir:
+
+- la **vigencia se evalúa en fechas civiles**, no en instantes: `effective_from`
+  a medianoche UTC pertenece al día local anterior en Córdoba, y comparar por
+  instante hacía desaparecer la ocurrencia de esa mañana;
+- **detectar una hora local ambigua** exige sacar los candidatos de los
+  desfasajes de un día antes y uno después; refinar una suposición converge
+  siempre al mismo lado del salto y la hora repetida parece única;
+- **`array_length` devuelve NULL sobre un arreglo vacío** y un CHECK que evalúa
+  NULL no se viola, así que las restricciones de «al menos un destino» y «al
+  menos un día» dejaban pasar justo lo que debían impedir. Van con
+  `cardinality`.
+
+La publicación de Meta sigue como quedó el 2026-09-01: app publicada con acceso
+estándar, sin App Review, con una sola persona con rol en la app. Evidencia en
+el [registro operativo](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md) y
+decisión en
 [`ADR-022`](architecture/decisions/ADR-022-META-LIVE-STANDARD-ACCESS.md).
-
-Consecuencia permanente: **quien conecte Meta debe tener rol en la app**. Sin
-rol no se conceden los cinco permisos, la conexión queda `permission_revoked` y
-no puede publicar.
-
-**Lo publicado.** La orden `b2d75f69-40f1-48a8-ad6e-56bd142be220` quedó
-`published` a las 12:45:24Z del 2026-09-01, con Instagram `17864904492660609` y
-Facebook `252222471780140_1598131635337533`. Los enlaces visibles muestran el
-copy y bitmap aprobados; Facebook la marca pública. El panel quedó en versión 8
-y bloquea duplicados. Odoo confirmó producto activo y seis unidades por negocio
-inmediatamente antes de ejecutar; no se publicó precio, historia ni promoción.
-API y web siguen sanas sobre `57d6d728845fd5641385dfaa091453da714f21ce`; el
-worker `bc32e840ec67676198c36d69fc49bab9bc4a2ec8` procesó la única fila de
-outbox y fue retirado con su entorno temporal. Evidencia completa en el
-[registro operativo](operations/META-APP-REVIEW-PUBLICATION-2026-08-31.md).
-
-**Qué le sirve a `P5-T09` y qué no.** Esa orden ya evidencia publicación única
-por destino, coincidencia remota de copy y bitmap, IDs consultables desde el
-historial y bloqueo de duplicado. **No** cubre el primer criterio: la pieza no
-proviene de un brief, porque su revisión y snapshot los creó el provisionador de
-App Review. Tampoco existe todavía el fallo inducido con reconciliación que no
-altere el destino exitoso, ni el informe de fallos, latencia y reconciliación
-con auditoría de logs, base y almacenamiento sin secretos. `P5-T09` debe
-producir esos tres, y reutilizar la publicación existente como evidencia sin
-crear otra orden para la misma pieza.
 
 **Acciones operativas abiertas.** Retirar la identidad temporal de revisión de
 staging según su plan de baja —nunca se activó ni se entregó— y borrar su
 entrada del Llavero. Conservar los roles de la app para quienes operan la
-plataforma —hoy hay **una sola persona con rol**, así que cualquier otra
-necesita que se le asigne uno antes de conectar—. La app `2161967167868736` ya
-se llama `Aramayo Content Platform` y sirve el ambiente staging: el ambiente lo
-marca el dominio, no el nombre, y la Fase 7 debe decidir explícitamente si
-producción la reutiliza o registra otra.
-
-El paquete de [`META-APP-REVIEW.md`](integrations/META-APP-REVIEW.md) se
-conserva como referencia de permisos, justificaciones y superficie legal; ya no
-es trabajo pendiente. No hay screencast ni guion recorrido, y así queda
-registrado.
+plataforma; hoy hay una sola persona con rol. La app `2161967167868736` ya se
+llama `Aramayo Content Platform` y sirve staging: el ambiente lo marca el
+dominio, no el nombre, y la Fase 7 debe decidir si producción la reutiliza.
 
 `P5-T07` quedó cerrada el 2026-08-21 con los seis criterios y las tres
 verificaciones cumplidas. Lo implementado:

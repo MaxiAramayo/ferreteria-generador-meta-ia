@@ -1234,7 +1234,30 @@ destino previsto y que el sistema conserva evidencia completa.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-01. Análisis de brecha, sin implementación.
+- Estado real: la tarea no arrancó. Se midió qué cubre la evidencia existente y
+  qué falta, para no empezarla sobre una premisa falsa.
+- **Lo que la publicación del 2026-09-01 ya evidencia**: publicación única por
+  destino, coincidencia remota de copy y bitmap, identificadores consultables
+  desde el historial y bloqueo de duplicado en el panel.
+- **Lo que no cubre**: el primer criterio. Esa pieza **no proviene de un brief**:
+  su revisión y su snapshot los creó el provisionador de App Review, que escribe
+  `publication_revisions` con `content_brief_run_id` en nulo. El camino de
+  producto sí existe —`PublicationDraftService.create` recibe el
+  `contentBriefRunId` del lado del servidor al aceptar un brief—, pero nunca se
+  recorrió hasta una publicación real.
+- **Lo que ya está probado con dobles y no necesita repetirse**: `P5-T06` dejó
+  diez escenarios de integración contra PostgreSQL real —orden completa,
+  parcial, fallida, doble pedido, dos trabajadores, cancelación, reconciliación
+  que no borra el fallo, reintento que no toca lo publicado—. El valor que falta
+  no es simular otra vez: es la corrida real.
+- **Bloqueo**: `P5-T09` necesita publicar una segunda pieza real en los activos
+  de Aramayo, y `ADR-019` exige para eso una autorización concreta con activo,
+  media, copy, destino y efecto esperado. No existe todavía. Esta nota no la
+  reemplaza.
+- Próximo paso exacto: obtener esa autorización sobre una pieza concreta nacida
+  de un brief; recién entonces ejecutar la corrida, inducir el fallo de un
+  destino, reconciliarlo y levantar el informe de fallos, latencia y auditoría.
 
 ### Evidencia de cierre
 
