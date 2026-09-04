@@ -44,6 +44,7 @@
  * local existe una sola vez está mal escrito, no simplificado.
  */
 
+import type { OrganizationScope } from "./persistence.ts";
 import type { PublicationTarget } from "./publication.ts";
 
 /** Zona por defecto del negocio. */
@@ -231,6 +232,71 @@ export interface PublicationOccurrenceRecord {
   readonly resolution: PublicationOccurrenceResolution;
   readonly scheduledAt: string;
   readonly status: PublicationOccurrenceStatus;
+}
+
+/** Tópico transaccional que solicita transportar una ocurrencia a Redis. */
+export const publicationOccurrenceDispatchTopic =
+  "scheduling.occurrence.dispatch:v1" as const;
+
+/** Cola BullMQ que transporta ocurrencias listas para `P6-T03`. */
+export const publicationOccurrenceQueueName = "scheduled-publications" as const;
+
+/** Nombre estable del job dentro de la cola de publicaciones programadas. */
+export const publicationOccurrenceJobName =
+  "dispatch-publication-occurrence" as const;
+
+/**
+ * Payload mínimo que cruza Redis.
+ *
+ * No copia snapshot, destinos ni permisos: el consumidor vuelve a leerlos de
+ * PostgreSQL. Así un job viejo no puede convertirse en una segunda fuente de
+ * verdad sobre qué corresponde publicar.
+ */
+export interface PublicationOccurrenceDispatchJob extends OrganizationScope {
+  readonly dispatchEventId: string;
+  readonly occurrenceId: string;
+  readonly scheduleId: string;
+}
+
+export interface ClaimDuePublicationOccurrencesInput {
+  readonly at: string;
+  readonly limit: number;
+  /** Scope interno opcional para particionar instancias o pruebas. */
+  readonly organizationId?: string;
+}
+
+/** Resultado de la selección transaccional de ocurrencias vencidas. */
+export interface PublicationOccurrenceClaimSummary {
+  readonly dispatchRequested: number;
+  readonly jobs: readonly PublicationOccurrenceDispatchJob[];
+  readonly reviewed: number;
+  readonly skipped: number;
+}
+
+/** Foto operativa del atraso que sigue en PostgreSQL. */
+export interface PublicationScheduleDispatchMetrics {
+  readonly backlog: number;
+  readonly lagMilliseconds: number;
+  readonly queued: number;
+  readonly unclaimed: number;
+}
+
+/**
+ * Puerto persistente del dispatcher.
+ *
+ * `claimDue` debe marcar la ocurrencia y crear su outbox en la misma
+ * transacción. `pendingQueueJobs` es deliberadamente reconstruible: Redis
+ * puede vaciarse y este listado vuelve a crear el transporte desde la verdad
+ * guardada.
+ */
+export interface PublicationScheduleDispatchRepository {
+  claimDue(
+    input: ClaimDuePublicationOccurrencesInput,
+  ): Promise<PublicationOccurrenceClaimSummary>;
+  dispatchMetrics(at: string): Promise<PublicationScheduleDispatchMetrics>;
+  pendingQueueJobs(
+    input: Readonly<{ afterOccurrenceId?: string; limit: number }>,
+  ): Promise<readonly PublicationOccurrenceDispatchJob[]>;
 }
 
 const millisecondsPerMinute = 60_000;
@@ -815,7 +881,10 @@ export type PublicationMissedDisposition = "run" | "skip";
  * quien la va a leer, no cuánto tardó el sistema en darse cuenta.
  */
 export function missedOccurrenceDisposition(
-  schedule: PublicationScheduleRecord,
+  schedule: Pick<
+    PublicationScheduleRecord,
+    "lateToleranceMinutes" | "missedPolicy"
+  >,
   occurrence: Pick<PublicationOccurrenceRecord, "scheduledAt">,
   now: string,
 ): PublicationMissedDisposition {

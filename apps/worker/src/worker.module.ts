@@ -10,6 +10,7 @@ import { MediaModule } from "./media/media.module.ts";
 import { OutboxModule } from "./outbox/outbox.module.ts";
 import { PublishingModule } from "./publishing/publishing.module.ts";
 import { RenderingModule } from "./rendering/rendering.module.ts";
+import { SchedulingModule } from "./scheduling/scheduling.module.ts";
 import { StatusModule } from "./status/status.module.ts";
 
 @Module({})
@@ -31,6 +32,7 @@ export class WorkerModule {
       imports: [catalogModule, knowledgeModule],
     });
     const publishingModule = PublishingModule.forConfiguration(configuration);
+    const schedulingModule = SchedulingModule.forConfiguration(configuration);
 
     return {
       imports: [
@@ -44,7 +46,7 @@ export class WorkerModule {
         publishingModule,
         OutboxModule.forConfiguration({
           briefAvailable,
-          imports: [briefModule, publishingModule],
+          imports: [briefModule, publishingModule, schedulingModule],
         }),
         StatusModule.forConfiguration(configuration),
       ],

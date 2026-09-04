@@ -33,3 +33,4 @@ export {
   PrismaGenerationAttemptLedgerRepository,
   PrismaGenerationPolicyRepository,
 } from "./generation-governance-repository.ts";
+export { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";

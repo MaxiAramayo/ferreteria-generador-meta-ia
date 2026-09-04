@@ -122,8 +122,8 @@ sin confundir la intención temporal con la orden de publicación.
 
 ## P6-T02 — Implementar dispatcher persistente
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T01`
 - Riesgo: Alto
 
@@ -140,18 +140,18 @@ depender de timers residentes en memoria.
 
 ### Criterios de aceptación
 
-- [ ] Un reinicio no pierde ocurrencias.
-- [ ] Dos dispatchers no reclaman la misma ocurrencia simultáneamente.
-- [ ] Solo estados habilitados y dentro de ventana se encolan.
-- [ ] La marca de despacho y evento outbox son atómicos.
-- [ ] Backlog y atraso quedan observables.
-- [ ] Redis vacío puede reconstruirse desde la base.
+- [x] Un reinicio no pierde ocurrencias.
+- [x] Dos dispatchers no reclaman la misma ocurrencia simultáneamente.
+- [x] Solo estados habilitados y dentro de ventana se encolan.
+- [x] La marca de despacho y evento outbox son atómicos.
+- [x] Backlog y atraso quedan observables.
+- [x] Redis vacío puede reconstruirse desde la base.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar dos instancias concurrentes.
-- [ ] Vaciar Redis de prueba y recuperar trabajos pendientes.
-- [ ] Simular caída entre selección, commit y enqueue.
+- [x] Ejecutar dos instancias concurrentes.
+- [x] Vaciar Redis de prueba y recuperar trabajos pendientes.
+- [x] Simular caída entre selección, commit y enqueue.
 
 ### Fuera de alcance
 
@@ -159,11 +159,59 @@ depender de timers residentes en memoria.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-04.
+- Estado real: el worker reclama ocurrencias vencidas con
+  `FOR UPDATE SKIP LOCKED`, aplica la política de atraso y escribe la marca de
+  solicitud junto con un evento outbox en una sola transacción. El transporte
+  BullMQ usa el UUID de la ocurrencia como `jobId`; todavía no consume ni crea
+  una orden, que sigue siendo alcance de `P6-T03`.
+- PostgreSQL conserva dos marcas distintas del desenlace final:
+  `dispatch_requested_at` prueba que el dispatcher produjo una intención
+  durable; `dispatched_at` continúa reservado para cuando `P6-T03` cree o
+  reutilice la orden. La ocurrencia sigue `planned` entre ambos pasos, porque
+  copiar en ella el estado de Redis crearía una segunda fuente de verdad.
+- El barrido periódico selecciona sólo ocurrencias `planned` de reglas `active`.
+  `skip` vence ante cualquier atraso; `run_late` usa la tolerancia guardada. Una
+  ocurrencia fuera de ventana pasa a `skipped` con `missed-window` y nunca llega
+  a Redis.
+- El enqueue normal ocurre después del commit y el mismo evento pasa por el
+  outbox general. Cada 30 segundos, y también al arrancar, el worker pagina las
+  ocurrencias marcadas que siguen `planned` y vuelve a asegurar sus jobs. Por
+  eso perder Redis, caer antes del enqueue o perder una entrega outbox no pierde
+  el calendario.
+- La migración hace backfill desde eventos outbox existentes cuando se reaplica
+  después de un rollback. Sin eso, quitar y volver a agregar las columnas de
+  marca olvidaría qué ocurrencias ya tenían evento y fabricaría una segunda
+  intención.
+- Backlog, pendientes sin reclamar, pendientes ya encoladas y atraso máximo en
+  milisegundos salen en el log estructurado `scheduling.dispatch`.
+- BullMQ queda fijado en `6.2.2` y usa el adaptador oficial de `redis@6.1.0`.
+  El shutdown destruye el cliente poseído sin esperar un handshake imposible;
+  el smoke confirmó que Redis caído ya no bloquea `SIGTERM`.
+- Archivos principales: contrato en
+  `packages/domain/src/publication-schedule.ts`; repositorio Prisma en
+  `infrastructure/database/src/publication-schedule-dispatch-repository.ts`;
+  migración `20260904220000_schedule_dispatch_outbox`; módulo
+  `apps/worker/src/scheduling/`; ruta nueva en el outbox y verificación de base.
+- Verificaciones ejecutadas: unitarias del worker, `pnpm db:test` contra
+  PostgreSQL 17.9 y Redis 8.2.7, build, lint, typecheck y smoke. `pnpm verify`
+  completo queda registrado en la evidencia de cierre.
+- Próximo paso exacto: `P6-T03`, consumir el job, crear o reutilizar la orden en
+  una transacción y adquirir el lock con heartbeat antes de cualquier llamada a
+  Meta.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: rama `codex/p6-t02-persistent-dispatcher`.
+- Comandos y resultados: `pnpm db:test` aplicó desde cero, ejecutó 54 pruebas
+  de integración, vació/reconstruyó la cola real, revirtió la última migración,
+  la reaplicó y repitió la integración; `pnpm verify` completo en verde.
+- Evidencia de concurrencia y recuperación: una sola marca/outbox para dos
+  repositorios concurrentes; Redis borrado y job restaurado con el mismo
+  `jobId`; fallos simulados antes del commit y después del commit.
+- Evidencia visual o remota: no aplica. No se contactó Meta ni otro proveedor
+  externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T03 — Ejecutar publicaciones con locks e idempotencia
 

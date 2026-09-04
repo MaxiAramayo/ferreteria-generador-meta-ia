@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260820120000_publication_retry_schedule";
+const latestMigrationName = "20260904220000_schedule_dispatch_outbox";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -139,6 +139,14 @@ async function verifyDatabase(): Promise<void> {
       ],
       testDatabaseUrl,
     );
+    await runCommand(
+      process.execPath,
+      [
+        "--test",
+        "apps/worker/src/scheduling/publication-occurrence-queue.integration.ts",
+      ],
+      testDatabaseUrl,
+    );
     process.stdout.write(
       "Aislamiento, render, snapshots, referencias e índices verificados.\n",
     );
@@ -184,6 +192,10 @@ async function verifyDatabase(): Promise<void> {
         retry_reconciled_at_exists: boolean;
         rendered_at_exists: boolean;
         rendered_media_exists: boolean;
+        schedule_dispatch_event_exists: boolean;
+        schedule_dispatch_requested_exists: boolean;
+        schedule_occurrences_table: string | null;
+        schedules_table: string | null;
       }>(
         `
           SELECT
@@ -296,7 +308,23 @@ async function verifyDatabase(): Promise<void> {
               WHERE table_schema = 'public'
                 AND table_name = 'publication_revisions'
                 AND column_name = 'rendered_media_asset_id'
-            ) AS "rendered_media_exists"
+            ) AS "rendered_media_exists",
+            to_regclass('public.publication_schedules')::text AS "schedules_table",
+            to_regclass('public.publication_schedule_occurrences')::text AS "schedule_occurrences_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_schedule_occurrences'
+                AND column_name = 'dispatch_outbox_event_id'
+            ) AS "schedule_dispatch_event_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_schedule_occurrences'
+                AND column_name = 'dispatch_requested_at'
+            ) AS "schedule_dispatch_requested_exists"
         `,
       );
       const rollbackEvidence = rollbackState.rows[0];
@@ -313,14 +341,21 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparecen las cuatro
-      // columnas del calendario de reintentos y nada más.
-      assert.equal(rollbackEvidence.retry_attempts_exists, false);
-      assert.equal(rollbackEvidence.retry_next_attempt_exists, false);
-      assert.equal(rollbackEvidence.retry_manual_reason_exists, false);
-      assert.equal(rollbackEvidence.retry_reconciled_at_exists, false);
-      // La orden y sus destinos son de la migración anterior: revertir el
-      // calendario no puede llevarse por delante lo que programa.
+      // La reversión afecta sólo a la última migración: desaparecen las dos
+      // marcas del dispatcher y queda intacto el modelo temporal de `P6-T01`.
+      assert.equal(rollbackEvidence.schedule_dispatch_event_exists, false);
+      assert.equal(rollbackEvidence.schedule_dispatch_requested_exists, false);
+      assert.equal(rollbackEvidence.schedules_table, "publication_schedules");
+      assert.equal(
+        rollbackEvidence.schedule_occurrences_table,
+        "publication_schedule_occurrences",
+      );
+      assert.equal(rollbackEvidence.retry_attempts_exists, true);
+      assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
+      assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
+      assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
+      // La orden y sus destinos son anteriores: revertir el transporte no
+      // puede llevarse por delante lo que publica.
       assert.equal(
         rollbackEvidence.publication_orders_table,
         "publication_orders",
