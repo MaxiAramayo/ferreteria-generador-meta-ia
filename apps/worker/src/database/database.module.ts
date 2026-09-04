@@ -13,6 +13,7 @@ import {
   PrismaMetaConnectionRepository,
   PrismaPublicationOrderRepository,
   PrismaPublicationProductionRepository,
+  PrismaPublicationScheduleDispatchRepository,
 } from "@aramayo/database";
 import type {
   CommercialToolAuditPort,
@@ -25,6 +26,7 @@ import type {
   MetaConnectionRepository,
   OutboxRepository,
   PublicationProductionRepository,
+  PublicationScheduleDispatchRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
@@ -41,6 +43,7 @@ import {
   META_CONNECTION_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
+  PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
 
@@ -60,6 +63,7 @@ export class DatabaseModule {
         OUTBOX_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
+        PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
       ],
       global: true,
       module: DatabaseModule,
@@ -120,6 +124,14 @@ export class DatabaseModule {
           provide: META_CONNECTION_REPOSITORY,
           useFactory: (database: DatabaseClient): MetaConnectionRepository =>
             new PrismaMetaConnectionRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationScheduleDispatchRepository =>
+            new PrismaPublicationScheduleDispatchRepository(database),
         },
         {
           // Una sola instancia sirve al ciclo de la orden y al diario de

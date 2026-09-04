@@ -126,6 +126,14 @@ IA, render y publicación se modelan como trabajos:
 La cola puede reconstruirse desde PostgreSQL. Un trabajo desaparecido de Redis
 no puede perder una publicación programada.
 
+Para programaciones, `dispatch_requested_at` y `dispatch_outbox_event_id`
+registran que una ocurrencia ya produjo intención de transporte; no afirman que
+ya exista una orden. El repositorio escribe esas marcas y el outbox en una sola
+transacción después de reclamar con `FOR UPDATE SKIP LOCKED`. BullMQ deduplica
+por UUID de ocurrencia y el worker vuelve a asegurar periódicamente todos los
+jobs cuyas ocurrencias sigan `planned`. `P6-T03` es quien convierte ese job en
+orden y recién entonces fija `dispatched_at`.
+
 El render usa un `mediaAssetId` UUID determinista derivado de la revisión. Si el
 PNG se confirmó pero el worker perdió el lease, el mismo evento reconoce esa
 salida y termina sin renderizar ni cargar otra vez. Éxito y fallo actualizan la

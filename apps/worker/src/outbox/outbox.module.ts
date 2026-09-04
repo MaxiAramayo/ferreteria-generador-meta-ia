@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   contentBriefGenerationTopic,
   generationRunTopic,
+  publicationOccurrenceDispatchTopic,
   publicationOrderTopic,
   publicationRenderTopic,
   type ContentBriefRunRepository,
@@ -28,6 +29,9 @@ import { PublicationRenderOutboxTransport } from "../rendering/publication-rende
 import type { DesignRenderer } from "@aramayo/design-engine";
 import { PUBLICATION_ORDER_TRANSPORT } from "../publishing/publishing.module.ts";
 import type { PublicationOrderOutboxTransport } from "../publishing/publication-order.transport.ts";
+import type { PublicationOccurrenceQueue } from "../scheduling/publication-occurrence.queue.ts";
+import { PublicationOccurrenceOutboxTransport } from "../scheduling/publication-occurrence-outbox.transport.ts";
+import { PUBLICATION_OCCURRENCE_QUEUE } from "../scheduling/scheduling.tokens.ts";
 import { OutboxConsumerService } from "./outbox-consumer.service.ts";
 import { OutboxDispatcherService } from "./outbox-dispatcher.service.ts";
 import { TopicRoutingOutboxTransport } from "./topic-routing-outbox.transport.ts";
@@ -66,6 +70,7 @@ export class OutboxModule {
           inject: [
             ...renderInjection,
             PUBLICATION_ORDER_TRANSPORT,
+            PUBLICATION_OCCURRENCE_QUEUE,
             ...briefInjection,
           ],
           provide: OUTBOX_TRANSPORT,
@@ -75,6 +80,7 @@ export class OutboxModule {
             media: MediaLifecycleService,
             generation: ImageGenerationRunService,
             publishing: PublicationOrderOutboxTransport | null,
+            scheduling: PublicationOccurrenceQueue,
             brief?: ContentBriefGenerationService,
             runs?: ContentBriefRunRepository,
           ): OutboxTransport =>
@@ -96,6 +102,8 @@ export class OutboxModule {
               ...(publishing === null
                 ? {}
                 : { [publicationOrderTopic]: publishing }),
+              [publicationOccurrenceDispatchTopic]:
+                new PublicationOccurrenceOutboxTransport(scheduling),
             }),
         },
         {

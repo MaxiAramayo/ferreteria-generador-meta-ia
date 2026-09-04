@@ -270,6 +270,15 @@ diagnóstico seguro y referencias suficientes para reconciliar el estado.
 
 Regla que materializa publicaciones futuras. No publica directamente.
 
+### PublicationSchedule y PublicationScheduleOccurrence
+
+La programación conserva la regla temporal, el snapshot aprobado y los
+destinos. La ocurrencia conserva la hora civil estable y el instante resuelto.
+Cuando vence, el dispatcher fija `dispatchRequestedAt` y
+`dispatchOutboxEventId` atómicamente con el outbox, pero la mantiene `planned`:
+`dispatched` sólo existe cuando una orden persistida queda enlazada. Redis no
+aporta ningún estado de dominio y puede reconstruirse a partir de esas marcas.
+
 ## Máquina de estados
 
 ```text

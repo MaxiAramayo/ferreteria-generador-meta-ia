@@ -7,6 +7,7 @@ import {
   normalizeBrandConfigurationUpdate,
   normalizeLocationConfigurationUpdate,
   pendingPublicationTargets,
+  publicationOccurrenceDispatchTopic,
   publicationOrderStatus,
   transitionPublication,
   type GenerationRunRecord,
@@ -46,6 +47,7 @@ import {
   publicationTargetKey,
 } from "./publication-order-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
+import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
 import {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,
@@ -6294,6 +6296,7 @@ async function scheduleFixture(
   overrides: Record<string, unknown> = {},
 ): Promise<{
   organizationId: string;
+  membershipId: string;
   publicationId: string;
   scheduleId: string;
   snapshotId: string;
@@ -6317,7 +6320,13 @@ async function scheduleFixture(
       ...overrides,
     },
   });
-  return { organizationId, publicationId, scheduleId, snapshotId };
+  return {
+    membershipId,
+    organizationId,
+    publicationId,
+    scheduleId,
+    snapshotId,
+  };
 }
 
 test("una programación sin destinos no se guarda", async () => {
@@ -6577,4 +6586,163 @@ test("saltear y cancelar una ocurrencia conservan su motivo", async () => {
       },
     }),
   );
+});
+
+// --- Dispatcher persistente (`P6-T02`) ---
+
+test("dos dispatchers no reclaman la misma ocurrencia", async () => {
+  const { organizationId, scheduleId } = await scheduleFixture({
+    lateToleranceMinutes: 30,
+    missedPolicy: "run_late",
+  });
+  const occurrenceId = randomUUID();
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      id: occurrenceId,
+      occurrenceKey: "2026-09-04T08:55",
+      organizationId,
+      scheduledAt: new Date("2026-09-04T11:55:00.000Z"),
+      scheduleId,
+    },
+  });
+  const first = new PrismaPublicationScheduleDispatchRepository(database);
+  const second = new PrismaPublicationScheduleDispatchRepository(database);
+
+  const claims = await Promise.all([
+    first.claimDue({
+      at: "2026-09-04T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    second.claimDue({
+      at: "2026-09-04T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+  ]);
+
+  assert.equal(
+    claims.reduce((total, claim) => total + claim.dispatchRequested, 0),
+    1,
+  );
+  const stored = await database.publicationScheduleOccurrence.findUniqueOrThrow(
+    { where: { id: occurrenceId } },
+  );
+  assert.ok(stored.dispatchOutboxEventId);
+  assert.equal(
+    stored.dispatchRequestedAt?.toISOString(),
+    "2026-09-04T12:00:00.000Z",
+  );
+  const outbox = await database.outboxMessage.findUniqueOrThrow({
+    where: { id: stored.dispatchOutboxEventId },
+  });
+  assert.equal(outbox.topic, publicationOccurrenceDispatchTopic);
+  assert.deepEqual(outbox.payload, {
+    dispatchEventId: stored.dispatchOutboxEventId,
+    occurrenceId,
+    scheduleId,
+  });
+  assert.equal(
+    (
+      await first.claimDue({
+        at: "2026-09-04T12:00:01.000Z",
+        limit: 10,
+        organizationId,
+      })
+    ).reviewed,
+    0,
+  );
+
+  const pending = (await first.pendingQueueJobs({ limit: 100 })).find(
+    (job) => job.occurrenceId === occurrenceId,
+  );
+  assert.deepEqual(pending, {
+    dispatchEventId: stored.dispatchOutboxEventId,
+    occurrenceId,
+    organizationId,
+    scheduleId,
+  });
+  const metrics = await first.dispatchMetrics("2026-09-04T12:00:01.000Z");
+  assert.ok(metrics.backlog >= 1);
+  assert.ok(metrics.queued >= 1);
+  assert.ok(metrics.lagMilliseconds >= 301_000);
+});
+
+test("sólo reglas activas y ocurrencias dentro de ventana se encolan", async () => {
+  const eligible = await scheduleFixture({
+    lateToleranceMinutes: 10,
+    missedPolicy: "run_late",
+  });
+  const skipped = await scheduleFixture({ missedPolicy: "skip" });
+  const expired = await scheduleFixture({
+    lateToleranceMinutes: 1,
+    missedPolicy: "run_late",
+  });
+  const paused = await scheduleFixture({
+    pausedAt: new Date("2026-09-04T11:00:00.000Z"),
+    status: "paused",
+  });
+  const occurrences = [
+    {
+      fixture: eligible,
+      id: randomUUID(),
+      key: "2026-09-04T08:55",
+      scheduledAt: "2026-09-04T11:55:00.000Z",
+    },
+    {
+      fixture: skipped,
+      id: randomUUID(),
+      key: "2026-09-04T08:59",
+      scheduledAt: "2026-09-04T11:59:59.000Z",
+    },
+    {
+      fixture: expired,
+      id: randomUUID(),
+      key: "2026-09-04T08:00",
+      scheduledAt: "2026-09-04T11:00:00.000Z",
+    },
+    {
+      fixture: paused,
+      id: randomUUID(),
+      key: "2026-09-04T09:00",
+      scheduledAt: "2026-09-04T12:00:00.000Z",
+    },
+  ] as const;
+  for (const occurrence of occurrences) {
+    await database.publicationScheduleOccurrence.create({
+      data: {
+        id: occurrence.id,
+        occurrenceKey: occurrence.key,
+        organizationId: occurrence.fixture.organizationId,
+        scheduledAt: new Date(occurrence.scheduledAt),
+        scheduleId: occurrence.fixture.scheduleId,
+      },
+    });
+  }
+
+  const repository = new PrismaPublicationScheduleDispatchRepository(database);
+  const result = await repository.claimDue({
+    at: "2026-09-04T12:00:00.000Z",
+    limit: 20,
+  });
+
+  assert.deepEqual(
+    {
+      dispatchRequested: result.dispatchRequested,
+      reviewed: result.reviewed,
+      skipped: result.skipped,
+    },
+    { dispatchRequested: 1, reviewed: 3, skipped: 2 },
+  );
+  const stored = await database.publicationScheduleOccurrence.findMany({
+    orderBy: { id: "asc" },
+    where: { id: { in: occurrences.map((occurrence) => occurrence.id) } },
+  });
+  const byId = new Map(stored.map((occurrence) => [occurrence.id, occurrence]));
+  assert.ok(byId.get(occurrences[0].id)?.dispatchOutboxEventId);
+  assert.equal(byId.get(occurrences[1].id)?.status, "skipped");
+  assert.equal(byId.get(occurrences[1].id)?.skippedReasonCode, "missed-window");
+  assert.equal(byId.get(occurrences[2].id)?.status, "skipped");
+  assert.equal(byId.get(occurrences[3].id)?.status, "planned");
+  assert.equal(byId.get(occurrences[3].id)?.dispatchOutboxEventId, null);
 });

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-01
+Actualizado: 2026-09-04
 
 ## Fase activa
 
@@ -113,9 +113,19 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P6-T02` — el dispatcher persistente. `P6-T01` cerró el 2026-09-01 y
-`P5-T09` está bloqueada por una autorización, así que Fase 6 avanza en paralelo:
-sus dependencias declaradas —`P2-T04` y `P5-T05`— ya estaban completas.
+Continuar `P6-T03` — ejecutar publicaciones programadas con locks e
+idempotencia. Sus dependencias `P5-T06` y `P6-T02` están completas. `P5-T09`
+sigue esperando una autorización concreta y no tiene trabajo de código
+pendiente, así que Fase 6 continúa avanzando en paralelo.
+
+**`P6-T02` quedó cerrada.** PostgreSQL reclama ocurrencias con
+`FOR UPDATE SKIP LOCKED`, decide `run_late | skip` con la política persistida y
+crea la marca de solicitud junto con su outbox en una transacción. BullMQ
+transporta un payload mínimo con `jobId` estable por ocurrencia; el arranque y
+un barrido periódico reconstruyen desde PostgreSQL todo job que Redis haya
+perdido. Backlog, pendientes y lag quedan en logs estructurados. La verificación
+real corrió dos dispatchers, vació Redis, recuperó el job y atravesó el ciclo de
+migración up/down/up sobre PostgreSQL 17.9 y Redis 8.2.7.
 
 **`P5-T09` necesita una decisión, no más código.** La publicación del
 2026-09-01 ya evidencia publicación única por destino, coincidencia remota de

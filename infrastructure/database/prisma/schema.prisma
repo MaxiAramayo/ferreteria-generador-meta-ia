@@ -942,19 +942,21 @@ model PublicationSchedule {
 /// materializar la misma regla encuentra la fila existente en vez de duplicarla,
 /// aunque el instante se haya recalculado.
 model PublicationScheduleOccurrence {
-  id                 String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId     String                          @map("organization_id") @db.Uuid
-  scheduleId         String                          @map("schedule_id") @db.Uuid
-  occurrenceKey      String                          @map("occurrence_key") @db.Char(16)
-  scheduledAt        DateTime                        @map("scheduled_at") @db.Timestamptz(3)
-  resolution         PublicationOccurrenceResolution @default(exact)
-  status             PublicationOccurrenceStatus     @default(planned)
-  publicationOrderId String?                         @map("publication_order_id") @db.Uuid
-  skippedReasonCode  String?                         @map("skipped_reason_code") @db.VarChar(40)
-  cancelledAt        DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
-  dispatchedAt       DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
-  createdAt          DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime                        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                    String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                          @map("organization_id") @db.Uuid
+  scheduleId            String                          @map("schedule_id") @db.Uuid
+  occurrenceKey         String                          @map("occurrence_key") @db.Char(16)
+  scheduledAt           DateTime                        @map("scheduled_at") @db.Timestamptz(3)
+  resolution            PublicationOccurrenceResolution @default(exact)
+  status                PublicationOccurrenceStatus     @default(planned)
+  publicationOrderId    String?                         @map("publication_order_id") @db.Uuid
+  dispatchOutboxEventId String?                         @map("dispatch_outbox_event_id") @db.Uuid
+  dispatchRequestedAt   DateTime?                       @map("dispatch_requested_at") @db.Timestamptz(3)
+  skippedReasonCode     String?                         @map("skipped_reason_code") @db.VarChar(40)
+  cancelledAt           DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
+  dispatchedAt          DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
+  createdAt             DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   schedule         PublicationSchedule @relation(fields: [organizationId, scheduleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
@@ -962,8 +964,11 @@ model PublicationScheduleOccurrence {
 
   @@unique([organizationId, scheduleId, occurrenceKey], map: "publication_occurrences_schedule_key")
   @@unique([organizationId, publicationOrderId], map: "publication_occurrences_order_key")
+  @@unique([dispatchOutboxEventId], map: "publication_occurrences_dispatch_event_key")
   @@unique([organizationId, id], map: "publication_occurrences_organization_id_key")
   @@index([organizationId, status, scheduledAt], map: "publication_occurrences_due_idx")
+  @@index([status, scheduledAt, createdAt, id], map: "publication_occurrences_global_due_idx")
+  @@index([status, id], map: "publication_occurrences_pending_dispatch_idx")
   @@map("publication_schedule_occurrences")
 }
 
