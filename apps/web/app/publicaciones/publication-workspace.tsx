@@ -510,6 +510,7 @@ export function PublicationWorkspace({
       <PublicationComposer.Provider
         apiBaseUrl={apiBaseUrl}
         canEdit={initial.canEdit}
+        canSchedule={initial.canSchedule}
         onDraftSaved={draftSaved}
       >
         <section className="composer-section">

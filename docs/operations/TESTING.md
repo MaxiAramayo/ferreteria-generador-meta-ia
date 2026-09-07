@@ -66,6 +66,19 @@ Las pruebas unitarias nunca llaman APIs reales.
 - publicar contra adaptador sandbox;
 - mostrar éxito o fallo.
 
+Dos recorridos existen como comandos y no forman parte de `pnpm verify` porque
+levantan la vertical entera con un navegador real:
+
+- `pnpm e2e:publishing` recorre publicar por rol y por estado, el doble envío y
+  la recarga durante la publicación;
+- `pnpm e2e:recurring-story` recorre regla → borrador → aprobación → ocurrencia:
+  activa la regla desde el panel, comprueba que eso no cree ninguna pieza,
+  materializa con el servicio del worker, renderiza con el Chromium del worker,
+  aprueba por HTTP y verifica la ocurrencia planificada sin orden.
+
+Ambos usan una base efímera y dobles locales de medios; ninguno contacta Meta
+ni Cloudinary.
+
 ### Visual
 
 - fixtures representativos por layout;
@@ -268,6 +281,7 @@ obligatorio según lo que se toca:
 | API | Smoke de `apps/api`; pruebas de contrato, autorización e idempotencia de las rutas nuevas |
 | Worker | Smoke de `apps/worker`; pruebas de reintentos, concurrencia y cierre ordenado |
 | Panel web | Smoke de `apps/web`; revisión de estados vacío, carga, error y accesibilidad |
+| Programación o recurrencias | `pnpm db:test` y `pnpm e2e:recurring-story`; casos de feriado, horario especial, sucursal cerrada y dato faltante |
 | Persistencia y migraciones | Integración con PostgreSQL real efímero; migración aplicada y revertida |
 | Infraestructura local | `pnpm infra:test` y ciclo real `infra:up`, `infra:health`, `infra:down` |
 | Infraestructura de producción | `pnpm production:verify`, `pnpm production:build` y `pnpm production:smoke`; el smoke debe usar únicamente el proyecto efímero de validación |

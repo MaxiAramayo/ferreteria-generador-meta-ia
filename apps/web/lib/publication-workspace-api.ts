@@ -18,12 +18,14 @@ export type PublicationWorkspaceLoadResult =
       actor: WorkspaceActor;
       canApprove: boolean;
       canEdit: boolean;
+      canSchedule: boolean;
       kind: "empty";
     }>
   | Readonly<{
       actor: WorkspaceActor;
       canApprove: boolean;
       canEdit: boolean;
+      canSchedule: boolean;
       kind: "ready";
       publications: PublicationListResponse;
     }>;
@@ -234,9 +236,21 @@ export async function loadPublicationWorkspace(
       "content:approve",
       actor.organizationId,
     ).allowed;
+    const canSchedule = authorizeActor(
+      actor,
+      "content:schedule",
+      actor.organizationId,
+    ).allowed;
     return publications.total === 0
-      ? { actor, canApprove, canEdit, kind: "empty" }
-      : { actor, canApprove, canEdit, kind: "ready", publications };
+      ? { actor, canApprove, canEdit, canSchedule, kind: "empty" }
+      : {
+          actor,
+          canApprove,
+          canEdit,
+          canSchedule,
+          kind: "ready",
+          publications,
+        };
   } catch {
     return {
       kind: "error",

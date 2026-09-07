@@ -113,11 +113,43 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P6-T04` — materializar historias recurrentes como borradores
-concretos con fecha, ubicación, horario vigente, preview y política de
-aprobación. Sus dependencias `P3-T07`, `P4-T05` y `P6-T01` están completas.
+`P6-T05` — revalidar justo antes del envío externo: confirmar snapshot,
+conexión, medio y datos materiales, y bloquear con un código accionable sin
+consumir intento remoto. Sus dependencias `P6-T03` y `P6-T04` están completas.
 `P5-T09` sigue esperando una autorización concreta y no tiene trabajo de código
 pendiente, así que Fase 6 continúa avanzando en paralelo.
+
+**`P6-T04` quedó cerrada.** Una regla como «Ya abrimos» deja de ser una frase
+programada y pasa a ser un borrador fechado: cada ocurrencia crea una
+publicación versionada que cita dirección, horario y versión de sucursal
+vigentes el día que se materializó. Un feriado, un cierre o un horario faltante
+no producen una pieza equivocada ni un silencio: producen un bloqueo con causa
+registrada. Un horario especial se cita y vuelve a revisión humana aunque la
+regla sea automática.
+
+Tres cosas que conviene no volver a descubrir:
+
+- **la política automática aprueba al terminar el render, no al materializar**,
+  porque antes no hay pieza que aprobar; y en ese momento vuelve a comprobar que
+  quien creó la regla siga activo y conserve `admin` y `approver`. Revocar un
+  rol apaga las automatizaciones que esa persona dejó activas;
+- **aprobar una historia recurrente la programa**, así que la aprobación pasó a
+  responder `approved | scheduled`. Programar sigue sin publicar: la ocurrencia
+  nace sin orden;
+- **cambiar la sucursal invalida en lote lo que todavía no salió** —cancela la
+  programación, lleva la publicación a `validation_failed` y marca la
+  materialización `invalidated`—. Es ruidoso a propósito: es preferible pedir
+  una revisión nueva a publicar un horario viejo.
+
+La decisión está en
+[`ADR-025`](architecture/decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
+Queda un límite conocido entregado a `P6-T08`: las excepciones por día existen y
+se consultan, pero todavía no tienen pantalla de gestión.
+
+- **`pnpm e2e:recurring-story`** levanta base efímera, API y panel y recorre con
+  Chrome la cadena regla → borrador → aprobación → ocurrencia. Comprueba además
+  que activar una regla no cree ninguna pieza y que la vista previa respete
+  `FORMATS.historia`. No contacta Meta ni Cloudinary.
 
 **`P6-T03` quedó cerrada.** El consumidor de ocurrencias adquiere una lease
 durable con heartbeat en PostgreSQL y BullMQ retrasa el job hasta su vencimiento

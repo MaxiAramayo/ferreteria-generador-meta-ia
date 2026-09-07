@@ -213,9 +213,9 @@ enum MetaAssetKind {
 }
 
 enum PublicationTargetKind {
-  instagram_feed   @map("instagram_feed")
-  instagram_story  @map("instagram_story")
-  facebook_page    @map("facebook_page")
+  instagram_feed  @map("instagram_feed")
+  instagram_story @map("instagram_story")
+  facebook_page   @map("facebook_page")
 
   @@map("publication_target_kind")
 }
@@ -273,6 +273,39 @@ enum PublicationMissedPolicy {
   @@map("publication_missed_policy")
 }
 
+enum RecurringStoryApprovalPolicy {
+  human_each_cycle  @map("human_each_cycle")
+  automatic_routine @map("automatic_routine")
+
+  @@map("recurring_story_approval_policy")
+}
+
+enum RecurringStoryRuleStatus {
+  active    @map("active")
+  paused    @map("paused")
+  cancelled @map("cancelled")
+
+  @@map("recurring_story_rule_status")
+}
+
+enum LocationDayStatus {
+  open   @map("open")
+  closed @map("closed")
+
+  @@map("location_day_status")
+}
+
+enum RecurringStoryMaterializationStatus {
+  draft_created             @map("draft_created")
+  blocked_location_closed   @map("blocked_location_closed")
+  blocked_location_inactive @map("blocked_location_inactive")
+  blocked_missing_hours     @map("blocked_missing_hours")
+  invalidated               @map("invalidated")
+  approved_scheduled        @map("approved_scheduled")
+
+  @@map("recurring_story_materialization_status")
+}
+
 enum PublicationMonthDayOverflow {
   clamp @map("clamp")
   skip  @map("skip")
@@ -307,36 +340,39 @@ model Organization {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  approvalSnapshots      ApprovalSnapshot[]
-  auditEvents            AuditEvent[]
-  authenticationEvents   AuthenticationEvent[]
-  authenticationSessions AuthenticationSession[]
-  brands                 Brand[]
-  configurationEvents    OrganizationConfigurationEvent[]
-  contentBriefRuns       ContentBriefRun[]
-  generationRuns         GenerationRun[]
-  generationRunVariants  GenerationRunVariant[]
-  generationPolicies     GenerationPolicy[]
-  generationAttempts     GenerationAttempt[]
-  generationBudgetAlerts GenerationBudgetAlert[]
-  locations              Location[]
-  mediaAssets            MediaAsset[]
-  metaConnectionAssets   MetaConnectionAsset[]
-  publicationOrders      PublicationOrder[]
-  publicationOrderTargets PublicationOrderTarget[]
-  metaConnections        MetaConnection[]
-  metaOAuthTransactions  MetaOAuthTransaction[]
-  memberships            OrganizationMembership[]
-  idempotencyRecords     IdempotencyRecord[]
-  knowledgeDocuments     KnowledgeDocument[]
-  knowledgeVersions      KnowledgeDocumentVersion[]
-  outboxMessages         OutboxMessage[]
-  publications           Publication[]
-  publicationSchedules   PublicationSchedule[]
-  scheduleOccurrences    PublicationScheduleOccurrence[]
-  revisionMedia          PublicationRevisionMedia[]
-  revisions              PublicationRevision[]
-  stateTransitions       PublicationStateTransition[]
+  approvalSnapshots              ApprovalSnapshot[]
+  auditEvents                    AuditEvent[]
+  authenticationEvents           AuthenticationEvent[]
+  authenticationSessions         AuthenticationSession[]
+  brands                         Brand[]
+  configurationEvents            OrganizationConfigurationEvent[]
+  contentBriefRuns               ContentBriefRun[]
+  generationRuns                 GenerationRun[]
+  generationRunVariants          GenerationRunVariant[]
+  generationPolicies             GenerationPolicy[]
+  generationAttempts             GenerationAttempt[]
+  generationBudgetAlerts         GenerationBudgetAlert[]
+  locations                      Location[]
+  mediaAssets                    MediaAsset[]
+  metaConnectionAssets           MetaConnectionAsset[]
+  publicationOrders              PublicationOrder[]
+  publicationOrderTargets        PublicationOrderTarget[]
+  metaConnections                MetaConnection[]
+  metaOAuthTransactions          MetaOAuthTransaction[]
+  memberships                    OrganizationMembership[]
+  idempotencyRecords             IdempotencyRecord[]
+  knowledgeDocuments             KnowledgeDocument[]
+  knowledgeVersions              KnowledgeDocumentVersion[]
+  outboxMessages                 OutboxMessage[]
+  publications                   Publication[]
+  publicationSchedules           PublicationSchedule[]
+  scheduleOccurrences            PublicationScheduleOccurrence[]
+  recurringStoryRules            RecurringStoryRule[]
+  recurringStoryMaterializations RecurringStoryMaterialization[]
+  locationDayOverrides           LocationDayOverride[]
+  revisionMedia                  PublicationRevisionMedia[]
+  revisions                      PublicationRevision[]
+  stateTransitions               PublicationStateTransition[]
 
   @@map("organizations")
 }
@@ -451,6 +487,7 @@ model OrganizationMembership {
   requestedPublicationOrders   PublicationOrder[]               @relation("PublicationOrderRequestedBy")
   targetedAuthenticationEvents AuthenticationEvent[]            @relation("AuthenticationEventTarget")
   metaOAuthTransactions        MetaOAuthTransaction[]
+  recurringStoryRules          RecurringStoryRule[]
 
   @@unique([organizationId, userId], map: "memberships_organization_user_key")
   @@unique([organizationId, id], map: "memberships_organization_id_key")
@@ -619,15 +656,108 @@ model Location {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  brand            Brand             @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  publications     Publication[]
-  contentBriefRuns ContentBriefRun[]
+  organization                   Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  brand                          Brand                           @relation(fields: [organizationId, brandId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publications                   Publication[]
+  contentBriefRuns               ContentBriefRun[]
+  dayOverrides                   LocationDayOverride[]
+  recurringStoryRules            RecurringStoryRule[]
+  recurringStoryMaterializations RecurringStoryMaterialization[]
 
   @@unique([organizationId, name], map: "locations_organization_name_key")
   @@unique([organizationId, id], map: "locations_organization_id_key")
   @@index([organizationId, isActive, name], map: "locations_org_active_name_idx")
   @@map("locations")
+}
+
+/// Excepción factual para una fecha civil de una sucursal. Un cierre no lleva
+/// horario y una apertura excepcional sí; ambas conservan su fuente y versión.
+model LocationDayOverride {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  locationId     String            @map("location_id") @db.Uuid
+  localDate      DateTime          @map("local_date") @db.Date
+  status         LocationDayStatus
+  openingHours   String?           @map("opening_hours") @db.VarChar(180)
+  sourceLabel    String            @map("source_label") @db.VarChar(180)
+  version        Int               @default(1)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location     Location     @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, locationId, localDate], map: "location_day_overrides_location_date_key")
+  @@unique([organizationId, id], map: "location_day_overrides_organization_id_key")
+  @@index([organizationId, localDate], map: "location_day_overrides_org_date_idx")
+  @@map("location_day_overrides")
+}
+
+/// Regla editorial: produce borradores versionados; nunca publica por sí sola.
+model RecurringStoryRule {
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                       @map("organization_id") @db.Uuid
+  locationId            String                       @map("location_id") @db.Uuid
+  createdByMembershipId String                       @map("created_by_membership_id") @db.Uuid
+  name                  String                       @db.VarChar(180)
+  localTime             String                       @map("local_time") @db.Char(5)
+  timeZone              String                       @map("time_zone") @db.VarChar(80)
+  weekdays              Int[]                        @default([])
+  leadTimeMinutes       Int                          @map("lead_time_minutes")
+  effectiveFrom         DateTime                     @map("effective_from") @db.Timestamptz(3)
+  approvalPolicy        RecurringStoryApprovalPolicy @map("approval_policy")
+  status                RecurringStoryRuleStatus     @default(active)
+  idempotencyKey        String                       @map("idempotency_key") @db.VarChar(128)
+  requestHash           String                       @map("request_hash") @db.Char(64)
+  version               Int                          @default(1)
+  createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location         Location                        @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy        OrganizationMembership          @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  materializations RecurringStoryMaterialization[]
+
+  @@unique([organizationId, id], map: "recurring_story_rules_organization_id_key")
+  @@unique([organizationId, idempotencyKey], map: "recurring_story_rules_idempotency_key")
+  @@index([status, effectiveFrom, id], map: "recurring_story_rules_due_idx")
+  @@index([organizationId, status, createdAt(sort: Desc)], map: "recurring_story_rules_org_status_idx")
+  @@map("recurring_story_rules")
+}
+
+/// Evidencia inmutable de una fecha materializada. El snapshot indica exactamente
+/// qué dirección y horario sustentaron el copy de esa revisión.
+model RecurringStoryMaterialization {
+  id                    String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String                              @map("organization_id") @db.Uuid
+  ruleId                String                              @map("rule_id") @db.Uuid
+  locationId            String                              @map("location_id") @db.Uuid
+  publicationId         String?                             @map("publication_id") @db.Uuid
+  scheduleId            String?                             @map("schedule_id") @db.Uuid
+  occurrenceKey         String                              @map("occurrence_key") @db.Char(16)
+  scheduledAt           DateTime                            @map("scheduled_at") @db.Timestamptz(3)
+  resolution            PublicationOccurrenceResolution     @default(exact)
+  locationVersion       Int                                 @map("location_version")
+  sourceSnapshot        Json                                @map("source_snapshot")
+  requiresHumanApproval Boolean                             @map("requires_human_approval")
+  status                RecurringStoryMaterializationStatus
+  blockedReasonCode     String?                             @map("blocked_reason_code") @db.VarChar(80)
+  invalidatedAt         DateTime?                           @map("invalidated_at") @db.Timestamptz(3)
+  invalidatedReasonCode String?                             @map("invalidated_reason_code") @db.VarChar(80)
+  createdAt             DateTime                            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rule         RecurringStoryRule   @relation(fields: [organizationId, ruleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  location     Location             @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  publication  Publication?         @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  schedule     PublicationSchedule? @relation(fields: [organizationId, scheduleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, ruleId, occurrenceKey], map: "recurring_story_materializations_rule_key")
+  @@unique([organizationId, publicationId], map: "recurring_story_materializations_publication_key")
+  @@unique([organizationId, scheduleId], map: "recurring_story_materializations_schedule_key")
+  @@index([organizationId, locationId, status], map: "recurring_story_materializations_location_status_idx")
+  @@map("recurring_story_materializations")
 }
 
 model OrganizationConfigurationEvent {
@@ -667,14 +797,15 @@ model Publication {
   createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  location          Location?                    @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  createdBy         OrganizationMembership       @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  approvalSnapshots ApprovalSnapshot[]
-  publishingOrders  PublicationOrder[]
-  revisions         PublicationRevision[]
-  schedules         PublicationSchedule[]
-  stateTransitions  PublicationStateTransition[]
+  organization                  Organization                   @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  location                      Location?                      @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy                     OrganizationMembership         @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshots             ApprovalSnapshot[]
+  publishingOrders              PublicationOrder[]
+  revisions                     PublicationRevision[]
+  schedules                     PublicationSchedule[]
+  stateTransitions              PublicationStateTransition[]
+  recurringStoryMaterialization RecurringStoryMaterialization?
 
   @@unique([organizationId, id], map: "publications_organization_id_key")
   @@index([organizationId, status, createdAt(sort: Desc), id], map: "publications_org_status_created_idx")
@@ -833,23 +964,23 @@ model PublicationStateTransition {
 /// aprobado. El estado agregado no se guarda acá, se calcula sobre los
 /// destinos; guardarlo permitiría que se desincronice de lo que pasó.
 model PublicationOrder {
-  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId           String    @map("organization_id") @db.Uuid
-  publicationId            String    @map("publication_id") @db.Uuid
-  approvalSnapshotId       String    @map("approval_snapshot_id") @db.Uuid
-  requestedByMembershipId  String    @map("requested_by_membership_id") @db.Uuid
-  cancelledAt              DateTime? @map("cancelled_at") @db.Timestamptz(3)
-  cancelledReasonCode      String?   @map("cancelled_reason_code") @db.VarChar(80)
-  settledAt                DateTime? @map("settled_at") @db.Timestamptz(3)
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String    @map("organization_id") @db.Uuid
+  publicationId           String    @map("publication_id") @db.Uuid
+  approvalSnapshotId      String    @map("approval_snapshot_id") @db.Uuid
+  requestedByMembershipId String    @map("requested_by_membership_id") @db.Uuid
+  cancelledAt             DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledReasonCode     String?   @map("cancelled_reason_code") @db.VarChar(80)
+  settledAt               DateTime? @map("settled_at") @db.Timestamptz(3)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   targets          PublicationOrderTarget[]
   occurrence       PublicationScheduleOccurrence?
-  approvalSnapshot ApprovalSnapshot       @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  publication      Publication            @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  requestedBy      OrganizationMembership @relation("PublicationOrderRequestedBy", fields: [organizationId, requestedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshot ApprovalSnapshot               @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  organization     Organization                   @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication      Publication                    @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  requestedBy      OrganizationMembership         @relation("PublicationOrderRequestedBy", fields: [organizationId, requestedByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
 
   @@unique([organizationId, id], map: "publication_orders_organization_id_key")
   @@index([organizationId, publicationId, createdAt(sort: Desc)], map: "publication_orders_org_publication_idx")
@@ -861,25 +992,25 @@ model PublicationOrder {
 /// escribe: `sequence` sólo avanza de a uno, y esa condición en el UPDATE es lo
 /// que impide que dos trabajadores publiquen dos veces el mismo destino.
 model PublicationOrderTarget {
-  id                 String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId     String                  @map("organization_id") @db.Uuid
-  orderId            String                  @map("order_id") @db.Uuid
-  target             PublicationTargetKind
-  attemptId          String?                 @map("attempt_id") @db.VarChar(120)
-  state              PublicationAttemptState @default(pending)
-  sequence           Int                     @default(0)
-  stagedMediaId      String?                 @map("staged_media_id") @db.VarChar(160)
-  remotePostId       String?                 @map("remote_post_id") @db.VarChar(200)
-  remotePermalink    String?                 @map("remote_permalink") @db.VarChar(500)
-  failureCode        String?                 @map("failure_code") @db.VarChar(80)
-  failureDetail      String?                 @map("failure_detail") @db.VarChar(300)
-  failureRetryable   Boolean?                @map("failure_retryable")
-  attempts           Int                     @default(0)
-  nextAttemptAt      DateTime?               @map("next_attempt_at") @db.Timestamptz(3)
-  manualReason       String?                 @map("manual_reason") @db.VarChar(40)
-  reconciledAt       DateTime?               @map("reconciled_at") @db.Timestamptz(3)
-  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt          DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String                  @map("organization_id") @db.Uuid
+  orderId          String                  @map("order_id") @db.Uuid
+  target           PublicationTargetKind
+  attemptId        String?                 @map("attempt_id") @db.VarChar(120)
+  state            PublicationAttemptState @default(pending)
+  sequence         Int                     @default(0)
+  stagedMediaId    String?                 @map("staged_media_id") @db.VarChar(160)
+  remotePostId     String?                 @map("remote_post_id") @db.VarChar(200)
+  remotePermalink  String?                 @map("remote_permalink") @db.VarChar(500)
+  failureCode      String?                 @map("failure_code") @db.VarChar(80)
+  failureDetail    String?                 @map("failure_detail") @db.VarChar(300)
+  failureRetryable Boolean?                @map("failure_retryable")
+  attempts         Int                     @default(0)
+  nextAttemptAt    DateTime?               @map("next_attempt_at") @db.Timestamptz(3)
+  manualReason     String?                 @map("manual_reason") @db.VarChar(40)
+  reconciledAt     DateTime?               @map("reconciled_at") @db.Timestamptz(3)
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   order        PublicationOrder @relation(fields: [organizationId, orderId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
@@ -925,11 +1056,12 @@ model PublicationSchedule {
   createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization     Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  publication      Publication                     @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  approvalSnapshot ApprovalSnapshot                @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  createdBy        OrganizationMembership          @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  occurrences      PublicationScheduleOccurrence[]
+  organization                  Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  publication                   Publication                     @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  approvalSnapshot              ApprovalSnapshot                @relation(fields: [organizationId, approvalSnapshotId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy                     OrganizationMembership          @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  occurrences                   PublicationScheduleOccurrence[]
+  recurringStoryMaterialization RecurringStoryMaterialization?
 
   @@unique([organizationId, id], map: "publication_schedules_organization_id_key")
   @@index([organizationId, status, effectiveFrom], map: "publication_schedules_org_status_from_idx")
@@ -942,27 +1074,27 @@ model PublicationSchedule {
 /// materializar la misma regla encuentra la fila existente en vez de duplicarla,
 /// aunque el instante se haya recalculado.
 model PublicationScheduleOccurrence {
-  id                    String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId        String                          @map("organization_id") @db.Uuid
-  scheduleId            String                          @map("schedule_id") @db.Uuid
-  occurrenceKey         String                          @map("occurrence_key") @db.Char(16)
-  scheduledAt           DateTime                        @map("scheduled_at") @db.Timestamptz(3)
-  resolution            PublicationOccurrenceResolution @default(exact)
-  status                PublicationOccurrenceStatus     @default(planned)
-  publicationOrderId    String?                         @map("publication_order_id") @db.Uuid
-  dispatchOutboxEventId String?                         @map("dispatch_outbox_event_id") @db.Uuid
-  dispatchRequestedAt   DateTime?                       @map("dispatch_requested_at") @db.Timestamptz(3)
-  executionLockOwner    String?                         @map("execution_lock_owner") @db.VarChar(120)
-  executionLockToken    String?                         @map("execution_lock_token") @db.Uuid
-  executionLockExpiresAt DateTime?                      @map("execution_lock_expires_at") @db.Timestamptz(3)
-  executionHeartbeatAt  DateTime?                       @map("execution_heartbeat_at") @db.Timestamptz(3)
-  executionStartedAt    DateTime?                       @map("execution_started_at") @db.Timestamptz(3)
-  executionCompletedAt  DateTime?                       @map("execution_completed_at") @db.Timestamptz(3)
-  skippedReasonCode     String?                         @map("skipped_reason_code") @db.VarChar(40)
-  cancelledAt           DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
-  dispatchedAt          DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
-  createdAt             DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime                        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                     String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId         String                          @map("organization_id") @db.Uuid
+  scheduleId             String                          @map("schedule_id") @db.Uuid
+  occurrenceKey          String                          @map("occurrence_key") @db.Char(16)
+  scheduledAt            DateTime                        @map("scheduled_at") @db.Timestamptz(3)
+  resolution             PublicationOccurrenceResolution @default(exact)
+  status                 PublicationOccurrenceStatus     @default(planned)
+  publicationOrderId     String?                         @map("publication_order_id") @db.Uuid
+  dispatchOutboxEventId  String?                         @map("dispatch_outbox_event_id") @db.Uuid
+  dispatchRequestedAt    DateTime?                       @map("dispatch_requested_at") @db.Timestamptz(3)
+  executionLockOwner     String?                         @map("execution_lock_owner") @db.VarChar(120)
+  executionLockToken     String?                         @map("execution_lock_token") @db.Uuid
+  executionLockExpiresAt DateTime?                       @map("execution_lock_expires_at") @db.Timestamptz(3)
+  executionHeartbeatAt   DateTime?                       @map("execution_heartbeat_at") @db.Timestamptz(3)
+  executionStartedAt     DateTime?                       @map("execution_started_at") @db.Timestamptz(3)
+  executionCompletedAt   DateTime?                       @map("execution_completed_at") @db.Timestamptz(3)
+  skippedReasonCode      String?                         @map("skipped_reason_code") @db.VarChar(40)
+  cancelledAt            DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
+  dispatchedAt           DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
+  createdAt              DateTime                        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   schedule         PublicationSchedule @relation(fields: [organizationId, scheduleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)

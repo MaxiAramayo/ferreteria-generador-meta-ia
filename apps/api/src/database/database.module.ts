@@ -19,6 +19,7 @@ import {
   PrismaPublicationRepository,
   PrismaPublicationStateRepository,
   PrismaReliableOperationRepository,
+  PrismaRecurringStoryRepository,
 } from "@aramayo/database";
 import type {
   ApprovalSnapshotRepository,
@@ -39,6 +40,7 @@ import type {
   PublicationRepository,
   PublicationStateRepository,
   ReliableOperationRepository,
+  RecurringStoryRuleRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
@@ -63,6 +65,7 @@ import {
   PUBLICATION_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
   RELIABLE_OPERATION_REPOSITORY,
+  RECURRING_STORY_RULE_REPOSITORY,
 } from "./database.tokens.ts";
 
 @Module({})
@@ -88,10 +91,19 @@ export class DatabaseModule {
         PUBLICATION_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
         RELIABLE_OPERATION_REPOSITORY,
+        RECURRING_STORY_RULE_REPOSITORY,
       ],
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: RECURRING_STORY_RULE_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): RecurringStoryRuleRepository =>
+            new PrismaRecurringStoryRepository(database),
+        },
         {
           inject: [DATABASE_CLIENT],
           provide: META_COMPLIANCE_REPOSITORY,

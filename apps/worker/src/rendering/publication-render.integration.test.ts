@@ -207,17 +207,30 @@ test(
       new PublicationRenderOutboxTransport(production, renderer, media),
       `worker-${randomUUID()}`,
     );
-    const dispatched = await dispatcher.dispatchBatch(new Date(), 100);
-    assert.ok(dispatched.delivered >= 1);
-    assert.equal(
-      (
+    // El lote outbox reclama los mensajes más antiguos de toda la base, no los
+    // de esta prueba, así que se despacha hasta alcanzar el propio en lugar de
+    // suponer que entra en la primera tanda.
+    let delivered = 0;
+    let renderMessageStatus = "pending";
+    for (
+      let round = 0;
+      round < 10 && renderMessageStatus === "pending";
+      round += 1
+    ) {
+      const dispatched = await dispatcher.dispatchBatch(new Date(), 100);
+      delivered += dispatched.delivered;
+      if (dispatched.claimed === 0) {
+        break;
+      }
+      renderMessageStatus = (
         await database.outboxMessage.findUniqueOrThrow({
           select: { status: true },
           where: { id: renderMutation.outboxEventId },
         })
-      ).status,
-      "delivered",
-    );
+      ).status;
+    }
+    assert.ok(delivered >= 1);
+    assert.equal(renderMessageStatus, "delivered");
 
     const approval = await production.approve({
       actorMembershipId: approverMembershipId,

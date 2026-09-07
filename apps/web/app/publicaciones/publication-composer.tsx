@@ -18,6 +18,7 @@ import {
 } from "../../lib/publication-composer-contract";
 import { saveTemplatePublicationDraft } from "../../lib/publication-workspace-api";
 import { AICreativeComposer } from "./ai-creative-composer";
+import { RecurringStoryRuleComposer } from "./recurring-story-composer";
 import {
   PublicationComposerContextProvider,
   usePublicationComposerActions,
@@ -28,11 +29,13 @@ import {
 function PublicationComposerProvider({
   apiBaseUrl,
   canEdit,
+  canSchedule,
   children,
   onDraftSaved,
 }: {
   readonly apiBaseUrl: string;
   readonly canEdit: boolean;
+  readonly canSchedule: boolean;
   readonly children: ReactNode;
   readonly onDraftSaved: (title: string) => void;
 }) {
@@ -175,9 +178,10 @@ function PublicationComposerProvider({
       allowedActions: allowedComposerActions(state.variant),
       apiBaseUrl,
       canEdit,
+      canSchedule,
       formId: "publication-template-form",
     }),
-    [apiBaseUrl, canEdit, state.variant],
+    [apiBaseUrl, canEdit, canSchedule, state.variant],
   );
 
   return (
@@ -402,12 +406,12 @@ function AICreative() {
 }
 
 export function RecurringStoryComposer() {
+  const meta = usePublicationComposerMeta();
   return (
     <ComposerFrame>
-      <CapabilityBoundary
-        description="La recurrencia necesitará zona horaria, regla explícita y confirmación humana separada."
-        eyebrow="Fase 6"
-        title="Historias recurrentes sin automatismos ocultos"
+      <RecurringStoryRuleComposer
+        apiBaseUrl={meta.apiBaseUrl}
+        canSchedule={meta.canSchedule}
       />
     </ComposerFrame>
   );
