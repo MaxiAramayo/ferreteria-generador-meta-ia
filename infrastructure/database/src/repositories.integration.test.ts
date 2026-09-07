@@ -47,6 +47,7 @@ import {
   publicationTargetKey,
 } from "./publication-order-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
+import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
 import {
   PrismaOutboxRepository,
@@ -6294,6 +6295,9 @@ test("abandonar cierra la orden sin afirmar cómo terminó el destino", async ()
 
 async function scheduleFixture(
   overrides: Record<string, unknown> = {},
+  publishingTargets?: readonly (
+    "facebook_page" | "instagram_feed" | "instagram_story"
+  )[],
 ): Promise<{
   organizationId: string;
   membershipId: string;
@@ -6302,7 +6306,7 @@ async function scheduleFixture(
   snapshotId: string;
 }> {
   const { membershipId, organizationId, publicationId, snapshotId } =
-    await publicationOrderFixture();
+    await publicationOrderFixture(publishingTargets);
   const scheduleId = randomUUID();
   await database.publicationSchedule.create({
     data: {
@@ -6745,4 +6749,261 @@ test("sólo reglas activas y ocurrencias dentro de ventana se encolan", async ()
   assert.equal(byId.get(occurrences[2].id)?.status, "skipped");
   assert.equal(byId.get(occurrences[3].id)?.status, "planned");
   assert.equal(byId.get(occurrences[3].id)?.dispatchOutboxEventId, null);
+});
+
+// --- Ejecución de publicaciones programadas (`P6-T03`) ---
+
+async function scheduledExecutionFixture(
+  publishingTargets?: readonly (
+    "facebook_page" | "instagram_feed" | "instagram_story"
+  )[],
+): Promise<{
+  job: Readonly<{
+    dispatchEventId: string;
+    occurrenceId: string;
+    organizationId: string;
+    scheduleId: string;
+  }>;
+  membershipId: string;
+  publicationId: string;
+}> {
+  const fixture = await scheduleFixture(
+    {
+      lateToleranceMinutes: 30,
+      missedPolicy: "run_late",
+    },
+    publishingTargets,
+  );
+  const occurrenceId = randomUUID();
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      id: occurrenceId,
+      occurrenceKey: "2026-09-07T08:59",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2026-09-07T11:59:00.000Z"),
+      scheduleId: fixture.scheduleId,
+    },
+  });
+  const claimed = await new PrismaPublicationScheduleDispatchRepository(
+    database,
+  ).claimDue({
+    at: "2026-09-07T12:00:00.000Z",
+    limit: 1,
+    organizationId: fixture.organizationId,
+  });
+  const job = claimed.jobs[0];
+  assert.ok(job);
+  return {
+    job,
+    membershipId: fixture.membershipId,
+    publicationId: fixture.publicationId,
+  };
+}
+
+test("la lease vence, se recupera y una reentrega conserva una sola orden", async () => {
+  const { job, membershipId, publicationId } =
+    await scheduledExecutionFixture();
+  const first = new PrismaPublicationOccurrenceExecutionRepository(database);
+  const second = new PrismaPublicationOccurrenceExecutionRepository(database);
+  const firstToken = randomUUID();
+  const secondToken = randomUUID();
+
+  const claims = await Promise.all([
+    first.acquire({
+      ...job,
+      at: "2026-09-07T12:00:01.000Z",
+      leaseExpiresAt: "2026-09-07T12:01:01.000Z",
+      lockOwnerId: "worker-a",
+      lockToken: firstToken,
+    }),
+    second.acquire({
+      ...job,
+      at: "2026-09-07T12:00:01.000Z",
+      leaseExpiresAt: "2026-09-07T12:01:01.000Z",
+      lockOwnerId: "worker-b",
+      lockToken: secondToken,
+    }),
+  ]);
+  assert.equal(claims.filter((claim) => claim.status === "acquired").length, 1);
+  assert.equal(claims.filter((claim) => claim.status === "busy").length, 1);
+  const firstWorkerWon = claims[0].status === "acquired";
+  const activeClaim = firstWorkerWon ? claims[0] : claims[1];
+  const activeRepository = firstWorkerWon ? first : second;
+  const recoveryRepository = firstWorkerWon ? second : first;
+  const recoveryToken = firstWorkerWon ? secondToken : firstToken;
+  assert.ok(activeClaim.status === "acquired");
+
+  assert.equal(
+    await activeRepository.heartbeat({
+      at: "2026-09-07T12:00:30.000Z",
+      lease: activeClaim.lease,
+      leaseExpiresAt: "2026-09-07T12:01:30.000Z",
+    }),
+    "renewed",
+  );
+  const stillBusy = await recoveryRepository.acquire({
+    ...job,
+    at: "2026-09-07T12:01:02.000Z",
+    leaseExpiresAt: "2026-09-07T12:02:02.000Z",
+    lockOwnerId: "recovery-worker",
+    lockToken: recoveryToken,
+  });
+  assert.equal(stillBusy.status, "busy");
+
+  const recovered = await recoveryRepository.acquire({
+    ...job,
+    at: "2026-09-07T12:01:31.000Z",
+    leaseExpiresAt: "2026-09-07T12:02:31.000Z",
+    lockOwnerId: "recovery-worker",
+    lockToken: recoveryToken,
+  });
+  assert.ok(recovered.status === "acquired");
+  assert.deepEqual(
+    await activeRepository.complete(
+      activeClaim.lease,
+      "2026-09-07T12:01:32.000Z",
+    ),
+    { status: "lost" },
+  );
+  const completed = await recoveryRepository.complete(
+    recovered.lease,
+    "2026-09-07T12:01:32.000Z",
+  );
+  assert.deepEqual(completed, {
+    orderId: job.occurrenceId,
+    status: "created",
+  });
+
+  const occurrence =
+    await database.publicationScheduleOccurrence.findUniqueOrThrow({
+      where: { id: job.occurrenceId },
+    });
+  assert.equal(occurrence.status, "dispatched");
+  assert.equal(occurrence.publicationOrderId, job.occurrenceId);
+  assert.equal(
+    occurrence.executionStartedAt?.toISOString(),
+    "2026-09-07T12:00:01.000Z",
+  );
+  assert.equal(
+    occurrence.executionCompletedAt?.toISOString(),
+    "2026-09-07T12:01:32.000Z",
+  );
+  assert.equal(occurrence.executionLockToken, null);
+  assert.equal(occurrence.executionLockOwner, null);
+
+  const order = await database.publicationOrder.findUniqueOrThrow({
+    include: { targets: true },
+    where: { id: job.occurrenceId },
+  });
+  assert.equal(order.publicationId, publicationId);
+  assert.equal(order.requestedByMembershipId, membershipId);
+  assert.equal(order.targets.length, 1);
+  assert.equal(order.targets[0]?.target, "instagram_feed");
+  const orderOutbox = await database.outboxMessage.findMany({
+    where: {
+      aggregateId: order.id,
+      aggregateType: "publication_order",
+      organizationId: job.organizationId,
+    },
+  });
+  assert.equal(orderOutbox.length, 1);
+
+  const redeliveries = await Promise.all(
+    Array.from({ length: 50 }, (_, index) =>
+      first.acquire({
+        ...job,
+        at: "2026-09-07T12:02:00.000Z",
+        leaseExpiresAt: "2026-09-07T12:03:00.000Z",
+        lockOwnerId: `redelivery-${String(index)}`,
+        lockToken: randomUUID(),
+      }),
+    ),
+  );
+  assert.ok(
+    redeliveries.every(
+      (result) =>
+        result.status === "completed" && result.orderId === job.occurrenceId,
+    ),
+  );
+  assert.equal(
+    await database.publicationOrder.count({ where: { id: job.occurrenceId } }),
+    1,
+  );
+  assert.equal(
+    await database.publicationOrderTarget.count({
+      where: { orderId: job.occurrenceId },
+    }),
+    1,
+  );
+});
+
+test("un snapshot incompatible bloquea sin crear una orden parcial", async () => {
+  const { job, publicationId } = await scheduledExecutionFixture([
+    "facebook_page",
+  ]);
+  const repository = new PrismaPublicationOccurrenceExecutionRepository(
+    database,
+  );
+  const acquired = await repository.acquire({
+    ...job,
+    at: "2026-09-07T12:00:01.000Z",
+    leaseExpiresAt: "2026-09-07T12:01:01.000Z",
+    lockOwnerId: "worker-policy",
+    lockToken: randomUUID(),
+  });
+  assert.ok(acquired.status === "acquired");
+  assert.deepEqual(
+    await repository.complete(acquired.lease, "2026-09-07T12:00:02.000Z"),
+    { reason: "target-policy-conflict", status: "blocked" },
+  );
+  assert.equal(
+    await database.publicationOrder.count({ where: { id: job.occurrenceId } }),
+    0,
+  );
+  const occurrence =
+    await database.publicationScheduleOccurrence.findUniqueOrThrow({
+      where: { id: job.occurrenceId },
+    });
+  assert.equal(occurrence.status, "planned");
+  assert.equal(occurrence.executionLockToken, null);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(publication.status, "approved");
+});
+
+test("un desenlace ambiguo de una orden programada nunca vuelve a pending", async () => {
+  const { job } = await scheduledExecutionFixture();
+  const execution = new PrismaPublicationOccurrenceExecutionRepository(
+    database,
+  );
+  const acquired = await execution.acquire({
+    ...job,
+    at: "2026-09-07T12:00:01.000Z",
+    leaseExpiresAt: "2026-09-07T12:01:01.000Z",
+    lockOwnerId: "worker-meta",
+    lockToken: randomUUID(),
+  });
+  assert.ok(acquired.status === "acquired");
+  const completed = await execution.complete(
+    acquired.lease,
+    "2026-09-07T12:00:02.000Z",
+  );
+  assert.ok(completed.status === "created");
+
+  const orders = new PrismaPublicationOrderRepository(database);
+  const targetKey = publicationTargetKey(completed.orderId, "instagram_feed");
+  assert.equal(
+    await orders.save(unknownAttempt(job.organizationId, targetKey, 1)),
+    "saved",
+  );
+  const order = await orders.findById(job.organizationId, completed.orderId);
+  assert.ok(order);
+  assert.equal(publicationOrderStatus(order.targets), "publishing");
+  assert.equal(pendingPublicationTargets(order).length, 0);
+  assert.ok(
+    (await orders.openOutcomes(200)).some(
+      (target) => target.publicationTargetId === targetKey,
+    ),
+  );
 });

@@ -131,8 +131,25 @@ registran que una ocurrencia ya produjo intención de transporte; no afirman que
 ya exista una orden. El repositorio escribe esas marcas y el outbox en una sola
 transacción después de reclamar con `FOR UPDATE SKIP LOCKED`. BullMQ deduplica
 por UUID de ocurrencia y el worker vuelve a asegurar periódicamente todos los
-jobs cuyas ocurrencias sigan `planned`. `P6-T03` es quien convierte ese job en
-orden y recién entonces fija `dispatched_at`.
+jobs cuyas ocurrencias sigan `planned`.
+
+El consumidor de la ocurrencia adquiere en PostgreSQL una lease formada por
+propietario, token, vencimiento y heartbeat. Sólo ese token puede materializar
+la orden; una lease vencida puede reemplazarse y el propietario anterior pierde
+su compare-and-swap. La orden usa el UUID de la ocurrencia, de modo que la
+identidad posterior `orden:destino` es también la clave estable
+`ocurrencia:destino`. Crear orden, destinos, transición, auditoría, outbox y
+vínculo con la ocurrencia es una sola transacción. `execution_started_at`
+conserva el primer intento y `execution_completed_at` indica que la orden quedó
+materializada, no que Meta haya publicado.
+
+Un job que encuentra otra lease vuelve a `delayed` hasta su vencimiento sin
+gastar reintentos. Una reentrega posterior al commit recupera la orden existente.
+Desde allí, el flujo de publicación de Fase 5 mantiene el resultado por destino:
+un desenlace remoto ambiguo queda fuera del reintento y entra primero en
+reconciliación. La ocurrencia no copia ese estado remoto; la orden sigue siendo
+su única fuente de verdad. La decisión completa está en
+[ADR-024](decisions/ADR-024-SCHEDULED-EXECUTION-LEASE.md).
 
 El render usa un `mediaAssetId` UUID determinista derivado de la revisión. Si el
 PNG se confirmó pero el worker perdió el lease, el mismo evento reconoce esa

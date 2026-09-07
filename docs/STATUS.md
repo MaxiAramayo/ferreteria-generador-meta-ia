@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-04
+Actualizado: 2026-09-07
 
 ## Fase activa
 
@@ -113,10 +113,22 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-Continuar `P6-T03` — ejecutar publicaciones programadas con locks e
-idempotencia. Sus dependencias `P5-T06` y `P6-T02` están completas. `P5-T09`
-sigue esperando una autorización concreta y no tiene trabajo de código
+Continuar `P6-T04` — materializar historias recurrentes como borradores
+concretos con fecha, ubicación, horario vigente, preview y política de
+aprobación. Sus dependencias `P3-T07`, `P4-T05` y `P6-T01` están completas.
+`P5-T09` sigue esperando una autorización concreta y no tiene trabajo de código
 pendiente, así que Fase 6 continúa avanzando en paralelo.
+
+**`P6-T03` quedó cerrada.** El consumidor de ocurrencias adquiere una lease
+durable con heartbeat en PostgreSQL y BullMQ retrasa el job hasta su vencimiento
+si encuentra otro propietario. Crear la orden, sus destinos, transición,
+auditoría, outbox y vínculo con la ocurrencia es atómico. La orden comparte UUID
+con la ocurrencia: una reentrega devuelve la existente y la identidad
+`orden:destino` es la clave ocurrencia/destino. Cincuenta reentregas concurrentes
+conservaron una sola orden. La finalización de la ocurrencia significa que nació
+la orden; el resultado remoto sigue derivándose de los intentos reales de P5 y
+todo desenlace ambiguo se reconcilia antes de reintentar. Decisión en
+[`ADR-024`](architecture/decisions/ADR-024-SCHEDULED-EXECUTION-LEASE.md).
 
 **`P6-T02` quedó cerrada.** PostgreSQL reclama ocurrencias con
 `FOR UPDATE SKIP LOCKED`, decide `run_late | skip` con la política persistida y

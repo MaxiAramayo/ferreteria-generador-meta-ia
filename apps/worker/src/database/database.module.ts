@@ -12,6 +12,7 @@ import {
   PrismaOutboxRepository,
   PrismaMetaConnectionRepository,
   PrismaPublicationOrderRepository,
+  PrismaPublicationOccurrenceExecutionRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationScheduleDispatchRepository,
 } from "@aramayo/database";
@@ -26,6 +27,7 @@ import type {
   MetaConnectionRepository,
   OutboxRepository,
   PublicationProductionRepository,
+  PublicationOccurrenceExecutionRepository,
   PublicationScheduleDispatchRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
@@ -42,6 +44,7 @@ import {
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
+  PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
   WORKER_DATABASE_CLIENT,
@@ -62,6 +65,7 @@ export class DatabaseModule {
         META_CONNECTION_REPOSITORY,
         OUTBOX_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
+        PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
       ],
@@ -132,6 +136,14 @@ export class DatabaseModule {
             database: DatabaseClient,
           ): PublicationScheduleDispatchRepository =>
             new PrismaPublicationScheduleDispatchRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationOccurrenceExecutionRepository =>
+            new PrismaPublicationOccurrenceExecutionRepository(database),
         },
         {
           // Una sola instancia sirve al ciclo de la orden y al diario de
