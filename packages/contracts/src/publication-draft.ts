@@ -130,7 +130,7 @@ export interface PublicationRenderRequestResponse {
 export interface PublicationApprovalResponse {
   readonly publicationId: string;
   readonly snapshotId: string;
-  readonly status: "approved";
+  readonly status: "approved" | "scheduled";
   readonly version: number;
 }
 

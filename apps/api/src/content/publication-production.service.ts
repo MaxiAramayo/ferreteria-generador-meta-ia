@@ -106,10 +106,11 @@ export class PublicationProductionService {
     });
     switch (result.status) {
       case "approved":
+      case "scheduled":
         return Object.freeze({
           publicationId: result.publicationId,
           snapshotId: result.snapshotId,
-          status: "approved",
+          status: result.status,
           version: result.version,
         });
       case "conflict":

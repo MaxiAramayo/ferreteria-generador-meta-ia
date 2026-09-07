@@ -40,6 +40,7 @@ export interface PublicationComposerMeta {
   readonly allowedActions: ReadonlySet<PublicationComposerAction>;
   readonly apiBaseUrl: string;
   readonly canEdit: boolean;
+  readonly canSchedule: boolean;
   readonly formId: string;
 }
 

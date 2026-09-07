@@ -266,9 +266,38 @@ para consultas nuevas aunque la eliminación remota sea eventualmente
 consistente o requiera reintento. `sync_failed` y `retiring` conservan
 diagnóstico seguro y referencias suficientes para reconciliar el estado.
 
-### RecurringRule
+### RecurringStoryRule y RecurringStoryMaterialization
 
 Regla que materializa publicaciones futuras. No publica directamente.
+
+La regla conserva sucursal, hora civil, zona, días, anticipación, vigencia y
+política de aprobación (`human-each-cycle` o `automatic-routine`). Cada
+ocurrencia dentro de la ventana de anticipación produce una materialización
+identificada por `organización + regla + clave de ocurrencia`, con la misma
+clave civil de [`ADR-023`](decisions/ADR-023-OCCURRENCE-CIVIL-IDENTITY.md).
+
+Una materialización tiene dos desenlaces posibles:
+
+- **borrador**: crea `Publication` y `PublicationRevision`, y guarda el snapshot
+  de fuente —dirección, horario, nombre y versión de sucursal, instante de
+  captura y si el dato salió de la configuración vigente o de una excepción del
+  día;
+- **bloqueo**: sucursal inactiva, día cerrado u horario faltante quedan
+  registrados con su código de causa y sin publicación.
+
+Aprobar el borrador —una persona, o la política automática al terminar el
+render— crea una programación `once` con destino `instagram_story` y su única
+ocurrencia. Un cambio posterior de la fuente factual de la sucursal invalida
+toda materialización aún no publicada. Está en
+[`ADR-025`](decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
+
+### LocationDayOverride
+
+Excepción por sucursal y fecha civil: cierre o horario especial, con su
+etiqueta de origen y versión. Se consulta al materializar y tiene precedencia
+sobre el horario configurado. Un horario especial exige aprobación humana
+aunque la regla sea automática. La gestión visual de estas excepciones es
+alcance de `P6-T08`.
 
 ### PublicationSchedule y PublicationScheduleOccurrence
 
@@ -290,6 +319,11 @@ draft
   -> scheduled | publishing
   -> partially_published | publish_failed | published
 ```
+
+Una pieza todavía no publicada puede caer a `validation_failed` desde `draft`,
+`generating_assets`, `approved` o `scheduled` cuando la fuente factual que
+sostiene su afirmación deja de ser válida. Desde ahí vuelve a `draft` o a
+`ready_for_review` con una revisión nueva; nunca salta directo a publicar.
 
 Estados terminales adicionales:
 
@@ -313,7 +347,9 @@ Estados terminales adicionales:
 
 - Productos, precio, promociones y contenido generado con IA: aprobación humana.
 - Historias rutinarias sin datos comerciales: autoaprobación solo mediante
-  política específica, versionada y habilitada por administrador.
+  política específica, versionada y habilitada por administrador. La autoridad
+  se vuelve a comprobar al aprobar: si quien creó la regla dejó de estar activo
+  o perdió `admin`/`approver`, el borrador pasa a exigir revisión humana.
 - Cambios de horario, feriados o datos de contacto: aprobación humana.
 - En Fases 0 a 5 toda publicación real requiere aprobación manual.
 

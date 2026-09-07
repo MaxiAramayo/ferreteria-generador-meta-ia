@@ -79,6 +79,7 @@ export {
   type GenerationUsageWindow,
   type UpdateGenerationPolicyCommand,
 } from "./generation-governance.ts";
+export * from "./recurring-story.ts";
 export {
   commercialCatalogLimits,
   CommercialCatalogError,

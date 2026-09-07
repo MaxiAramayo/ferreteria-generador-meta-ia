@@ -46,11 +46,15 @@ function replayedRender(body: SafeJsonObject): PublicationRenderRequestResult {
 function replayedApproval(body: SafeJsonObject): ApprovePublicationResult {
   const publicationId = body["publicationId"];
   const snapshotId = body["snapshotId"];
+  const approvalStatus = body["approvalStatus"];
   const version = body["version"];
   if (
     typeof publicationId !== "string" ||
     typeof snapshotId !== "string" ||
-    typeof version !== "number"
+    typeof version !== "number" ||
+    (approvalStatus !== undefined &&
+      approvalStatus !== "approved" &&
+      approvalStatus !== "scheduled")
   ) {
     throw new Error("La respuesta idempotente de aprobación no es válida.");
   }
@@ -58,7 +62,7 @@ function replayedApproval(body: SafeJsonObject): ApprovePublicationResult {
     publicationId,
     replayed: true,
     snapshotId,
-    status: "approved",
+    status: approvalStatus === "scheduled" ? "scheduled" : "approved",
     version,
   });
 }
@@ -359,7 +363,201 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           outcome: "success",
         },
       });
-      return Object.freeze({ status: "completed", version });
+      let finalVersion = version;
+      const automaticMaterialization =
+        await transaction.recurringStoryMaterialization.findUnique({
+          include: {
+            rule: {
+              include: {
+                createdBy: { select: { roles: true, status: true } },
+              },
+            },
+          },
+          where: {
+            organizationId_publicationId: {
+              organizationId: job.organizationId,
+              publicationId: job.publicationId,
+            },
+          },
+        });
+      const policyActor = automaticMaterialization?.rule.createdBy;
+      const policyStillAuthorized =
+        policyActor?.status === "active" &&
+        policyActor.roles.includes("admin") &&
+        policyActor.roles.includes("approver");
+      if (
+        automaticMaterialization !== null &&
+        !automaticMaterialization.requiresHumanApproval &&
+        automaticMaterialization.status === "draft_created" &&
+        policyStillAuthorized
+      ) {
+        const renderedRevision =
+          await transaction.publicationRevision.findUnique({
+            include: {
+              media: {
+                include: { mediaAsset: true },
+                orderBy: [{ slot: "asc" }, { id: "asc" }],
+              },
+            },
+            where: { id: job.revisionId },
+          });
+        if (renderedRevision === null) {
+          throw new Error("La revisión renderizada desapareció.");
+        }
+        const approvedAt = new Date(output.renderedAt);
+        const snapshotId = randomUUID();
+        await transaction.approvalSnapshot.create({
+          data: {
+            approvedAt,
+            approvedByMembershipId:
+              automaticMaterialization.rule.createdByMembershipId,
+            contentHash: renderedRevision.contentHash,
+            id: snapshotId,
+            organizationId: job.organizationId,
+            publicationId: job.publicationId,
+            revisionId: job.revisionId,
+            snapshot: {
+              content: inputJson(renderedRevision.content),
+              contentHash: renderedRevision.contentHash,
+              designDocument: inputJson(renderedRevision.designDocument),
+              designSchemaVersion: renderedRevision.schemaVersion,
+              inputMedia: renderedRevision.media.map((reference) => ({
+                alt: reference.alt,
+                checksumSha256: reference.mediaAsset.checksumSha256,
+                mediaAssetId: reference.mediaAssetId,
+                secureUrl: reference.mediaAsset.secureUrl,
+                slot: reference.slot,
+                storageVersion: reference.mediaAsset.storageVersion,
+              })),
+              publishingTargetPolicy: {
+                mode: "exact",
+                targets: ["instagram_story"],
+              },
+              renderedMedia: {
+                byteSize: output.byteSize,
+                checksumSha256: output.checksumSha256,
+                height: output.height,
+                mediaAssetId: output.mediaAssetId,
+                mimeType: output.mimeType,
+                secureUrl: output.secureUrl,
+                storageVersion: output.storageVersion,
+                width: output.width,
+              },
+              revisionId: job.revisionId,
+              revisionNumber: renderedRevision.revisionNumber,
+              snapshotSchemaVersion: 1,
+            },
+          },
+        });
+        const approvedVersion = version + 1;
+        await transaction.publication.update({
+          data: { status: "approved", version: approvedVersion },
+          where: { id: job.publicationId },
+        });
+        await transaction.publicationRevision.update({
+          data: { status: "approved" },
+          where: { id: job.revisionId },
+        });
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId:
+              automaticMaterialization.rule.createdByMembershipId,
+            approvalSnapshotId: snapshotId,
+            commandType: "approve",
+            fromStatus: "ready_for_review",
+            fromVersion: version,
+            occurredAt: approvedAt,
+            organizationId: job.organizationId,
+            publicationId: job.publicationId,
+            reasonCode: "recurring-story-policy",
+            toStatus: "approved",
+            toVersion: approvedVersion,
+          },
+        });
+        const scheduleId = randomUUID();
+        await transaction.publicationSchedule.create({
+          data: {
+            approvalSnapshotId: snapshotId,
+            createdByMembershipId:
+              automaticMaterialization.rule.createdByMembershipId,
+            effectiveFrom: automaticMaterialization.scheduledAt,
+            effectiveUntil: automaticMaterialization.scheduledAt,
+            gapPolicy: "skip",
+            id: scheduleId,
+            kind: "once",
+            lateToleranceMinutes: 15,
+            localTime: automaticMaterialization.rule.localTime,
+            missedPolicy: "skip",
+            organizationId: job.organizationId,
+            publicationId: job.publicationId,
+            targets: ["instagram_story"],
+            timeZone: automaticMaterialization.rule.timeZone,
+          },
+        });
+        await transaction.publicationScheduleOccurrence.create({
+          data: {
+            occurrenceKey: automaticMaterialization.occurrenceKey,
+            organizationId: job.organizationId,
+            resolution: automaticMaterialization.resolution,
+            scheduleId,
+            scheduledAt: automaticMaterialization.scheduledAt,
+          },
+        });
+        await transaction.recurringStoryMaterialization.update({
+          data: { scheduleId, status: "approved_scheduled" },
+          where: { id: automaticMaterialization.id },
+        });
+        finalVersion = approvedVersion + 1;
+        await transaction.publication.update({
+          data: { status: "scheduled", version: finalVersion },
+          where: { id: job.publicationId },
+        });
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId:
+              automaticMaterialization.rule.createdByMembershipId,
+            commandType: "advance",
+            fromStatus: "approved",
+            fromVersion: approvedVersion,
+            occurredAt: approvedAt,
+            organizationId: job.organizationId,
+            publicationId: job.publicationId,
+            reasonCode: "recurring-story-policy",
+            toStatus: "scheduled",
+            toVersion: finalVersion,
+          },
+        });
+        await transaction.auditEvent.create({
+          data: {
+            actorMembershipId:
+              automaticMaterialization.rule.createdByMembershipId,
+            entityId: job.publicationId,
+            entityType: "publication",
+            id: randomUUID(),
+            metadata: {
+              materializationId: automaticMaterialization.id,
+              policy: "automatic-routine",
+              scheduleId,
+              snapshotId,
+            },
+            occurredAt: approvedAt,
+            operation: "scheduling.recurring-story:auto-approve",
+            organizationId: job.organizationId,
+            outcome: "success",
+          },
+        });
+      } else if (
+        automaticMaterialization !== null &&
+        !automaticMaterialization.requiresHumanApproval &&
+        !policyStillAuthorized
+      ) {
+        // Un cambio de roles reduce automatización; nunca amplía permisos.
+        await transaction.recurringStoryMaterialization.update({
+          data: { requiresHumanApproval: true },
+          where: { id: automaticMaterialization.id },
+        });
+      }
+      return Object.freeze({ status: "completed", version: finalVersion });
     });
   }
 
@@ -479,6 +677,20 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "invalid-state" });
       }
+      const recurringMaterialization =
+        await transaction.recurringStoryMaterialization.findUnique({
+          include: {
+            rule: {
+              select: { localTime: true, timeZone: true },
+            },
+          },
+          where: {
+            organizationId_publicationId: {
+              organizationId: input.organizationId,
+              publicationId: input.publicationId,
+            },
+          },
+        });
       const approvedAt = new Date(input.reliableOperation.occurredAt);
       const snapshotId = randomUUID();
       const snapshot: Prisma.InputJsonObject = {
@@ -494,6 +706,14 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           slot: reference.slot,
           storageVersion: reference.mediaAsset.storageVersion,
         })),
+        ...(recurringMaterialization === null
+          ? {}
+          : {
+              publishingTargetPolicy: {
+                mode: "exact",
+                targets: ["instagram_story"],
+              },
+            }),
         renderedMedia: {
           byteSize: revision.renderedMedia.byteSize?.toString() ?? null,
           checksumSha256: revision.renderedMedia.checksumSha256,
@@ -551,21 +771,90 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           toVersion: version,
         },
       });
+      let approvalStatus: "approved" | "scheduled" = "approved";
+      let finalVersion = version;
+      if (
+        recurringMaterialization !== null &&
+        recurringMaterialization.status === "draft_created"
+      ) {
+        const scheduleId = randomUUID();
+        await transaction.publicationSchedule.create({
+          data: {
+            approvalSnapshotId: snapshotId,
+            createdByMembershipId: input.actorMembershipId,
+            effectiveFrom: recurringMaterialization.scheduledAt,
+            effectiveUntil: recurringMaterialization.scheduledAt,
+            gapPolicy: "skip",
+            id: scheduleId,
+            kind: "once",
+            lateToleranceMinutes: 15,
+            localTime: recurringMaterialization.rule.localTime,
+            missedPolicy: "skip",
+            organizationId: input.organizationId,
+            publicationId: input.publicationId,
+            targets: ["instagram_story"],
+            timeZone: recurringMaterialization.rule.timeZone,
+          },
+        });
+        await transaction.publicationScheduleOccurrence.create({
+          data: {
+            occurrenceKey: recurringMaterialization.occurrenceKey,
+            organizationId: input.organizationId,
+            resolution: recurringMaterialization.resolution,
+            scheduleId,
+            scheduledAt: recurringMaterialization.scheduledAt,
+          },
+        });
+        await transaction.recurringStoryMaterialization.update({
+          data: { scheduleId, status: "approved_scheduled" },
+          where: { id: recurringMaterialization.id },
+        });
+        finalVersion = version + 1;
+        await transaction.publication.update({
+          data: { status: "scheduled", version: finalVersion },
+          where: { id: input.publicationId },
+        });
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId: input.actorMembershipId,
+            commandType: "advance",
+            fromStatus: "approved",
+            fromVersion: version,
+            occurredAt: approvedAt,
+            organizationId: input.organizationId,
+            publicationId: input.publicationId,
+            toStatus: "scheduled",
+            toVersion: finalVersion,
+          },
+        });
+        approvalStatus = "scheduled";
+      }
       const responseBody = {
+        approvalStatus,
         publicationId: input.publicationId,
         snapshotId,
-        version,
+        version: finalVersion,
       } satisfies SafeJsonObject;
       const commit = reliableCommit(input, claim.recordId, responseBody, {
         entityId: input.publicationId,
         entityType: "approval_snapshot",
-        metadata: { revisionId: revision.id, snapshotId, version },
+        metadata: {
+          approvalStatus,
+          revisionId: revision.id,
+          snapshotId,
+          version: finalVersion,
+        },
         outbox: [],
       });
       if (!(await commitReliableOperation(transaction, commit))) {
         throw new Error("No se pudo confirmar la aprobación idempotente.");
       }
-      return Object.freeze({ ...responseBody, status: "approved" });
+      return Object.freeze({
+        publicationId: input.publicationId,
+        snapshotId,
+        status: approvalStatus,
+        version: finalVersion,
+      });
     });
   }
 }

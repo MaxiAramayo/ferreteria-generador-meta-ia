@@ -49,6 +49,7 @@ import {
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
+import { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 import {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,
@@ -7005,5 +7006,685 @@ test("un desenlace ambiguo de una orden programada nunca vuelve a pending", asyn
     (await orders.openOutcomes(200)).some(
       (target) => target.publicationTargetId === targetKey,
     ),
+  );
+});
+
+test("una regla recurrente materializa, aprueba y crea una ocurrencia sin publicar", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo recurrencias",
+      id: organizationId,
+      legalName: "Aramayo recurrencias",
+      slug: `recurring-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de recurrencias",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "editor", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Sucursal Rivadavia",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  const actor = {
+    displayName: "Responsable de recurrencias",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "editor", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  const createdRule = await recurring.create({
+    actor,
+    approvalPolicy: "human-each-cycle",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `recurring-${randomUUID()}`,
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId,
+    name: "Apertura habitual",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    weekdays: [2],
+  });
+  assert.equal(createdRule.status, "created");
+
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+  const materialization =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  assert.equal(materialization.status, "draft_created");
+  assert.ok(materialization.publicationId);
+  assert.equal(materialization.locationVersion, 1);
+  assert.match(
+    JSON.stringify(materialization.sourceSnapshot),
+    /Rivadavia 673/u,
+  );
+
+  const production = new PrismaPublicationProductionRepository(database);
+  const renderRequest = await production.requestRender({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId: materialization.publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:request-render",
+    ),
+  });
+  assert.equal(renderRequest.status, "accepted");
+  const renderJob = await production.findRenderJob(
+    organizationId,
+    materialization.publicationId,
+    renderRequest.revisionId,
+  );
+  assert.ok(renderJob);
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 128n,
+      checksumSha256: "c".repeat(64),
+      height: 1920,
+      id: mediaAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: `${renderRequest.revisionId}.png`,
+      ownerMembershipId: membershipId,
+      secureUrl: "https://media.example.invalid/recurring-story.png",
+      status: "available",
+      storageKey: `render/${mediaAssetId}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+  const completed = await production.completeRender(renderJob, {
+    byteSize: "128",
+    checksumSha256: "c".repeat(64),
+    height: 1920,
+    mediaAssetId,
+    mimeType: "image/png",
+    renderedAt: "2026-09-07T12:01:00.000Z",
+    secureUrl: "https://media.example.invalid/recurring-story.png",
+    storageVersion: 1,
+    width: 1080,
+  });
+  assert.deepEqual(completed, { status: "completed", version: 3 });
+  const approval = await production.approve({
+    actorMembershipId: membershipId,
+    expectedVersion: 3,
+    organizationId,
+    publicationId: materialization.publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:approve",
+    ),
+  });
+  assert.equal(approval.status, "scheduled");
+  assert.equal(approval.version, 5);
+
+  const scheduled =
+    await database.recurringStoryMaterialization.findUniqueOrThrow({
+      include: { schedule: { include: { occurrences: true } } },
+      where: { id: materialization.id },
+    });
+  assert.equal(scheduled.status, "approved_scheduled");
+  const scheduledSchedule = scheduled.schedule;
+  assert.ok(scheduledSchedule);
+  assert.deepEqual(scheduledSchedule.targets, ["instagram_story"]);
+  assert.equal(scheduledSchedule.occurrences.length, 1);
+  assert.equal(scheduledSchedule.occurrences[0]?.publicationOrderId, null);
+
+  const configuration = new PrismaOrganizationConfigurationRepository(database);
+  await configuration.updateLocation({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T12:02:00.000Z",
+    locationId,
+    organizationId,
+    update: normalizeLocationConfigurationUpdate({
+      actor,
+      addressLine: "Rivadavia 675",
+      city: "Frías",
+      isActive: true,
+      locationId,
+      name: "Sucursal Rivadavia",
+      openingHours: "Lun a sáb · 09:00 a 13:00",
+      province: "Santiago del Estero",
+      timeZone: "America/Argentina/Cordoba",
+      version: 1,
+    }),
+  });
+  const invalidated =
+    await database.recurringStoryMaterialization.findUniqueOrThrow({
+      where: { id: materialization.id },
+    });
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: materialization.publicationId },
+  });
+  const occurrence =
+    await database.publicationScheduleOccurrence.findFirstOrThrow({
+      where: { organizationId, occurrenceKey: "2026-09-08T08:30" },
+    });
+  assert.equal(invalidated.status, "invalidated");
+  assert.equal(publication.status, "validation_failed");
+  assert.equal(occurrence.status, "cancelled");
+});
+
+test("feriado, horario especial, cierre y dato faltante se materializan sin adivinar", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo excepciones",
+      id: organizationId,
+      legalName: "Aramayo excepciones",
+      slug: `recurring-exceptions-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de excepciones",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  const locationIds = {
+    closed: randomUUID(),
+    inactive: randomUUID(),
+    missing: randomUUID(),
+    special: randomUUID(),
+  };
+  await database.location.createMany({
+    data: Object.entries(locationIds).map(([kind, id]) => ({
+      addressLine: `Calle ${kind} 100`,
+      brandId,
+      city: "Frías",
+      id,
+      isActive: kind !== "inactive",
+      name: `Sucursal ${kind}`,
+      openingHours: { display: kind === "missing" ? "" : "08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    })),
+  });
+  await database.locationDayOverride.createMany({
+    data: [
+      {
+        localDate: new Date("2026-09-08T00:00:00.000Z"),
+        locationId: locationIds.closed,
+        organizationId,
+        sourceLabel: "Feriado local",
+        status: "closed",
+      },
+      {
+        localDate: new Date("2026-09-08T00:00:00.000Z"),
+        locationId: locationIds.special,
+        openingHours: "09:00 a 12:00",
+        organizationId,
+        sourceLabel: "Horario especial aprobado",
+        status: "open",
+      },
+    ],
+  });
+  const actor = {
+    displayName: "Responsable de excepciones",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  for (const [kind, locationId] of Object.entries(locationIds)) {
+    await recurring.create({
+      actor,
+      approvalPolicy: "automatic-routine",
+      effectiveFrom: "2026-09-08T11:30:00.000Z",
+      idempotencyKey: `${kind}-${randomUUID()}`,
+      leadTimeMinutes: 1_440,
+      localTime: "08:30",
+      locationId,
+      name: `Regla ${kind}`,
+      occurredAt: "2026-09-07T12:00:00.000Z",
+      weekdays: [2],
+    });
+  }
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 20,
+      organizationId,
+    }),
+    { blocked: 3, created: 1, reviewed: 4 },
+  );
+  const materializations =
+    await database.recurringStoryMaterialization.findMany({
+      orderBy: { status: "asc" },
+      where: { organizationId },
+    });
+  assert.deepEqual(materializations.map((entry) => entry.status).toSorted(), [
+    "blocked_location_closed",
+    "blocked_location_inactive",
+    "blocked_missing_hours",
+    "draft_created",
+  ]);
+  const special = materializations.find(
+    (entry) => entry.locationId === locationIds.special,
+  );
+  assert.ok(special);
+  assert.equal(special.requiresHumanApproval, true);
+  assert.match(JSON.stringify(special.sourceSnapshot), /09:00 a 12:00/u);
+});
+
+test("la rutina automática aprueba al terminar el render y una pérdida de rol la devuelve a revisión", async () => {
+  const organizationId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  const routineUserId = randomUUID();
+  const routineMembershipId = randomUUID();
+  const demotedUserId = randomUUID();
+  const demotedMembershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo rutina",
+      id: organizationId,
+      legalName: "Aramayo rutina",
+      slug: `recurring-routine-${organizationId}`,
+    },
+  });
+  await database.user.createMany({
+    data: [
+      {
+        displayName: "Responsable de rutina",
+        email: `${routineUserId}@example.invalid`,
+        id: routineUserId,
+      },
+      {
+        displayName: "Responsable degradado",
+        email: `${demotedUserId}@example.invalid`,
+        id: demotedUserId,
+      },
+    ],
+  });
+  await database.organizationMembership.createMany({
+    data: [
+      {
+        id: routineMembershipId,
+        organizationId,
+        roles: ["admin", "editor", "approver"],
+        userId: routineUserId,
+      },
+      {
+        id: demotedMembershipId,
+        organizationId,
+        roles: ["admin", "editor", "approver"],
+        userId: demotedUserId,
+      },
+    ],
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Sucursal Rivadavia",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  const recurring = new PrismaRecurringStoryRepository(database);
+  for (const [name, membership] of [
+    ["Rutina vigente", routineMembershipId],
+    ["Rutina degradada", demotedMembershipId],
+  ] as const) {
+    await recurring.create({
+      actor: {
+        displayName: name,
+        email: `${membership}@example.invalid`,
+        membershipId: membership,
+        organizationId,
+        roles: ["admin", "editor", "approver"],
+        sessionId: randomUUID(),
+        userId:
+          membership === routineMembershipId ? routineUserId : demotedUserId,
+      },
+      approvalPolicy: "automatic-routine",
+      effectiveFrom: "2026-09-08T11:30:00.000Z",
+      idempotencyKey: `routine-${randomUUID()}`,
+      leadTimeMinutes: 1_440,
+      localTime: "08:30",
+      locationId,
+      name,
+      occurredAt: "2026-09-07T12:00:00.000Z",
+      weekdays: [2],
+    });
+  }
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 2, reviewed: 2 },
+  );
+
+  // La rutina automática no puede aprobar sola con permisos vencidos: se
+  // revocan antes de que su render termine.
+  await database.organizationMembership.update({
+    data: { roles: ["editor"] },
+    where: { id: demotedMembershipId },
+  });
+
+  const production = new PrismaPublicationProductionRepository(database);
+  const results = new Map<
+    string,
+    Readonly<{ materializationId: string; publicationId: string }>
+  >();
+  for (const membership of [routineMembershipId, demotedMembershipId]) {
+    const materialization =
+      await database.recurringStoryMaterialization.findFirstOrThrow({
+        where: { organizationId, rule: { createdByMembershipId: membership } },
+      });
+    assert.equal(materialization.requiresHumanApproval, false);
+    const publicationId = materialization.publicationId;
+    assert.ok(publicationId);
+    results.set(membership, {
+      materializationId: materialization.id,
+      publicationId,
+    });
+    const renderRequest = await production.requestRender({
+      actorMembershipId: routineMembershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        routineMembershipId,
+        "content.publication:request-render",
+      ),
+    });
+    assert.equal(renderRequest.status, "accepted");
+    const renderJob = await production.findRenderJob(
+      organizationId,
+      publicationId,
+      renderRequest.revisionId,
+    );
+    assert.ok(renderJob);
+    const mediaAssetId = randomUUID();
+    await database.mediaAsset.create({
+      data: {
+        byteSize: 128n,
+        checksumSha256: "d".repeat(64),
+        height: 1920,
+        id: mediaAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: `${renderRequest.revisionId}.png`,
+        ownerMembershipId: routineMembershipId,
+        secureUrl: "https://media.example.invalid/routine-story.png",
+        status: "available",
+        storageKey: `render/${mediaAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+    });
+    const completed = await production.completeRender(renderJob, {
+      byteSize: "128",
+      checksumSha256: "d".repeat(64),
+      height: 1920,
+      mediaAssetId,
+      mimeType: "image/png",
+      renderedAt: "2026-09-07T12:01:00.000Z",
+      secureUrl: "https://media.example.invalid/routine-story.png",
+      storageVersion: 1,
+      width: 1080,
+    });
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.version, membership === routineMembershipId ? 5 : 3);
+  }
+
+  const routine = results.get(routineMembershipId);
+  assert.ok(routine);
+  const approved =
+    await database.recurringStoryMaterialization.findUniqueOrThrow({
+      include: { schedule: { include: { occurrences: true } } },
+      where: { id: routine.materializationId },
+    });
+  assert.equal(approved.status, "approved_scheduled");
+  const approvedSchedule = approved.schedule;
+  assert.ok(approvedSchedule);
+  assert.deepEqual(approvedSchedule.targets, ["instagram_story"]);
+  assert.equal(approvedSchedule.occurrences.length, 1);
+  assert.equal(approvedSchedule.occurrences[0]?.status, "planned");
+  const approvedPublication = await database.publication.findUniqueOrThrow({
+    where: { id: routine.publicationId },
+  });
+  assert.equal(approvedPublication.status, "scheduled");
+  assert.equal(
+    await database.approvalSnapshot.count({
+      where: { organizationId, publicationId: routine.publicationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityId: routine.publicationId,
+        operation: "scheduling.recurring-story:auto-approve",
+        organizationId,
+      },
+    }),
+    1,
+  );
+
+  // El rol perdido no aprueba ni programa: el borrador queda esperando a una
+  // persona y nunca hereda la autoridad que la regla tenía al crearse.
+  const demoted = results.get(demotedMembershipId);
+  assert.ok(demoted);
+  const pending =
+    await database.recurringStoryMaterialization.findUniqueOrThrow({
+      where: { id: demoted.materializationId },
+    });
+  assert.equal(pending.status, "draft_created");
+  assert.equal(pending.requiresHumanApproval, true);
+  assert.equal(pending.scheduleId, null);
+  const pendingPublication = await database.publication.findUniqueOrThrow({
+    where: { id: demoted.publicationId },
+  });
+  assert.equal(pendingPublication.status, "ready_for_review");
+  assert.equal(
+    await database.approvalSnapshot.count({
+      where: { organizationId, publicationId: demoted.publicationId },
+    }),
+    0,
+  );
+});
+
+test("una regla nueva materializa aunque las anteriores ya estén resueltas", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo turnos",
+      id: organizationId,
+      legalName: "Aramayo turnos",
+      slug: `recurring-fairness-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de turnos",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["approver"], userId },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Sucursal Rivadavia",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  const actor = {
+    displayName: "Responsable de turnos",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  // Las tres comparten fecha civil de vigencia, así que producen la misma
+  // ocurrencia; el instante sólo fija el orden del barrido.
+  const rules = new Map<string, string>();
+  for (const [name, effectiveFrom] of [
+    ["Primera", "2026-09-08T11:00:00.000Z"],
+    ["Segunda", "2026-09-08T11:15:00.000Z"],
+    ["Tercera", "2026-09-08T11:30:00.000Z"],
+  ] as const) {
+    const result = await recurring.create({
+      actor,
+      approvalPolicy: "human-each-cycle",
+      effectiveFrom,
+      idempotencyKey: `fairness-${randomUUID()}`,
+      leadTimeMinutes: 1_440,
+      localTime: "08:30",
+      locationId,
+      name,
+      occurredAt: "2026-09-07T12:00:00.000Z",
+      weekdays: [2],
+    });
+    assert.equal(result.status, "created");
+    rules.set(name, result.rule.id);
+  }
+
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 2,
+      organizationId,
+    }),
+    { blocked: 0, created: 2, reviewed: 2 },
+  );
+  const thirdRuleId = rules.get("Tercera");
+  assert.ok(thirdRuleId);
+  assert.equal(
+    await database.recurringStoryMaterialization.count({
+      where: { organizationId, ruleId: thirdRuleId },
+    }),
+    0,
+    "El lote acotado no debía adelantarse a la tercera regla.",
+  );
+
+  // Un lote de uno alcanza para la regla pendiente: releer las ya resueltas no
+  // consume el presupuesto, así que ninguna regla queda postergada para siempre.
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 1,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 3 },
+  );
+  assert.equal(
+    await database.recurringStoryMaterialization.count({
+      where: { organizationId, ruleId: thirdRuleId },
+    }),
+    1,
   );
 });

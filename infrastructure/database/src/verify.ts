@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260907120000_scheduled_publication_execution";
+const latestMigrationName = "20260907190000_recurring_story_materialization";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -198,6 +198,10 @@ async function verifyDatabase(): Promise<void> {
         schedule_execution_lock_exists: boolean;
         schedule_occurrences_table: string | null;
         schedules_table: string | null;
+        recurring_story_rules_table: string | null;
+        recurring_story_materializations_table: string | null;
+        location_day_overrides_table: string | null;
+        recurring_story_policy_type: string | null;
       }>(
         `
           SELECT
@@ -313,6 +317,10 @@ async function verifyDatabase(): Promise<void> {
             ) AS "rendered_media_exists",
             to_regclass('public.publication_schedules')::text AS "schedules_table",
             to_regclass('public.publication_schedule_occurrences')::text AS "schedule_occurrences_table",
+            to_regclass('public.recurring_story_rules')::text AS "recurring_story_rules_table",
+            to_regclass('public.recurring_story_materializations')::text AS "recurring_story_materializations_table",
+            to_regclass('public.location_day_overrides')::text AS "location_day_overrides_table",
+            to_regtype('public.recurring_story_approval_policy')::text AS "recurring_story_policy_type",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -357,12 +365,19 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a P6-T03: las marcas durables del dispatcher
-      // siguen y desaparecen únicamente lease y timestamps de ejecución.
+      // La reversión afecta sólo a P6-T04: programación y ejecución previas
+      // siguen completas; desaparecen reglas, excepciones y materializaciones.
+      assert.equal(rollbackEvidence.recurring_story_rules_table, null);
+      assert.equal(
+        rollbackEvidence.recurring_story_materializations_table,
+        null,
+      );
+      assert.equal(rollbackEvidence.location_day_overrides_table, null);
+      assert.equal(rollbackEvidence.recurring_story_policy_type, null);
       assert.equal(rollbackEvidence.schedule_dispatch_event_exists, true);
       assert.equal(rollbackEvidence.schedule_dispatch_requested_exists, true);
-      assert.equal(rollbackEvidence.schedule_execution_lock_exists, false);
-      assert.equal(rollbackEvidence.schedule_execution_completed_exists, false);
+      assert.equal(rollbackEvidence.schedule_execution_lock_exists, true);
+      assert.equal(rollbackEvidence.schedule_execution_completed_exists, true);
       assert.equal(rollbackEvidence.schedules_table, "publication_schedules");
       assert.equal(
         rollbackEvidence.schedule_occurrences_table,

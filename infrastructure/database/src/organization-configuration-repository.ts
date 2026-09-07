@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   BrandThemeId,
   ConfigurationMutationResult,
@@ -321,6 +323,139 @@ export class PrismaOrganizationConfigurationRepository implements OrganizationCo
         return Object.freeze({ status: "conflict" });
       }
 
+      const previous = mapLocation(currentLocation);
+      const factualSourceChanged =
+        previous.addressLine !== input.update.addressLine ||
+        previous.city !== input.update.city ||
+        previous.isActive !== input.update.isActive ||
+        previous.name !== input.update.name ||
+        previous.openingHours !== input.update.openingHours ||
+        previous.province !== input.update.province ||
+        previous.timeZone !== input.update.timeZone;
+      if (factualSourceChanged) {
+        const invalidatedAt = new Date(input.changedAt);
+        const materializations =
+          await transaction.recurringStoryMaterialization.findMany({
+            include: {
+              publication: { select: { status: true, version: true } },
+            },
+            where: {
+              locationId: input.locationId,
+              organizationId: input.organizationId,
+              publication: {
+                status: {
+                  in: [
+                    "draft",
+                    "generating_assets",
+                    "ready_for_review",
+                    "approved",
+                    "scheduled",
+                  ],
+                },
+              },
+              status: { in: ["draft_created", "approved_scheduled"] },
+            },
+          });
+        for (const materialization of materializations) {
+          const publication = materialization.publication;
+          if (publication === null || materialization.publicationId === null) {
+            continue;
+          }
+          if (materialization.scheduleId !== null) {
+            await transaction.publicationScheduleOccurrence.updateMany({
+              data: {
+                cancelledAt: invalidatedAt,
+                status: "cancelled",
+              },
+              where: {
+                organizationId: input.organizationId,
+                scheduleId: materialization.scheduleId,
+                status: "planned",
+              },
+            });
+            await transaction.publicationSchedule.updateMany({
+              data: {
+                cancelledAt: invalidatedAt,
+                cancelledReasonCode: "factual-source-changed",
+                status: "cancelled",
+              },
+              where: {
+                id: materialization.scheduleId,
+                organizationId: input.organizationId,
+                status: { in: ["active", "paused"] },
+              },
+            });
+          }
+          const nextVersion = publication.version + 1;
+          const publicationUpdate = await transaction.publication.updateMany({
+            data: {
+              failureCode: "factual-source-changed",
+              failureMessage:
+                "La sucursal cambió después de crear esta historia. Volvé a materializarla antes de aprobar o publicar.",
+              failureOccurredAt: invalidatedAt,
+              failureRetryable: false,
+              status: "validation_failed",
+              version: nextVersion,
+            },
+            where: {
+              id: materialization.publicationId,
+              organizationId: input.organizationId,
+              status: publication.status,
+              version: publication.version,
+            },
+          });
+          if (publicationUpdate.count !== 1) {
+            throw new Error(
+              "Una historia recurrente cambió durante su invalidación.",
+            );
+          }
+          await transaction.publicationStateTransition.create({
+            data: {
+              actorMembershipId: input.actorMembershipId,
+              commandType: "fail",
+              failureCode: "factual-source-changed",
+              failureMessage:
+                "La fuente factual de la sucursal cambió después de crear la historia.",
+              failureRetryable: false,
+              fromStatus: publication.status,
+              fromVersion: publication.version,
+              occurredAt: invalidatedAt,
+              organizationId: input.organizationId,
+              publicationId: materialization.publicationId,
+              toStatus: "validation_failed",
+              toVersion: nextVersion,
+            },
+          });
+          await transaction.recurringStoryMaterialization.update({
+            data: {
+              invalidatedAt,
+              invalidatedReasonCode: "factual-source-changed",
+              scheduleId: null,
+              status: "invalidated",
+            },
+            where: { id: materialization.id },
+          });
+          await transaction.auditEvent.create({
+            data: {
+              actorMembershipId: input.actorMembershipId,
+              entityId: materialization.publicationId,
+              entityType: "publication",
+              id: randomUUID(),
+              metadata: {
+                locationId: input.locationId,
+                materializationId: materialization.id,
+                sourceLocationVersion: materialization.locationVersion,
+                updatedLocationVersion: input.update.version + 1,
+              },
+              occurredAt: invalidatedAt,
+              operation: "scheduling.recurring-story:invalidate",
+              organizationId: input.organizationId,
+              outcome: "failure",
+            },
+          });
+        }
+      }
+
       await transaction.organizationConfigurationEvent.create({
         data: {
           actorMembershipId: input.actorMembershipId,
@@ -330,7 +465,7 @@ export class PrismaOrganizationConfigurationRepository implements OrganizationCo
             version: input.update.version + 1,
           },
           before: {
-            ...mapLocation(currentLocation),
+            ...previous,
           },
           occurredAt: new Date(input.changedAt),
           organizationId: input.organizationId,

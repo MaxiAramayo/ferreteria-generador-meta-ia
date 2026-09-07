@@ -3,16 +3,29 @@ import type { PublicationStatus } from "./publication.ts";
 export const PUBLICATION_TRANSITIONS: Readonly<
   Record<PublicationStatus, readonly PublicationStatus[]>
 > = Object.freeze({
-  approved: ["draft", "scheduled", "publishing", "cancelled", "expired"],
+  approved: [
+    "draft",
+    "scheduled",
+    "publishing",
+    "validation_failed",
+    "cancelled",
+    "expired",
+  ],
   cancelled: [],
   draft: [
     "retrieving_context",
     "generating_assets",
     "ready_for_review",
+    "validation_failed",
     "cancelled",
   ],
   expired: [],
-  generating_assets: ["ready_for_review", "generation_failed", "cancelled"],
+  generating_assets: [
+    "ready_for_review",
+    "generation_failed",
+    "validation_failed",
+    "cancelled",
+  ],
   generation_failed: ["draft", "generating_assets", "cancelled", "expired"],
   missing_information: ["draft", "retrieving_context", "cancelled", "expired"],
   partially_published: ["publishing", "published", "publish_failed"],
@@ -32,7 +45,13 @@ export const PUBLICATION_TRANSITIONS: Readonly<
     "generation_failed",
     "cancelled",
   ],
-  scheduled: ["approved", "publishing", "cancelled", "expired"],
+  scheduled: [
+    "approved",
+    "publishing",
+    "validation_failed",
+    "cancelled",
+    "expired",
+  ],
   validation_failed: ["draft", "ready_for_review", "cancelled", "expired"],
 });
 

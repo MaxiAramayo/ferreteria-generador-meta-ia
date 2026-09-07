@@ -308,8 +308,8 @@ concurrente y recuperación segura.
 
 ## P6-T04 — Materializar historias recurrentes
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P3-T07`, `P4-T05`, `P6-T01`
 - Riesgo: Alto
 
@@ -326,18 +326,18 @@ horario vigente, preview y aprobación según política.
 
 ### Criterios de aceptación
 
-- [ ] Cada ocurrencia genera un borrador versionado, no una publicación invisible.
-- [ ] Horario y ubicación se consultan al materializar y se citan.
-- [ ] Excepciones de feriado impiden mensajes incorrectos.
-- [ ] Cambios posteriores de horario invalidan borradores aún no publicados.
-- [ ] La política define si requiere aprobación humana en cada ciclo.
-- [ ] El preview respeta formato story y safe zones.
+- [x] Cada ocurrencia genera un borrador versionado, no una publicación invisible.
+- [x] Horario y ubicación se consultan al materializar y se citan.
+- [x] Excepciones de feriado impiden mensajes incorrectos.
+- [x] Cambios posteriores de horario invalidan borradores aún no publicados.
+- [x] La política define si requiere aprobación humana en cada ciclo.
+- [x] El preview respeta formato story y safe zones.
 
 ### Verificación obligatoria
 
-- [ ] Casos normal, feriado, horario especial, ubicación cerrada y dato faltante.
-- [ ] Cambiar horario luego de materializar y comprobar invalidación.
-- [ ] E2E regla–borrador–aprobación–ocurrencia.
+- [x] Casos normal, feriado, horario especial, ubicación cerrada y dato faltante.
+- [x] Cambiar horario luego de materializar y comprobar invalidación.
+- [x] E2E regla–borrador–aprobación–ocurrencia.
 
 ### Fuera de alcance
 
@@ -345,11 +345,90 @@ horario vigente, preview y aprobación según política.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-07.
+- Estado real: la cadena completa funciona de punta a punta y no contacta
+  ningún proveedor externo. Decisiones en
+  [`ADR-025`](../architecture/decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
+- **Una ocurrencia produce un borrador real, no una publicación invisible.** La
+  materialización crea `Publication` y `PublicationRevision` versionadas y las
+  identifica por `organización + regla + clave de ocurrencia`, con la misma
+  clave civil de `ADR-023`. Volver a materializar encuentra la fila y el índice
+  único impide el duplicado.
+- **La fuente se consulta al materializar y se cita.** El snapshot guarda
+  dirección, horario, nombre y versión de sucursal, el instante de captura y si
+  el dato salió de la configuración vigente o de una excepción del día. El copy
+  se compone con ese dato, no con una frase guardada.
+- **Un bloqueo es un hecho registrado.** Sucursal inactiva, día cerrado y
+  horario faltante crean una materialización sin publicación y con su código de
+  causa. Queda auditable y no se reintenta sobre la misma ocurrencia.
+- **Una excepción vuelve siempre a revisión humana**, aunque la regla sea
+  automática: una rutina tiene autoridad sobre la rutina, no sobre el día raro.
+- **La política automática aprueba al terminar el render, no al materializar**,
+  porque antes no hay pieza que aprobar. En ese momento se vuelve a comprobar
+  que quien creó la regla siga activo y conserve `admin` y `approver`; si los
+  perdió, el borrador pasa a exigir revisión humana. La automatización puede
+  reducirse sola y nunca ampliarse.
+- **Aprobar programa.** La aprobación —humana o automática— crea una
+  programación `once` con destino `instagram_story` y una única ocurrencia. Por
+  eso `PublicationApprovalResponse.status` pasa a ser `approved | scheduled`.
+  La orden de publicación sigue naciendo en `P6-T03`.
+- **Cambiar la sucursal invalida lo que todavía no salió.** Editar dirección,
+  ciudad, provincia, nombre, horario, zona o actividad cancela la programación y
+  sus ocurrencias planificadas, lleva la publicación a `validation_failed` con
+  `factual-source-changed` y marca la materialización `invalidated`. No se borra
+  nada. Eso agregó transiciones hacia `validation_failed` desde `draft`,
+  `generating_assets`, `approved` y `scheduled`.
+- **La vista previa no redeclara medidas.** La relación de aspecto y las cuatro
+  zonas seguras salen de `FORMATS.historia`, que es su única definición, y el
+  E2E las mide en el navegador contra esos números.
+- **El lote acota trabajo nuevo, no relecturas.** Contar contra el límite las
+  ocurrencias ya materializadas dejaba sin turno a las reglas más recientes,
+  porque el barrido siempre empieza por las más antiguas. Ahora el presupuesto
+  y la ventana de lectura son cosas distintas: el límite cuenta creaciones y
+  bloqueos, una sola consulta por regla descarta lo ya resuelto sin abrir
+  transacción, y la lectura tiene su propio techo.
+- **Límite conocido, entregado a `P6-T08`**: `location_day_overrides` existe y
+  se consulta, pero todavía no tiene pantalla de gestión, así que hoy sólo se
+  cargan por base. Cambiar una excepción tampoco invalida borradores ya
+  materializados; sí lo hace cambiar la configuración de la sucursal. La UI de
+  cierres y horarios especiales es entregable de `P6-T08`.
+- Archivos principales: dominio en `packages/domain/src/recurring-story.ts`;
+  contratos en `packages/contracts/src/recurring-story.ts`; migración
+  `20260907190000_recurring_story_materialization`; repositorio
+  `infrastructure/database/src/recurring-story-repository.ts`; invalidación en
+  `organization-configuration-repository.ts`; aprobación y programación en
+  `publication-production-repository.ts`; módulo API en
+  `apps/api/src/scheduling/`; servicio y bucle en `apps/worker/src/scheduling/`;
+  compositor en `apps/web/app/publicaciones/recurring-story-composer.tsx`; E2E en
+  `tools/e2e-recurring-story/`.
+- Próximo paso exacto: `P6-T05`, revalidar justo antes del envío externo.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: rama `codex/p6-t04-recurring-stories`.
+- Comandos y resultados: `pnpm verify` completo en verde —stack, plan, formato,
+  build, lint, typecheck, tests, baseline y smoke—. `pnpm db:test` aplicó la
+  migración desde una base vacía, ejecutó 61 pruebas de repositorios más las
+  integraciones de render y BullMQ, revirtió `down.sql` comprobando que
+  desaparecen reglas, excepciones, materializaciones y su tipo enumerado sin
+  tocar lo de `P6-T01` a `P6-T03`, y la reaplicó.
+- Evidencia de casos: pruebas de dominio y de PostgreSQL sobre normal, feriado
+  cerrado, horario especial, sucursal inactiva y horario faltante —`blocked: 3,
+  created: 1, reviewed: 4` en un lote de cuatro reglas—, y una prueba dedicada a
+  la rutina automática que aprueba al terminar el render mientras la misma
+  corrida deja en `draft_created` la regla cuyo autor perdió el rol.
+- Evidencia de invalidación: cambiar dirección y horario después de materializar
+  dejó la materialización `invalidated`, la publicación en `validation_failed` y
+  la ocurrencia `cancelled`.
+- Evidencia E2E: `pnpm e2e:recurring-story` en verde, con seis comprobaciones
+  sobre la vertical real —panel, API, worker, PostgreSQL y Chromium—: vista
+  previa medida contra `FORMATS.historia` (relación 0,5625; zona superior
+  0,1302; zona inferior 0,1562), activación de la regla sin crear pieza,
+  materialización que cita la fuente, aprobación por HTTP que responde
+  `scheduled` y ocurrencia planificada sin orden de publicación.
+- Evidencia visual o remota: no aplica. No se contactó Meta, Cloudinary ni
+  OpenAI; el almacenamiento de medios del E2E es un doble local.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T05 — Validar nuevamente antes de publicar
 

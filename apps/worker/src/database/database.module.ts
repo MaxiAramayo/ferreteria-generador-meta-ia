@@ -15,6 +15,7 @@ import {
   PrismaPublicationOccurrenceExecutionRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationScheduleDispatchRepository,
+  PrismaRecurringStoryRepository,
 } from "@aramayo/database";
 import type {
   CommercialToolAuditPort,
@@ -29,6 +30,7 @@ import type {
   PublicationProductionRepository,
   PublicationOccurrenceExecutionRepository,
   PublicationScheduleDispatchRepository,
+  RecurringStoryMaterializationRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
@@ -47,6 +49,7 @@ import {
   PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+  RECURRING_STORY_MATERIALIZATION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
 
@@ -68,10 +71,19 @@ export class DatabaseModule {
         PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+        RECURRING_STORY_MATERIALIZATION_REPOSITORY,
       ],
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: RECURRING_STORY_MATERIALIZATION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): RecurringStoryMaterializationRepository =>
+            new PrismaRecurringStoryRepository(database),
+        },
         {
           inject: [WORKER_DATABASE_CLIENT],
           provide: GENERATION_POLICY_REPOSITORY,

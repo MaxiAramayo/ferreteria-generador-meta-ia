@@ -76,7 +76,7 @@ export type ApprovePublicationResult =
       publicationId: string;
       replayed?: true;
       snapshotId: string;
-      status: "approved";
+      status: "approved" | "scheduled";
       version: number;
     }>
   | Readonly<{ status: "conflict" }>

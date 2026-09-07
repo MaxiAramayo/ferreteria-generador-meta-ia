@@ -6,4 +6,5 @@ export * from "./knowledge-retrieval.ts";
 export * from "./meta-connection.ts";
 export * from "./organization-configuration.ts";
 export * from "./publication-draft.ts";
+export * from "./recurring-story.ts";
 export * from "./process-health.ts";

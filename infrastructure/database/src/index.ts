@@ -34,4 +34,5 @@ export {
   PrismaGenerationPolicyRepository,
 } from "./generation-governance-repository.ts";
 export { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
+export { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 export { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
