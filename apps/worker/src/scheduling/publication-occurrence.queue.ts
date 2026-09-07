@@ -48,9 +48,27 @@ export class BullMqPublicationOccurrenceQueue implements ManagedPublicationOccur
   }
 
   async enqueue(job: PublicationOccurrenceDispatchJob): Promise<void> {
+    const jobId = publicationOccurrenceJobId(job.occurrenceId);
+    const existing = await this.#queue.getJob(jobId);
+    if (existing !== undefined) {
+      const state = await existing.getState();
+      if (state === "failed") {
+        await existing.retry("failed");
+        return;
+      }
+      if (state === "completed") {
+        // PostgreSQL todavía pidió el job: pudo completarse mientras la regla
+        // estaba pausada o antes de que la ocurrencia terminara. Remover y
+        // recrear conserva la misma identidad y fuerza la revalidación durable.
+        await existing.remove();
+      } else {
+        return;
+      }
+    }
     await this.#queue.add(publicationOccurrenceJobName, job, {
-      attempts: 1,
-      jobId: publicationOccurrenceJobId(job.occurrenceId),
+      attempts: 5,
+      backoff: { delay: 1_000, type: "exponential" },
+      jobId,
       removeOnComplete: false,
       removeOnFail: false,
     });

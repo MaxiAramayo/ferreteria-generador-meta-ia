@@ -336,6 +336,11 @@ La clave mínima combina:
 - destino;
 - ocurrencia programada.
 
+En una publicación programada, el UUID de la orden es el UUID de la ocurrencia.
+Por eso el identificador persistente del intento `orden:destino` incorpora la
+ocurrencia sin depender del payload de Redis. La materialización de la orden se
+protege además con una lease durable; Redis sólo despierta el trabajo.
+
 La respuesta externa se guarda dentro de la misma transición protegida. Antes de
 reintentar se consulta el registro local y, cuando la API lo permite, el estado
 externo.

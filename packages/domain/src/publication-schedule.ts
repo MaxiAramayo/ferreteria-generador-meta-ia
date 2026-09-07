@@ -227,6 +227,8 @@ export interface PublicationOccurrencePlan {
 
 /** Una ocurrencia ya persistida. */
 export interface PublicationOccurrenceRecord {
+  readonly executionCompletedAt?: string;
+  readonly executionStartedAt?: string;
   readonly occurrenceKey: string;
   readonly publicationOrderId?: string;
   readonly resolution: PublicationOccurrenceResolution;
@@ -297,6 +299,72 @@ export interface PublicationScheduleDispatchRepository {
   pendingQueueJobs(
     input: Readonly<{ afterOccurrenceId?: string; limit: number }>,
   ): Promise<readonly PublicationOccurrenceDispatchJob[]>;
+}
+
+/** Lease durable que autoriza a un único worker a materializar la orden. */
+export interface PublicationOccurrenceExecutionLease extends OrganizationScope {
+  readonly dispatchEventId: string;
+  readonly expiresAt: string;
+  readonly occurrenceId: string;
+  readonly ownerId: string;
+  readonly scheduleId: string;
+  readonly token: string;
+}
+
+export interface AcquirePublicationOccurrenceInput extends PublicationOccurrenceDispatchJob {
+  readonly at: string;
+  readonly leaseExpiresAt: string;
+  readonly lockOwnerId: string;
+  readonly lockToken: string;
+}
+
+export type AcquirePublicationOccurrenceResult =
+  | Readonly<{
+      lease: PublicationOccurrenceExecutionLease;
+      status: "acquired";
+    }>
+  | Readonly<{ orderId: string; status: "completed" }>
+  | Readonly<{ retryAt: string; status: "busy" }>
+  | Readonly<{
+      reason:
+        "dispatch-mismatch" | "occurrence-unavailable" | "schedule-inactive";
+      status: "ignored";
+    }>;
+
+export interface HeartbeatPublicationOccurrenceInput {
+  readonly at: string;
+  readonly lease: PublicationOccurrenceExecutionLease;
+  readonly leaseExpiresAt: string;
+}
+
+export type HeartbeatPublicationOccurrenceResult = "lost" | "renewed";
+
+export type CompletePublicationOccurrenceResult =
+  | Readonly<{ orderId: string; status: "created" | "replayed" }>
+  | Readonly<{ status: "lost" }>
+  | Readonly<{
+      reason: "not-approved" | "schedule-inactive" | "target-policy-conflict";
+      status: "blocked";
+    }>;
+
+/**
+ * Frontera transaccional de P6-T03.
+ *
+ * El lock vive en PostgreSQL. Completar crea la orden, sus destinos, auditoría,
+ * outbox y vínculo con la ocurrencia en una sola transacción; una reentrega
+ * devuelve la orden ya enlazada.
+ */
+export interface PublicationOccurrenceExecutionRepository {
+  acquire(
+    input: AcquirePublicationOccurrenceInput,
+  ): Promise<AcquirePublicationOccurrenceResult>;
+  complete(
+    lease: PublicationOccurrenceExecutionLease,
+    completedAt: string,
+  ): Promise<CompletePublicationOccurrenceResult>;
+  heartbeat(
+    input: HeartbeatPublicationOccurrenceInput,
+  ): Promise<HeartbeatPublicationOccurrenceResult>;
 }
 
 const millisecondsPerMinute = 60_000;

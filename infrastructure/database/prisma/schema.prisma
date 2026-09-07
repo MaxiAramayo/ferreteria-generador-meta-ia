@@ -952,6 +952,12 @@ model PublicationScheduleOccurrence {
   publicationOrderId    String?                         @map("publication_order_id") @db.Uuid
   dispatchOutboxEventId String?                         @map("dispatch_outbox_event_id") @db.Uuid
   dispatchRequestedAt   DateTime?                       @map("dispatch_requested_at") @db.Timestamptz(3)
+  executionLockOwner    String?                         @map("execution_lock_owner") @db.VarChar(120)
+  executionLockToken    String?                         @map("execution_lock_token") @db.Uuid
+  executionLockExpiresAt DateTime?                      @map("execution_lock_expires_at") @db.Timestamptz(3)
+  executionHeartbeatAt  DateTime?                       @map("execution_heartbeat_at") @db.Timestamptz(3)
+  executionStartedAt    DateTime?                       @map("execution_started_at") @db.Timestamptz(3)
+  executionCompletedAt  DateTime?                       @map("execution_completed_at") @db.Timestamptz(3)
   skippedReasonCode     String?                         @map("skipped_reason_code") @db.VarChar(40)
   cancelledAt           DateTime?                       @map("cancelled_at") @db.Timestamptz(3)
   dispatchedAt          DateTime?                       @map("dispatched_at") @db.Timestamptz(3)
@@ -969,6 +975,7 @@ model PublicationScheduleOccurrence {
   @@index([organizationId, status, scheduledAt], map: "publication_occurrences_due_idx")
   @@index([status, scheduledAt, createdAt, id], map: "publication_occurrences_global_due_idx")
   @@index([status, id], map: "publication_occurrences_pending_dispatch_idx")
+  @@index([status, executionLockExpiresAt], map: "publication_occurrences_execution_lease_idx")
   @@map("publication_schedule_occurrences")
 }
 

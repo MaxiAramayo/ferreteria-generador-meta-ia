@@ -215,8 +215,8 @@ depender de timers residentes en memoria.
 
 ## P6-T03 — Ejecutar publicaciones con locks e idempotencia
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P5-T06`, `P6-T02`
 - Riesgo: Alto
 
@@ -233,18 +233,18 @@ concurrente y recuperación segura.
 
 ### Criterios de aceptación
 
-- [ ] Solo un worker posee una ocurrencia a la vez.
-- [ ] Un lock abandonado puede recuperarse sin duplicar publicación.
-- [ ] Reentrega del job devuelve la orden existente.
-- [ ] El estado final deriva de intentos reales por destino.
-- [ ] Un proceso terminado durante Meta se reconcilia antes de reintentar.
-- [ ] La ocurrencia registra timestamps planificado, iniciado y finalizado.
+- [x] Solo un worker posee una ocurrencia a la vez.
+- [x] Un lock abandonado puede recuperarse sin duplicar publicación.
+- [x] Reentrega del job devuelve la orden existente.
+- [x] El estado final deriva de intentos reales por destino.
+- [x] Un proceso terminado durante Meta se reconcilia antes de reintentar.
+- [x] La ocurrencia registra timestamps planificado, iniciado y finalizado.
 
 ### Verificación obligatoria
 
-- [ ] Workers concurrentes sobre la misma ocurrencia.
-- [ ] Terminación forzada en cada punto crítico.
-- [ ] Reentrega masiva y confirmación de ausencia de duplicados.
+- [x] Workers concurrentes sobre la misma ocurrencia.
+- [x] Terminación forzada en cada punto crítico.
+- [x] Reentrega masiva y confirmación de ausencia de duplicados.
 
 ### Fuera de alcance
 
@@ -252,11 +252,59 @@ concurrente y recuperación segura.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-07.
+- Estado real: el consumidor BullMQ valida el payload mínimo y disputa una
+  lease durable en PostgreSQL. La tarea cierra sin llamadas reales a Meta.
+- Responsabilidades: BullMQ transporta y retrasa; el servicio ejecutor mantiene
+  heartbeat; el repositorio Prisma decide ownership y materializa la orden en
+  una transacción. Esta separación sigue el módulo Nest existente y evita que
+  Redis se convierta en fuente de verdad.
+- La lease persiste propietario, token UUID, vencimiento y último heartbeat.
+  `FOR UPDATE` serializa la adquisición; sólo el token vigente puede completar.
+  El primer `execution_started_at` no se pierde al recuperar una lease vencida.
+- Orden, destinos, transición de publicación, auditoría, evento outbox y enlace
+  con la ocurrencia se crean atómicamente. El UUID de la orden es el UUID de la
+  ocurrencia, por lo que `orden:destino` funciona como clave estable
+  ocurrencia/destino. Está documentado en
+  [`ADR-024`](../architecture/decisions/ADR-024-SCHEDULED-EXECUTION-LEASE.md).
+- Una lease ocupada mueve el mismo job a `delayed` hasta su vencimiento sin
+  consumir intentos. Una entrega posterior al commit devuelve la orden ya
+  enlazada y no crea otro outbox ni otros destinos.
+- `execution_completed_at` significa «orden materializada». El desenlace de
+  Meta continúa exclusivamente en los intentos por destino de P5: éxito,
+  fallo, parcial o ambigüedad. Un resultado ambiguo queda sin trabajo pendiente
+  y aparece en reconciliación antes de admitir cualquier reintento.
+- Terminaciones cubiertas: antes del commit queda trabajo reconstruible; con
+  lease adquirida, su vencimiento habilita otro propietario; después del commit,
+  la reentrega recupera la orden; durante Meta, el diario conserva el desenlace
+  `unknown` y obliga a reconciliar. Cincuenta reentregas concurrentes conservaron
+  una orden y un destino.
+- Archivos principales: contratos en
+  `packages/domain/src/publication-schedule.ts`; migración
+  `20260907120000_scheduled_publication_execution`; repositorio
+  `publication-occurrence-execution-repository.ts`; servicio y consumidor en
+  `apps/worker/src/scheduling/`; pruebas unitarias, de PostgreSQL y de Redis.
+- Próximo paso exacto: `P6-T04`, materializar historias recurrentes como
+  borradores concretos, sin confundir esa aprobación con el despacho técnico.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: rama `codex/p6-t03-scheduled-publication-execution`.
+- Comandos y resultados: `pnpm db:test` aplicó la migración desde cero sobre
+  PostgreSQL 17.9, ejecutó 57 pruebas de repositorios más las integraciones de
+  render y BullMQ, revirtió la última migración y la reaplicó; `pnpm verify`
+  pasó stack, plan, formato, build, lint, typecheck, tests, baseline y smoke.
+  El worker cerró 318 pruebas activas en verde y una omitida preexistente.
+- Evidencia de concurrencia y recuperación: carrera real entre dos repositorios,
+  renovación y vencimiento de lease, rechazo del propietario anterior,
+  consumidor Redis real con espera hasta `retryAt`, reentrega después del
+  commit y lote de 50 reentregas sin duplicados.
+- Evidencia de interrupción remota: un intento programado marcado `unknown`
+  mantiene la orden en `publishing`, no vuelve a `pending` y aparece en la cola
+  de reconciliación de P5.
+- Evidencia visual o remota: no aplica. No se contactó Meta ni otro proveedor
+  externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T04 — Materializar historias recurrentes
 

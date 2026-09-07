@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260904220000_schedule_dispatch_outbox";
+const latestMigrationName = "20260907120000_scheduled_publication_execution";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -194,6 +194,8 @@ async function verifyDatabase(): Promise<void> {
         rendered_media_exists: boolean;
         schedule_dispatch_event_exists: boolean;
         schedule_dispatch_requested_exists: boolean;
+        schedule_execution_completed_exists: boolean;
+        schedule_execution_lock_exists: boolean;
         schedule_occurrences_table: string | null;
         schedules_table: string | null;
       }>(
@@ -324,7 +326,21 @@ async function verifyDatabase(): Promise<void> {
               WHERE table_schema = 'public'
                 AND table_name = 'publication_schedule_occurrences'
                 AND column_name = 'dispatch_requested_at'
-            ) AS "schedule_dispatch_requested_exists"
+            ) AS "schedule_dispatch_requested_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_schedule_occurrences'
+                AND column_name = 'execution_lock_token'
+            ) AS "schedule_execution_lock_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'publication_schedule_occurrences'
+                AND column_name = 'execution_completed_at'
+            ) AS "schedule_execution_completed_exists"
         `,
       );
       const rollbackEvidence = rollbackState.rows[0];
@@ -341,10 +357,12 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a la última migración: desaparecen las dos
-      // marcas del dispatcher y queda intacto el modelo temporal de `P6-T01`.
-      assert.equal(rollbackEvidence.schedule_dispatch_event_exists, false);
-      assert.equal(rollbackEvidence.schedule_dispatch_requested_exists, false);
+      // La reversión afecta sólo a P6-T03: las marcas durables del dispatcher
+      // siguen y desaparecen únicamente lease y timestamps de ejecución.
+      assert.equal(rollbackEvidence.schedule_dispatch_event_exists, true);
+      assert.equal(rollbackEvidence.schedule_dispatch_requested_exists, true);
+      assert.equal(rollbackEvidence.schedule_execution_lock_exists, false);
+      assert.equal(rollbackEvidence.schedule_execution_completed_exists, false);
       assert.equal(rollbackEvidence.schedules_table, "publication_schedules");
       assert.equal(
         rollbackEvidence.schedule_occurrences_table,
