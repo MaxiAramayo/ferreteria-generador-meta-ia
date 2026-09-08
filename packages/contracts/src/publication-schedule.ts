@@ -54,6 +54,17 @@ export interface UpdatePublicationScheduleResponse {
   readonly version: number;
 }
 
+/** Consecuencias de una edición antes de que el operador la confirme. */
+export interface PreviewPublicationScheduleUpdateResponse {
+  readonly cancelledOccurrenceCount: number;
+  readonly createdOccurrenceCount: number;
+  readonly frozenOccurrenceCount: number;
+  readonly rescheduledOccurrenceCount: number;
+  readonly scheduleId: string;
+  readonly status: "preview";
+  readonly version: number;
+}
+
 export interface PublicationScheduleOccurrenceResponse {
   readonly dispatchRequestedAt?: string;
   readonly occurrenceKey: string;

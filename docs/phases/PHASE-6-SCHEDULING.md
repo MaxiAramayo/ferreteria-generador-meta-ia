@@ -621,6 +621,47 @@ local y consecuencias explícitas.
   estado, y por regla la fecha local, zona IANA, recurrencia, destinos, snapshot
   y versión. La integración cubre listado, detalle y rechazo de una ventana
   fuera del límite.
+- Avance 2026-09-08: `POST /schedules/:scheduleId/preview` calcula el mismo
+  diff de una edición sin crear operación idempotente ni escribir filas. Exige
+  versión de regla y permiso `content:schedule`, por lo que muestra altas,
+  bajas, reprogramaciones y ocurrencias congeladas antes de confirmar; el
+  `PATCH` posterior conserva CAS e idempotencia propios.
+
+### Contrato de diseño — Calendario de programación
+
+- **Sujeto y trabajo primario:** una persona operadora de Ferretería y
+  Lubricentro Aramayo decide cuándo saldrá una pieza ya aprobada y debe poder
+  detectar de inmediato si una ocurrencia ya quedó comprometida. La acción
+  primaria es calcular el impacto y confirmar una programación deliberada; no
+  es «rellenar eventos» ni publicar.
+- **Jerarquía y firma visual:** la pantalla reutiliza la `Mesa de contenido`:
+  papel cálido, tipografía condensada, tinta oscura y rieles de estado. El
+  calendario es una planilla de despacho: cada ocurrencia lleva una franja de
+  turno que muestra fecha civil, hora y zona IANA juntas. El detalle lateral
+  muestra snapshot, destinos y estado de las ocurrencias; nunca oculta un job
+  ya solicitado detrás de un evento movible.
+- **Acciones y estados:** el panel separa cargar, vacío, bloqueado, error,
+  listo y resultado parcial. Crear y mover poseen formularios distintos; mover
+  requiere calcular impacto antes de habilitar la confirmación. Pausar,
+  reanudar y cancelar son acciones explícitas con versión e idempotencia; la
+  cancelación expone qué quedó despachado.
+- **Responsive y accesibilidad:** en escritorio se ve mes/lista y detalle;
+  en móvil el listado cronológico sustituye la grilla comprimida. Todos los
+  eventos y acciones son botones etiquetados, el foco es visible y los estados
+  no dependen sólo de color.
+- **Referencia de investigación (2026-09-08):** se tomaron de
+  [Date of Birth / Revolut Business](https://uizze.com/screens/699b3f0200202d0554d0)
+  la grilla de días clara y navegable por teclado; de
+  [Spending period / Revolut Business](https://uizze.com/screens/699b41ce002688d29f0e)
+  la explicitud de un rango antes de aplicarlo; y de
+  [Bill Review / Revolut Business](https://uizze.com/screens/699b42df0006e5446371)
+  el vínculo entre un turno y la información para revisarlo. Se transfiere esa
+  claridad funcional, no su estética financiera oscura, sus métricas ni sus
+  tarjetas genéricas.
+- **Antipatrones prohibidos:** calendario de plantilla sin zona horaria,
+  tarjetas KPI que no ayudan a decidir, chips de color sin texto de estado,
+  fecha UTC sola, edición que parezca mover ocurrencias ya encoladas y mes
+  reducido a celdas ilegibles en móvil.
 
 ### Evidencia de cierre
 

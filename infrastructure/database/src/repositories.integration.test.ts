@@ -6581,8 +6581,10 @@ test("crear una programación aprobada materializa ocurrencias y se repite de fo
     to: calendarTo,
   });
   assert.equal(calendar.length, 1);
-  assert.equal(calendar[0]?.schedule.id, created.scheduleId);
-  assert.ok((calendar[0]?.occurrences.length ?? 0) > 0);
+  const calendarEntry = calendar[0];
+  assert.ok(calendarEntry);
+  assert.equal(calendarEntry.schedule.id, created.scheduleId);
+  assert.ok(calendarEntry.occurrences.length > 0);
   const detail = await repository.find({
     from: calendarFrom,
     organizationId: fixture.organizationId,
@@ -6787,6 +6789,106 @@ test("mover una programación hace diff, congela jobs solicitados y conserva ide
     },
   });
   assert.equal(moved.scheduledAt.toISOString(), newYorkAnchor.effectiveFrom);
+});
+
+test("la vista previa de mover no escribe y conserva las ocurrencias ya encoladas", async () => {
+  const fixture = await publicationOrderFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const localDate = new Date(Date.now() + 120 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+  const cordobaAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/Argentina/Cordoba",
+  });
+  const newYorkAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/New_York",
+  });
+  assert.ok(cordobaAnchor);
+  assert.ok(newYorkAnchor);
+  const createContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const created = await repository.create({
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: createContext,
+    rule: {
+      effectiveFrom: cordobaAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/Argentina/Cordoba",
+    },
+    targets: ["instagram_feed"],
+  });
+  assert.equal(created.status, "created");
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchOutboxEventId: randomUUID(),
+      dispatchRequestedAt: new Date(),
+      occurrenceKey: "2020-01-01T09:00",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2020-01-01T12:00:00.000Z"),
+      scheduleId: created.scheduleId,
+    },
+  });
+
+  const preview = await repository.preview({
+    expectedVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    occurredAt: new Date().toISOString(),
+    organizationId: fixture.organizationId,
+    rule: {
+      effectiveFrom: newYorkAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/New_York",
+    },
+    scheduleId: created.scheduleId,
+    targets: ["instagram_feed"],
+  });
+  assert.deepEqual(preview, {
+    cancelledOccurrenceCount: 0,
+    createdOccurrenceCount: 0,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 1,
+    scheduleId: created.scheduleId,
+    status: "preview",
+    version: 1,
+  });
+  const unchanged = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(unchanged.timeZone, "America/Argentina/Cordoba");
+  assert.equal(unchanged.version, 1);
+  const unchangedOccurrence =
+    await database.publicationScheduleOccurrence.findFirstOrThrow({
+      where: {
+        occurrenceKey: `${localDate}T09:00`,
+        scheduleId: created.scheduleId,
+      },
+    });
+  assert.equal(
+    unchangedOccurrence.scheduledAt.toISOString(),
+    cordobaAnchor.effectiveFrom,
+  );
+  assert.ok(unchangedOccurrence.dispatchOutboxEventId === null);
 });
 
 test("una programación sin destinos no se guarda", async () => {

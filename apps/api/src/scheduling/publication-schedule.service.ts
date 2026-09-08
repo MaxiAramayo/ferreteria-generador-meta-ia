@@ -1,5 +1,6 @@
 import type {
   CreatePublicationScheduleResponse,
+  PreviewPublicationScheduleUpdateResponse,
   PublicationScheduleCalendarEntryResponse,
   PublicationScheduleCalendarResponse,
   PublicationScheduleTransitionResponse,
@@ -16,6 +17,7 @@ import {
   type PublicationScheduleManagementRepository,
   type PublicationScheduleRule,
   type PublicationScheduleTransitionCommand,
+  type PreviewPublicationScheduleUpdateResult,
   type ReliableMutationContext,
   type UpdatePublicationScheduleResult,
 } from "@aramayo/domain";
@@ -64,6 +66,23 @@ function updateResponse(
     rescheduledOccurrenceCount: result.rescheduledOccurrenceCount,
     scheduleId: result.scheduleId,
     status: "updated",
+    version: result.version,
+  });
+}
+
+function previewResponse(
+  result: Extract<
+    PreviewPublicationScheduleUpdateResult,
+    Readonly<{ status: "preview" }>
+  >,
+): PreviewPublicationScheduleUpdateResponse {
+  return Object.freeze({
+    cancelledOccurrenceCount: result.cancelledOccurrenceCount,
+    createdOccurrenceCount: result.createdOccurrenceCount,
+    frozenOccurrenceCount: result.frozenOccurrenceCount,
+    rescheduledOccurrenceCount: result.rescheduledOccurrenceCount,
+    scheduleId: result.scheduleId,
+    status: "preview",
     version: result.version,
   });
 }
@@ -326,6 +345,47 @@ export class PublicationScheduleService {
           message: "La misma acción de calendario todavía está en curso.",
           retryAfter: result.retryAfter,
         });
+      case "invalid-rule":
+        throw new BadRequestException(
+          "La fecha, hora, zona o recurrencia no forman una programación válida.",
+        );
+      case "invalid-state":
+        throw new ConflictException(
+          "La programación no admite cambios en su estado actual.",
+        );
+      case "invalid-target":
+        throw new BadRequestException(
+          "Los destinos no coinciden con la aprobación de esta publicación.",
+        );
+      case "not-found":
+        throw new NotFoundException("No se encontró la programación.");
+    }
+  }
+
+  async preview(
+    actor: AuthenticatedActor,
+    scheduleId: string,
+    input: UpdatePublicationScheduleDto,
+  ): Promise<PreviewPublicationScheduleUpdateResponse> {
+    this.#require(actor);
+    const rule = this.#rule(input);
+    const result = await this.#repository.preview({
+      expectedVersion: input.expectedVersion,
+      lateToleranceMinutes: input.lateToleranceMinutes,
+      missedPolicy: input.missedPolicy,
+      occurredAt: new Date().toISOString(),
+      organizationId: actor.organizationId,
+      rule,
+      scheduleId,
+      targets: input.targets,
+    });
+    switch (result.status) {
+      case "preview":
+        return previewResponse(result);
+      case "conflict":
+        throw new ConflictException(
+          "La programación cambió. Recargá antes de calcular el impacto.",
+        );
       case "invalid-rule":
         throw new BadRequestException(
           "La fecha, hora, zona o recurrencia no forman una programación válida.",

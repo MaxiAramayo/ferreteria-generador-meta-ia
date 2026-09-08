@@ -699,6 +699,8 @@ export {
   type CreatePublicationScheduleResult,
   type UpdatePublicationScheduleInput,
   type UpdatePublicationScheduleResult,
+  type PreviewPublicationScheduleUpdateInput,
+  type PreviewPublicationScheduleUpdateResult,
   type FindPublicationScheduleInput,
   type ListPublicationSchedulesInput,
   type AcquirePublicationOccurrenceInput,

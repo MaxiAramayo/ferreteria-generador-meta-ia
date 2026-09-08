@@ -1,6 +1,7 @@
 import type {
   PublicationScheduleCalendarEntryResponse,
   PublicationScheduleCalendarResponse,
+  PreviewPublicationScheduleUpdateResponse,
   PublicationScheduleTransitionResponse,
   UpdatePublicationScheduleResponse,
 } from "@aramayo/contracts";
@@ -67,6 +68,16 @@ export class PublicationScheduleController {
       input,
       idempotencyKey,
     );
+  }
+
+  @Post(":scheduleId/preview")
+  @RequirePermission("content:schedule")
+  preview(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Body() input: UpdatePublicationScheduleDto,
+  ): Promise<PreviewPublicationScheduleUpdateResponse> {
+    return this.#service.preview(session.actor, scheduleId, input);
   }
 
   @Post(":scheduleId/transitions")

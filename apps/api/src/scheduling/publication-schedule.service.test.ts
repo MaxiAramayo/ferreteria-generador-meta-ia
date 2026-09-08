@@ -7,9 +7,9 @@ import type {
   AuthenticatedActor,
   CreatePublicationScheduleInput,
   CreatePublicationScheduleResult,
-  FindPublicationScheduleInput,
   IdempotencyClaimResult,
-  ListPublicationSchedulesInput,
+  PreviewPublicationScheduleUpdateInput,
+  PreviewPublicationScheduleUpdateResult,
   PublicationScheduleCalendarEntry,
   PublicationScheduleManagementRepository,
   ReliableOperationRepository,
@@ -59,6 +59,7 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
   });
   input: ApplyPublicationScheduleTransitionInput | undefined;
   updateInput: UpdatePublicationScheduleInput | undefined;
+  previewInput: PreviewPublicationScheduleUpdateInput | undefined;
   updateResult: UpdatePublicationScheduleResult = Object.freeze({
     cancelledOccurrenceCount: 2,
     createdOccurrenceCount: 1,
@@ -67,6 +68,15 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
     scheduleId,
     status: "updated",
     version: 6,
+  });
+  previewResult: PreviewPublicationScheduleUpdateResult = Object.freeze({
+    cancelledOccurrenceCount: 2,
+    createdOccurrenceCount: 1,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 3,
+    scheduleId,
+    status: "preview",
+    version: 5,
   });
   result: ApplyPublicationScheduleTransitionResult = Object.freeze({
     cancelledOccurrenceCount: 0,
@@ -91,15 +101,18 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
     return Promise.resolve(this.updateResult);
   }
 
-  find(
-    _input: FindPublicationScheduleInput,
-  ): Promise<PublicationScheduleCalendarEntry | null> {
+  preview(
+    input: PreviewPublicationScheduleUpdateInput,
+  ): Promise<PreviewPublicationScheduleUpdateResult> {
+    this.previewInput = input;
+    return Promise.resolve(this.previewResult);
+  }
+
+  find(): Promise<PublicationScheduleCalendarEntry | null> {
     return Promise.resolve(null);
   }
 
-  list(
-    _input: ListPublicationSchedulesInput,
-  ): Promise<readonly PublicationScheduleCalendarEntry[]> {
+  list(): Promise<readonly PublicationScheduleCalendarEntry[]> {
     return Promise.resolve([]);
   }
 
@@ -221,6 +234,35 @@ test("mover expone las consecuencias de ocurrencias sin ocultar las congeladas",
     repository.updateInput.reliableOperation.claim.operation,
     "scheduling.schedule:update",
   );
+});
+
+test("la vista previa calcula el impacto con la versión que se confirmará", async () => {
+  const repository = new FakeSchedules();
+  const result = await service(repository).preview(actor, scheduleId, {
+    effectiveFromLocalDate: "2030-01-16",
+    expectedVersion: 5,
+    gapPolicy: "skip",
+    lateToleranceMinutes: 0,
+    localTime: "10:00",
+    missedPolicy: "skip",
+    recurrenceKind: "once",
+    targets: ["instagram_feed"],
+    timeZone: "America/Argentina/Cordoba",
+  });
+
+  assert.deepEqual(result, {
+    cancelledOccurrenceCount: 2,
+    createdOccurrenceCount: 1,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 3,
+    scheduleId,
+    status: "preview",
+    version: 5,
+  });
+  assert.ok(repository.previewInput);
+  assert.equal(repository.previewInput.expectedVersion, 5);
+  assert.equal(repository.previewInput.scheduleId, scheduleId);
+  assert.equal(repository.previewInput.organizationId, actor.organizationId);
 });
 
 test("pausar exige permiso, versión e idempotencia antes de tocar calendario", async () => {

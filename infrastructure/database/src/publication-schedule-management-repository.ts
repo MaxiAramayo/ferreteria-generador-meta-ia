@@ -37,6 +37,8 @@ import {
   type PublicationStatus,
   type PublicationTarget,
   type PublicationWeekday,
+  type PreviewPublicationScheduleUpdateInput,
+  type PreviewPublicationScheduleUpdateResult,
   type SafeJsonObject,
   type UpdatePublicationScheduleInput,
   type UpdatePublicationScheduleResult,
@@ -194,7 +196,10 @@ function calendarBounds(
   return Object.freeze({ from: fromDate, to: toDate });
 }
 
-function calendarSelection(from: Date, to: Date) {
+function calendarSelection(
+  from: Date,
+  to: Date,
+): Prisma.PublicationScheduleSelect {
   return {
     ...scheduleSelection,
     occurrences: {
@@ -1147,6 +1152,89 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
         status: "updated",
         version,
       });
+    });
+  }
+
+  async preview(
+    input: PreviewPublicationScheduleUpdateInput,
+  ): Promise<PreviewPublicationScheduleUpdateResult> {
+    if (
+      input.targets.length === 0 ||
+      new Set(input.targets).size !== input.targets.length
+    ) {
+      return Object.freeze({ status: "invalid-target" });
+    }
+    const at = new Date(input.occurredAt);
+    if (!Number.isFinite(at.getTime())) {
+      throw new RangeError(
+        "La vista previa de programación requiere un instante válido.",
+      );
+    }
+    const stored = await this.#database.publicationSchedule.findFirst({
+      select: scheduleSelection,
+      where: { id: input.scheduleId, organizationId: input.organizationId },
+    });
+    if (stored === null) return Object.freeze({ status: "not-found" });
+    if (stored.version !== input.expectedVersion) {
+      return Object.freeze({ status: "conflict" });
+    }
+    if (stored.status !== "active" && stored.status !== "paused") {
+      return Object.freeze({ status: "invalid-state" });
+    }
+    const targetPolicy = approvalPublicationTargetPolicy(
+      stored.approvalSnapshot.snapshot,
+    );
+    if (
+      targetPolicy.kind === "invalid" ||
+      (targetPolicy.kind === "exact" &&
+        !sameTargets(input.targets, targetPolicy.targets))
+    ) {
+      return Object.freeze({ status: "invalid-target" });
+    }
+    const occurrenceRows =
+      await this.#database.publicationScheduleOccurrence.findMany({
+        orderBy: [{ scheduledAt: "asc" }, { occurrenceKey: "asc" }],
+        select: occurrenceSelection,
+        where: {
+          organizationId: input.organizationId,
+          scheduleId: input.scheduleId,
+        },
+      });
+    const existing = occurrenceRows.map(mapOccurrence);
+    const materializedThrough = occurrenceRows.reduce<Date | undefined>(
+      (latest, occurrence) =>
+        latest === undefined || occurrence.scheduledAt > latest
+          ? occurrence.scheduledAt
+          : latest,
+      undefined,
+    );
+    let plans: readonly PublicationOccurrencePlan[] | undefined;
+    try {
+      plans = occurrencePlans(
+        {
+          lateToleranceMinutes: input.lateToleranceMinutes,
+          missedPolicy: input.missedPolicy,
+          occurredAt: input.occurredAt,
+          rule: input.rule,
+        },
+        materializedThrough,
+      );
+    } catch (error: unknown) {
+      if (error instanceof RangeError) {
+        return Object.freeze({ status: "invalid-rule" });
+      }
+      throw error;
+    }
+    if (plans === undefined) return Object.freeze({ status: "invalid-rule" });
+    const diff = diffOccurrences(plans, existing);
+    return Object.freeze({
+      cancelledOccurrenceCount: diff.obsolete.length,
+      createdOccurrenceCount: diff.create.length,
+      frozenOccurrenceCount: diff.frozen.length,
+      rescheduledOccurrenceCount: diff.reschedule.length,
+      scheduleId: input.scheduleId,
+      status: "preview",
+      version: stored.version,
     });
   }
 

@@ -416,6 +416,23 @@ export interface UpdatePublicationScheduleInput extends OrganizationScope {
   readonly targets: readonly PublicationTarget[];
 }
 
+/**
+ * Calcula el impacto de sustituir una regla sin persistir ningún cambio.
+ *
+ * La vista previa recibe el mismo contrato temporal que una actualización,
+ * incluido el compare-and-swap. No tiene contexto idempotente porque no deja
+ * efectos; el cliente debe volver a enviar la misma versión al confirmar.
+ */
+export interface PreviewPublicationScheduleUpdateInput extends OrganizationScope {
+  readonly expectedVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly occurredAt: string;
+  readonly rule: PublicationScheduleRule;
+  readonly scheduleId: string;
+  readonly targets: readonly PublicationTarget[];
+}
+
 /** Resultado de crear una regla y sus primeras ocurrencias en una transacción. */
 export type CreatePublicationScheduleResult =
   | Readonly<{
@@ -452,6 +469,24 @@ export type UpdatePublicationScheduleResult =
   | Readonly<{ status: "conflict" }>
   | Readonly<{ status: "idempotency-conflict" }>
   | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Impacto de una edición que todavía no fue confirmada. */
+export type PreviewPublicationScheduleUpdateResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      createdOccurrenceCount: number;
+      frozenOccurrenceCount: number;
+      rescheduledOccurrenceCount: number;
+      scheduleId: string;
+      status: "preview";
+      /** Versión que debe conservarse al confirmar la actualización. */
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
   | Readonly<{ status: "invalid-rule" }>
   | Readonly<{ status: "invalid-state" }>
   | Readonly<{ status: "invalid-target" }>
@@ -511,6 +546,9 @@ export interface PublicationScheduleManagementRepository {
   update(
     input: UpdatePublicationScheduleInput,
   ): Promise<UpdatePublicationScheduleResult>;
+  preview(
+    input: PreviewPublicationScheduleUpdateInput,
+  ): Promise<PreviewPublicationScheduleUpdateResult>;
   find(
     input: FindPublicationScheduleInput,
   ): Promise<PublicationScheduleCalendarEntry | null>;
