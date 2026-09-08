@@ -23,25 +23,21 @@ import {
   pendingPublicationTargets,
   publicationOrderStatus,
   publicationOrderTopic,
-  metaConnectionCanPublish,
-  type MediaAssetRepository,
-  type MediaStorage,
   type MetaConnectionRecord,
-  type MetaConnectionRepository,
   type OutboxMessageRecord,
   type OutboxTransport,
   type PublicationOrderJob,
   type PublicationOrderRepository,
   type PublicationOrderTargetRecord,
   type SafeJsonObject,
-  type SupportedMediaMimeType,
 } from "@aramayo/domain";
 
 import type { FacebookPublisher } from "./facebook-publisher.service.ts";
 import type { InstagramPublisher } from "./instagram-publisher.service.ts";
-
-/** Caja a la que la variante `meta-feed` limita el lado largo de la pieza. */
-const deliveryLongestSide = 1440;
+import type {
+  PrePublishReadyContext,
+  PrePublishValidatorPort,
+} from "./pre-publish.validator.ts";
 
 export interface PublicationOrderClock {
   readonly now?: () => Date;
@@ -68,108 +64,25 @@ function payloadText(payload: SafeJsonObject, field: string): string {
   return entry;
 }
 
-function objectAt(value: unknown, field: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`El snapshot aprobado no contiene ${field}.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-/**
- * Medidas que va a entregar la URL.
- *
- * La variante `meta-feed` recorta con `limit`: nunca agranda y sólo achica lo
- * que excede la caja, conservando la proporción. Los publicadores validan
- * contra estas medidas y no contra las del activo, porque son las que Meta va a
- * descargar.
- */
-function deliveredSize(
-  width: number,
-  height: number,
-): Readonly<{ height: number; width: number }> {
-  const longest = Math.max(width, height);
-  if (longest <= deliveryLongestSide) return Object.freeze({ height, width });
-  const factor = deliveryLongestSide / longest;
-  return Object.freeze({
-    height: Math.round(height * factor),
-    width: Math.round(width * factor),
-  });
-}
-
-interface ApprovedPiece {
-  readonly caption: string;
-  readonly checksumSha256: string;
-  readonly height: number;
-  readonly mediaAssetId: string;
-  readonly mimeType: SupportedMediaMimeType;
-  readonly width: number;
-}
-
-/**
- * Lo que se publica sale del snapshot y no del borrador.
- *
- * Un borrador puede haber cambiado después de la aprobación; el snapshot es lo
- * que alguien revisó y aprobó, y es lo único que puede salir.
- */
-function approvedPiece(job: PublicationOrderJob): ApprovedPiece {
-  const snapshot = objectAt(job.snapshot, "el documento");
-  const rendered = objectAt(snapshot["renderedMedia"], "renderedMedia");
-  const content = objectAt(snapshot["content"], "content");
-
-  const mediaAssetId = rendered["mediaAssetId"];
-  const checksumSha256 = rendered["checksumSha256"];
-  const mimeType = rendered["mimeType"];
-  const width = rendered["width"];
-  const height = rendered["height"];
-  const caption = content["caption"];
-  if (
-    typeof mediaAssetId !== "string" ||
-    typeof checksumSha256 !== "string" ||
-    (mimeType !== "image/png" && mimeType !== "image/jpeg") ||
-    typeof width !== "number" ||
-    typeof height !== "number" ||
-    typeof caption !== "string"
-  ) {
-    throw new Error("El snapshot aprobado no describe una pieza publicable.");
-  }
-  return Object.freeze({
-    caption,
-    checksumSha256,
-    height,
-    mediaAssetId,
-    mimeType,
-    width,
-  });
-}
-
 export class PublicationOrderOutboxTransport implements OutboxTransport {
-  readonly #connections: MetaConnectionRepository;
-  readonly #credentials: PublicationCredentialPort;
   readonly #facebook: FacebookPublisher;
   readonly #instagram: InstagramPublisher;
-  readonly #media: MediaAssetRepository;
   readonly #now: () => Date;
   readonly #orders: PublicationOrderRepository;
-  readonly #storage: MediaStorage;
+  readonly #validator: PrePublishValidatorPort;
 
   constructor(
     orders: PublicationOrderRepository,
-    connections: MetaConnectionRepository,
-    credentials: PublicationCredentialPort,
-    media: MediaAssetRepository,
-    storage: MediaStorage,
+    validator: PrePublishValidatorPort,
     instagram: InstagramPublisher,
     facebook: FacebookPublisher,
     options: PublicationOrderClock = {},
   ) {
-    this.#connections = connections;
-    this.#credentials = credentials;
     this.#facebook = facebook;
     this.#instagram = instagram;
-    this.#media = media;
     this.#now = options.now ?? ((): Date => new Date());
     this.#orders = orders;
-    this.#storage = storage;
+    this.#validator = validator;
   }
 
   async deliver(message: OutboxMessageRecord): Promise<void> {
@@ -190,7 +103,19 @@ export class PublicationOrderOutboxTransport implements OutboxTransport {
     }
     const pending = pendingPublicationTargets(order);
     if (pending.length > 0) {
-      await this.#attemptAll(job, pending);
+      const validation = await this.#validator.validate(job, pending);
+      if (validation.status === "blocked") {
+        await this.#orders.blockPrePublish({
+          actorMembershipId: job.requestedByMembershipId,
+          code: validation.code,
+          occurredAt: this.#now().toISOString(),
+          orderId: job.orderId,
+          organizationId: job.organizationId,
+          safeMessage: validation.safeMessage,
+        });
+        return;
+      }
+      await this.#attemptAll(job, pending, validation.context);
     }
     await this.#settleIfResolved(message.organizationId, orderId);
   }
@@ -198,56 +123,12 @@ export class PublicationOrderOutboxTransport implements OutboxTransport {
   async #attemptAll(
     job: PublicationOrderJob,
     pending: readonly PublicationOrderTargetRecord[],
+    context: PrePublishReadyContext,
   ): Promise<void> {
-    const piece = approvedPiece(job);
-    const asset = await this.#media.findById(
-      { organizationId: job.organizationId },
-      piece.mediaAssetId,
-    );
-    if (
-      asset === null ||
-      asset.storageKey === undefined ||
-      asset.storageVersion === undefined
-    ) {
-      throw new Error("La pieza aprobada ya no está disponible.");
-    }
-    // El snapshot fija qué bytes se aprobaron. Si el activo dejó de coincidir,
-    // publicar sería sacar algo que nadie revisó.
-    if (asset.checksumSha256 !== piece.checksumSha256) {
-      throw new Error("La pieza almacenada no coincide con la aprobada.");
-    }
-
-    const url = this.#storage.deliveryUrl(
-      {
-        mimeType: piece.mimeType,
-        storageKey: asset.storageKey,
-        storageVersion: asset.storageVersion,
-      },
-      "meta-feed",
-    );
-    const media = Object.freeze({
-      ...deliveredSize(piece.width, piece.height),
-      url,
-    });
-
-    const connection = await this.#publishableConnection(job.organizationId);
-    const accessToken = await this.#credentials.pageAccessToken(
-      job.organizationId,
-      connection.id,
-    );
-    if (accessToken === null) {
-      throw new Error("La conexión no guarda el token de la Page.");
-    }
-
     for (const target of pending) {
       // Cada destino se atiende dentro de su propio intento de error: uno que
       // rompa no puede impedir el siguiente ni alterar su resultado.
-      await this.#attemptOne(job, target, {
-        accessToken,
-        caption: piece.caption,
-        connection,
-        media,
-      });
+      await this.#attemptOne(job, target, context);
     }
   }
 
@@ -286,19 +167,6 @@ export class PublicationOrderOutboxTransport implements OutboxTransport {
       // El publicador ya registró lo que pudo. Lo que no se puede permitir es
       // que este destino se lleve puestos a los demás.
     }
-  }
-
-  async #publishableConnection(
-    organizationId: string,
-  ): Promise<MetaConnectionRecord> {
-    const connections = await this.#connections.list(organizationId);
-    const connection = connections.find(metaConnectionCanPublish);
-    if (connection === undefined) {
-      throw new Error(
-        "La organización no tiene una conexión Meta habilitada para publicar.",
-      );
-    }
-    return connection;
   }
 
   /**

@@ -30,7 +30,15 @@ export const PUBLICATION_TRANSITIONS: Readonly<
   missing_information: ["draft", "retrieving_context", "cancelled", "expired"],
   partially_published: ["publishing", "published", "publish_failed"],
   published: [],
-  publishing: ["partially_published", "published", "publish_failed"],
+  publishing: [
+    "partially_published",
+    "published",
+    "publish_failed",
+    // La orden se crea antes de que el worker llegue a Meta. Si la compuerta
+    // previa detecta una fuente vencida, debe poder detener esa pieza sin
+    // disfrazar el bloqueo factual como un fallo remoto.
+    "validation_failed",
+  ],
   publish_failed: ["publishing", "cancelled", "expired"],
   ready_for_review: [
     "draft",

@@ -39,7 +39,12 @@ const expectedTargets: Readonly<
   missing_information: ["draft", "retrieving_context", "cancelled", "expired"],
   partially_published: ["publishing", "published", "publish_failed"],
   published: [],
-  publishing: ["partially_published", "published", "publish_failed"],
+  publishing: [
+    "partially_published",
+    "published",
+    "publish_failed",
+    "validation_failed",
+  ],
   publish_failed: ["publishing", "cancelled", "expired"],
   ready_for_review: [
     "draft",

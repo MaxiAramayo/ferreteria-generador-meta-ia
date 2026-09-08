@@ -20,6 +20,8 @@ import type {
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
+import { COMMERCIAL_TOOL_EXECUTION_PORT } from "../catalog/catalog.tokens.ts";
+import type { CommercialToolExecutionPort } from "../catalog/commercial-tool-execution.service.ts";
 import {
   META_CONNECTION_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
@@ -38,6 +40,8 @@ import { InstagramPublisher } from "./instagram-publisher.service.ts";
 import { MetaPageCredentialAdapter } from "./meta-credential.adapter.ts";
 import { MetaPublicationLookupAdapter } from "./meta-publication-lookup.adapter.ts";
 import { PublicationMaintenanceService } from "./publication-maintenance.service.ts";
+import { PrePublishCommercialAdapter } from "./pre-publish-commercial.adapter.ts";
+import { PrePublishValidator } from "./pre-publish.validator.ts";
 import { PublicationOrderOutboxTransport } from "./publication-order.transport.ts";
 import { PublicationReconciliationService } from "./publication-reconciliation.service.ts";
 import { PublicationRetryService } from "./publication-retry.service.ts";
@@ -53,13 +57,17 @@ export const PUBLICATION_RECONCILIATION_SERVICE = Symbol(
 
 @Module({})
 export class PublishingModule {
-  static forConfiguration(configuration: WorkerConfiguration): DynamicModule {
+  static forConfiguration(
+    configuration: WorkerConfiguration,
+    catalogModule: DynamicModule,
+  ): DynamicModule {
     // El token se provee siempre, con `null` cuando Meta no está configurada.
     // Nest inyecta por posición: un token que a veces existe y a veces no
     // correría los parámetros de quien lo consume.
     if (!configuration.meta.enabled) {
       return {
         exports: [PUBLICATION_ORDER_TRANSPORT],
+        imports: [catalogModule],
         module: PublishingModule,
         providers: [
           { provide: PUBLICATION_ORDER_TRANSPORT, useValue: null },
@@ -81,6 +89,7 @@ export class PublishingModule {
 
     return {
       exports: [PUBLICATION_ORDER_TRANSPORT],
+      imports: [catalogModule],
       module: PublishingModule,
       providers: [
         {
@@ -129,6 +138,7 @@ export class PublishingModule {
             META_CONNECTION_REPOSITORY,
             MEDIA_ASSET_REPOSITORY,
             MEDIA_STORAGE,
+            COMMERCIAL_TOOL_EXECUTION_PORT,
           ],
           provide: PUBLICATION_ORDER_TRANSPORT,
           useFactory: (
@@ -137,15 +147,26 @@ export class PublishingModule {
             connections: MetaConnectionRepository,
             media: MediaAssetRepository,
             storage: MediaStorage,
+            commercial: CommercialToolExecutionPort,
           ): PublicationOrderOutboxTransport | null => {
             const probe = new HttpPublicMediaProbe();
             const decipher = new TokenDecipher(configuration.tokenEncryption);
-            return new PublicationOrderOutboxTransport(
-              orders,
+            const credentials = new MetaPageCredentialAdapter(
               connections,
-              new MetaPageCredentialAdapter(connections, decipher),
+              decipher,
+            );
+            const validator = new PrePublishValidator(
+              connections,
+              credentials,
               media,
               storage,
+              probe,
+              new PrePublishCommercialAdapter(commercial),
+              null,
+            );
+            return new PublicationOrderOutboxTransport(
+              orders,
+              validator,
               new InstagramPublisher(
                 new InstagramGraphAdapter(graphApiVersion),
                 orders,

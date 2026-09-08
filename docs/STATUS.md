@@ -113,11 +113,19 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P6-T05` — revalidar justo antes del envío externo: confirmar snapshot,
-conexión, medio y datos materiales, y bloquear con un código accionable sin
-consumir intento remoto. Sus dependencias `P6-T03` y `P6-T04` están completas.
-`P5-T09` sigue esperando una autorización concreta y no tiene trabajo de código
-pendiente, así que Fase 6 continúa avanzando en paralelo.
+`P6-T06` — construir el calendario y la gestión de programación: vista
+calendario/lista, formularios de una y varias ocurrencias, y consecuencias
+explícitas al mover, pausar o cancelar. Sus dependencias `P6-T01` y `P6-T05`
+están completas. `P5-T09` sigue esperando una autorización concreta y no tiene
+trabajo de código pendiente, así que Fase 6 continúa avanzando en paralelo.
+
+**`P6-T05` quedó cerrada.** La orden pasa por una compuerta factual justo antes
+de llegar a Meta. Se verifica el snapshot vigente, evidencia de datos dinámicos,
+origen de horario recurrente, medio público, permisos y credenciales. Precio y
+stock se consultan otra vez dentro del ámbito auditado de la orden; una fuente
+faltante, vencida o distinta bloquea con código accionable y nueva revisión, sin
+consumir un intento remoto. Si otro destino ya pudo haber salido, la compuerta
+cancela sólo los restantes y conserva la incertidumbre para reconciliación.
 
 **`P6-T04` quedó cerrada.** Una regla como «Ya abrimos» deja de ser una frase
 programada y pasa a ser un borrador fechado: cada ocurrencia crea una

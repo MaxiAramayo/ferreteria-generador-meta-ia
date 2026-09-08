@@ -7009,6 +7009,171 @@ test("un desenlace ambiguo de una orden programada nunca vuelve a pending", asyn
   );
 });
 
+// --- Revalidación inmediatamente anterior a Meta (`P6-T05`) ---
+
+test("un bloqueo previo invalida y audita la orden de forma atómica", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+
+  const result = await orders.blockPrePublish({
+    actorMembershipId: membershipId,
+    code: "prepublish-price-changed",
+    occurredAt: "2026-09-07T12:05:00.000Z",
+    orderId,
+    organizationId,
+    safeMessage:
+      "El precio cambió desde la aprobación. Actualizá la pieza y solicitá una nueva revisión.",
+  });
+  assert.equal(result.status, "blocked");
+
+  const [order, publication, transition, audit] = await Promise.all([
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+    database.publicationStateTransition.findFirstOrThrow({
+      orderBy: { occurredAt: "desc" },
+      where: { organizationId, publicationId, toStatus: "validation_failed" },
+    }),
+    database.auditEvent.findFirstOrThrow({
+      orderBy: { occurredAt: "desc" },
+      where: {
+        entityId: orderId,
+        operation: "content.publication:pre-publish-blocked",
+        organizationId,
+      },
+    }),
+  ]);
+  assert.equal(order.cancelledReasonCode, "prepublish-price-changed");
+  assert.equal(order.cancelledAt?.toISOString(), "2026-09-07T12:05:00.000Z");
+  assert.equal(publication.status, "validation_failed");
+  assert.equal(publication.failureCode, "prepublish-price-changed");
+  assert.equal(publication.failureRetryable, false);
+  assert.equal(transition.failureCode, "prepublish-price-changed");
+  assert.equal(audit.outcome, "failure");
+
+  assert.deepEqual(
+    await orders.blockPrePublish({
+      actorMembershipId: membershipId,
+      code: "prepublish-price-changed",
+      occurredAt: "2026-09-07T12:06:00.000Z",
+      orderId,
+      organizationId,
+      safeMessage: "No debe reemplazar el bloqueo original.",
+    }),
+    { status: "already-resolved" },
+  );
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: { organizationId, publicationId, toStatus: "validation_failed" },
+    }),
+    1,
+  );
+});
+
+test("un bloqueo posterior conserva una entrega remota ya confirmada", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.equal(
+    await orders.save(
+      publishedAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+        "remote-instagram",
+      ),
+    ),
+    "saved",
+  );
+
+  assert.equal(
+    (
+      await orders.blockPrePublish({
+        actorMembershipId: membershipId,
+        code: "prepublish-stock-changed",
+        occurredAt: "2026-09-07T12:05:00.000Z",
+        orderId,
+        organizationId,
+        safeMessage:
+          "El stock cambió desde la aprobación. Actualizá la pieza y solicitá una nueva revisión.",
+      })
+    ).status,
+    "blocked",
+  );
+  const [order, orderRow, publication] = await Promise.all([
+    orders.findById(organizationId, orderId),
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+  ]);
+  assert.ok(order);
+  assert.equal(orderRow.cancelledReasonCode, "prepublish-stock-changed");
+  assert.equal(
+    order.targets.find((target) => target.target === "instagram_feed")?.state,
+    "published",
+  );
+  assert.equal(publication.status, "partially_published");
+});
+
+test("un bloqueo previo no oculta un desenlace remoto que sigue en duda", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.equal(
+    await orders.save(
+      unknownAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+      ),
+    ),
+    "saved",
+  );
+
+  const result = await orders.blockPrePublish({
+    actorMembershipId: membershipId,
+    code: "prepublish-media-unavailable",
+    occurredAt: "2026-09-07T12:05:00.000Z",
+    orderId,
+    organizationId,
+    safeMessage: "La pieza aprobada ya no está disponible.",
+  });
+  assert.equal(result.status, "blocked");
+
+  const [order, orderRow, publication] = await Promise.all([
+    orders.findById(organizationId, orderId),
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+  ]);
+  assert.ok(order);
+  assert.equal(orderRow.cancelledReasonCode, "prepublish-media-unavailable");
+  assert.equal(publication.status, "publishing");
+  assert.equal(
+    order.targets.find((target) => target.target === "instagram_feed")?.state,
+    "outcome_unknown",
+  );
+});
+
 test("una regla recurrente materializa, aprueba y crea una ocurrencia sin publicar", async () => {
   const organizationId = randomUUID();
   const userId = randomUUID();

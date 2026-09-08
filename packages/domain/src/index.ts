@@ -184,6 +184,16 @@ export {
   type VisualDirection,
 } from "./content-brief.ts";
 export {
+  approvalPrePublishProfileSchemaVersion,
+  createApprovalPrePublishProfile,
+  prePublishDynamicClaimKinds,
+  readApprovalPrePublishProfile,
+  readRecurringStorySourceSnapshot,
+  type ApprovalPrePublishProfile,
+  type PrePublishDynamicClaimKind,
+  type PrePublishFactualClaim,
+} from "./pre-publish-validation.ts";
+export {
   generationEditKinds,
   generationEditNeedsFactualRevalidation,
   generationRunLimits,
@@ -610,6 +620,8 @@ export {
   pendingPublicationTargets,
   publicationOrderStatus,
   publicationOrderTopic,
+  type BlockPrePublishOrderInput,
+  type BlockPrePublishOrderResult,
   type CancelPublicationOrderInput,
   type CancelPublicationOrderResult,
   type ApprovalPublicationTargetPolicy,

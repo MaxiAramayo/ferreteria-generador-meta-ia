@@ -252,7 +252,7 @@ concurrente y recuperación segura.
 
 ### Notas de progreso
 
-- Fecha: 2026-09-07.
+- Fecha: 2026-09-08.
 - Estado real: el consumidor BullMQ valida el payload mínimo y disputa una
   lease durable en PostgreSQL. La tarea cierra sin llamadas reales a Meta.
 - Responsabilidades: BullMQ transporta y retrasa; el servicio ejecutor mantiene
@@ -432,8 +432,8 @@ horario vigente, preview y aprobación según política.
 
 ## P6-T05 — Validar nuevamente antes de publicar
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T03`, `P6-T04`
 - Riesgo: Alto
 
@@ -450,18 +450,18 @@ del envío externo.
 
 ### Criterios de aceptación
 
-- [ ] Confirma snapshot aprobado y no invalidado.
-- [ ] Confirma conexión, permiso y destino saludables.
-- [ ] Confirma acceso y formato del medio.
-- [ ] Revalida precio, stock, promoción y horario cuando corresponda.
-- [ ] Un cambio material bloquea y solicita nueva revisión.
-- [ ] Una falla de validación no consume intento remoto.
+- [x] Confirma snapshot aprobado y no invalidado.
+- [x] Confirma conexión, permiso y destino saludables.
+- [x] Confirma acceso y formato del medio.
+- [x] Revalida precio, stock, promoción y horario cuando corresponda.
+- [x] Un cambio material bloquea y solicita nueva revisión.
+- [x] Una falla de validación no consume intento remoto.
 
 ### Verificación obligatoria
 
-- [ ] Casos de token revocado, medio ausente y evidencia vencida.
-- [ ] Cambiar precio/stock después de aprobar.
-- [ ] Confirmar código, alerta y estado correctos.
+- [x] Casos de token revocado, medio ausente y evidencia vencida.
+- [x] Cambiar precio/stock después de aprobar.
+- [x] Confirmar código, alerta y estado correctos.
 
 ### Fuera de alcance
 
@@ -469,11 +469,33 @@ del envío externo.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-07.
+- La aprobación persiste un perfil mínimo de prepublicación con los hechos
+  dinámicos requeridos, su evidencia y —para historias recurrentes— la fuente
+  de horario y sucursal. Los snapshots históricos sin perfil bloquean por
+  precaución; el contenido manual que menciona precio, stock, promoción u
+  horario también exige evidencia.
+- `PrePublishValidator` verifica estado/snapshot, evidencia y fuente recurrente,
+  activo y entrega pública, formato por destino, conexión, permisos, activos y
+  credencial de Meta. Precio y stock se reconsultan mediante el puerto comercial
+  existente, con ámbito de organización, sucursal y solicitante; una promoción
+  sin fuente aprobada bloquea, nunca se corrige sola.
+- Un bloqueo cancela la orden, registra el código accionable y auditoría en la
+  misma transacción y retorna antes del publicador. Si otro destino ya salió o
+  quedó con desenlace incierto, conserva ese hecho y cancela sólo los restantes.
+- Archivos principales: `packages/domain/src/pre-publish-validation.ts`,
+  `apps/worker/src/publishing/pre-publish.validator.ts`,
+  `apps/worker/src/publishing/pre-publish-commercial.adapter.ts`,
+  `infrastructure/database/src/publication-order-repository.ts` y sus pruebas.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: pendiente; cambios locales de `P6-T05` revisados.
+- `pnpm db:test` — base efímera, migración, aislamiento y reversión verificados.
+- `pnpm e2e:publishing` — flujo de publicación completo.
+- `pnpm e2e:recurring-story` — historia recurrente completa.
+- `pnpm verify` — stack, plan, formato, build, lint, typecheck, pruebas,
+  baseline y smoke completos.
 
 ## P6-T06 — Construir calendario y gestión de programación
 

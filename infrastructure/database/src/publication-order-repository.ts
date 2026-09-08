@@ -19,9 +19,13 @@
  * sobre una orden cuyo destino falló.
  */
 
+import { randomUUID } from "node:crypto";
+
 import {
   actionablePublicationManualReasons,
   approvalPublicationTargetPolicy,
+  type BlockPrePublishOrderInput,
+  type BlockPrePublishOrderResult,
   isPublicationManualActionAllowed,
   metaPublishingFailureCodes,
   publicationManualActions,
@@ -484,6 +488,157 @@ export class PrismaPublicationOrderRepository
     });
   }
 
+  async blockPrePublish(
+    input: BlockPrePublishOrderInput,
+  ): Promise<BlockPrePublishOrderResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const order = await transaction.publicationOrder.findFirst({
+        select: {
+          cancelledAt: true,
+          publication: { select: { status: true, version: true } },
+          publicationId: true,
+          settledAt: true,
+          targets: { select: { state: true } },
+        },
+        where: { id: input.orderId, organizationId: input.organizationId },
+      });
+      if (order === null) return Object.freeze({ status: "not-found" });
+      if (order.cancelledAt !== null || order.settledAt !== null) {
+        return Object.freeze({ status: "already-resolved" });
+      }
+
+      const publication = order.publication;
+      // Otra validación (por ejemplo, un cambio de sucursal) pudo ganar antes
+      // de que el outbox nos entregara este evento. Cancelar esta orden evita
+      // que una reentrega posterior llegue al publicador, pero no reescribe la
+      // transición factual que ya dejó el otro proceso.
+      if (publication.status === "validation_failed") {
+        const cancelled = await transaction.publicationOrder.updateMany({
+          data: {
+            cancelledAt: new Date(input.occurredAt),
+            cancelledReasonCode: input.code,
+          },
+          where: {
+            cancelledAt: null,
+            id: input.orderId,
+            organizationId: input.organizationId,
+            settledAt: null,
+          },
+        });
+        return cancelled.count === 1
+          ? Object.freeze({ status: "already-resolved" })
+          : Object.freeze({ status: "conflict" });
+      }
+      if (
+        publication.status !== "approved" &&
+        publication.status !== "scheduled" &&
+        publication.status !== "publishing"
+      ) {
+        return Object.freeze({ status: "already-resolved" });
+      }
+
+      const cancelOrder = async (): Promise<"cancelled" | "conflict"> => {
+        const cancelled = await transaction.publicationOrder.updateMany({
+          data: {
+            cancelledAt: new Date(input.occurredAt),
+            cancelledReasonCode: input.code,
+          },
+          where: {
+            cancelledAt: null,
+            id: input.orderId,
+            organizationId: input.organizationId,
+            settledAt: null,
+          },
+        });
+        return cancelled.count === 1 ? "cancelled" : "conflict";
+      };
+      const recordBlockAudit = async (): Promise<void> => {
+        await transaction.auditEvent.create({
+          data: {
+            actorMembershipId: input.actorMembershipId,
+            entityId: input.orderId,
+            entityType: "publication_order",
+            id: randomUUID(),
+            metadata: { code: input.code, publicationId: order.publicationId },
+            occurredAt: new Date(input.occurredAt),
+            operation: "content.publication:pre-publish-blocked",
+            organizationId: input.organizationId,
+            outcome: "failure",
+          },
+        });
+      };
+
+      // Un timeout después de enviar puede coexistir con otro destino aún
+      // pendiente. No se conoce si el primero llegó a Meta, así que cancelar el
+      // resto no autoriza a reescribir su estado agregado ni a fingir que fue
+      // sólo un fallo de validación; reconciliación conserva esa incertidumbre.
+      if (order.targets.some((target) => target.state === "outcome_unknown")) {
+        if ((await cancelOrder()) !== "cancelled") {
+          return Object.freeze({ status: "conflict" });
+        }
+        await recordBlockAudit();
+        return Object.freeze({
+          status: "blocked",
+          version: publication.version,
+        });
+      }
+
+      // Si ya hay una entrega confirmada, el estado de la publicación debe
+      // seguir diciendo la verdad sobre Meta. La compuerta cancela los envíos
+      // que faltan, pero no convierte una salida parcial ya ocurrida en un
+      // problema puramente factual.
+      const nextStatus = order.targets.some(
+        (target) =>
+          target.state === "published" ||
+          target.state === "published_unconfirmed",
+      )
+        ? "partially_published"
+        : "validation_failed";
+      const version = publication.version + 1;
+      const updated = await transaction.publication.updateMany({
+        data: {
+          failureCode: input.code,
+          failureMessage: input.safeMessage,
+          failureOccurredAt: new Date(input.occurredAt),
+          failureRetryable: false,
+          status: nextStatus,
+          version,
+        },
+        where: {
+          id: order.publicationId,
+          organizationId: input.organizationId,
+          status: publication.status,
+          version: publication.version,
+        },
+      });
+      if (updated.count !== 1) return Object.freeze({ status: "conflict" });
+
+      if ((await cancelOrder()) !== "cancelled") {
+        throw new Error(
+          "La orden cambió mientras se bloqueaba la publicación.",
+        );
+      }
+      await transaction.publicationStateTransition.create({
+        data: {
+          actorMembershipId: input.actorMembershipId,
+          commandType: "fail",
+          failureCode: input.code,
+          failureMessage: input.safeMessage,
+          failureRetryable: false,
+          fromStatus: publication.status,
+          fromVersion: publication.version,
+          occurredAt: new Date(input.occurredAt),
+          organizationId: input.organizationId,
+          publicationId: order.publicationId,
+          toStatus: nextStatus,
+          toVersion: version,
+        },
+      });
+      await recordBlockAudit();
+      return Object.freeze({ status: "blocked", version });
+    });
+  }
+
   async findById(
     organizationId: string,
     orderId: string,
@@ -517,6 +672,15 @@ export class PrismaPublicationOrderRepository
       select: {
         ...orderSelection,
         approvalSnapshot: { select: { contentHash: true, snapshot: true } },
+        publication: {
+          select: {
+            locationId: true,
+            recurringStoryMaterialization: {
+              select: { invalidatedAt: true, sourceSnapshot: true },
+            },
+            status: true,
+          },
+        },
       },
       where: { id: orderId, organizationId },
     });
@@ -525,9 +689,29 @@ export class PrismaPublicationOrderRepository
     return Object.freeze({
       approvalSnapshotId: row.approvalSnapshotId,
       contentHash: row.approvalSnapshot.contentHash,
+      ...(row.publication.locationId === null
+        ? {}
+        : { locationId: row.publication.locationId }),
       orderId: row.id,
       organizationId: row.organizationId,
       publicationId: row.publicationId,
+      publicationStatus: row.publication.status,
+      requestedByMembershipId: row.requestedByMembershipId,
+      ...(row.publication.recurringStoryMaterialization === null
+        ? {}
+        : {
+            recurringStoryMaterialization: Object.freeze({
+              ...(row.publication.recurringStoryMaterialization
+                .invalidatedAt === null
+                ? {}
+                : {
+                    invalidatedAt:
+                      row.publication.recurringStoryMaterialization.invalidatedAt.toISOString(),
+                  }),
+              sourceSnapshot:
+                row.publication.recurringStoryMaterialization.sourceSnapshot,
+            }),
+          }),
       snapshot: row.approvalSnapshot.snapshot,
       targets: order.targets,
     });

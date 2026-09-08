@@ -288,12 +288,38 @@ export type CancelPublicationOrderResult =
 export interface PublicationOrderJob {
   readonly approvalSnapshotId: string;
   readonly contentHash: string;
+  /** La pieza sólo puede salir mientras siga en el estado que creó la orden. */
+  readonly publicationStatus: PublicationStatus;
   readonly orderId: string;
   readonly organizationId: string;
   readonly publicationId: string;
+  /** La sucursal limita toda revalidación comercial a su ámbito autorizado. */
+  readonly locationId?: string;
+  /** Actor que creó la orden; conserva el ámbito autorizado de la lectura. */
+  readonly requestedByMembershipId: string;
+  /** Una historia recurrente queda inválida cuando cambia su fuente horaria. */
+  readonly recurringStoryMaterialization?: Readonly<{
+    readonly invalidatedAt?: string;
+    readonly sourceSnapshot: unknown;
+  }>;
   readonly snapshot: unknown;
   readonly targets: readonly PublicationOrderTargetRecord[];
 }
+
+export interface BlockPrePublishOrderInput {
+  readonly actorMembershipId: string;
+  readonly code: string;
+  readonly occurredAt: string;
+  readonly orderId: string;
+  readonly organizationId: string;
+  readonly safeMessage: string;
+}
+
+export type BlockPrePublishOrderResult =
+  | Readonly<{ status: "blocked"; version: number }>
+  | Readonly<{ status: "already-resolved" }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "not-found" }>;
 
 export type PublicationOrderCompletionResult =
   | Readonly<{ status: "completed"; version: number }>
@@ -301,6 +327,14 @@ export type PublicationOrderCompletionResult =
   | Readonly<{ status: "not-found" }>;
 
 export interface PublicationOrderRepository {
+  /**
+   * Cancela una orden pendiente y marca la pieza como inválida sin escribir en
+   * Meta. La publicación, su transición y la cancelación viven en una sola
+   * transacción para que un reintento del outbox no pueda cruzar la compuerta.
+   */
+  blockPrePublish(
+    input: BlockPrePublishOrderInput,
+  ): Promise<BlockPrePublishOrderResult>;
   cancel(
     input: CancelPublicationOrderInput,
   ): Promise<CancelPublicationOrderResult>;

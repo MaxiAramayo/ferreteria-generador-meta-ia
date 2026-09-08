@@ -130,6 +130,16 @@ la publicación a `approved`, agrega la transición, auditoría y respuesta
 idempotente. El snapshot autocontenido conserva contenido, hash, documento y
 versión de diseño, medios de entrada y metadatos exactos del PNG derivado.
 
+Antes de cada envío a Meta, el worker vuelve a validar ese snapshot, el medio
+derivado y los permisos del destino. El snapshot aprobado conserva un perfil
+mínimo de hechos materiales (precio, stock, promoción y horario si aplican), sus
+fuentes y la versión de sucursal de una historia recurrente. Los hechos se
+reconsultan con el contexto de la orden; una fuente faltante, vencida o distinta
+bloquea la orden con un código accionable, auditoría y nueva revisión, sin
+intento remoto. Si ya existe una entrega confirmada o un desenlace remoto en
+duda, se cancelan sólo los destinos restantes y se preserva esa realidad para
+reconciliación.
+
 ### PublicationTarget
 
 Representa la entrega a un destino concreto. Cada destino tiene su propio
