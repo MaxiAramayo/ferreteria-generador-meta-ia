@@ -121,11 +121,7 @@ test("cancelar conserva el resultado parcial y exige un código de motivo", asyn
   assert.equal(result.cancelledOccurrenceCount, 3);
   assert.equal(result.dispatchedOccurrenceCount, 1);
   assert.equal(repository.input?.command.type, "cancel");
-  if (repository.input?.command.type === "cancel") {
-    assert.equal(repository.input.command.reasonCode, "operator-cancelled");
-  } else {
-    assert.fail("No se construyó el comando de cancelación.");
-  }
+  assert.equal(repository.input.command.reasonCode, "operator-cancelled");
 });
 
 test("un rol sin content:schedule no alcanza el repositorio", async () => {

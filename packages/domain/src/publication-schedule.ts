@@ -153,6 +153,16 @@ export const publicationRecurrenceMaximumInterval = 52;
  */
 export const publicationOccurrenceWindowLimit = 366;
 
+/**
+ * Ventana inicial que una nueva regla deja persistida de forma atómica.
+ *
+ * No es una promesa de que la recurrencia termina a los noventa días: el
+ * materializador posterior debe reponer ocurrencias antes de que la ventana se
+ * agote. El límite sólo evita crear cientos de filas por una regla diaria al
+ * guardarla.
+ */
+export const publicationScheduleInitialMaterializationHorizonDays = 90;
+
 export type PublicationRecurrence =
   | {
       readonly kind: "daily";
@@ -371,6 +381,47 @@ export interface ApplyPublicationScheduleTransitionInput extends OrganizationSco
 }
 
 /**
+ * Crea una intención temporal desde una publicación con snapshot aprobado.
+ *
+ * La regla llega ya resuelta a instantes UTC y zona IANA. El borde HTTP es el
+ * responsable de traducir el formulario civil a este contrato; de ese modo el
+ * repositorio sólo acepta una regla que el dominio puede expandir sin depender
+ * de la zona del navegador o del servidor.
+ */
+export interface CreatePublicationScheduleInput extends OrganizationScope {
+  readonly actorMembershipId: string;
+  /** CAS de la publicación que se programa, no de una regla inexistente. */
+  readonly expectedPublicationVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly publicationId: string;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly rule: PublicationScheduleRule;
+  readonly targets: readonly PublicationTarget[];
+}
+
+/** Resultado de crear una regla y sus primeras ocurrencias en una transacción. */
+export type CreatePublicationScheduleResult =
+  | Readonly<{
+      materializedOccurrenceCount: number;
+      publication: Readonly<{
+        status: PublicationStatus;
+        version: number;
+      }>;
+      replayed?: true;
+      scheduleId: string;
+      status: "created";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "not-approved" }>
+  | Readonly<{ status: "not-found" }>;
+
+/**
  * El resultado informa las ocurrencias que no se pudieron retirar porque ya
  * fueron despachadas. No es un fallo: es la evidencia explícita de un efecto
  * parcial que el panel debe mostrar, no esconder tras un "cancelado" plano.
@@ -403,6 +454,9 @@ export type ApplyPublicationScheduleTransitionResult =
  * regla y dejar la pieza suspendida sin una programación activa.
  */
 export interface PublicationScheduleManagementRepository {
+  create(
+    input: CreatePublicationScheduleInput,
+  ): Promise<CreatePublicationScheduleResult>;
   transition(
     input: ApplyPublicationScheduleTransitionInput,
   ): Promise<ApplyPublicationScheduleTransitionResult>;

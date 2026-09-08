@@ -6506,6 +6506,149 @@ test("pausar, reanudar y cancelar una programación conserva la aprobación", as
   assert.equal(transition.reasonCode, "operator-cancelled");
 });
 
+test("crear una programación aprobada materializa ocurrencias y se repite de forma idempotente", async () => {
+  const fixture = await publicationOrderFixture(["instagram_feed"]);
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const context = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const rule = {
+    effectiveFrom: context.occurredAt,
+    gapPolicy: "skip" as const,
+    localTime: "09:00",
+    recurrence: { interval: 1, kind: "daily" as const },
+    timeZone: "America/Argentina/Cordoba",
+  };
+  const input = {
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 15,
+    missedPolicy: "skip" as const,
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: context,
+    rule,
+    targets: ["instagram_feed" as const],
+  };
+
+  const created = await repository.create(input);
+  assert.equal(created.status, "created");
+  assert.equal(created.publication.status, "scheduled");
+  assert.equal(created.publication.version, 2);
+  assert.ok(created.materializedOccurrenceCount > 0);
+
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(schedule.approvalSnapshotId, fixture.snapshotId);
+  assert.equal(schedule.status, "active");
+  assert.equal(schedule.version, 1);
+  const occurrences = await database.publicationScheduleOccurrence.count({
+    where: { scheduleId: created.scheduleId, status: "planned" },
+  });
+  assert.equal(occurrences, created.materializedOccurrenceCount);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: fixture.publicationId },
+  });
+  assert.equal(publication.status, "scheduled");
+  assert.equal(publication.version, 2);
+  const stateTransition =
+    await database.publicationStateTransition.findFirstOrThrow({
+      where: { publicationId: fixture.publicationId, toStatus: "scheduled" },
+    });
+  assert.equal(stateTransition.commandType, "advance");
+
+  assert.deepEqual(await repository.create(input), {
+    ...created,
+    replayed: true,
+  });
+  assert.equal(
+    await database.publicationSchedule.count({
+      where: { organizationId: fixture.organizationId },
+    }),
+    1,
+  );
+});
+
+test("no se programa una publicación no aprobada ni una regla única vencida", async () => {
+  const nonApproved = await publicationOrderFixture();
+  await database.publication.update({
+    data: { status: "draft" },
+    where: { id: nonApproved.publicationId },
+  });
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const notApprovedContext = reliableMutation(
+    nonApproved.organizationId,
+    nonApproved.membershipId,
+    "scheduling.schedule:create",
+  );
+  const futureRule = {
+    effectiveFrom: notApprovedContext.occurredAt,
+    gapPolicy: "skip" as const,
+    localTime: "09:00",
+    recurrence: { interval: 1, kind: "daily" as const },
+    timeZone: "America/Argentina/Cordoba",
+  };
+  assert.deepEqual(
+    await repository.create({
+      actorMembershipId: nonApproved.membershipId,
+      expectedPublicationVersion: 1,
+      lateToleranceMinutes: 0,
+      missedPolicy: "skip",
+      organizationId: nonApproved.organizationId,
+      publicationId: nonApproved.publicationId,
+      reliableOperation: notApprovedContext,
+      rule: futureRule,
+      targets: ["instagram_feed"],
+    }),
+    { status: "not-approved" },
+  );
+
+  const expired = await publicationOrderFixture();
+  const expiredContext = reliableMutation(
+    expired.organizationId,
+    expired.membershipId,
+    "scheduling.schedule:create",
+  );
+  assert.deepEqual(
+    await repository.create({
+      actorMembershipId: expired.membershipId,
+      expectedPublicationVersion: 1,
+      lateToleranceMinutes: 0,
+      missedPolicy: "skip",
+      organizationId: expired.organizationId,
+      publicationId: expired.publicationId,
+      reliableOperation: expiredContext,
+      rule: {
+        effectiveFrom: "2020-01-01T12:00:00.000Z",
+        effectiveUntil: "2020-01-01T12:00:00.000Z",
+        gapPolicy: "skip",
+        localTime: "09:00",
+        recurrence: { kind: "once" },
+        timeZone: "America/Argentina/Cordoba",
+      },
+      targets: ["instagram_feed"],
+    }),
+    { status: "invalid-rule" },
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: expired.publicationId },
+  });
+  assert.equal(publication.status, "approved");
+  assert.equal(
+    await database.publicationSchedule.count({
+      where: { organizationId: expired.organizationId },
+    }),
+    0,
+  );
+});
+
 test("una programación sin destinos no se guarda", async () => {
   const { membershipId, organizationId, publicationId, snapshotId } =
     await publicationOrderFixture();

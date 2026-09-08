@@ -8,15 +8,25 @@
  * calendario no puede explicar ni recuperar.
  */
 
+import { randomUUID } from "node:crypto";
+
 import {
+  approvalPublicationTargetPolicy,
+  nextOccurrenceAfter,
+  planOccurrences,
+  publicationScheduleInitialMaterializationHorizonDays,
   transitionPublication,
   transitionPublicationSchedule,
   type ApplyPublicationScheduleTransitionInput,
   type ApplyPublicationScheduleTransitionResult,
+  type CreatePublicationScheduleInput,
+  type CreatePublicationScheduleResult,
   type PublicationMissedPolicy,
+  type PublicationOccurrencePlan,
   type PublicationRecurrence,
   type PublicationScheduleManagementRepository,
   type PublicationScheduleRecord,
+  type PublicationScheduleRule,
   type PublicationScheduleStatus,
   type PublicationStatus,
   type PublicationTarget,
@@ -71,6 +81,96 @@ type LockedPublicationRow = Readonly<{
   status: string;
   version: number;
 }>;
+
+function sameTargets(
+  requested: readonly PublicationTarget[],
+  approved: readonly PublicationTarget[],
+): boolean {
+  return (
+    requested.length === approved.length &&
+    requested.every((target) => approved.includes(target))
+  );
+}
+
+function initialOccurrencePlans(
+  input: CreatePublicationScheduleInput,
+): readonly PublicationOccurrencePlan[] | undefined {
+  if (
+    !Number.isInteger(input.lateToleranceMinutes) ||
+    input.lateToleranceMinutes < 0 ||
+    input.lateToleranceMinutes > 1440
+  ) {
+    return undefined;
+  }
+  const at = new Date(input.reliableOperation.occurredAt);
+  if (!Number.isFinite(at.getTime())) {
+    throw new RangeError(
+      "La creación de programación requiere un instante válido.",
+    );
+  }
+  const from = new Date(
+    at.getTime() -
+      (input.missedPolicy === "run-late"
+        ? input.lateToleranceMinutes * 60_000
+        : 0),
+  );
+  const to = new Date(
+    at.getTime() +
+      publicationScheduleInitialMaterializationHorizonDays * 24 * 60 * 60_000,
+  );
+  const plans = planOccurrences(input.rule, {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  });
+  if (plans.length > 0) {
+    return plans;
+  }
+  const next = nextOccurrenceAfter(input.rule, to.toISOString());
+  return next === undefined ? undefined : Object.freeze([next]);
+}
+
+function scheduleRuleColumns(rule: PublicationScheduleRule): Readonly<{
+  kind: "daily" | "monthly" | "once" | "weekly";
+  monthDay: number | null;
+  monthDayOverflow: "clamp" | "skip" | null;
+  recurrenceInterval: number | null;
+  weekdays: readonly number[];
+}> {
+  switch (rule.recurrence.kind) {
+    case "once":
+      return Object.freeze({
+        kind: "once",
+        monthDay: null,
+        monthDayOverflow: null,
+        recurrenceInterval: null,
+        weekdays: Object.freeze([]),
+      });
+    case "daily":
+      return Object.freeze({
+        kind: "daily",
+        monthDay: null,
+        monthDayOverflow: null,
+        recurrenceInterval: rule.recurrence.interval,
+        weekdays: Object.freeze([]),
+      });
+    case "weekly":
+      return Object.freeze({
+        kind: "weekly",
+        monthDay: null,
+        monthDayOverflow: null,
+        recurrenceInterval: rule.recurrence.interval,
+        weekdays: rule.recurrence.weekdays,
+      });
+    case "monthly":
+      return Object.freeze({
+        kind: "monthly",
+        monthDay: rule.recurrence.monthDay,
+        monthDayOverflow: rule.recurrence.overflow,
+        recurrenceInterval: rule.recurrence.interval,
+        weekdays: Object.freeze([]),
+      });
+  }
+}
 
 function requiredInteger(value: number | null, field: string): number {
   if (value === null || !Number.isInteger(value)) {
@@ -264,6 +364,46 @@ function replayedTransition(
   });
 }
 
+function replayedCreation(
+  responseBody: unknown,
+): CreatePublicationScheduleResult {
+  if (typeof responseBody !== "object" || responseBody === null) {
+    throw new Error("La respuesta idempotente de programación es inválida.");
+  }
+  const body = responseBody as Record<string, unknown>;
+  const scheduleId = body["scheduleId"];
+  const version = numberAt(body, "version");
+  const materializedOccurrenceCount = numberAt(
+    body,
+    "materializedOccurrenceCount",
+  );
+  const publicationVersion = numberAt(body, "publicationVersion");
+  const storedStatus = body["publicationStatus"];
+  if (
+    typeof scheduleId !== "string" ||
+    version === undefined ||
+    materializedOccurrenceCount === undefined ||
+    publicationVersion === undefined ||
+    typeof storedStatus !== "string"
+  ) {
+    throw new Error("La respuesta idempotente de programación es inválida.");
+  }
+  let status: PublicationStatus;
+  try {
+    status = publicationStatus(storedStatus);
+  } catch {
+    throw new Error("La respuesta idempotente de programación es inválida.");
+  }
+  return Object.freeze({
+    materializedOccurrenceCount,
+    publication: Object.freeze({ status, version: publicationVersion }),
+    replayed: true,
+    scheduleId,
+    status: "created",
+    version,
+  });
+}
+
 function scheduleMutation(
   command: ApplyPublicationScheduleTransitionInput["command"],
   at: Date,
@@ -301,6 +441,250 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
 
   constructor(database: DatabaseClient) {
     this.#database = database;
+  }
+
+  async create(
+    input: CreatePublicationScheduleInput,
+  ): Promise<CreatePublicationScheduleResult> {
+    if (
+      input.actorMembershipId !==
+        input.reliableOperation.claim.actorMembershipId ||
+      input.reliableOperation.claim.organizationId !== input.organizationId
+    ) {
+      throw new Error(
+        "El contexto idempotente no coincide con la programación.",
+      );
+    }
+    if (
+      input.targets.length === 0 ||
+      new Set(input.targets).size !== input.targets.length
+    ) {
+      return Object.freeze({ status: "invalid-target" });
+    }
+
+    let plans: readonly PublicationOccurrencePlan[] | undefined;
+    try {
+      plans = initialOccurrencePlans(input);
+    } catch (error: unknown) {
+      if (error instanceof RangeError) {
+        return Object.freeze({ status: "invalid-rule" });
+      }
+      throw error;
+    }
+    if (plans === undefined) {
+      return Object.freeze({ status: "invalid-rule" });
+    }
+    const at = new Date(input.reliableOperation.occurredAt);
+    const ruleColumns = scheduleRuleColumns(input.rule);
+
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed":
+          return replayedCreation(claim.responseBody);
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "claimed":
+          break;
+      }
+
+      const [publication] = await transaction.$queryRaw<
+        LockedPublicationRow[]
+      >(Prisma.sql`
+          SELECT "status"::text AS "status", "version"
+          FROM "publications"
+          WHERE "id" = ${input.publicationId}::uuid
+            AND "organization_id" = ${input.organizationId}::uuid
+          FOR UPDATE
+        `);
+      if (publication === undefined) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-found" });
+      }
+      if (publication.version !== input.expectedPublicationVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "conflict" });
+      }
+      if (
+        publication.status !== "approved" &&
+        publication.status !== "scheduled"
+      ) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-approved" });
+      }
+
+      const snapshot = await transaction.approvalSnapshot.findFirst({
+        orderBy: { approvedAt: "desc" },
+        select: {
+          approvedAt: true,
+          approvedByMembershipId: true,
+          id: true,
+          snapshot: true,
+        },
+        where: {
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+        },
+      });
+      if (snapshot === null) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-approved" });
+      }
+      const targetPolicy = approvalPublicationTargetPolicy(snapshot.snapshot);
+      if (
+        targetPolicy.kind === "invalid" ||
+        (targetPolicy.kind === "exact" &&
+          !sameTargets(input.targets, targetPolicy.targets))
+      ) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-target" });
+      }
+
+      let currentPublication = Object.freeze({
+        status: publicationStatus(publication.status),
+        version: publication.version,
+      });
+      if (publication.status === "approved") {
+        const publicationTransition = transitionPublication(
+          {
+            approval: {
+              approvedAt: snapshot.approvedAt.toISOString(),
+              reviewerMembershipId: snapshot.approvedByMembershipId,
+              snapshotId: snapshot.id,
+            },
+            id: input.publicationId,
+            organizationId: input.organizationId,
+            status: "approved",
+            version: publication.version,
+          },
+          {
+            actorMembershipId: input.actorMembershipId,
+            expectedVersion: publication.version,
+            occurredAt: input.reliableOperation.occurredAt,
+            targetStatus: "scheduled",
+            type: "advance",
+          },
+        );
+        if (!publicationTransition.ok) {
+          throw new Error("No se pudo programar la publicación aprobada.");
+        }
+        const publicationUpdated = await transaction.publication.updateMany({
+          data: {
+            status: publicationTransition.state.status,
+            version: publicationTransition.state.version,
+          },
+          where: {
+            id: input.publicationId,
+            organizationId: input.organizationId,
+            status: publication.status,
+            version: publication.version,
+          },
+        });
+        if (publicationUpdated.count !== 1) {
+          throw new Error("La publicación cambió durante la programación.");
+        }
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId: publicationTransition.event.actorMembershipId,
+            commandType: publicationTransition.event.commandType,
+            fromStatus: publicationTransition.event.fromStatus,
+            fromVersion: publicationTransition.event.fromVersion,
+            occurredAt: at,
+            organizationId: input.organizationId,
+            publicationId: input.publicationId,
+            reasonCode: publicationTransition.event.reasonCode ?? null,
+            toStatus: publicationTransition.event.toStatus,
+            toVersion: publicationTransition.event.toVersion,
+          },
+        });
+        currentPublication = Object.freeze({
+          status: publicationTransition.state.status,
+          version: publicationTransition.state.version,
+        });
+      }
+
+      const scheduleId = randomUUID();
+      await transaction.publicationSchedule.create({
+        data: {
+          approvalSnapshotId: snapshot.id,
+          createdByMembershipId: input.actorMembershipId,
+          effectiveFrom: new Date(input.rule.effectiveFrom),
+          effectiveUntil:
+            input.rule.effectiveUntil === undefined
+              ? null
+              : new Date(input.rule.effectiveUntil),
+          gapPolicy:
+            input.rule.gapPolicy === "next-valid" ? "next_valid" : "skip",
+          id: scheduleId,
+          kind: ruleColumns.kind,
+          lateToleranceMinutes: input.lateToleranceMinutes,
+          localTime: input.rule.localTime,
+          missedPolicy: input.missedPolicy === "run-late" ? "run_late" : "skip",
+          monthDay: ruleColumns.monthDay,
+          monthDayOverflow: ruleColumns.monthDayOverflow,
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+          recurrenceInterval: ruleColumns.recurrenceInterval,
+          targets: [...input.targets],
+          timeZone: input.rule.timeZone,
+          weekdays: [...ruleColumns.weekdays],
+        },
+      });
+      await transaction.publicationScheduleOccurrence.createMany({
+        data: plans.map((plan) => ({
+          occurrenceKey: plan.occurrenceKey,
+          organizationId: input.organizationId,
+          resolution: plan.resolution,
+          scheduleId,
+          scheduledAt: new Date(plan.scheduledAt),
+        })),
+      });
+
+      const responseBody = {
+        materializedOccurrenceCount: plans.length,
+        publicationStatus: currentPublication.status,
+        publicationVersion: currentPublication.version,
+        scheduleId,
+        version: 1,
+      } satisfies SafeJsonObject;
+      const commit = reliableCommit(
+        {
+          actorMembershipId: input.actorMembershipId,
+          organizationId: input.organizationId,
+          reliableOperation: input.reliableOperation,
+        },
+        claim.recordId,
+        responseBody,
+        {
+          entityId: scheduleId,
+          entityType: "publication_schedule",
+          metadata: {
+            materializedOccurrenceCount: plans.length,
+            publicationId: input.publicationId,
+            targetCount: input.targets.length,
+          },
+          outbox: [],
+        },
+      );
+      if (!(await commitReliableOperation(transaction, commit))) {
+        throw new Error("No se pudo confirmar la programación idempotente.");
+      }
+      return Object.freeze({
+        materializedOccurrenceCount: plans.length,
+        publication: currentPublication,
+        scheduleId,
+        status: "created",
+        version: 1,
+      });
+    });
   }
 
   async transition(

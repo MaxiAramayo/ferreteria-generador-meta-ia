@@ -582,6 +582,16 @@ local y consecuencias explícitas.
   `content:schedule`, versión esperada e `Idempotency-Key`; valida que el
   motivo exista sólo al cancelar y expone recuentos de ocurrencias canceladas y
   despachadas para que la interfaz represente el resultado parcial.
+- Avance 2026-09-08: el mismo puerto transaccional crea programaciones sólo
+  desde una publicación `approved` o `scheduled` que conserva snapshot. Valida
+  la política de destinos, la regla y la tolerancia antes de escribir; crea la
+  regla y sus primeras ocurrencias, deja la auditoría/idempotencia y mueve la
+  publicación de `approved` a `scheduled` en una única transacción. Una regla
+  única vencida no deja fila; una recurrencia recibe una ventana inicial de 90
+  días —o su próxima ocurrencia válida si cae más lejos— que el materializador
+  futuro deberá reponer antes de agotarse. La integración comprueba snapshot,
+  cambio de estado, ocurrencias, repetición idempotente y bloqueos por estado o
+  fecha pasada.
 
 ### Evidencia de cierre
 
