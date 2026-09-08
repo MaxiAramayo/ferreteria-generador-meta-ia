@@ -592,6 +592,14 @@ local y consecuencias explícitas.
   futuro deberá reponer antes de agotarse. La integración comprueba snapshot,
   cambio de estado, ocurrencias, repetición idempotente y bloqueos por estado o
   fecha pasada.
+- Avance 2026-09-08: `POST /publications/:publicationId/schedules` traduce el
+  formulario civil a una regla con instante UTC y zona IANA; admite una vez,
+  diaria, semanal y mensual con sus campos mutuamente excluyentes. Requiere
+  `content:schedule`, `expectedPublicationVersion` e `Idempotency-Key` y
+  devuelve el número de ocurrencias materializadas junto con la versión nueva
+  de la pieza. La API rechaza horas inexistentes, zonas inválidas, políticas de
+  recurrencia mezcladas y destinos que no fueron aprobados antes de llegar a
+  persistencia.
 
 ### Evidencia de cierre
 

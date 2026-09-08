@@ -5,6 +5,8 @@ import type {
   ApplyPublicationScheduleTransitionInput,
   ApplyPublicationScheduleTransitionResult,
   AuthenticatedActor,
+  CreatePublicationScheduleInput,
+  CreatePublicationScheduleResult,
   IdempotencyClaimResult,
   PublicationScheduleManagementRepository,
   ReliableOperationRepository,
@@ -25,6 +27,7 @@ const actor: AuthenticatedActor = Object.freeze({
 });
 
 const scheduleId = "10000000-0000-4000-8000-000000000005";
+const publicationId = "10000000-0000-4000-8000-000000000006";
 
 class FakeReliableOperationRepository implements ReliableOperationRepository {
   claim(): Promise<IdempotencyClaimResult> {
@@ -41,6 +44,14 @@ class FakeReliableOperationRepository implements ReliableOperationRepository {
 }
 
 class FakeSchedules implements PublicationScheduleManagementRepository {
+  createInput: CreatePublicationScheduleInput | undefined;
+  createResult: CreatePublicationScheduleResult = Object.freeze({
+    materializedOccurrenceCount: 3,
+    publication: Object.freeze({ status: "scheduled", version: 8 }),
+    scheduleId,
+    status: "created",
+    version: 1,
+  });
   input: ApplyPublicationScheduleTransitionInput | undefined;
   result: ApplyPublicationScheduleTransitionResult = Object.freeze({
     cancelledOccurrenceCount: 0,
@@ -50,6 +61,13 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
     status: "updated",
     version: 5,
   });
+
+  create(
+    input: CreatePublicationScheduleInput,
+  ): Promise<CreatePublicationScheduleResult> {
+    this.createInput = input;
+    return Promise.resolve(this.createResult);
+  }
 
   transition(
     input: ApplyPublicationScheduleTransitionInput,
@@ -65,6 +83,74 @@ function service(repository: FakeSchedules): PublicationScheduleService {
     new ReliableOperationService(new FakeReliableOperationRepository()),
   );
 }
+
+test("crear resuelve fecha civil y zona antes de materializar la programación", async () => {
+  const repository = new FakeSchedules();
+  const result = await service(repository).create(
+    actor,
+    publicationId,
+    {
+      effectiveFromLocalDate: "2030-01-15",
+      expectedPublicationVersion: 7,
+      gapPolicy: "skip",
+      lateToleranceMinutes: 15,
+      localTime: "09:00",
+      missedPolicy: "run-late",
+      recurrenceInterval: 2,
+      recurrenceKind: "weekly",
+      targets: ["instagram_feed"],
+      timeZone: "America/Argentina/Cordoba",
+      weekdays: [2, 5],
+    },
+    "schedule-create-idempotency-0001",
+  );
+
+  assert.deepEqual(result, {
+    materializedOccurrenceCount: 3,
+    publication: { status: "scheduled", version: 8 },
+    scheduleId,
+    status: "created",
+    version: 1,
+  });
+  assert.ok(repository.createInput);
+  assert.equal(repository.createInput.publicationId, publicationId);
+  assert.equal(repository.createInput.expectedPublicationVersion, 7);
+  assert.deepEqual(repository.createInput.rule, {
+    effectiveFrom: "2030-01-15T12:00:00.000Z",
+    gapPolicy: "skip",
+    localTime: "09:00",
+    recurrence: { interval: 2, kind: "weekly", weekdays: [2, 5] },
+    timeZone: "America/Argentina/Cordoba",
+  });
+  assert.equal(
+    repository.createInput.reliableOperation.claim.operation,
+    "scheduling.schedule:create",
+  );
+});
+
+test("una hora inexistente o campos de otra recurrencia no llegan al repositorio", async () => {
+  const repository = new FakeSchedules();
+  await assert.rejects(
+    service(repository).create(
+      actor,
+      publicationId,
+      {
+        effectiveFromLocalDate: "2026-03-29",
+        expectedPublicationVersion: 7,
+        gapPolicy: "skip",
+        lateToleranceMinutes: 0,
+        localTime: "02:30",
+        missedPolicy: "skip",
+        recurrenceKind: "once",
+        targets: ["instagram_feed"],
+        timeZone: "Europe/Madrid",
+      },
+      "schedule-create-idempotency-0002",
+    ),
+    /no existen/u,
+  );
+  assert.equal(repository.createInput, undefined);
+});
 
 test("pausar exige permiso, versión e idempotencia antes de tocar calendario", async () => {
   const repository = new FakeSchedules();
