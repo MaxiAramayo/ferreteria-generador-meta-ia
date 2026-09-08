@@ -578,6 +578,10 @@ local y consecuencias explícitas.
   publicación de `scheduled` a `approved` con transición inmutable
   `unschedule`. La migración del nuevo comando se aplica, revierte y reaplica
   sobre datos de prueba sin dejar el trigger de historial desactivado.
+- Avance 2026-09-08: `POST /schedules/:scheduleId/transitions` requiere
+  `content:schedule`, versión esperada e `Idempotency-Key`; valida que el
+  motivo exista sólo al cancelar y expone recuentos de ocurrencias canceladas y
+  despachadas para que la interfaz represente el resultado parcial.
 
 ### Evidencia de cierre
 

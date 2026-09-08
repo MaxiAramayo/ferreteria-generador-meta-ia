@@ -17,6 +17,7 @@ import {
   PrismaPublicationOrderRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationRepository,
+  PrismaPublicationScheduleManagementRepository,
   PrismaPublicationStateRepository,
   PrismaReliableOperationRepository,
   PrismaRecurringStoryRepository,
@@ -38,6 +39,7 @@ import type {
   PublicationOrderRepository,
   PublicationProductionRepository,
   PublicationRepository,
+  PublicationScheduleManagementRepository,
   PublicationStateRepository,
   ReliableOperationRepository,
   RecurringStoryRuleRepository,
@@ -63,6 +65,7 @@ import {
   PUBLICATION_ORDER_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_REPOSITORY,
+  PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
   RELIABLE_OPERATION_REPOSITORY,
   RECURRING_STORY_RULE_REPOSITORY,
@@ -89,6 +92,7 @@ export class DatabaseModule {
         PUBLICATION_ORDER_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_REPOSITORY,
+        PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
         RELIABLE_OPERATION_REPOSITORY,
         RECURRING_STORY_RULE_REPOSITORY,
@@ -154,6 +158,14 @@ export class DatabaseModule {
             database: DatabaseClient,
           ): PublicationProductionRepository =>
             new PrismaPublicationProductionRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationScheduleManagementRepository =>
+            new PrismaPublicationScheduleManagementRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],
