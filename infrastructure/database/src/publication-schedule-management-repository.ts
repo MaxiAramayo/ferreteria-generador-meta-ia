@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   approvalPublicationTargetPolicy,
+  diffOccurrences,
   nextOccurrenceAfter,
   planOccurrences,
   publicationScheduleInitialMaterializationHorizonDays,
@@ -22,6 +23,7 @@ import {
   type CreatePublicationScheduleInput,
   type CreatePublicationScheduleResult,
   type PublicationMissedPolicy,
+  type PublicationOccurrenceRecord,
   type PublicationOccurrencePlan,
   type PublicationRecurrence,
   type PublicationScheduleManagementRepository,
@@ -32,6 +34,8 @@ import {
   type PublicationTarget,
   type PublicationWeekday,
   type SafeJsonObject,
+  type UpdatePublicationScheduleInput,
+  type UpdatePublicationScheduleResult,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
@@ -50,6 +54,7 @@ const scheduleSelection = {
       approvedAt: true,
       approvedByMembershipId: true,
       id: true,
+      snapshot: true,
     },
   },
   effectiveFrom: true,
@@ -82,6 +87,22 @@ type LockedPublicationRow = Readonly<{
   version: number;
 }>;
 
+type LockedOccurrenceRow = Readonly<{
+  dispatchRequestedAt: Date | null;
+  occurrenceKey: string;
+  publicationOrderId: string | null;
+  resolution: string;
+  scheduledAt: Date;
+  status: string;
+}>;
+
+interface OccurrenceMaterializationInput {
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly occurredAt: string;
+  readonly rule: PublicationScheduleRule;
+}
+
 function sameTargets(
   requested: readonly PublicationTarget[],
   approved: readonly PublicationTarget[],
@@ -92,8 +113,9 @@ function sameTargets(
   );
 }
 
-function initialOccurrencePlans(
-  input: CreatePublicationScheduleInput,
+function occurrencePlans(
+  input: OccurrenceMaterializationInput,
+  materializedThrough?: Date,
 ): readonly PublicationOccurrencePlan[] | undefined {
   if (
     !Number.isInteger(input.lateToleranceMinutes) ||
@@ -102,7 +124,7 @@ function initialOccurrencePlans(
   ) {
     return undefined;
   }
-  const at = new Date(input.reliableOperation.occurredAt);
+  const at = new Date(input.occurredAt);
   if (!Number.isFinite(at.getTime())) {
     throw new RangeError(
       "La creación de programación requiere un instante válido.",
@@ -114,10 +136,14 @@ function initialOccurrencePlans(
         ? input.lateToleranceMinutes * 60_000
         : 0),
   );
-  const to = new Date(
+  const initialWindowEnd = new Date(
     at.getTime() +
       publicationScheduleInitialMaterializationHorizonDays * 24 * 60 * 60_000,
   );
+  const to =
+    materializedThrough !== undefined && materializedThrough > initialWindowEnd
+      ? new Date(materializedThrough.getTime() + 1)
+      : initialWindowEnd;
   const plans = planOccurrences(input.rule, {
     from: from.toISOString(),
     to: to.toISOString(),
@@ -263,6 +289,48 @@ function scheduleStatus(value: string): PublicationScheduleStatus {
   }
 }
 
+function occurrenceResolution(
+  value: string,
+): PublicationOccurrenceRecord["resolution"] {
+  switch (value) {
+    case "ambiguous":
+    case "exact":
+    case "shifted":
+      return value;
+    default:
+      throw new Error(`Resolución de ocurrencia desconocida: ${value}.`);
+  }
+}
+
+function occurrenceStatus(
+  value: string,
+): PublicationOccurrenceRecord["status"] {
+  switch (value) {
+    case "cancelled":
+    case "dispatched":
+    case "planned":
+    case "skipped":
+      return value;
+    default:
+      throw new Error(`Estado de ocurrencia desconocido: ${value}.`);
+  }
+}
+
+function mapOccurrence(row: LockedOccurrenceRow): PublicationOccurrenceRecord {
+  return Object.freeze({
+    ...(row.dispatchRequestedAt === null
+      ? {}
+      : { dispatchRequestedAt: row.dispatchRequestedAt.toISOString() }),
+    occurrenceKey: row.occurrenceKey,
+    ...(row.publicationOrderId === null
+      ? {}
+      : { publicationOrderId: row.publicationOrderId }),
+    resolution: occurrenceResolution(row.resolution),
+    scheduledAt: row.scheduledAt.toISOString(),
+    status: occurrenceStatus(row.status),
+  });
+}
+
 function mapSchedule(row: ScheduleRow): PublicationScheduleRecord {
   const gapPolicy = row.gapPolicy === "next_valid" ? "next-valid" : "skip";
   return Object.freeze({
@@ -404,6 +472,44 @@ function replayedCreation(
   });
 }
 
+function replayedUpdate(
+  responseBody: unknown,
+): UpdatePublicationScheduleResult {
+  if (typeof responseBody !== "object" || responseBody === null) {
+    throw new Error("La respuesta idempotente de programación es inválida.");
+  }
+  const body = responseBody as Record<string, unknown>;
+  const scheduleId = body["scheduleId"];
+  const version = numberAt(body, "version");
+  const cancelledOccurrenceCount = numberAt(body, "cancelledOccurrenceCount");
+  const createdOccurrenceCount = numberAt(body, "createdOccurrenceCount");
+  const frozenOccurrenceCount = numberAt(body, "frozenOccurrenceCount");
+  const rescheduledOccurrenceCount = numberAt(
+    body,
+    "rescheduledOccurrenceCount",
+  );
+  if (
+    typeof scheduleId !== "string" ||
+    version === undefined ||
+    cancelledOccurrenceCount === undefined ||
+    createdOccurrenceCount === undefined ||
+    frozenOccurrenceCount === undefined ||
+    rescheduledOccurrenceCount === undefined
+  ) {
+    throw new Error("La respuesta idempotente de programación es inválida.");
+  }
+  return Object.freeze({
+    cancelledOccurrenceCount,
+    createdOccurrenceCount,
+    frozenOccurrenceCount,
+    replayed: true,
+    rescheduledOccurrenceCount,
+    scheduleId,
+    status: "updated",
+    version,
+  });
+}
+
 function scheduleMutation(
   command: ApplyPublicationScheduleTransitionInput["command"],
   at: Date,
@@ -464,7 +570,12 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
 
     let plans: readonly PublicationOccurrencePlan[] | undefined;
     try {
-      plans = initialOccurrencePlans(input);
+      plans = occurrencePlans({
+        lateToleranceMinutes: input.lateToleranceMinutes,
+        missedPolicy: input.missedPolicy,
+        occurredAt: input.reliableOperation.occurredAt,
+        rule: input.rule,
+      });
     } catch (error: unknown) {
       if (error instanceof RangeError) {
         return Object.freeze({ status: "invalid-rule" });
@@ -683,6 +794,269 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
         scheduleId,
         status: "created",
         version: 1,
+      });
+    });
+  }
+
+  async update(
+    input: UpdatePublicationScheduleInput,
+  ): Promise<UpdatePublicationScheduleResult> {
+    if (
+      input.actorMembershipId !==
+        input.reliableOperation.claim.actorMembershipId ||
+      input.reliableOperation.claim.organizationId !== input.organizationId
+    ) {
+      throw new Error(
+        "El contexto idempotente no coincide con la programación.",
+      );
+    }
+    if (
+      input.targets.length === 0 ||
+      new Set(input.targets).size !== input.targets.length
+    ) {
+      return Object.freeze({ status: "invalid-target" });
+    }
+    const at = new Date(input.reliableOperation.occurredAt);
+    if (!Number.isFinite(at.getTime())) {
+      throw new RangeError(
+        "La actualización de programación requiere un instante válido.",
+      );
+    }
+    const ruleColumns = scheduleRuleColumns(input.rule);
+
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed":
+          return replayedUpdate(claim.responseBody);
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "claimed":
+          break;
+      }
+
+      const locks = await transaction.$queryRaw<readonly { id: string }[]>(
+        Prisma.sql`
+          SELECT "id"
+          FROM "publication_schedules"
+          WHERE "id" = ${input.scheduleId}::uuid
+            AND "organization_id" = ${input.organizationId}::uuid
+          FOR UPDATE
+        `,
+      );
+      if (locks[0] === undefined) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-found" });
+      }
+      const stored = await transaction.publicationSchedule.findFirst({
+        select: scheduleSelection,
+        where: { id: input.scheduleId, organizationId: input.organizationId },
+      });
+      if (stored === null) {
+        throw new Error("La programación bloqueada desapareció.");
+      }
+      if (stored.version !== input.expectedVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "conflict" });
+      }
+      if (stored.status !== "active" && stored.status !== "paused") {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-state" });
+      }
+      const targetPolicy = approvalPublicationTargetPolicy(
+        stored.approvalSnapshot.snapshot,
+      );
+      if (
+        targetPolicy.kind === "invalid" ||
+        (targetPolicy.kind === "exact" &&
+          !sameTargets(input.targets, targetPolicy.targets))
+      ) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-target" });
+      }
+
+      const occurrenceRows = await transaction.$queryRaw<
+        LockedOccurrenceRow[]
+      >(Prisma.sql`
+          SELECT
+            "occurrence_key" AS "occurrenceKey",
+            "scheduled_at" AS "scheduledAt",
+            "resolution"::text AS "resolution",
+            "status"::text AS "status",
+            "publication_order_id" AS "publicationOrderId",
+            "dispatch_requested_at" AS "dispatchRequestedAt"
+          FROM "publication_schedule_occurrences"
+          WHERE "organization_id" = ${input.organizationId}::uuid
+            AND "schedule_id" = ${input.scheduleId}::uuid
+          ORDER BY "scheduled_at" ASC, "occurrence_key" ASC
+          FOR UPDATE
+        `);
+      const existing = occurrenceRows.map(mapOccurrence);
+      const materializedThrough = occurrenceRows.reduce<Date | undefined>(
+        (latest, occurrence) =>
+          latest === undefined || occurrence.scheduledAt > latest
+            ? occurrence.scheduledAt
+            : latest,
+        undefined,
+      );
+      let plans: readonly PublicationOccurrencePlan[] | undefined;
+      try {
+        plans = occurrencePlans(
+          {
+            lateToleranceMinutes: input.lateToleranceMinutes,
+            missedPolicy: input.missedPolicy,
+            occurredAt: input.reliableOperation.occurredAt,
+            rule: input.rule,
+          },
+          materializedThrough,
+        );
+      } catch (error: unknown) {
+        if (error instanceof RangeError) {
+          await discardReliableOperationClaim(transaction, claim.recordId);
+          return Object.freeze({ status: "invalid-rule" });
+        }
+        throw error;
+      }
+      if (plans === undefined) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-rule" });
+      }
+      const diff = diffOccurrences(plans, existing);
+      const version = stored.version + 1;
+      const scheduleUpdated = await transaction.publicationSchedule.updateMany({
+        data: {
+          effectiveFrom: new Date(input.rule.effectiveFrom),
+          effectiveUntil:
+            input.rule.effectiveUntil === undefined
+              ? null
+              : new Date(input.rule.effectiveUntil),
+          gapPolicy:
+            input.rule.gapPolicy === "next-valid" ? "next_valid" : "skip",
+          kind: ruleColumns.kind,
+          lateToleranceMinutes: input.lateToleranceMinutes,
+          localTime: input.rule.localTime,
+          missedPolicy: input.missedPolicy === "run-late" ? "run_late" : "skip",
+          monthDay: ruleColumns.monthDay,
+          monthDayOverflow: ruleColumns.monthDayOverflow,
+          recurrenceInterval: ruleColumns.recurrenceInterval,
+          targets: [...input.targets],
+          timeZone: input.rule.timeZone,
+          updatedAt: at,
+          version,
+          weekdays: [...ruleColumns.weekdays],
+        },
+        where: {
+          id: input.scheduleId,
+          organizationId: input.organizationId,
+          status: stored.status,
+          version: stored.version,
+        },
+      });
+      if (scheduleUpdated.count !== 1) {
+        throw new Error("La programación cambió durante la actualización.");
+      }
+
+      if (diff.obsolete.length > 0) {
+        const cancelled =
+          await transaction.publicationScheduleOccurrence.updateMany({
+            data: { cancelledAt: at, status: "cancelled", updatedAt: at },
+            where: {
+              dispatchOutboxEventId: null,
+              occurrenceKey: { in: [...diff.obsolete] },
+              organizationId: input.organizationId,
+              scheduleId: input.scheduleId,
+              status: "planned",
+            },
+          });
+        if (cancelled.count !== diff.obsolete.length) {
+          throw new Error(
+            "Una ocurrencia cambió durante la actualización de la regla.",
+          );
+        }
+      }
+      for (const occurrence of diff.reschedule) {
+        const rescheduled =
+          await transaction.publicationScheduleOccurrence.updateMany({
+            data: {
+              resolution: occurrence.resolution,
+              scheduledAt: new Date(occurrence.scheduledAt),
+              updatedAt: at,
+            },
+            where: {
+              dispatchOutboxEventId: null,
+              occurrenceKey: occurrence.occurrenceKey,
+              organizationId: input.organizationId,
+              scheduleId: input.scheduleId,
+              status: "planned",
+            },
+          });
+        if (rescheduled.count !== 1) {
+          throw new Error(
+            "Una ocurrencia cambió durante la actualización de la regla.",
+          );
+        }
+      }
+      if (diff.create.length > 0) {
+        await transaction.publicationScheduleOccurrence.createMany({
+          data: diff.create.map((occurrence) => ({
+            occurrenceKey: occurrence.occurrenceKey,
+            organizationId: input.organizationId,
+            resolution: occurrence.resolution,
+            scheduleId: input.scheduleId,
+            scheduledAt: new Date(occurrence.scheduledAt),
+          })),
+        });
+      }
+
+      const responseBody = {
+        cancelledOccurrenceCount: diff.obsolete.length,
+        createdOccurrenceCount: diff.create.length,
+        frozenOccurrenceCount: diff.frozen.length,
+        rescheduledOccurrenceCount: diff.reschedule.length,
+        scheduleId: input.scheduleId,
+        version,
+      } satisfies SafeJsonObject;
+      const commit = reliableCommit(
+        {
+          actorMembershipId: input.actorMembershipId,
+          organizationId: input.organizationId,
+          reliableOperation: input.reliableOperation,
+        },
+        claim.recordId,
+        responseBody,
+        {
+          entityId: input.scheduleId,
+          entityType: "publication_schedule",
+          metadata: {
+            cancelledOccurrenceCount: diff.obsolete.length,
+            createdOccurrenceCount: diff.create.length,
+            frozenOccurrenceCount: diff.frozen.length,
+            publicationId: stored.publicationId,
+            rescheduledOccurrenceCount: diff.reschedule.length,
+            version,
+          },
+          outbox: [],
+        },
+      );
+      if (!(await commitReliableOperation(transaction, commit))) {
+        throw new Error("No se pudo confirmar la actualización idempotente.");
+      }
+      return Object.freeze({
+        cancelledOccurrenceCount: diff.obsolete.length,
+        createdOccurrenceCount: diff.create.length,
+        frozenOccurrenceCount: diff.frozen.length,
+        rescheduledOccurrenceCount: diff.reschedule.length,
+        scheduleId: input.scheduleId,
+        status: "updated",
+        version,
       });
     });
   }

@@ -400,6 +400,19 @@ export interface CreatePublicationScheduleInput extends OrganizationScope {
   readonly targets: readonly PublicationTarget[];
 }
 
+/** Sustituye la regla temporal sin tocar su snapshot de aprobación. */
+export interface UpdatePublicationScheduleInput extends OrganizationScope {
+  readonly actorMembershipId: string;
+  /** Compare-and-swap de la regla que se mueve. */
+  readonly expectedVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly rule: PublicationScheduleRule;
+  readonly scheduleId: string;
+  readonly targets: readonly PublicationTarget[];
+}
+
 /** Resultado de crear una regla y sus primeras ocurrencias en una transacción. */
 export type CreatePublicationScheduleResult =
   | Readonly<{
@@ -419,6 +432,26 @@ export type CreatePublicationScheduleResult =
   | Readonly<{ status: "invalid-rule" }>
   | Readonly<{ status: "invalid-target" }>
   | Readonly<{ status: "not-approved" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Consecuencias que el calendario debe mostrar, sin colapsarlas en éxito. */
+export type UpdatePublicationScheduleResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      createdOccurrenceCount: number;
+      frozenOccurrenceCount: number;
+      replayed?: true;
+      rescheduledOccurrenceCount: number;
+      scheduleId: string;
+      status: "updated";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "invalid-target" }>
   | Readonly<{ status: "not-found" }>;
 
 /**
@@ -457,6 +490,9 @@ export interface PublicationScheduleManagementRepository {
   create(
     input: CreatePublicationScheduleInput,
   ): Promise<CreatePublicationScheduleResult>;
+  update(
+    input: UpdatePublicationScheduleInput,
+  ): Promise<UpdatePublicationScheduleResult>;
   transition(
     input: ApplyPublicationScheduleTransitionInput,
   ): Promise<ApplyPublicationScheduleTransitionResult>;
@@ -482,6 +518,8 @@ export interface PublicationOccurrencePlan {
 
 /** Una ocurrencia ya persistida. */
 export interface PublicationOccurrenceRecord {
+  /** Un job ya salió al outbox/Redis y no puede moverse sin duplicar. */
+  readonly dispatchRequestedAt?: string;
   readonly executionCompletedAt?: string;
   readonly executionStartedAt?: string;
   readonly occurrenceKey: string;
@@ -1113,6 +1151,7 @@ export function occurrenceIsFrozen(
 ): boolean {
   return (
     occurrence.status === "dispatched" ||
+    occurrence.dispatchRequestedAt !== undefined ||
     occurrence.publicationOrderId !== undefined
   );
 }

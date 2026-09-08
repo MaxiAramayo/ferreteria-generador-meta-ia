@@ -600,6 +600,14 @@ local y consecuencias explícitas.
   de la pieza. La API rechaza horas inexistentes, zonas inválidas, políticas de
   recurrencia mezcladas y destinos que no fueron aprobados antes de llegar a
   persistencia.
+- Avance 2026-09-08: mover una regla ya usa su versión propia como CAS y
+  calcula un diff contra las ocurrencias persistidas dentro de la misma
+  transacción. Crea, reprograma o cancela sólo las filas `planned`; conserva
+  como congeladas tanto las `dispatched` como las que ya tienen job solicitado
+  en el outbox, porque modificar una de esas filas podría ejecutar una fecha
+  diferente a la aprobada. El resultado idempotente informa los cuatro conteos
+  para que el formulario explique el efecto real y no presente una edición
+  parcial como éxito plano.
 
 ### Evidencia de cierre
 

@@ -297,6 +297,20 @@ test("una ocurrencia despachada queda congelada aunque la regla ya no la produzc
   assert.ok(occurrenceIsFrozen(dispatched));
 });
 
+test("una ocurrencia ya enviada al worker queda congelada aunque siga planificada", () => {
+  const queued: PublicationOccurrenceRecord = {
+    dispatchRequestedAt: "2026-09-01T12:00:00.000Z",
+    occurrenceKey: "2026-09-01T09:00",
+    resolution: "exact",
+    scheduledAt: "2026-09-01T12:00:00.000Z",
+    status: "planned",
+  };
+  const diff = diffOccurrences([], [queued]);
+  assert.deepEqual(diff.frozen, ["2026-09-01T09:00"]);
+  assert.deepEqual(diff.obsolete, []);
+  assert.ok(occurrenceIsFrozen(queued));
+});
+
 test("una ocurrencia planificada que la regla ya no produce queda obsoleta", () => {
   const diff = diffOccurrences(
     [],

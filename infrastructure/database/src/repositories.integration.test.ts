@@ -9,6 +9,7 @@ import {
   pendingPublicationTargets,
   publicationOccurrenceDispatchTopic,
   publicationOrderStatus,
+  singleOccurrenceRule,
   transitionPublication,
   type GenerationRunRecord,
   type GenerationVariantRecord,
@@ -6647,6 +6648,120 @@ test("no se programa una publicación no aprobada ni una regla única vencida", 
     }),
     0,
   );
+});
+
+test("mover una programación hace diff, congela jobs solicitados y conserva idempotencia", async () => {
+  const fixture = await publicationOrderFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const localDate = new Date(Date.now() + 120 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+  const cordobaAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/Argentina/Cordoba",
+  });
+  const newYorkAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/New_York",
+  });
+  assert.ok(cordobaAnchor);
+  assert.ok(newYorkAnchor);
+  const createContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const created = await repository.create({
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: createContext,
+    rule: {
+      effectiveFrom: cordobaAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/Argentina/Cordoba",
+    },
+    targets: ["instagram_feed"],
+  });
+  assert.equal(created.status, "created");
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchOutboxEventId: randomUUID(),
+      dispatchRequestedAt: new Date(),
+      occurrenceKey: "2020-01-01T09:00",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2020-01-01T12:00:00.000Z"),
+      scheduleId: created.scheduleId,
+    },
+  });
+
+  const updateContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:update",
+  );
+  const input = {
+    actorMembershipId: fixture.membershipId,
+    expectedVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip" as const,
+    organizationId: fixture.organizationId,
+    reliableOperation: updateContext,
+    rule: {
+      effectiveFrom: newYorkAnchor.effectiveFrom,
+      gapPolicy: "skip" as const,
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" as const },
+      timeZone: "America/New_York",
+    },
+    scheduleId: created.scheduleId,
+    targets: ["instagram_feed" as const],
+  };
+  const updated = await repository.update(input);
+  assert.deepEqual(updated, {
+    cancelledOccurrenceCount: 0,
+    createdOccurrenceCount: 0,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 1,
+    scheduleId: created.scheduleId,
+    status: "updated",
+    version: 2,
+  });
+  assert.deepEqual(await repository.update(input), {
+    ...updated,
+    replayed: true,
+  });
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(schedule.timeZone, "America/New_York");
+  assert.equal(schedule.version, 2);
+  const queued = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    where: {
+      occurrenceKey: "2020-01-01T09:00",
+      scheduleId: created.scheduleId,
+    },
+  });
+  assert.equal(queued.status, "planned");
+  assert.ok(queued.dispatchOutboxEventId);
+  const moved = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    where: {
+      occurrenceKey: `${localDate}T09:00`,
+      scheduleId: created.scheduleId,
+    },
+  });
+  assert.equal(moved.scheduledAt.toISOString(), newYorkAnchor.effectiveFrom);
 });
 
 test("una programación sin destinos no se guarda", async () => {
