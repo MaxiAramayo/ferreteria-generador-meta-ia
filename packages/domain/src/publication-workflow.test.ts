@@ -190,6 +190,29 @@ test("editar contenido aprobado requiere una revisión nueva e invalida la aprob
   assert.equal(result.event.newRevisionId, "revision-2");
 });
 
+test("cancelar la última programación devuelve la pieza aprobada a revisión temporal", () => {
+  const scheduled: PublicationWorkflowState = {
+    approval: {
+      approvedAt: "2026-07-28T11:00:00.000Z",
+      reviewerMembershipId: "approver-1",
+      snapshotId: "snapshot-1",
+    },
+    ...state("scheduled"),
+  };
+  const result = transitionPublication(scheduled, {
+    actorMembershipId: "publisher-1",
+    expectedVersion: 3,
+    occurredAt: "2026-07-28T12:00:00.000Z",
+    reasonCode: "schedule-cancelled",
+    type: "unschedule",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.state.status, "approved");
+  assert.deepEqual(result.state.approval, scheduled.approval);
+  assert.equal(result.event.reasonCode, "schedule-cancelled");
+});
+
 test("un fallo conserva código, mensaje seguro y reintento", () => {
   const result = transitionPublication(state("generating_assets"), {
     actorMembershipId: "worker-1",

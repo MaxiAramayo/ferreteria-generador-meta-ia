@@ -352,6 +352,11 @@ Estados terminales adicionales:
 8. Un cambio de contenido posterior a la aprobación invalida la aprobación.
 9. Una regla recurrente materializa instancias auditables.
 10. OpenAI no puede efectuar la transición a `publishing`; solo la aplicación.
+11. Cancelar una programación conserva el snapshot aprobado y sólo cancela
+    ocurrencias aún planificadas; si era la última programación activa o
+    pausada, la publicación vuelve explícitamente de `scheduled` a `approved`.
+    Está definido en
+    [`ADR-026`](decisions/ADR-026-SCHEDULE-CANCELLATION-SEMANTICS.md).
 
 ## Política de aprobación
 

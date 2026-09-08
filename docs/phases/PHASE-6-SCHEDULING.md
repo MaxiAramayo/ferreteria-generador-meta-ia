@@ -564,6 +564,10 @@ local y consecuencias explícitas.
   default `1`, migración reversible y contrato de dominio. La base efímera
   verificó aplicar, revertir y reaplicar la migración; el siguiente cambio usa
   esa versión como `expectedVersion` para los comandos de gestión.
+- Decisión registrada: [`ADR-026`](../architecture/decisions/ADR-026-SCHEDULE-CANCELLATION-SEMANTICS.md)
+  separa cancelar una programación de cancelar una pieza; sólo las ocurrencias
+  planificadas pueden cambiar y la última programación cancelada devuelve la
+  pieza aprobada a `approved`.
 
 ### Evidencia de cierre
 

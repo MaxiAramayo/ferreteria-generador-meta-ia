@@ -117,6 +117,11 @@ export type PublicationTransitionCommand =
   | (PublicationCommandBase & {
       readonly newRevisionId: string;
       readonly type: "edit_approved";
+    })
+  | (PublicationCommandBase & {
+      readonly reasonCode: string;
+      /** Cancela la intención temporal, no la pieza aprobada. */
+      readonly type: "unschedule";
     });
 
 export interface PublicationTransitionEvent {
@@ -260,6 +265,19 @@ function commandTarget(
       return isSafeCode(command.reasonCode)
         ? "expired"
         : invalid("invalid-command", "Expiration requires a safe reason code.");
+    case "unschedule":
+      if (current.status !== "scheduled") {
+        return invalid(
+          "invalid-command",
+          "Only a scheduled publication can be unscheduled.",
+        );
+      }
+      return isSafeCode(command.reasonCode)
+        ? "approved"
+        : invalid(
+            "invalid-command",
+            "Unscheduling requires a safe reason code.",
+          );
     case "fail":
       if (
         !isSafeCode(command.failure.code) ||
