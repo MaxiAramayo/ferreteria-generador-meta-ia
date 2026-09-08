@@ -15,6 +15,7 @@ import {
   PrismaPublicationOccurrenceExecutionRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationScheduleDispatchRepository,
+  PrismaPublicationScheduleMaterializationRepository,
   PrismaRecurringStoryRepository,
 } from "@aramayo/database";
 import type {
@@ -30,6 +31,7 @@ import type {
   PublicationProductionRepository,
   PublicationOccurrenceExecutionRepository,
   PublicationScheduleDispatchRepository,
+  PublicationScheduleMaterializationRepository,
   RecurringStoryMaterializationRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
@@ -49,6 +51,7 @@ import {
   PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+  PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
   RECURRING_STORY_MATERIALIZATION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
@@ -71,6 +74,7 @@ export class DatabaseModule {
         PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+        PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
         RECURRING_STORY_MATERIALIZATION_REPOSITORY,
       ],
       global: true,
@@ -148,6 +152,14 @@ export class DatabaseModule {
             database: DatabaseClient,
           ): PublicationScheduleDispatchRepository =>
             new PrismaPublicationScheduleDispatchRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationScheduleMaterializationRepository =>
+            new PrismaPublicationScheduleMaterializationRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

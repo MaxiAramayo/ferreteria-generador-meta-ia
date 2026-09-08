@@ -163,6 +163,9 @@ export const publicationOccurrenceWindowLimit = 366;
  */
 export const publicationScheduleInitialMaterializationHorizonDays = 90;
 
+/** Máximo de reglas que un ciclo de reposición puede reclamar. */
+export const publicationScheduleMaterializationBatchMaximum = 100;
+
 /** Máxima ventana que una lectura de calendario puede expandir de una vez. */
 export const publicationScheduleCalendarWindowMaximumDays = 93;
 
@@ -558,6 +561,30 @@ export interface PublicationScheduleManagementRepository {
   transition(
     input: ApplyPublicationScheduleTransitionInput,
   ): Promise<ApplyPublicationScheduleTransitionResult>;
+}
+
+/** Entrada del ciclo que mantiene abastecidas las reglas recurrentes activas. */
+export interface MaterializePublicationSchedulesInput {
+  readonly at: string;
+  readonly limit: number;
+  readonly organizationId?: string;
+}
+
+/**
+ * Puerto de reposición de ocurrencias.
+ *
+ * No despacha trabajos ni edita la regla: sólo completa el horizonte futuro y
+ * deja una regla terminal cuando su vigencia o su única ocurrencia concluyen.
+ */
+export interface PublicationScheduleMaterializationRepository {
+  materializeDue(input: MaterializePublicationSchedulesInput): Promise<
+    Readonly<{
+      completed: number;
+      created: number;
+      expired: number;
+      reviewed: number;
+    }>
+  >;
 }
 
 /** Cómo se resolvió la hora local contra la zona. */

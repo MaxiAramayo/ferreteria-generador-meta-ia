@@ -626,6 +626,14 @@ local y consecuencias explícitas.
   versión de regla y permiso `content:schedule`, por lo que muestra altas,
   bajas, reprogramaciones y ocurrencias congeladas antes de confirmar; el
   `PATCH` posterior conserva CAS e idempotencia propios.
+- Avance 2026-09-08: el worker repone en PostgreSQL el horizonte de 90 días de
+  reglas activas con un puerto separado del dispatcher y `FOR UPDATE SKIP
+  LOCKED`. La reposición no toca Redis ni crea órdenes; sólo inserta claves
+  civiles ausentes, omite duplicados por índice único y mantiene el horizonte.
+  Una única ya resuelta pasa a `completed`; una regla con vigencia terminada
+  pasa a `expired` sólo cuando no conserva ocurrencias planificadas, para que
+  el dispatcher alcance a aplicar la política de atraso. Ambos cambios avanzan
+  versión para invalidar una edición concurrente.
 
 ### Contrato de diseño — Calendario de programación
 

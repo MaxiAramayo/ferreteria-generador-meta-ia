@@ -51,6 +51,7 @@ import { PrismaPublicationProductionRepository } from "./publication-production-
 import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
 import { PrismaPublicationScheduleManagementRepository } from "./publication-schedule-management-repository.ts";
+import { PrismaPublicationScheduleMaterializationRepository } from "./publication-schedule-materialization-repository.ts";
 import { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 import {
   PrismaOutboxRepository,
@@ -6889,6 +6890,93 @@ test("la vista previa de mover no escribe y conserva las ocurrencias ya encolada
     cordobaAnchor.effectiveFrom,
   );
   assert.ok(unchangedOccurrence.dispatchOutboxEventId === null);
+});
+
+test("la reposición mantiene el horizonte y cierra reglas vencidas o únicas", async () => {
+  const fixture = await scheduleFixture();
+  const repository = new PrismaPublicationScheduleMaterializationRepository(
+    database,
+  );
+  const initialAt = "2026-09-10T12:00:00.000Z";
+  const initial = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.ok(initial.created > 0);
+  const replenishAt = "2026-12-08T12:00:00.000Z";
+  const replenished = await repository.materializeDue({
+    at: replenishAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.ok(replenished.created > 0);
+  const latest = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    orderBy: { scheduledAt: "desc" },
+    where: { scheduleId: fixture.scheduleId },
+  });
+  assert.ok(
+    latest.scheduledAt.getTime() >=
+      new Date(replenishAt).getTime() + 89 * 24 * 60 * 60_000,
+  );
+  const repeated = await repository.materializeDue({
+    at: replenishAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.deepEqual(repeated, {
+    completed: 0,
+    created: 0,
+    expired: 0,
+    reviewed: 1,
+  });
+
+  const expired = await scheduleFixture({
+    effectiveUntil: new Date("2026-09-01T12:00:00.000Z"),
+  });
+  const expiredResult = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: expired.organizationId,
+  });
+  assert.ok(expiredResult.expired >= 1);
+  assert.equal(
+    (
+      await database.publicationSchedule.findUniqueOrThrow({
+        where: { id: expired.scheduleId },
+      })
+    ).status,
+    "expired",
+  );
+
+  const single = await scheduleFixture({
+    effectiveFrom: new Date("2026-09-20T12:00:00.000Z"),
+    kind: "once",
+    recurrenceInterval: null,
+  });
+  await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: single.organizationId,
+  });
+  await database.publicationScheduleOccurrence.updateMany({
+    data: { skippedReasonCode: "test-resolved", status: "skipped" },
+    where: { scheduleId: single.scheduleId, status: "planned" },
+  });
+  const completed = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: single.organizationId,
+  });
+  assert.ok(completed.completed >= 1);
+  assert.equal(
+    (
+      await database.publicationSchedule.findUniqueOrThrow({
+        where: { id: single.scheduleId },
+      })
+    ).status,
+    "completed",
+  );
 });
 
 test("una programación sin destinos no se guarda", async () => {
