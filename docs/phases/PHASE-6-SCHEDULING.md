@@ -614,6 +614,13 @@ local y consecuencias explícitas.
   comparten la validación de regla —sin permitir campos semanales o mensuales
   que la frecuencia elegida no usa— y la prueba del servicio verifica que esos
   conteos e idempotencia lleguen sin perderse al contrato público.
+- Avance 2026-09-08: `GET /schedules?from&to` y
+  `GET /schedules/:scheduleId?from&to` exponen calendario y detalle bajo
+  `content:read`. La ventana UTC se normaliza y limita a 93 días, mientras la
+  respuesta conserva por ocurrencia el instante, clave civil, resolución y
+  estado, y por regla la fecha local, zona IANA, recurrencia, destinos, snapshot
+  y versión. La integración cubre listado, detalle y rechazo de una ventana
+  fuera del límite.
 
 ### Evidencia de cierre
 

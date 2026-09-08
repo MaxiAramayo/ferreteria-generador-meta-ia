@@ -6573,6 +6573,31 @@ test("crear una programación aprobada materializa ocurrencias y se repite de fo
     }),
     1,
   );
+  const calendarFrom = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const calendarTo = new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString();
+  const calendar = await repository.list({
+    from: calendarFrom,
+    organizationId: fixture.organizationId,
+    to: calendarTo,
+  });
+  assert.equal(calendar.length, 1);
+  assert.equal(calendar[0]?.schedule.id, created.scheduleId);
+  assert.ok((calendar[0]?.occurrences.length ?? 0) > 0);
+  const detail = await repository.find({
+    from: calendarFrom,
+    organizationId: fixture.organizationId,
+    scheduleId: created.scheduleId,
+    to: calendarTo,
+  });
+  assert.equal(detail?.schedule.rule.timeZone, "America/Argentina/Cordoba");
+  await assert.rejects(
+    repository.list({
+      from: calendarFrom,
+      organizationId: fixture.organizationId,
+      to: new Date(Date.now() + 94 * 24 * 60 * 60_000).toISOString(),
+    }),
+    RangeError,
+  );
 });
 
 test("no se programa una publicación no aprobada ni una regla única vencida", async () => {

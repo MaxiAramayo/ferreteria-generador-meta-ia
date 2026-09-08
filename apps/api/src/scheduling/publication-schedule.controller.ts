@@ -1,4 +1,6 @@
 import type {
+  PublicationScheduleCalendarEntryResponse,
+  PublicationScheduleCalendarResponse,
   PublicationScheduleTransitionResponse,
   UpdatePublicationScheduleResponse,
 } from "@aramayo/contracts";
@@ -6,11 +8,13 @@ import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from "@nestjs/common";
 
 import {
@@ -18,6 +22,7 @@ import {
   RequirePermission,
 } from "../identity/identity.decorators.ts";
 import { TransitionPublicationScheduleDto } from "./dto/transition-publication-schedule.dto.ts";
+import { PublicationScheduleCalendarQueryDto } from "./dto/publication-schedule-calendar-query.dto.ts";
 import { UpdatePublicationScheduleDto } from "./dto/update-publication-schedule.dto.ts";
 import { PublicationScheduleService } from "./publication-schedule.service.ts";
 
@@ -27,6 +32,25 @@ export class PublicationScheduleController {
 
   constructor(service: PublicationScheduleService) {
     this.#service = service;
+  }
+
+  @Get()
+  @RequirePermission("content:read")
+  calendar(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Query() input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarResponse> {
+    return this.#service.calendar(session.actor, input);
+  }
+
+  @Get(":scheduleId")
+  @RequirePermission("content:read")
+  detail(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Query() input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarEntryResponse> {
+    return this.#service.detail(session.actor, scheduleId, input);
   }
 
   @Patch(":scheduleId")

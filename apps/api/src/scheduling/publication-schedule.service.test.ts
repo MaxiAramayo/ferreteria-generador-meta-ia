@@ -7,7 +7,10 @@ import type {
   AuthenticatedActor,
   CreatePublicationScheduleInput,
   CreatePublicationScheduleResult,
+  FindPublicationScheduleInput,
   IdempotencyClaimResult,
+  ListPublicationSchedulesInput,
+  PublicationScheduleCalendarEntry,
   PublicationScheduleManagementRepository,
   ReliableOperationRepository,
   UpdatePublicationScheduleInput,
@@ -86,6 +89,18 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
   ): Promise<UpdatePublicationScheduleResult> {
     this.updateInput = input;
     return Promise.resolve(this.updateResult);
+  }
+
+  find(
+    _input: FindPublicationScheduleInput,
+  ): Promise<PublicationScheduleCalendarEntry | null> {
+    return Promise.resolve(null);
+  }
+
+  list(
+    _input: ListPublicationSchedulesInput,
+  ): Promise<readonly PublicationScheduleCalendarEntry[]> {
+    return Promise.resolve([]);
   }
 
   transition(

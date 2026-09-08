@@ -15,6 +15,7 @@ import {
   diffOccurrences,
   nextOccurrenceAfter,
   planOccurrences,
+  publicationScheduleCalendarWindowMaximumDays,
   publicationScheduleInitialMaterializationHorizonDays,
   transitionPublication,
   transitionPublicationSchedule,
@@ -22,6 +23,9 @@ import {
   type ApplyPublicationScheduleTransitionResult,
   type CreatePublicationScheduleInput,
   type CreatePublicationScheduleResult,
+  type FindPublicationScheduleInput,
+  type ListPublicationSchedulesInput,
+  type PublicationScheduleCalendarEntry,
   type PublicationMissedPolicy,
   type PublicationOccurrenceRecord,
   type PublicationOccurrencePlan,
@@ -78,6 +82,15 @@ const scheduleSelection = {
   weekdays: true,
 } satisfies Prisma.PublicationScheduleSelect;
 
+const occurrenceSelection = {
+  dispatchRequestedAt: true,
+  occurrenceKey: true,
+  publicationOrderId: true,
+  resolution: true,
+  scheduledAt: true,
+  status: true,
+} satisfies Prisma.PublicationScheduleOccurrenceSelect;
+
 type ScheduleRow = Prisma.PublicationScheduleGetPayload<{
   select: typeof scheduleSelection;
 }>;
@@ -87,7 +100,7 @@ type LockedPublicationRow = Readonly<{
   version: number;
 }>;
 
-type LockedOccurrenceRow = Readonly<{
+type OccurrenceRow = Readonly<{
   dispatchRequestedAt: Date | null;
   occurrenceKey: string;
   publicationOrderId: string | null;
@@ -153,6 +166,43 @@ function occurrencePlans(
   }
   const next = nextOccurrenceAfter(input.rule, to.toISOString());
   return next === undefined ? undefined : Object.freeze([next]);
+}
+
+function calendarBounds(
+  from: string,
+  to: string,
+): Readonly<{ from: Date; to: Date }> {
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (
+    !Number.isFinite(fromDate.getTime()) ||
+    !Number.isFinite(toDate.getTime()) ||
+    toDate <= fromDate
+  ) {
+    throw new RangeError(
+      "La ventana de calendario debe tener límites válidos.",
+    );
+  }
+  if (
+    toDate.getTime() - fromDate.getTime() >
+    publicationScheduleCalendarWindowMaximumDays * 24 * 60 * 60_000
+  ) {
+    throw new RangeError(
+      "La ventana de calendario supera el máximo permitido.",
+    );
+  }
+  return Object.freeze({ from: fromDate, to: toDate });
+}
+
+function calendarSelection(from: Date, to: Date) {
+  return {
+    ...scheduleSelection,
+    occurrences: {
+      orderBy: [{ scheduledAt: "asc" }, { occurrenceKey: "asc" }],
+      select: occurrenceSelection,
+      where: { scheduledAt: { gte: from, lt: to } },
+    },
+  } satisfies Prisma.PublicationScheduleSelect;
 }
 
 function scheduleRuleColumns(rule: PublicationScheduleRule): Readonly<{
@@ -316,7 +366,7 @@ function occurrenceStatus(
   }
 }
 
-function mapOccurrence(row: LockedOccurrenceRow): PublicationOccurrenceRecord {
+function mapOccurrence(row: OccurrenceRow): PublicationOccurrenceRecord {
   return Object.freeze({
     ...(row.dispatchRequestedAt === null
       ? {}
@@ -547,6 +597,45 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
 
   constructor(database: DatabaseClient) {
     this.#database = database;
+  }
+
+  async find(
+    input: FindPublicationScheduleInput,
+  ): Promise<PublicationScheduleCalendarEntry | null> {
+    const bounds = calendarBounds(input.from, input.to);
+    const schedule = await this.#database.publicationSchedule.findFirst({
+      select: calendarSelection(bounds.from, bounds.to),
+      where: { id: input.scheduleId, organizationId: input.organizationId },
+    });
+    if (schedule === null) return null;
+    return Object.freeze({
+      occurrences: Object.freeze(schedule.occurrences.map(mapOccurrence)),
+      schedule: mapSchedule(schedule),
+    });
+  }
+
+  async list(
+    input: ListPublicationSchedulesInput,
+  ): Promise<readonly PublicationScheduleCalendarEntry[]> {
+    const bounds = calendarBounds(input.from, input.to);
+    const schedules = await this.#database.publicationSchedule.findMany({
+      orderBy: [{ effectiveFrom: "asc" }, { id: "asc" }],
+      select: calendarSelection(bounds.from, bounds.to),
+      where: {
+        occurrences: {
+          some: { scheduledAt: { gte: bounds.from, lt: bounds.to } },
+        },
+        organizationId: input.organizationId,
+      },
+    });
+    return Object.freeze(
+      schedules.map((schedule) =>
+        Object.freeze({
+          occurrences: Object.freeze(schedule.occurrences.map(mapOccurrence)),
+          schedule: mapSchedule(schedule),
+        }),
+      ),
+    );
   }
 
   async create(
@@ -884,7 +973,7 @@ export class PrismaPublicationScheduleManagementRepository implements Publicatio
       }
 
       const occurrenceRows = await transaction.$queryRaw<
-        LockedOccurrenceRow[]
+        OccurrenceRow[]
       >(Prisma.sql`
           SELECT
             "occurrence_key" AS "occurrenceKey",

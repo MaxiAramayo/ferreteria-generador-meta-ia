@@ -1,6 +1,9 @@
 import type {
   CreatePublicationScheduleResponse,
+  PublicationScheduleCalendarEntryResponse,
+  PublicationScheduleCalendarResponse,
   PublicationScheduleTransitionResponse,
+  PublicationScheduleResponse,
   UpdatePublicationScheduleResponse,
 } from "@aramayo/contracts";
 import {
@@ -8,6 +11,7 @@ import {
   singleOccurrenceRule,
   type AuthenticatedActor,
   type CreatePublicationScheduleResult,
+  type PublicationScheduleCalendarEntry,
   type PublicationRecurrence,
   type PublicationScheduleManagementRepository,
   type PublicationScheduleRule,
@@ -27,6 +31,7 @@ import {
 import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
 import { PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY } from "../database/database.tokens.ts";
 import type { CreatePublicationScheduleDto } from "./dto/create-publication-schedule.dto.ts";
+import type { PublicationScheduleCalendarQueryDto } from "./dto/publication-schedule-calendar-query.dto.ts";
 import type { PublicationScheduleRuleDto } from "./dto/publication-schedule-rule.dto.ts";
 import type { TransitionPublicationScheduleDto } from "./dto/transition-publication-schedule.dto.ts";
 import type { UpdatePublicationScheduleDto } from "./dto/update-publication-schedule.dto.ts";
@@ -60,6 +65,53 @@ function updateResponse(
     scheduleId: result.scheduleId,
     status: "updated",
     version: result.version,
+  });
+}
+
+function scheduleResponse(
+  schedule: PublicationScheduleCalendarEntry["schedule"],
+): PublicationScheduleResponse {
+  return Object.freeze({
+    approvalSnapshotId: schedule.approvalSnapshotId,
+    effectiveFrom: schedule.rule.effectiveFrom,
+    ...(schedule.rule.effectiveUntil === undefined
+      ? {}
+      : { effectiveUntil: schedule.rule.effectiveUntil }),
+    gapPolicy: schedule.rule.gapPolicy,
+    id: schedule.id,
+    lateToleranceMinutes: schedule.lateToleranceMinutes,
+    localTime: schedule.rule.localTime,
+    missedPolicy: schedule.missedPolicy,
+    publicationId: schedule.publicationId,
+    recurrence: schedule.rule.recurrence,
+    status: schedule.status,
+    targets: schedule.targets,
+    timeZone: schedule.rule.timeZone,
+    version: schedule.version,
+  });
+}
+
+function calendarEntryResponse(
+  entry: PublicationScheduleCalendarEntry,
+): PublicationScheduleCalendarEntryResponse {
+  return Object.freeze({
+    occurrences: Object.freeze(
+      entry.occurrences.map((occurrence) =>
+        Object.freeze({
+          ...(occurrence.dispatchRequestedAt === undefined
+            ? {}
+            : { dispatchRequestedAt: occurrence.dispatchRequestedAt }),
+          occurrenceKey: occurrence.occurrenceKey,
+          ...(occurrence.publicationOrderId === undefined
+            ? {}
+            : { publicationOrderId: occurrence.publicationOrderId }),
+          resolution: occurrence.resolution,
+          scheduledAt: occurrence.scheduledAt,
+          status: occurrence.status,
+        }),
+      ),
+    ),
+    schedule: scheduleResponse(entry.schedule),
   });
 }
 
@@ -104,6 +156,61 @@ export class PublicationScheduleService {
   ) {
     this.#repository = repository;
     this.#reliableOperations = reliableOperations;
+  }
+
+  async calendar(
+    actor: AuthenticatedActor,
+    input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarResponse> {
+    this.#requireRead(actor);
+    const window = this.#calendarWindow(input);
+    try {
+      const entries = await this.#repository.list({
+        from: window.from,
+        organizationId: actor.organizationId,
+        to: window.to,
+      });
+      return Object.freeze({
+        entries: Object.freeze(entries.map(calendarEntryResponse)),
+        from: window.from,
+        to: window.to,
+      });
+    } catch (cause: unknown) {
+      if (cause instanceof RangeError) {
+        throw new BadRequestException(
+          "La ventana de calendario no es válida o supera el máximo permitido.",
+        );
+      }
+      throw cause;
+    }
+  }
+
+  async detail(
+    actor: AuthenticatedActor,
+    scheduleId: string,
+    input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarEntryResponse> {
+    this.#requireRead(actor);
+    const window = this.#calendarWindow(input);
+    try {
+      const entry = await this.#repository.find({
+        from: window.from,
+        organizationId: actor.organizationId,
+        scheduleId,
+        to: window.to,
+      });
+      if (entry === null) {
+        throw new NotFoundException("No se encontró la programación.");
+      }
+      return calendarEntryResponse(entry);
+    } catch (cause: unknown) {
+      if (cause instanceof RangeError) {
+        throw new BadRequestException(
+          "La ventana de calendario no es válida o supera el máximo permitido.",
+        );
+      }
+      throw cause;
+    }
   }
 
   async create(
@@ -320,6 +427,24 @@ export class PublicationScheduleService {
     }
   }
 
+  #calendarWindow(
+    input: PublicationScheduleCalendarQueryDto,
+  ): Readonly<{ from: string; to: string }> {
+    try {
+      return Object.freeze({
+        from: new Date(input.from).toISOString(),
+        to: new Date(input.to).toISOString(),
+      });
+    } catch (cause: unknown) {
+      if (cause instanceof RangeError) {
+        throw new BadRequestException(
+          "La ventana de calendario debe contener dos fechas válidas.",
+        );
+      }
+      throw cause;
+    }
+  }
+
   #rule(input: PublicationScheduleRuleDto): PublicationScheduleRule {
     const anchor = this.#localRule(
       input.effectiveFromLocalDate,
@@ -509,6 +634,14 @@ export class PublicationScheduleService {
     ) {
       throw new ForbiddenException(
         "No tenés permisos para gestionar programaciones.",
+      );
+    }
+  }
+
+  #requireRead(actor: AuthenticatedActor): void {
+    if (!authorizeActor(actor, "content:read", actor.organizationId).allowed) {
+      throw new ForbiddenException(
+        "No tenés permisos para consultar programaciones.",
       );
     }
   }

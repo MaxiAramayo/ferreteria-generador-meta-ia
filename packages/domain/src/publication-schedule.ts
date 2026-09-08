@@ -163,6 +163,9 @@ export const publicationOccurrenceWindowLimit = 366;
  */
 export const publicationScheduleInitialMaterializationHorizonDays = 90;
 
+/** Máxima ventana que una lectura de calendario puede expandir de una vez. */
+export const publicationScheduleCalendarWindowMaximumDays = 93;
+
 export type PublicationRecurrence =
   | {
       readonly kind: "daily";
@@ -454,6 +457,21 @@ export type UpdatePublicationScheduleResult =
   | Readonly<{ status: "invalid-target" }>
   | Readonly<{ status: "not-found" }>;
 
+/** Una regla y sólo sus ocurrencias dentro de la ventana solicitada. */
+export interface PublicationScheduleCalendarEntry {
+  readonly occurrences: readonly PublicationOccurrenceRecord[];
+  readonly schedule: PublicationScheduleRecord;
+}
+
+export interface ListPublicationSchedulesInput extends OrganizationScope {
+  readonly from: string;
+  readonly to: string;
+}
+
+export interface FindPublicationScheduleInput extends ListPublicationSchedulesInput {
+  readonly scheduleId: string;
+}
+
 /**
  * El resultado informa las ocurrencias que no se pudieron retirar porque ya
  * fueron despachadas. No es un fallo: es la evidencia explícita de un efecto
@@ -493,6 +511,12 @@ export interface PublicationScheduleManagementRepository {
   update(
     input: UpdatePublicationScheduleInput,
   ): Promise<UpdatePublicationScheduleResult>;
+  find(
+    input: FindPublicationScheduleInput,
+  ): Promise<PublicationScheduleCalendarEntry | null>;
+  list(
+    input: ListPublicationSchedulesInput,
+  ): Promise<readonly PublicationScheduleCalendarEntry[]>;
   transition(
     input: ApplyPublicationScheduleTransitionInput,
   ): Promise<ApplyPublicationScheduleTransitionResult>;

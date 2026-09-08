@@ -53,3 +53,55 @@ export interface UpdatePublicationScheduleResponse {
   readonly status: "updated";
   readonly version: number;
 }
+
+export interface PublicationScheduleOccurrenceResponse {
+  readonly dispatchRequestedAt?: string;
+  readonly occurrenceKey: string;
+  readonly publicationOrderId?: string;
+  readonly resolution: "ambiguous" | "exact" | "shifted";
+  readonly scheduledAt: string;
+  readonly status: "cancelled" | "dispatched" | "planned" | "skipped";
+}
+
+export interface PublicationScheduleResponse {
+  readonly approvalSnapshotId: string;
+  readonly effectiveFrom: string;
+  readonly effectiveUntil?: string;
+  readonly gapPolicy: "next-valid" | "skip";
+  readonly id: string;
+  readonly lateToleranceMinutes: number;
+  readonly localTime: string;
+  readonly missedPolicy: "run-late" | "skip";
+  readonly publicationId: string;
+  readonly recurrence:
+    | Readonly<{ readonly kind: "once" }>
+    | Readonly<{ readonly interval: number; readonly kind: "daily" }>
+    | Readonly<{
+        readonly interval: number;
+        readonly kind: "weekly";
+        readonly weekdays: readonly number[];
+      }>
+    | Readonly<{
+        readonly interval: number;
+        readonly kind: "monthly";
+        readonly monthDay: number;
+        readonly overflow: "clamp" | "skip";
+      }>;
+  readonly status: "active" | "cancelled" | "completed" | "expired" | "paused";
+  readonly targets: readonly (
+    "facebook_page" | "instagram_feed" | "instagram_story"
+  )[];
+  readonly timeZone: string;
+  readonly version: number;
+}
+
+export interface PublicationScheduleCalendarEntryResponse {
+  readonly occurrences: readonly PublicationScheduleOccurrenceResponse[];
+  readonly schedule: PublicationScheduleResponse;
+}
+
+export interface PublicationScheduleCalendarResponse {
+  readonly entries: readonly PublicationScheduleCalendarEntryResponse[];
+  readonly from: string;
+  readonly to: string;
+}
