@@ -52,6 +52,7 @@ function scheduleWith(
     rule: dailyRule(),
     status: "active",
     targets: ["instagram_feed", "facebook_page"],
+    version: 1,
     ...overrides,
   };
 }

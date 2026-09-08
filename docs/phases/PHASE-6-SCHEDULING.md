@@ -560,6 +560,10 @@ local y consecuencias explícitas.
   de teclado/lectores y `pnpm verify`.
 - Próximo paso exacto: implementar el puerto de gestión y la migración de
   versión de programación antes de crear la superficie HTTP o visual.
+- Avance 2026-09-08: `PublicationSchedule` ya tiene `version` persistida con
+  default `1`, migración reversible y contrato de dominio. La base efímera
+  verificó aplicar, revertir y reaplicar la migración; el siguiente cambio usa
+  esa versión como `expectedVersion` para los comandos de gestión.
 
 ### Evidencia de cierre
 

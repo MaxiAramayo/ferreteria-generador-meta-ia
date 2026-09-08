@@ -205,6 +205,8 @@ export interface PublicationScheduleRecord {
   readonly rule: PublicationScheduleRule;
   readonly status: PublicationScheduleStatus;
   readonly targets: readonly PublicationTarget[];
+  /** Compare-and-swap para que una edición no pise otra. */
+  readonly version: number;
 }
 
 /** Cómo se resolvió la hora local contra la zona. */

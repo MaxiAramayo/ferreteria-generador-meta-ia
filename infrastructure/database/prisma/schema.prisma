@@ -1036,6 +1036,7 @@ model PublicationSchedule {
   createdByMembershipId String                       @map("created_by_membership_id") @db.Uuid
   kind                  PublicationScheduleKind
   status                PublicationScheduleStatus    @default(active)
+  version               Int                          @default(1)
   targets               PublicationTargetKind[]
   timeZone              String                       @map("time_zone") @db.VarChar(80)
   localTime             String                       @map("local_time") @db.Char(5)
