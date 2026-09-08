@@ -536,7 +536,30 @@ local y consecuencias explícitas.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-08.
+- Estado real: iniciada la revisión de arquitectura. Las dependencias
+  `P6-T01` y `P6-T05` están completas, pero la aplicación sólo expone la
+  creación de historias recurrentes; no existe aún un puerto/repositorio/API
+  para crear, mover, pausar, reanudar o cancelar programaciones generales.
+- Restricciones confirmadas: sólo snapshots aprobados; fecha civil, instante UTC
+  y zona IANA deben aparecer juntos; editar nunca reescribe ocurrencias
+  `dispatched`; cada mutación necesita compare-and-swap, idempotencia, auditoría
+  y una representación explícita de conflicto o resultado parcial.
+- Diseño de responsabilidades: `packages/domain` definirá el contrato de
+  gestión y sus diffs de ocurrencias; un repositorio Prisma hará la mutación de
+  programación, sus ocurrencias futuras y transición/auditoría en una única
+  transacción; `apps/api/scheduling` expondrá DTOs y mapeo de errores; el panel
+  consumirá contratos públicos en una vista calendario/lista separada de los
+  compositores de contenido.
+- Archivos previstos: contrato y pruebas de programación en dominio,
+  `infrastructure/database` (incluida versión CAS de `PublicationSchedule`),
+  módulo API de scheduling, contratos públicos, `apps/web/app/programacion/` y
+  un E2E de crear–mover–pausar–reanudar–cancelar.
+- Verificación prevista: pruebas unitarias de reglas y conflictos, integración
+  de PostgreSQL para transacción/ownership, E2E en Córdoba y Madrid, auditoría
+  de teclado/lectores y `pnpm verify`.
+- Próximo paso exacto: implementar el puerto de gestión y la migración de
+  versión de programación antes de crear la superficie HTTP o visual.
 
 ### Evidencia de cierre
 
