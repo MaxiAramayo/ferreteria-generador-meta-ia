@@ -45,7 +45,8 @@
  */
 
 import type { OrganizationScope } from "./persistence.ts";
-import type { PublicationTarget } from "./publication.ts";
+import type { PublicationStatus, PublicationTarget } from "./publication.ts";
+import type { ReliableMutationContext } from "./reliable-operations.ts";
 
 /** Zona por defecto del negocio. */
 export const publicationScheduleDefaultTimeZone =
@@ -360,6 +361,51 @@ export function transitionPublicationSchedule(
       version: toVersion,
     }),
   });
+}
+
+/** Entrada persistente para un cambio de disponibilidad de calendario. */
+export interface ApplyPublicationScheduleTransitionInput extends OrganizationScope {
+  readonly command: PublicationScheduleTransitionCommand;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly scheduleId: string;
+}
+
+/**
+ * El resultado informa las ocurrencias que no se pudieron retirar porque ya
+ * fueron despachadas. No es un fallo: es la evidencia explícita de un efecto
+ * parcial que el panel debe mostrar, no esconder tras un "cancelado" plano.
+ */
+export type ApplyPublicationScheduleTransitionResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      dispatchedOccurrenceCount: number;
+      publication: Readonly<{
+        status: PublicationStatus;
+        version: number;
+      }>;
+      replayed?: true;
+      scheduleId: string;
+      status: "updated";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "not-found" }>;
+
+/**
+ * Puerto de gestión de una programación.
+ *
+ * La implementación debe ejecutar una transición junto con sus ocurrencias,
+ * la transición eventual `scheduled -> approved` de la publicación, auditoría
+ * e idempotencia. Hacerlo en operaciones independientes permitiría cancelar la
+ * regla y dejar la pieza suspendida sin una programación activa.
+ */
+export interface PublicationScheduleManagementRepository {
+  transition(
+    input: ApplyPublicationScheduleTransitionInput,
+  ): Promise<ApplyPublicationScheduleTransitionResult>;
 }
 
 /** Cómo se resolvió la hora local contra la zona. */

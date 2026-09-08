@@ -87,6 +87,7 @@ enum PublicationTransitionCommandType {
   edit_approved @map("edit_approved")
   expire        @map("expire")
   fail          @map("fail")
+  unschedule    @map("unschedule")
 
   @@map("publication_transition_command_type")
 }

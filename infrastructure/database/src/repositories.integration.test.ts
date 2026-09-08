@@ -49,6 +49,7 @@ import {
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
+import { PrismaPublicationScheduleManagementRepository } from "./publication-schedule-management-repository.ts";
 import { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 import {
   PrismaOutboxRepository,
@@ -6333,6 +6334,177 @@ async function scheduleFixture(
     snapshotId,
   };
 }
+
+test("pausar, reanudar y cancelar una programación conserva la aprobación", async () => {
+  const fixture = await scheduleFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const pauseContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:pause",
+  );
+  const pause = await repository.transition({
+    command: {
+      actorMembershipId: fixture.membershipId,
+      expectedVersion: 1,
+      occurredAt: pauseContext.occurredAt,
+      type: "pause",
+    },
+    organizationId: fixture.organizationId,
+    reliableOperation: pauseContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(pause, {
+    cancelledOccurrenceCount: 0,
+    dispatchedOccurrenceCount: 0,
+    publication: { status: "approved", version: 1 },
+    scheduleId: fixture.scheduleId,
+    status: "updated",
+    version: 2,
+  });
+  const paused = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(paused.status, "paused");
+  assert.equal(paused.version, 2);
+  assert.ok(paused.pausedAt !== null);
+
+  const resumeContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:resume",
+  );
+  const resume = await repository.transition({
+    command: {
+      actorMembershipId: fixture.membershipId,
+      expectedVersion: 2,
+      occurredAt: resumeContext.occurredAt,
+      type: "resume",
+    },
+    organizationId: fixture.organizationId,
+    reliableOperation: resumeContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.equal(resume.status, "updated");
+  assert.equal(resume.version, 3);
+  const resumed = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(resumed.status, "active");
+  assert.equal(resumed.pausedAt, null);
+
+  await database.publication.update({
+    data: { status: "scheduled", version: 2 },
+    where: { id: fixture.publicationId },
+  });
+  await database.publicationStateTransition.create({
+    data: {
+      actorMembershipId: fixture.membershipId,
+      commandType: "advance",
+      fromStatus: "approved",
+      fromVersion: 1,
+      occurredAt: new Date("2026-09-01T11:00:00.000Z"),
+      organizationId: fixture.organizationId,
+      publicationId: fixture.publicationId,
+      toStatus: "scheduled",
+      toVersion: 2,
+    },
+  });
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      occurrenceKey: "2026-09-02T09:00",
+      organizationId: fixture.organizationId,
+      scheduleId: fixture.scheduleId,
+      scheduledAt: new Date("2026-09-02T12:00:00.000Z"),
+    },
+  });
+  const orderId = randomUUID();
+  await database.publicationOrder.create({
+    data: {
+      approvalSnapshotId: fixture.snapshotId,
+      id: orderId,
+      organizationId: fixture.organizationId,
+      publicationId: fixture.publicationId,
+      requestedByMembershipId: fixture.membershipId,
+      targets: { create: [{ target: "instagram_feed" }] },
+    },
+  });
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchedAt: new Date("2026-09-01T12:00:00.000Z"),
+      occurrenceKey: "2026-09-01T09:00",
+      organizationId: fixture.organizationId,
+      publicationOrderId: orderId,
+      scheduleId: fixture.scheduleId,
+      scheduledAt: new Date("2026-09-01T12:00:00.000Z"),
+      status: "dispatched",
+    },
+  });
+
+  const cancelContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:cancel",
+  );
+  const command = {
+    actorMembershipId: fixture.membershipId,
+    expectedVersion: 3,
+    occurredAt: cancelContext.occurredAt,
+    reasonCode: "operator-cancelled",
+    type: "cancel" as const,
+  };
+  const cancellation = await repository.transition({
+    command,
+    organizationId: fixture.organizationId,
+    reliableOperation: cancelContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(cancellation, {
+    cancelledOccurrenceCount: 1,
+    dispatchedOccurrenceCount: 1,
+    publication: { status: "approved", version: 3 },
+    scheduleId: fixture.scheduleId,
+    status: "updated",
+    version: 4,
+  });
+  const replayed = await repository.transition({
+    command,
+    organizationId: fixture.organizationId,
+    reliableOperation: cancelContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(replayed, { ...cancellation, replayed: true });
+
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(schedule.status, "cancelled");
+  assert.equal(schedule.version, 4);
+  assert.equal(schedule.cancelledReasonCode, "operator-cancelled");
+  const occurrences = await database.publicationScheduleOccurrence.findMany({
+    orderBy: { occurrenceKey: "asc" },
+    where: { scheduleId: fixture.scheduleId },
+  });
+  assert.deepEqual(
+    occurrences.map((occurrence) => occurrence.status),
+    ["dispatched", "cancelled"],
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: fixture.publicationId },
+  });
+  assert.equal(publication.status, "approved");
+  assert.equal(publication.version, 3);
+  const transition = await database.publicationStateTransition.findFirstOrThrow(
+    {
+      orderBy: { toVersion: "desc" },
+      where: { publicationId: fixture.publicationId },
+    },
+  );
+  assert.equal(transition.commandType, "unschedule");
+  assert.equal(transition.reasonCode, "operator-cancelled");
+});
 
 test("una programación sin destinos no se guarda", async () => {
   const { membershipId, organizationId, publicationId, snapshotId } =

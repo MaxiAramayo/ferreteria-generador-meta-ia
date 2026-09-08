@@ -569,9 +569,15 @@ local y consecuencias explícitas.
   planificadas pueden cambiar y la última programación cancelada devuelve la
   pieza aprobada a `approved`.
 - Avance 2026-09-08: el dominio ahora calcula `pause`, `resume` y `cancel`
-  con compare-and-swap de versión y sin alterar el snapshot. La persistencia
-  deberá aplicar esa transición junto con las marcas temporales, auditoría y
-  las ocurrencias futuras; 230 pruebas unitarias de dominio la cubren.
+  con compare-and-swap de versión y sin alterar el snapshot; 230 pruebas
+  unitarias cubren esa matriz de transiciones.
+- Avance 2026-09-08: `PrismaPublicationScheduleManagementRepository` aplica
+  esas transiciones con idempotencia y auditoría en una única transacción.
+  `cancel` retira sólo ocurrencias `planned`, informa las `dispatched` que se
+  conservan y, si ya no queda otra programación activa o pausada, devuelve la
+  publicación de `scheduled` a `approved` con transición inmutable
+  `unschedule`. La migración del nuevo comando se aplica, revierte y reaplica
+  sobre datos de prueba sin dejar el trigger de historial desactivado.
 
 ### Evidencia de cierre
 
