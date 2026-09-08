@@ -8,6 +8,9 @@ import {
 } from "./publication-schedule-api.ts";
 
 const apiBaseUrl = "https://api.example.invalid/";
+const targets: ScheduleRuleSubmission["targets"] = Object.freeze([
+  "instagram_feed",
+]);
 const rule: ScheduleRuleSubmission = Object.freeze({
   effectiveFromLocalDate: "2026-09-09",
   gapPolicy: "skip",
@@ -15,7 +18,7 @@ const rule: ScheduleRuleSubmission = Object.freeze({
   localTime: "09:00",
   missedPolicy: "skip",
   recurrenceKind: "once",
-  targets: ["instagram_feed"],
+  targets,
   timeZone: "America/Argentina/Cordoba",
 });
 

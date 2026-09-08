@@ -499,8 +499,8 @@ del envío externo.
 
 ## P6-T06 — Construir calendario y gestión de programación
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T01`, `P6-T05`
 - Riesgo: Medio
 
@@ -517,18 +517,18 @@ local y consecuencias explícitas.
 
 ### Criterios de aceptación
 
-- [ ] El usuario siempre ve fecha, hora y zona.
-- [ ] Cambiar una regla explica qué ocurrencias se modificarán.
-- [ ] No se programa una pieza no aprobada o en el pasado fuera de tolerancia.
-- [ ] Conflictos de versión no sobrescriben cambios ajenos.
-- [ ] Estados vacío, cargando, error, bloqueado y parcial son explícitos.
-- [ ] La UI es operable por teclado y usable en móvil.
+- [x] El usuario siempre ve fecha, hora y zona.
+- [x] Cambiar una regla explica qué ocurrencias se modificarán.
+- [x] No se programa una pieza no aprobada o en el pasado fuera de tolerancia.
+- [x] Conflictos de versión no sobrescriben cambios ajenos.
+- [x] Estados vacío, cargando, error, bloqueado y parcial son explícitos.
+- [x] La UI es operable por teclado y usable en móvil.
 
 ### Verificación obligatoria
 
-- [ ] E2E crear–mover–pausar–reanudar–cancelar.
-- [ ] Prueba en dos zonas horarias del navegador.
-- [ ] Auditoría de accesibilidad.
+- [x] E2E crear–mover–pausar–reanudar–cancelar.
+- [x] Prueba en dos zonas horarias del navegador.
+- [x] Auditoría de accesibilidad.
 
 ### Fuera de alcance
 
@@ -634,6 +634,33 @@ local y consecuencias explícitas.
   pasa a `expired` sólo cuando no conserva ocurrencias planificadas, para que
   el dispatcher alcance a aplicar la política de atraso. Ambos cambios avanzan
   versión para invalidar una edición concurrente.
+- Estado final 2026-09-08: el panel `/programacion` reúne el calendario y la
+  línea de tiempo móvil con el detalle de snapshot, destinos, ocurrencias y
+  estado. El cliente consume los contratos públicos con validación fail-closed;
+  crear, mover, pausar, reanudar y cancelar adquieren CSRF, versión e
+  idempotencia según corresponda. Mover exige `preview` de la misma versión
+  antes de habilitar su confirmación y muestra altas, bajas, reprogramaciones y
+  filas congeladas por job u orden ya solicitados.
+- La fecha local, hora y zona IANA viajan juntas en cada turno. El formulario
+  omite `effectiveUntil` para reglas únicas —aunque esa cota exista internamente
+  para materializarlas— y el detalle usa opciones compatibles de `Intl` para
+  no caerse al seleccionar una ocurrencia. Cada riel escribe `Planificada`,
+  `Cancelada`, `Despachada` o `Salteada`: el estado no queda implícito sólo en
+  color.
+- El E2E nuevo prepara una organización efímera y una sesión real con
+  `content:schedule`; usa teclado para crear, prueba el ciclo completo de
+  transiciones y confirma en PostgreSQL que nunca nace una orden ni se pierde el
+  snapshot. Repite la lectura desde un navegador en `America/New_York` y móvil:
+  la regla conserva `America/Argentina/Cordoba` y su hora local. La captura
+  generada, ignorada por Git, queda en
+  `output/playwright/p6-t06-calendar-mobile.png`.
+- Verificaciones ejecutadas: 77 pruebas del cliente web, lint, typecheck de
+  los tres E2E, build del panel, `pnpm e2e:scheduling` y formato. La auditoría
+  de accesibilidad comprobó foco y activación por teclado del alta, controles
+  con roles/etiquetas, feedback `aria-live`, estados textuales y la línea de
+  tiempo de 390 px. `pnpm verify` completo —incluidos `verify:plan`, build,
+  lint, typecheck, tests, baseline y smoke— terminó en verde.
+- Próximo paso exacto: `P6-T07`, alertas y reconciliación operativa.
 
 ### Contrato de diseño — Calendario de programación
 
@@ -673,7 +700,15 @@ local y consecuencias explícitas.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `92ab19d` (`feat(web): manage publication schedules`).
+- Comandos y resultados: `pnpm --filter @aramayo/web test` (77 pruebas),
+  `pnpm lint`, `pnpm run e2e:typecheck`, `pnpm --filter @aramayo/web build`,
+  `pnpm e2e:scheduling`, `pnpm format:check` y `pnpm verify`, todos en verde.
+- Evidencia visual o remota: Chrome real sobre base/API/panel efímeros en
+  Córdoba y Nueva York; captura móvil revisada en
+  `output/playwright/p6-t06-calendar-mobile.png`. No se contactó Meta ni otro
+  proveedor externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T07 — Implementar alertas y reconciliación operativa
 

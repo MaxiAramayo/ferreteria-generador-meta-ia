@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-07
+Actualizado: 2026-09-08
 
 ## Fase activa
 
@@ -113,11 +113,18 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P6-T06` — construir el calendario y la gestión de programación: vista
-calendario/lista, formularios de una y varias ocurrencias, y consecuencias
-explícitas al mover, pausar o cancelar. Sus dependencias `P6-T01` y `P6-T05`
-están completas. `P5-T09` sigue esperando una autorización concreta y no tiene
-trabajo de código pendiente, así que Fase 6 continúa avanzando en paralelo.
+`P6-T07` — implementar alertas y reconciliación operativa. Sus dependencias
+`P6-T03` y `P6-T05` están completas. `P5-T09` sigue esperando una autorización
+concreta y no tiene trabajo de código pendiente, así que Fase 6 continúa
+avanzando en paralelo.
+
+**`P6-T06` quedó cerrada.** El calendario presenta cada ocurrencia con fecha
+civil, hora, zona IANA, estado textual, snapshot y destinos; en móvil se vuelve
+una línea de tiempo legible. Crear, mover, pausar, reanudar y cancelar conservan
+CSRF, CAS, idempotencia y consecuencias explícitas. Mover no se confirma sin
+calcular su diff, y no toca trabajos u órdenes ya comprometidos. El E2E con
+Chrome real verificó el ciclo completo, teclado, Córdoba y Nueva York, sin
+contactar Meta.
 
 **`P6-T05` quedó cerrada.** La orden pasa por una compuerta factual justo antes
 de llegar a Meta. Se verifica el snapshot vigente, evidencia de datos dinámicos,
