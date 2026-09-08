@@ -490,7 +490,7 @@ del envío externo.
 
 ### Evidencia de cierre
 
-- Commit: pendiente; cambios locales de `P6-T05` revisados.
+- Commit: `01a5e78` (`feat(scheduling): validate before external publication`).
 - `pnpm db:test` — base efímera, migración, aislamiento y reversión verificados.
 - `pnpm e2e:publishing` — flujo de publicación completo.
 - `pnpm e2e:recurring-story` — historia recurrente completa.
