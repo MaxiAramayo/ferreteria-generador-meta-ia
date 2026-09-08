@@ -10,6 +10,8 @@ import type {
   IdempotencyClaimResult,
   PublicationScheduleManagementRepository,
   ReliableOperationRepository,
+  UpdatePublicationScheduleInput,
+  UpdatePublicationScheduleResult,
 } from "@aramayo/domain";
 import { ForbiddenException } from "@nestjs/common";
 
@@ -53,6 +55,16 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
     version: 1,
   });
   input: ApplyPublicationScheduleTransitionInput | undefined;
+  updateInput: UpdatePublicationScheduleInput | undefined;
+  updateResult: UpdatePublicationScheduleResult = Object.freeze({
+    cancelledOccurrenceCount: 2,
+    createdOccurrenceCount: 1,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 3,
+    scheduleId,
+    status: "updated",
+    version: 6,
+  });
   result: ApplyPublicationScheduleTransitionResult = Object.freeze({
     cancelledOccurrenceCount: 0,
     dispatchedOccurrenceCount: 0,
@@ -67,6 +79,13 @@ class FakeSchedules implements PublicationScheduleManagementRepository {
   ): Promise<CreatePublicationScheduleResult> {
     this.createInput = input;
     return Promise.resolve(this.createResult);
+  }
+
+  update(
+    input: UpdatePublicationScheduleInput,
+  ): Promise<UpdatePublicationScheduleResult> {
+    this.updateInput = input;
+    return Promise.resolve(this.updateResult);
   }
 
   transition(
@@ -150,6 +169,43 @@ test("una hora inexistente o campos de otra recurrencia no llegan al repositorio
     /no existen/u,
   );
   assert.equal(repository.createInput, undefined);
+});
+
+test("mover expone las consecuencias de ocurrencias sin ocultar las congeladas", async () => {
+  const repository = new FakeSchedules();
+  const result = await service(repository).update(
+    actor,
+    scheduleId,
+    {
+      effectiveFromLocalDate: "2030-01-15",
+      expectedVersion: 5,
+      gapPolicy: "skip",
+      lateToleranceMinutes: 0,
+      localTime: "09:00",
+      missedPolicy: "skip",
+      recurrenceKind: "once",
+      targets: ["instagram_feed"],
+      timeZone: "America/Argentina/Cordoba",
+    },
+    "schedule-update-idempotency-0001",
+  );
+
+  assert.deepEqual(result, {
+    cancelledOccurrenceCount: 2,
+    createdOccurrenceCount: 1,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 3,
+    scheduleId,
+    status: "updated",
+    version: 6,
+  });
+  assert.ok(repository.updateInput);
+  assert.equal(repository.updateInput.expectedVersion, 5);
+  assert.equal(repository.updateInput.scheduleId, scheduleId);
+  assert.equal(
+    repository.updateInput.reliableOperation.claim.operation,
+    "scheduling.schedule:update",
+  );
 });
 
 test("pausar exige permiso, versión e idempotencia antes de tocar calendario", async () => {

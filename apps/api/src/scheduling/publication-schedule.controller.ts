@@ -1,4 +1,7 @@
-import type { PublicationScheduleTransitionResponse } from "@aramayo/contracts";
+import type {
+  PublicationScheduleTransitionResponse,
+  UpdatePublicationScheduleResponse,
+} from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
   Body,
@@ -6,6 +9,7 @@ import {
   Headers,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from "@nestjs/common";
 
@@ -14,6 +18,7 @@ import {
   RequirePermission,
 } from "../identity/identity.decorators.ts";
 import { TransitionPublicationScheduleDto } from "./dto/transition-publication-schedule.dto.ts";
+import { UpdatePublicationScheduleDto } from "./dto/update-publication-schedule.dto.ts";
 import { PublicationScheduleService } from "./publication-schedule.service.ts";
 
 @Controller("schedules")
@@ -22,6 +27,22 @@ export class PublicationScheduleController {
 
   constructor(service: PublicationScheduleService) {
     this.#service = service;
+  }
+
+  @Patch(":scheduleId")
+  @RequirePermission("content:schedule")
+  update(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Body() input: UpdatePublicationScheduleDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<UpdatePublicationScheduleResponse> {
+    return this.#service.update(
+      session.actor,
+      scheduleId,
+      input,
+      idempotencyKey,
+    );
   }
 
   @Post(":scheduleId/transitions")

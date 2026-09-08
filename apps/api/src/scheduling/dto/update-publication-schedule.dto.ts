@@ -3,10 +3,10 @@ import { IsInt, Min } from "class-validator";
 
 import { PublicationScheduleRuleDto } from "./publication-schedule-rule.dto.ts";
 
-/** Crea una regla desde una versión conocida de la publicación aprobada. */
-export class CreatePublicationScheduleDto extends PublicationScheduleRuleDto {
+/** Mueve una regla existente desde su propia versión conocida. */
+export class UpdatePublicationScheduleDto extends PublicationScheduleRuleDto {
   @IsInt()
   @Min(1)
   @Type(() => Number)
-  expectedPublicationVersion!: number;
+  expectedVersion!: number;
 }

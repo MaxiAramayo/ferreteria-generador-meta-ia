@@ -1,6 +1,7 @@
 import type {
   CreatePublicationScheduleResponse,
   PublicationScheduleTransitionResponse,
+  UpdatePublicationScheduleResponse,
 } from "@aramayo/contracts";
 import {
   authorizeActor,
@@ -12,6 +13,7 @@ import {
   type PublicationScheduleRule,
   type PublicationScheduleTransitionCommand,
   type ReliableMutationContext,
+  type UpdatePublicationScheduleResult,
 } from "@aramayo/domain";
 import {
   BadRequestException,
@@ -25,7 +27,9 @@ import {
 import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
 import { PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY } from "../database/database.tokens.ts";
 import type { CreatePublicationScheduleDto } from "./dto/create-publication-schedule.dto.ts";
+import type { PublicationScheduleRuleDto } from "./dto/publication-schedule-rule.dto.ts";
 import type { TransitionPublicationScheduleDto } from "./dto/transition-publication-schedule.dto.ts";
+import type { UpdatePublicationScheduleDto } from "./dto/update-publication-schedule.dto.ts";
 
 function createResponse(
   result: Extract<
@@ -38,6 +42,23 @@ function createResponse(
     publication: result.publication,
     scheduleId: result.scheduleId,
     status: "created",
+    version: result.version,
+  });
+}
+
+function updateResponse(
+  result: Extract<
+    UpdatePublicationScheduleResult,
+    Readonly<{ status: "updated" }>
+  >,
+): UpdatePublicationScheduleResponse {
+  return Object.freeze({
+    cancelledOccurrenceCount: result.cancelledOccurrenceCount,
+    createdOccurrenceCount: result.createdOccurrenceCount,
+    frozenOccurrenceCount: result.frozenOccurrenceCount,
+    rescheduledOccurrenceCount: result.rescheduledOccurrenceCount,
+    scheduleId: result.scheduleId,
+    status: "updated",
     version: result.version,
   });
 }
@@ -150,6 +171,71 @@ export class PublicationScheduleService {
     }
   }
 
+  async update(
+    actor: AuthenticatedActor,
+    scheduleId: string,
+    input: UpdatePublicationScheduleDto,
+    idempotencyKey?: string,
+  ): Promise<UpdatePublicationScheduleResponse> {
+    this.#require(actor);
+    const rule = this.#rule(input);
+    const reliableOperation = this.#prepare(
+      actor,
+      "scheduling.schedule:update",
+      idempotencyKey,
+      {
+        expectedVersion: input.expectedVersion,
+        lateToleranceMinutes: input.lateToleranceMinutes,
+        missedPolicy: input.missedPolicy,
+        rule,
+        scheduleId,
+        targets: input.targets,
+      },
+    );
+    const result = await this.#repository.update({
+      actorMembershipId: actor.membershipId,
+      expectedVersion: input.expectedVersion,
+      lateToleranceMinutes: input.lateToleranceMinutes,
+      missedPolicy: input.missedPolicy,
+      organizationId: actor.organizationId,
+      reliableOperation,
+      rule,
+      scheduleId,
+      targets: input.targets,
+    });
+    switch (result.status) {
+      case "updated":
+        return updateResponse(result);
+      case "conflict":
+        throw new ConflictException(
+          "La programación cambió. Recargá antes de moverla.",
+        );
+      case "idempotency-conflict":
+        throw new ConflictException(
+          "La clave idempotente ya fue usada con otra acción de calendario.",
+        );
+      case "in-progress":
+        throw new ConflictException({
+          message: "La misma acción de calendario todavía está en curso.",
+          retryAfter: result.retryAfter,
+        });
+      case "invalid-rule":
+        throw new BadRequestException(
+          "La fecha, hora, zona o recurrencia no forman una programación válida.",
+        );
+      case "invalid-state":
+        throw new ConflictException(
+          "La programación no admite cambios en su estado actual.",
+        );
+      case "invalid-target":
+        throw new BadRequestException(
+          "Los destinos no coinciden con la aprobación de esta publicación.",
+        );
+      case "not-found":
+        throw new NotFoundException("No se encontró la programación.");
+    }
+  }
+
   async transition(
     actor: AuthenticatedActor,
     scheduleId: string,
@@ -234,7 +320,7 @@ export class PublicationScheduleService {
     }
   }
 
-  #rule(input: CreatePublicationScheduleDto): PublicationScheduleRule {
+  #rule(input: PublicationScheduleRuleDto): PublicationScheduleRule {
     const anchor = this.#localRule(
       input.effectiveFromLocalDate,
       input.localTime,
@@ -309,7 +395,7 @@ export class PublicationScheduleService {
     }
   }
 
-  #recurrence(input: CreatePublicationScheduleDto): PublicationRecurrence {
+  #recurrence(input: PublicationScheduleRuleDto): PublicationRecurrence {
     const hasMonthlyFields =
       input.monthDay !== undefined || input.monthDayOverflow !== undefined;
     const hasWeeklyFields = input.weekdays !== undefined;

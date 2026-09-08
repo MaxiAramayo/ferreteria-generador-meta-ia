@@ -39,3 +39,17 @@ export interface PublicationScheduleTransitionResponse {
   /** Nueva versión de la programación para el siguiente compare-and-swap. */
   readonly version: number;
 }
+
+export interface UpdatePublicationScheduleResponse {
+  /** Ocurrencias futuras que la nueva regla retiró. */
+  readonly cancelledOccurrenceCount: number;
+  /** Ocurrencias que la nueva regla agregó al calendario. */
+  readonly createdOccurrenceCount: number;
+  /** Ocurrencias ya solicitadas o despachadas, que no pudieron alterarse. */
+  readonly frozenOccurrenceCount: number;
+  /** Ocurrencias de la misma clave civil que cambiaron de instante. */
+  readonly rescheduledOccurrenceCount: number;
+  readonly scheduleId: string;
+  readonly status: "updated";
+  readonly version: number;
+}

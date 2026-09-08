@@ -608,6 +608,12 @@ local y consecuencias explícitas.
   diferente a la aprobada. El resultado idempotente informa los cuatro conteos
   para que el formulario explique el efecto real y no presente una edición
   parcial como éxito plano.
+- Avance 2026-09-08: `PATCH /schedules/:scheduleId` recibe el mismo contrato
+  civil de la creación, pero compara `expectedVersion` de la regla. Devuelve
+  filas creadas, reprogramadas, retiradas y congeladas por separado. Los DTOs
+  comparten la validación de regla —sin permitir campos semanales o mensuales
+  que la frecuencia elegida no usa— y la prueba del servicio verifica que esos
+  conteos e idempotencia lleguen sin perderse al contrato público.
 
 ### Evidencia de cierre
 
