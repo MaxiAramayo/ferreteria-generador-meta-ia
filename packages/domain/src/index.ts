@@ -687,6 +687,7 @@ export {
   scheduleAcceptsOccurrences,
   scheduleExpirationDue,
   singleOccurrenceRule,
+  transitionPublicationSchedule,
   type PublicationMissedDisposition,
   type PublicationMissedPolicy,
   type PublicationMonthDayOverflow,
@@ -712,5 +713,9 @@ export {
   type PublicationScheduleRecord,
   type PublicationScheduleRule,
   type PublicationScheduleStatus,
+  type PublicationScheduleTransitionCommand,
+  type PublicationScheduleTransitionErrorCode,
+  type PublicationScheduleTransitionEvent,
+  type PublicationScheduleTransitionResult,
   type PublicationWeekday,
 } from "./publication-schedule.ts";

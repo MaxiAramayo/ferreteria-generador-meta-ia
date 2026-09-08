@@ -209,6 +209,159 @@ export interface PublicationScheduleRecord {
   readonly version: number;
 }
 
+/**
+ * Comando que cambia la disponibilidad de una programación ya creada.
+ *
+ * Es deliberadamente distinto de una transición de publicación: pausar una
+ * regla no cambia ni la revisión ni su snapshot aprobado. La persistencia usa
+ * el evento para comparar versión, actualizar las marcas temporales y dejar
+ * auditoría en la misma transacción que las ocurrencias afectadas.
+ */
+interface PublicationScheduleCommandBase {
+  readonly actorMembershipId: string;
+  readonly expectedVersion: number;
+  readonly occurredAt: string;
+}
+
+export type PublicationScheduleTransitionCommand =
+  | (PublicationScheduleCommandBase & { readonly type: "pause" })
+  | (PublicationScheduleCommandBase & { readonly type: "resume" })
+  | (PublicationScheduleCommandBase & {
+      readonly reasonCode: string;
+      readonly type: "cancel";
+    });
+
+export interface PublicationScheduleTransitionEvent {
+  readonly actorMembershipId: string;
+  readonly commandType: PublicationScheduleTransitionCommand["type"];
+  readonly fromStatus: PublicationScheduleStatus;
+  readonly fromVersion: number;
+  readonly occurredAt: string;
+  readonly organizationId: string;
+  readonly reasonCode?: string;
+  readonly scheduleId: string;
+  readonly toStatus: PublicationScheduleStatus;
+  readonly toVersion: number;
+}
+
+export type PublicationScheduleTransitionErrorCode =
+  "invalid-command" | "invalid-transition" | "version-conflict";
+
+export type PublicationScheduleTransitionResult =
+  | Readonly<{
+      event: PublicationScheduleTransitionEvent;
+      ok: true;
+      schedule: PublicationScheduleRecord;
+    }>
+  | Readonly<{
+      error: Readonly<{
+        code: PublicationScheduleTransitionErrorCode;
+        message: string;
+      }>;
+      ok: false;
+    }>;
+
+const scheduleReasonCodePattern = /^[a-z0-9][a-z0-9._-]{0,79}$/u;
+
+function invalidScheduleTransition(
+  code: PublicationScheduleTransitionErrorCode,
+  message: string,
+): PublicationScheduleTransitionResult {
+  return Object.freeze({
+    error: Object.freeze({ code, message }),
+    ok: false as const,
+  });
+}
+
+/**
+ * Calcula el cambio de estado de una programación.
+ *
+ * No toca ocurrencias: la capa persistente cancela únicamente las `planned`
+ * como parte de la misma transacción. Separarlo evita que un consumidor use
+ * esta función para reinterpretar o modificar una ocurrencia `dispatched`.
+ */
+export function transitionPublicationSchedule(
+  schedule: PublicationScheduleRecord,
+  command: PublicationScheduleTransitionCommand,
+): PublicationScheduleTransitionResult {
+  if (schedule.version !== command.expectedVersion) {
+    return invalidScheduleTransition(
+      "version-conflict",
+      "The schedule changed before this command could be applied.",
+    );
+  }
+  if (
+    !Number.isInteger(command.expectedVersion) ||
+    command.expectedVersion < 1 ||
+    Number.isNaN(Date.parse(command.occurredAt))
+  ) {
+    return invalidScheduleTransition(
+      "invalid-command",
+      "The schedule command has an invalid version or timestamp.",
+    );
+  }
+
+  let target: PublicationScheduleStatus;
+  switch (command.type) {
+    case "pause":
+      if (schedule.status !== "active") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only an active schedule can be paused.",
+        );
+      }
+      target = "paused";
+      break;
+    case "resume":
+      if (schedule.status !== "paused") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only a paused schedule can be resumed.",
+        );
+      }
+      target = "active";
+      break;
+    case "cancel":
+      if (schedule.status !== "active" && schedule.status !== "paused") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only an active or paused schedule can be cancelled.",
+        );
+      }
+      if (!scheduleReasonCodePattern.test(command.reasonCode)) {
+        return invalidScheduleTransition(
+          "invalid-command",
+          "Cancelling a schedule requires a safe reason code.",
+        );
+      }
+      target = "cancelled";
+      break;
+  }
+
+  const toVersion = schedule.version + 1;
+  const event: PublicationScheduleTransitionEvent = Object.freeze({
+    actorMembershipId: command.actorMembershipId,
+    commandType: command.type,
+    fromStatus: schedule.status,
+    fromVersion: schedule.version,
+    occurredAt: command.occurredAt,
+    organizationId: schedule.organizationId,
+    ...(command.type === "cancel" ? { reasonCode: command.reasonCode } : {}),
+    scheduleId: schedule.id,
+    toStatus: target,
+    toVersion,
+  });
+  return Object.freeze({
+    event,
+    ok: true as const,
+    schedule: Object.freeze({
+      ...schedule,
+      status: target,
+      version: toVersion,
+    }),
+  });
+}
+
 /** Cómo se resolvió la hora local contra la zona. */
 export type PublicationOccurrenceResolution =
   /** La hora local ocurre dos veces; se tomó la primera. */

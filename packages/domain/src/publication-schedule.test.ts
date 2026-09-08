@@ -9,6 +9,7 @@ import {
   planOccurrences,
   publicationScheduleDefaultTimeZone,
   singleOccurrenceRule,
+  transitionPublicationSchedule,
   resolveLocalInstant,
   scheduleAcceptsOccurrences,
   scheduleExpirationDue,
@@ -376,6 +377,54 @@ test("una programación pausada o cancelada no produce ocurrencias", () => {
       `El estado ${status} no debería producir ocurrencias.`,
     );
   }
+});
+
+test("pausar, reanudar y cancelar compara versión sin tocar el snapshot", () => {
+  const active = scheduleWith({ version: 4 });
+  const paused = transitionPublicationSchedule(active, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 4,
+    occurredAt: "2026-09-15T12:00:00.000Z",
+    type: "pause",
+  });
+  assert.equal(paused.ok, true);
+  assert.equal(paused.schedule.status, "paused");
+  assert.equal(paused.schedule.version, 5);
+  assert.equal(paused.schedule.approvalSnapshotId, active.approvalSnapshotId);
+
+  const resumed = transitionPublicationSchedule(paused.schedule, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 5,
+    occurredAt: "2026-09-15T12:05:00.000Z",
+    type: "resume",
+  });
+  assert.equal(resumed.ok, true);
+  assert.equal(resumed.schedule.status, "active");
+
+  const cancelled = transitionPublicationSchedule(resumed.schedule, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 6,
+    occurredAt: "2026-09-15T12:10:00.000Z",
+    reasonCode: "schedule-cancelled",
+    type: "cancel",
+  });
+  assert.equal(cancelled.ok, true);
+  assert.equal(cancelled.schedule.status, "cancelled");
+  assert.equal(cancelled.event.reasonCode, "schedule-cancelled");
+
+  const stale = transitionPublicationSchedule(active, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 3,
+    occurredAt: "2026-09-15T12:00:00.000Z",
+    type: "pause",
+  });
+  assert.deepEqual(stale, {
+    error: {
+      code: "version-conflict",
+      message: "The schedule changed before this command could be applied.",
+    },
+    ok: false,
+  });
 });
 
 test("una programación activa fuera de vigencia no produce ocurrencias", () => {

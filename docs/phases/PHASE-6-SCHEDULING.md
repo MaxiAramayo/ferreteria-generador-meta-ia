@@ -568,6 +568,10 @@ local y consecuencias explícitas.
   separa cancelar una programación de cancelar una pieza; sólo las ocurrencias
   planificadas pueden cambiar y la última programación cancelada devuelve la
   pieza aprobada a `approved`.
+- Avance 2026-09-08: el dominio ahora calcula `pause`, `resume` y `cancel`
+  con compare-and-swap de versión y sin alterar el snapshot. La persistencia
+  deberá aplicar esa transición junto con las marcas temporales, auditoría y
+  las ocurrencias futuras; 230 pruebas unitarias de dominio la cubren.
 
 ### Evidencia de cierre
 
