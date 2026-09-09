@@ -280,6 +280,7 @@ export function SchedulingWorkspace({
           <Link aria-current="page" href="/programacion">
             Programación
           </Link>
+          <Link href="/operacion">Operación</Link>
           <Link href="/configuracion">Configuración</Link>
         </nav>
         <p>

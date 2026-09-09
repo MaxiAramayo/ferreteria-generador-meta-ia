@@ -15,6 +15,7 @@ import {
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
   PrismaPublicationOrderRepository,
+  PrismaPublicationOperationalAlertRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationRepository,
   PrismaPublicationScheduleManagementRepository,
@@ -37,6 +38,7 @@ import type {
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
   PublicationOrderRepository,
+  PublicationOperationalAlertRepository,
   PublicationProductionRepository,
   PublicationRepository,
   PublicationScheduleManagementRepository,
@@ -63,6 +65,7 @@ import {
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
+  PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_REPOSITORY,
   PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
@@ -90,6 +93,7 @@ export class DatabaseModule {
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
+        PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_REPOSITORY,
         PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
@@ -100,6 +104,14 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationOperationalAlertRepository =>
+            new PrismaPublicationOperationalAlertRepository(database),
+        },
         {
           inject: [DATABASE_CLIENT],
           provide: RECURRING_STORY_RULE_REPOSITORY,

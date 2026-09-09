@@ -1,5 +1,7 @@
 import type {
   PublicationManualActionListResponse,
+  PublicationOperationalAlertListResponse,
+  PublicationOperationalAlertResolutionResponse,
   PublicationOrderListResponse,
   PublicationOrderRequestResponse,
   PublicationOrderResponse,
@@ -26,6 +28,7 @@ import {
   RequestPublicationOrderDto,
 } from "./dto/publication-order.dto.ts";
 import { PublicationManualActionService } from "./publication-manual-action.service.ts";
+import { PublicationOperationalAlertService } from "./publication-operational-alert.service.ts";
 import { PublicationOrderService } from "./publication-order.service.ts";
 import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 
@@ -33,16 +36,37 @@ import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 export class PublicationOrderController {
   readonly #manual: PublicationManualActionService;
   readonly #readiness: PublishingReadinessService;
+  readonly #alerts: PublicationOperationalAlertService;
   readonly #service: PublicationOrderService;
 
   constructor(
     service: PublicationOrderService,
     manual: PublicationManualActionService,
     readiness: PublishingReadinessService,
+    alerts: PublicationOperationalAlertService,
   ) {
+    this.#alerts = alerts;
     this.#manual = manual;
     this.#readiness = readiness;
     this.#service = service;
+  }
+
+  @Get("operational-alerts")
+  @RequirePermission("publishing:execute")
+  operationalAlerts(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+  ): Promise<PublicationOperationalAlertListResponse> {
+    return this.#alerts.list(session.actor);
+  }
+
+  /** Reconocer no reintenta ni modifica Meta; sólo queda en auditoría. */
+  @Post("operational-alerts/:alertId/resolution")
+  @RequirePermission("publishing:execute")
+  resolveOperationalAlert(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("alertId", new ParseUUIDPipe()) alertId: string,
+  ): Promise<PublicationOperationalAlertResolutionResponse> {
+    return this.#alerts.resolve(session.actor, alertId);
   }
 
   /** Lo mínimo para decidir si ofrecer publicar, con el permiso de publicar. */

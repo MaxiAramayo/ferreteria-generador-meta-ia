@@ -1208,6 +1208,117 @@ a {
   padding: 1.1rem 0;
 }
 
+/* Centro de control operativo (P6-T07).
+ * La franja vertical no es decorativa: conserva la prioridad de cada señal al
+ * recorrer la lista y evita que la urgencia dependa sólo de un color o icono.
+ */
+
+.operational-intro {
+  grid-template-columns: minmax(0, 1.08fr) minmax(17rem, 0.92fr);
+}
+
+.operational-board {
+  padding-top: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.operational-alert-list {
+  border-top: 1px solid var(--workspace-ink);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.operational-alert {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  display: grid;
+  grid-template-columns: 8.75rem minmax(0, 1fr) auto;
+  min-height: 9.5rem;
+}
+
+.operational-alert-rail {
+  align-items: center;
+  border-left: 0.55rem solid var(--workspace-safety);
+  display: flex;
+  padding: 1rem;
+}
+
+.operational-alert[data-severity="urgent"] .operational-alert-rail {
+  border-left-color: var(--workspace-rust);
+}
+
+.operational-alert-rail span,
+.operational-alert-resource,
+.operational-alert-main > p:not(.operational-alert-resource) {
+  color: var(--workspace-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.operational-alert-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  justify-content: center;
+  padding: 1.1rem 1rem;
+}
+
+.operational-alert-main strong {
+  font-size: 1.1rem;
+  line-height: 1.25;
+  max-width: 48rem;
+}
+
+.operational-alert-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: end;
+  max-width: 25rem;
+  padding: 1rem;
+}
+
+.operational-alert-actions .workspace-secondary-action,
+.operational-alert-actions .workspace-primary-action {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.operational-feedback,
+.operational-empty {
+  background: #ffffff;
+  border-left: 0.35rem solid var(--workspace-safety);
+  margin: 1rem 0 0;
+  max-width: 68rem;
+  padding: 0.85rem 1rem;
+}
+
+.operational-feedback.success {
+  border-left-color: #1f6f43;
+}
+
+.operational-feedback.error {
+  background: #fff1ee;
+  border-left-color: #a02a16;
+  color: #7e1f11;
+}
+
+.operational-empty {
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.45rem 0.45rem 0 var(--workspace-ink);
+}
+
+.operational-empty p {
+  color: var(--workspace-muted);
+  margin: 0.35rem 0 0;
+}
+
 .scheduling-toolbar > div,
 .schedule-detail-actions,
 .schedule-rule-actions {
@@ -1863,6 +1974,8 @@ a {
   }
 
   .workspace-header nav {
+    flex-wrap: wrap;
+    gap: 0.45rem 1rem;
     grid-column: 1 / -1;
     grid-row: 2;
   }
@@ -1878,6 +1991,20 @@ a {
 
   .workspace-intro {
     gap: 1.5rem;
+  }
+
+  .operational-alert {
+    grid-template-columns: 1fr;
+  }
+
+  .operational-alert-rail {
+    justify-content: flex-start;
+    padding: 0.75rem 1rem;
+  }
+
+  .operational-alert-actions {
+    justify-content: flex-start;
+    max-width: none;
   }
 
   .composer-variants {

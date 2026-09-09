@@ -380,6 +380,7 @@ export function PublicationWorkspace({
             Publicaciones
           </a>
           <Link href="/programacion">Programación</Link>
+          <Link href="/operacion">Operación</Link>
           <Link href="/configuracion">Configuración</Link>
         </nav>
         <p>

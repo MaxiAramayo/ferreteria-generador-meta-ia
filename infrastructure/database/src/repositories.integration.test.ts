@@ -2785,6 +2785,11 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
   const connection = await queryPool.connect();
   try {
     await connection.query("SET enable_seqscan = off");
+    // Con un fixture mínimo, el índice único por tenant también puede filtrar
+    // una fila y PostgreSQL prefiere ordenar esa única fila. Desactivar sólo
+    // ese plan alternativo hace que esta prueba compruebe el índice compuesto
+    // que sostiene el orden de la consulta real, sin cambiar el plan productivo.
+    await connection.query("SET enable_sort = off");
     const statusPlan = await connection.query<{ "QUERY PLAN": string }>(
       `
         EXPLAIN (FORMAT TEXT)
