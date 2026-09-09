@@ -35,7 +35,6 @@ test("proyecta alertas verificadas y nunca propaga campos inesperados", async ()
   try {
     const result = await loadOperationalAlerts(apiBaseUrl);
     assert.equal(result.kind, "ready");
-    if (result.kind !== "ready") return;
     assert.deepEqual(result.alerts, [alert]);
     assert.equal(JSON.stringify(result).includes("secret"), false);
   } finally {

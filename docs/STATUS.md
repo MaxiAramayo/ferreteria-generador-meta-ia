@@ -113,10 +113,22 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P6-T07` — implementar alertas y reconciliación operativa. Sus dependencias
-`P6-T03` y `P6-T05` están completas. `P5-T09` sigue esperando una autorización
+`P6-T08` — resolver zonas horarias, feriados y excepciones. Sus dependencias
+`P6-T04` y `P6-T06` están completas. `P5-T09` sigue esperando una autorización
 concreta y no tiene trabajo de código pendiente, así que Fase 6 continúa
 avanzando en paralelo.
+
+**`P6-T07` quedó cerrada.** El worker detecta y persiste tres señales operativas:
+ocurrencia atascada, destino detenido para decisión humana y conexión Meta
+degradada. Cada alerta conserva tenant, recurso, causa, prioridad y acción
+segura, sin tokens ni payloads; se deduplica por recurso y se reabre con
+auditoría si continúa tras una revisión. Una ocurrencia se vuelve urgente a los
+cinco minutos; fallos que afectan un turno a media hora también escalan. La
+bandeja `/operacion` no ejecuta efectos externos: deriva a programación,
+publicaciones o configuración y sólo registra la revisión. El ciclo de
+integración inyectó las tres categorías, deduplicación, resolución, reapertura y
+reconciliación de desenlace ambiguo; se verificó también el panel en escritorio
+y móvil con un doble local, sin contactar Meta.
 
 **`P6-T06` quedó cerrada.** El calendario presenta cada ocurrencia con fecha
 civil, hora, zona IANA, estado textual, snapshot y destinos; en móvil se vuelve

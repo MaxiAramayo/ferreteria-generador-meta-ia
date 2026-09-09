@@ -6,7 +6,6 @@ import type {
   OrganizationRole,
   PublicationOperationalAlertRecord,
   PublicationOperationalAlertRepository,
-  PublicationOperationalAlertSweepInput,
   PublicationOperationalAlertSweepResult,
   ResolvePublicationOperationalAlertResult,
 } from "@aramayo/domain";
@@ -72,9 +71,7 @@ class RepositoryDouble implements PublicationOperationalAlertRepository {
     return Promise.resolve(this.result);
   }
 
-  sweep(
-    _input: PublicationOperationalAlertSweepInput,
-  ): Promise<PublicationOperationalAlertSweepResult> {
+  sweep(): Promise<PublicationOperationalAlertSweepResult> {
     return Promise.reject(new Error("La API no ejecuta barridos."));
   }
 }
@@ -102,8 +99,10 @@ test("reconocer una alerta conserva actor, tenant y auditoría del repositorio",
 
   assert.equal(result.status, "resolved");
   assert.equal(result.alert.id, alertId);
-  assert.equal(repository.resolved?.organizationId, organizationId);
-  assert.equal(repository.resolved?.actorMembershipId, actor().membershipId);
+  const resolution = repository.resolved;
+  if (resolution === null) throw new Error("La resolución no llegó al doble.");
+  assert.equal(resolution.organizationId, organizationId);
+  assert.equal(resolution.actorMembershipId, actor().membershipId);
 });
 
 test("la bandeja no cruza el permiso de publicación", async () => {

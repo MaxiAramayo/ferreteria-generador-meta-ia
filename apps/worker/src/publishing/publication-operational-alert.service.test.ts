@@ -31,7 +31,7 @@ class RepositoryDouble implements PublicationOperationalAlertRepository {
 test("el barrido usa umbrales de dominio y un reloj inyectable", async () => {
   const repository = new RepositoryDouble();
   const service = new PublicationOperationalAlertService(repository, {
-    now: () => new Date("2026-09-08T12:00:00.000Z"),
+    now: (): Date => new Date("2026-09-08T12:00:00.000Z"),
   });
 
   const result = await service.sweep();

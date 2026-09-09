@@ -660,7 +660,7 @@ local y consecuencias explícitas.
   con roles/etiquetas, feedback `aria-live`, estados textuales y la línea de
   tiempo de 390 px. `pnpm verify` completo —incluidos `verify:plan`, build,
   lint, typecheck, tests, baseline y smoke— terminó en verde.
-- Próximo paso exacto: `P6-T07`, alertas y reconciliación operativa.
+- Próximo paso exacto: `P6-T08`, excepciones y horarios especiales.
 
 ### Contrato de diseño — Calendario de programación
 
@@ -712,8 +712,8 @@ local y consecuencias explícitas.
 
 ## P6-T07 — Implementar alertas y reconciliación operativa
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T03`, `P6-T05`
 - Riesgo: Alto
 
@@ -730,18 +730,18 @@ remota con mensajes accionables.
 
 ### Criterios de aceptación
 
-- [ ] Alertas incluyen publicación, destino, causa y acción segura.
-- [ ] No incluyen tokens ni payloads sensibles.
-- [ ] Se deduplican sin ocultar recurrencias reales.
-- [ ] La resolución queda auditada.
-- [ ] El sistema identifica ocurrencias atascadas por umbral.
-- [ ] Existe escalamiento para fallos cercanos a horario de publicación.
+- [x] Alertas incluyen publicación, destino, causa y acción segura.
+- [x] No incluyen tokens ni payloads sensibles.
+- [x] Se deduplican sin ocultar recurrencias reales.
+- [x] La resolución queda auditada.
+- [x] El sistema identifica ocurrencias atascadas por umbral.
+- [x] Existe escalamiento para fallos cercanos a horario de publicación.
 
 ### Verificación obligatoria
 
-- [ ] Inyectar cada categoría de alerta.
-- [ ] Confirmar deduplicación, resolución y reapertura.
-- [ ] Ejecutar reconciliación sobre órdenes ambiguas.
+- [x] Inyectar cada categoría de alerta.
+- [x] Confirmar deduplicación, resolución y reapertura.
+- [x] Ejecutar reconciliación sobre órdenes ambiguas.
 
 ### Fuera de alcance
 
@@ -749,11 +749,47 @@ remota con mensajes accionables.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-08.
+- Estado real: la tarea cierra. El worker conserva los barridos temporales y de
+  reconciliación existentes y agrega, aun sin Meta habilitada, un barrido
+  durable de alertas. La bandeja `/operacion` permite a quien tiene
+  `publishing:execute` revisar la señal y navegar al paso seguro; reconocerla
+  no publica, reintenta ni modifica Meta.
+- Archivos: contrato y política en
+  `packages/domain/src/publication-operational-alert.ts`; migración
+  `20260908140000_publication_operational_alerts`; repositorio Prisma y prueba
+  de integración; servicio del worker y mantenimiento; endpoints y servicio
+  Nest; contrato público, cliente fail-closed y panel web `/operacion`.
+- Cada huella se compone por tenant y recurso concreto. Una ocurrencia usa su
+  propia identidad más destino, por lo que dos recurrencias no se tapan; una
+  observación repetida incrementa el contador sin duplicar la alerta. Una
+  resolución humana queda en auditoría y la misma condición vuelve a abrir la
+  alerta con otra auditoría. Un barrido limitado nunca cierra por ausencia una
+  alerta que no alcanzó a observar.
+- A los cinco minutos una ocurrencia vencida sin despacho o sin ejecución
+  completada es urgente. Destinos con fallo permanente, presupuesto de intentos
+  agotado o desenlace remoto ambiguo se derivan de la acción manual segura; los
+  problemas a media hora del horario programado escalan a urgente. Una conexión
+  Meta degradada queda en atención o urgente si afecta una ocurrencia cercana.
+- La alerta sólo persiste IDs internos, códigos y acción segura. El repositorio,
+  auditoría, API y panel no incluyen token, payload remoto, copy ni mensaje
+  crudo del proveedor. Reconciliar continúa siendo obligatorio antes de
+  reintentar un desenlace ambiguo.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `e6192ab` (`feat(scheduling): detect operational publication alerts`)
+  y `a05dac3` (`feat(scheduling): expose operational alert inbox`).
+- Comandos y resultados: `pnpm db:test` (migración desde vacío, integración,
+  down/up y 71 pruebas); `pnpm --filter @aramayo/web test` (80 pruebas) y
+  `build`; `pnpm --filter @aramayo/api test` (120 pruebas) y `build`;
+  `pnpm --filter @aramayo/worker test` (328 aprobadas y una omitida existente);
+  `pnpm format:check` y `pnpm verify`, en verde.
+- Evidencia visual o remota: navegador local contra un doble efímero verificó
+  escritorio y 390 px, la alerta urgente, su acción segura, el reconocimiento
+  auditado representado y el estado vacío posterior. No se contactó Meta ni
+  otro proveedor externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T08 — Resolver zonas horarias, feriados y excepciones
 
