@@ -32,6 +32,7 @@ import type {
   GenerationRunRequestRepository,
   GenerationPolicyRepository,
   IdentityRepository,
+  LocationDayOverrideRepository,
   MediaAssetRepository,
   MetaConnectionRepository,
   MetaComplianceRepository,
@@ -59,6 +60,7 @@ import {
   GENERATION_RUN_REQUEST_REPOSITORY,
   GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
+  LOCATION_DAY_OVERRIDE_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   META_COMPLIANCE_REPOSITORY,
@@ -90,6 +92,7 @@ export class DatabaseModule {
         MEDIA_ASSET_REPOSITORY,
         META_CONNECTION_REPOSITORY,
         META_COMPLIANCE_REPOSITORY,
+        LOCATION_DAY_OVERRIDE_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
@@ -196,6 +199,14 @@ export class DatabaseModule {
           provide: PUBLICATION_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationRepository =>
             new PrismaPublicationRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: LOCATION_DAY_OVERRIDE_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): LocationDayOverrideRepository =>
+            new PrismaOrganizationConfigurationRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

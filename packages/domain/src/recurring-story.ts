@@ -160,6 +160,18 @@ export function resolveRecurringStoryDraft(
     policy: RecurringStoryApprovalPolicy;
   }>,
 ): RecurringStoryDraftResolution {
+  const localDate = recurringStoryLocalDate(input.occurrence);
+  // Una excepción pertenece a una fecha civil de la sucursal. Aplicar la de
+  // otro día produciría un horario equivocado en el borde de medianoche, así
+  // que el desajuste se declara en vez de resolverse por conveniencia.
+  if (
+    input.dayOverride !== undefined &&
+    input.dayOverride.localDate !== localDate
+  ) {
+    throw new RangeError(
+      `La excepción del ${input.dayOverride.localDate} no corresponde a la fecha local ${localDate}.`,
+    );
+  }
   if (!input.location.isActive) {
     return Object.freeze({ reason: "location-inactive", status: "blocked" });
   }
@@ -176,7 +188,6 @@ export function resolveRecurringStoryDraft(
     return Object.freeze({ reason: "missing-hours", status: "blocked" });
   }
 
-  const localDate = recurringStoryLocalDate(input.occurrence);
   const address = `${input.location.addressLine}, ${input.location.city}`;
   const isOverride = input.dayOverride?.status === "open";
   const sourceVersion = isOverride

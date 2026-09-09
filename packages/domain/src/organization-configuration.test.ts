@@ -4,6 +4,10 @@ import test from "node:test";
 import {
   ConfigurationValidationError,
   normalizeBrandConfigurationUpdate,
+  normalizeLocationDayOverrideDeletion,
+  normalizeLocationDayOverrideExpectedVersion,
+  normalizeLocationDayOverrideRange,
+  normalizeLocationDayOverrideUpdate,
   normalizeLocationConfigurationUpdate,
 } from "./organization-configuration.ts";
 
@@ -130,5 +134,81 @@ test("rechaza horarios invertidos, teléfonos incompletos y zonas desconocidas",
         timeZone: "Argentina/Desconocida",
       }),
     ConfigurationValidationError,
+  );
+});
+
+test("normaliza cierres y horarios especiales por fecha civil", () => {
+  assert.deepEqual(
+    normalizeLocationDayOverrideUpdate({
+      actor,
+      expectedVersion: 2,
+      localDate: "2026-12-31",
+      locationId: "location-a",
+      openingHours: " 09:00 a 13:00 · 17:00 a 20:00 ",
+      sourceLabel: " Horario de fin de año ",
+      status: "open",
+    }),
+    {
+      localDate: "2026-12-31",
+      openingHours: "09:00 a 13:00 · 17:00 a 20:00",
+      sourceLabel: "Horario de fin de año",
+      status: "open",
+    },
+  );
+  assert.deepEqual(
+    normalizeLocationDayOverrideUpdate({
+      actor,
+      localDate: "2027-01-01",
+      locationId: "location-a",
+      sourceLabel: "Feriado nacional",
+      status: "closed",
+    }),
+    {
+      localDate: "2027-01-01",
+      sourceLabel: "Feriado nacional",
+      status: "closed",
+    },
+  );
+  assert.equal(
+    normalizeLocationDayOverrideExpectedVersion({
+      actor,
+      expectedVersion: 2,
+      localDate: "2026-12-31",
+      locationId: "location-a",
+      sourceLabel: "Horario de fin de año",
+      status: "closed",
+    }),
+    2,
+  );
+  assert.deepEqual(
+    normalizeLocationDayOverrideDeletion({
+      actor,
+      expectedVersion: 2,
+      localDate: "2027-01-01",
+      locationId: "location-a",
+    }),
+    { expectedVersion: 2, localDate: "2027-01-01" },
+  );
+});
+
+test("rechaza fechas imposibles y rangos de excepciones demasiado amplios", () => {
+  assert.throws(
+    () =>
+      normalizeLocationDayOverrideUpdate({
+        actor,
+        localDate: "2026-02-29",
+        locationId: "location-a",
+        sourceLabel: "Cierre informado",
+        status: "closed",
+      }),
+    ConfigurationValidationError,
+  );
+  assert.throws(
+    () => normalizeLocationDayOverrideRange("2026-09-01", "2026-12-04"),
+    ConfigurationValidationError,
+  );
+  assert.deepEqual(
+    normalizeLocationDayOverrideRange("2026-09-01", "2026-12-03"),
+    { endDate: "2026-12-03", startDate: "2026-09-01" },
   );
 });

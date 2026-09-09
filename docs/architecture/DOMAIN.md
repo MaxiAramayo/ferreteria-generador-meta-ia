@@ -304,10 +304,20 @@ toda materialización aún no publicada. Está en
 ### LocationDayOverride
 
 Excepción por sucursal y fecha civil: cierre o horario especial, con su
-etiqueta de origen y versión. Se consulta al materializar y tiene precedencia
-sobre el horario configurado. Un horario especial exige aprobación humana
-aunque la regla sea automática. La gestión visual de estas excepciones es
-alcance de `P6-T08`.
+etiqueta de origen y versión. La zona IANA la aporta siempre la sucursal, nunca
+la solicitud. Se consulta al materializar y tiene precedencia sobre el horario
+configurado. Un horario especial exige aprobación humana aunque la regla sea
+automática, y resolver una ocurrencia con la excepción de otro día civil es un
+error declarado, no un dato que se acomode.
+
+La lectura requiere `content:read`; crear, cambiar o quitar una excepción
+requiere `organization:manage` y compara `expectedVersion` —crear exige su
+ausencia—. Cada mutación invalida en lote lo que todavía no salió de esa fecha:
+cancela programación y ocurrencias planificadas, lleva la publicación a
+`validation_failed` y marca la materialización `invalidated`. El barrido no la
+repone solo. El panel calcula ese impacto antes de guardar y consulta ventanas
+de hasta 93 días. La decisión está en
+[`ADR-027`](decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
 
 ### PublicationSchedule y PublicationScheduleOccurrence
 

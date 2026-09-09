@@ -8640,3 +8640,346 @@ test("las alertas operativas deduplican, se auditan y se reabren sin mezclar ocu
     1,
   );
 });
+
+test("una excepción de horario invalida las historias futuras de esa fecha y respeta versiones", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Aramayo excepciones gestionadas",
+        id: organizationId,
+        legalName: "Aramayo excepciones gestionadas",
+        slug: `day-override-${organizationId}`,
+      },
+      {
+        displayName: "Aramayo ajena",
+        id: otherOrganizationId,
+        legalName: "Aramayo ajena",
+        slug: `day-override-other-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de excepciones",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+      timeZone: "America/Argentina/Cordoba",
+    },
+  });
+  const actor = {
+    displayName: "Responsable de excepciones",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  await recurring.create({
+    actor,
+    approvalPolicy: "automatic-routine",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `day-override-${randomUUID()}`,
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId,
+    name: "Ya abrimos",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    weekdays: [2],
+  });
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 5,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+
+  const overrides = new PrismaOrganizationConfigurationRepository(database);
+  const holiday = {
+    localDate: "2026-09-08",
+    sourceLabel: "Feriado provincial confirmado",
+    status: "closed" as const,
+  };
+
+  // Previsualizar informa el impacto sin escribir nada.
+  const preview = await overrides.previewLocationDayOverride({
+    changedAt: "2026-09-07T13:00:00.000Z",
+    locationId,
+    organizationId,
+    update: holiday,
+  });
+  assert.deepEqual(preview, {
+    impact: {
+      affectedStoryCount: 1,
+      localDate: "2026-09-08",
+      timeZone: "America/Argentina/Cordoba",
+      willBlockHoursSensitiveStories: true,
+      willRequireHumanApproval: false,
+    },
+    status: "ready",
+  });
+  assert.equal(
+    await database.locationDayOverride.count({ where: { organizationId } }),
+    0,
+  );
+  assert.equal(
+    (
+      await database.recurringStoryMaterialization.findFirstOrThrow({
+        where: { organizationId },
+      })
+    ).status,
+    "draft_created",
+  );
+
+  // Una versión esperada sobre una fecha sin excepción es un conflicto.
+  assert.deepEqual(
+    await overrides.upsertLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T13:00:00.000Z",
+      expectedVersion: 1,
+      locationId,
+      organizationId,
+      update: holiday,
+    }),
+    { status: "conflict" },
+  );
+
+  const created = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T13:00:00.000Z",
+    locationId,
+    organizationId,
+    update: holiday,
+  });
+  assert.equal(created.status, "updated");
+  assert.equal(created.impact.affectedStoryCount, 1);
+  assert.equal(created.override.status, "closed");
+  assert.equal(created.override.localDate, "2026-09-08");
+  assert.equal(created.override.version, 1);
+
+  const invalidated =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  assert.equal(invalidated.status, "invalidated");
+  assert.equal(
+    invalidated.invalidatedReasonCode,
+    "location-day-override-changed",
+  );
+  assert.equal(invalidated.scheduleId, null);
+  assert.ok(invalidated.publicationId);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: invalidated.publicationId },
+  });
+  assert.equal(publication.status, "validation_failed");
+  assert.equal(publication.failureCode, "location-day-override-changed");
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: {
+        organizationId,
+        publicationId: invalidated.publicationId,
+        toStatus: "validation_failed",
+      },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityType: "location_day_override",
+        operation: "scheduling.location-day-override:upsert",
+        organizationId,
+      },
+    }),
+    1,
+  );
+
+  // Cambiar a horario reducido exige la versión vigente y sube la propia.
+  assert.deepEqual(
+    await overrides.upsertLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T14:00:00.000Z",
+      expectedVersion: 7,
+      locationId,
+      organizationId,
+      update: {
+        localDate: "2026-09-08",
+        openingHours: "09:00 a 12:00",
+        sourceLabel: "Horario reducido informado por la dueña",
+        status: "open",
+      },
+    }),
+    { status: "conflict" },
+  );
+  const reduced = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T14:00:00.000Z",
+    expectedVersion: 1,
+    locationId,
+    organizationId,
+    update: {
+      localDate: "2026-09-08",
+      openingHours: "09:00 a 12:00",
+      sourceLabel: "Horario reducido informado por la dueña",
+      status: "open",
+    },
+  });
+  assert.equal(reduced.status, "updated");
+  assert.equal(reduced.override.version, 2);
+  assert.equal(reduced.impact.willRequireHumanApproval, true);
+  // La historia ya estaba invalidada: no vuelve a contarse.
+  assert.equal(reduced.impact.affectedStoryCount, 0);
+
+  // Re-aprobación: el ciclo vuelve a mirar la ocurrencia pero no repone sola
+  // la historia invalidada. Hace falta una revisión humana.
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T15:00:00.000Z",
+      limit: 5,
+      organizationId,
+    }),
+    { blocked: 0, created: 0, reviewed: 1 },
+  );
+  assert.equal(
+    (
+      await database.recurringStoryMaterialization.findFirstOrThrow({
+        where: { organizationId },
+      })
+    ).status,
+    "invalidated",
+  );
+
+  // Un cierre inesperado en otra fecha no toca lo ya publicado ni lo ajeno.
+  const unexpectedClosure = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T16:00:00.000Z",
+    locationId,
+    organizationId,
+    update: {
+      localDate: "2026-09-15",
+      sourceLabel: "Cierre inesperado por corte de energía",
+      status: "closed",
+    },
+  });
+  assert.equal(unexpectedClosure.status, "updated");
+  assert.equal(unexpectedClosure.impact.affectedStoryCount, 0);
+
+  assert.deepEqual(
+    (
+      await overrides.listLocationDayOverrides({
+        endDate: "2026-09-30",
+        locationId,
+        organizationId,
+        startDate: "2026-09-01",
+      })
+    )?.map((override) => `${override.localDate}:${override.status}`),
+    ["2026-09-08:open", "2026-09-15:closed"],
+  );
+  assert.deepEqual(
+    (
+      await overrides.listLocationDayOverrides({
+        endDate: "2026-09-10",
+        locationId,
+        organizationId,
+        startDate: "2026-09-09",
+      })
+    )?.map((override) => override.localDate),
+    [],
+  );
+  assert.equal(
+    await overrides.listLocationDayOverrides({
+      endDate: "2026-09-30",
+      locationId,
+      organizationId: otherOrganizationId,
+      startDate: "2026-09-01",
+    }),
+    null,
+  );
+
+  // Borrar compara versión y conserva la fecha civil pedida.
+  assert.deepEqual(
+    await overrides.deleteLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T17:00:00.000Z",
+      expectedVersion: 1,
+      localDate: "2026-09-15",
+      locationId,
+      organizationId: otherOrganizationId,
+    }),
+    { status: "not-found" },
+  );
+  assert.deepEqual(
+    await overrides.deleteLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T17:00:00.000Z",
+      expectedVersion: 9,
+      localDate: "2026-09-15",
+      locationId,
+      organizationId,
+    }),
+    { status: "conflict" },
+  );
+  const removed = await overrides.deleteLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T17:00:00.000Z",
+    expectedVersion: 1,
+    localDate: "2026-09-15",
+    locationId,
+    organizationId,
+  });
+  assert.equal(removed.status, "deleted");
+  assert.equal(removed.impact.localDate, "2026-09-15");
+  assert.equal(
+    await database.locationDayOverride.count({
+      where: { locationId, organizationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityType: "location_day_override",
+        operation: "scheduling.location-day-override:delete",
+        organizationId,
+      },
+    }),
+    1,
+  );
+});

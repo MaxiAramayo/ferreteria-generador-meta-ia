@@ -9,6 +9,11 @@ export const brandThemeIds = [
 
 export type BrandThemeId = (typeof brandThemeIds)[number];
 
+export const locationDayOverrideStatuses = ["open", "closed"] as const;
+
+export type LocationDayOverrideStatus =
+  (typeof locationDayOverrideStatuses)[number];
+
 export interface BrandConfiguration {
   readonly claim: string;
   readonly handle: string;
@@ -42,6 +47,44 @@ export interface LocationConfiguration {
   readonly whatsapp?: string;
 }
 
+/**
+ * Un horario excepcional pertenece a una fecha civil de la sucursal, no a un
+ * instante UTC. La zona IANA se obtiene siempre de la sucursal que lo posee.
+ */
+export type LocationDayOverride =
+  | Readonly<{
+      id: string;
+      localDate: string;
+      locationId: string;
+      openingHours: string;
+      sourceLabel: string;
+      status: "open";
+      version: number;
+    }>
+  | Readonly<{
+      id: string;
+      localDate: string;
+      locationId: string;
+      sourceLabel: string;
+      status: "closed";
+      version: number;
+    }>;
+
+export interface LocationDayOverrideImpact {
+  readonly affectedStoryCount: number;
+  readonly localDate: string;
+  readonly timeZone: string;
+  readonly willBlockHoursSensitiveStories: boolean;
+  readonly willRequireHumanApproval: boolean;
+}
+
+export interface LocationDayOverrideListQuery {
+  readonly endDate: string;
+  readonly locationId: string;
+  readonly organizationId: string;
+  readonly startDate: string;
+}
+
 export interface UpdateBrandConfigurationCommand {
   readonly actor: AuthenticatedActor;
   readonly brandVersion: number;
@@ -70,6 +113,49 @@ export interface UpdateLocationConfigurationCommand {
   readonly whatsapp?: string;
 }
 
+export type UpsertLocationDayOverrideCommand =
+  | Readonly<{
+      actor: AuthenticatedActor;
+      expectedVersion?: number;
+      localDate: string;
+      locationId: string;
+      openingHours: string;
+      sourceLabel: string;
+      status: "open";
+    }>
+  | Readonly<{
+      actor: AuthenticatedActor;
+      expectedVersion?: number;
+      localDate: string;
+      locationId: string;
+      sourceLabel: string;
+      status: "closed";
+    }>;
+
+export interface DeleteLocationDayOverrideCommand {
+  readonly actor: AuthenticatedActor;
+  readonly expectedVersion: number;
+  readonly localDate: string;
+  readonly locationId: string;
+}
+
+export type PreviewLocationDayOverrideCommand =
+  | Readonly<{
+      actor: AuthenticatedActor;
+      localDate: string;
+      locationId: string;
+      openingHours: string;
+      sourceLabel: string;
+      status: "open";
+    }>
+  | Readonly<{
+      actor: AuthenticatedActor;
+      localDate: string;
+      locationId: string;
+      sourceLabel: string;
+      status: "closed";
+    }>;
+
 export interface NormalizedBrandConfigurationUpdate {
   readonly brandVersion: number;
   readonly claim: string;
@@ -95,6 +181,19 @@ export interface NormalizedLocationConfigurationUpdate {
   readonly whatsapp?: string;
 }
 
+export type NormalizedLocationDayOverrideUpdate =
+  | Readonly<{
+      localDate: string;
+      openingHours: string;
+      sourceLabel: string;
+      status: "open";
+    }>
+  | Readonly<{
+      localDate: string;
+      sourceLabel: string;
+      status: "closed";
+    }>;
+
 export interface PersistBrandConfigurationInput {
   readonly actorMembershipId: string;
   readonly changedAt: string;
@@ -110,12 +209,61 @@ export interface PersistLocationConfigurationInput {
   readonly update: NormalizedLocationConfigurationUpdate;
 }
 
+export interface PersistLocationDayOverrideInput {
+  readonly actorMembershipId: string;
+  readonly changedAt: string;
+  readonly expectedVersion?: number;
+  readonly locationId: string;
+  readonly organizationId: string;
+  readonly update: NormalizedLocationDayOverrideUpdate;
+}
+
+export interface PersistLocationDayOverrideDeletionInput {
+  readonly actorMembershipId: string;
+  readonly changedAt: string;
+  readonly expectedVersion: number;
+  readonly localDate: string;
+  readonly locationId: string;
+  readonly organizationId: string;
+}
+
+export interface LocationDayOverridePreviewInput {
+  readonly changedAt: string;
+  readonly locationId: string;
+  readonly organizationId: string;
+  readonly update: NormalizedLocationDayOverrideUpdate;
+}
+
 export type ConfigurationMutationResult =
   | Readonly<{ status: "conflict" }>
   | Readonly<{ status: "not-found" }>
   | Readonly<{
       configuration: OrganizationConfiguration;
       status: "updated";
+    }>;
+
+export type LocationDayOverrideMutationResult =
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{
+      impact: LocationDayOverrideImpact;
+      override: LocationDayOverride;
+      status: "updated";
+    }>;
+
+export type DeleteLocationDayOverrideResult =
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{
+      impact: LocationDayOverrideImpact;
+      status: "deleted";
+    }>;
+
+export type LocationDayOverridePreviewResult =
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{
+      impact: LocationDayOverrideImpact;
+      status: "ready";
     }>;
 
 export interface OrganizationConfigurationRepository {
@@ -128,6 +276,21 @@ export interface OrganizationConfigurationRepository {
   updateLocation(
     input: PersistLocationConfigurationInput,
   ): Promise<ConfigurationMutationResult>;
+}
+
+export interface LocationDayOverrideRepository {
+  deleteLocationDayOverride(
+    input: PersistLocationDayOverrideDeletionInput,
+  ): Promise<DeleteLocationDayOverrideResult>;
+  listLocationDayOverrides(
+    query: LocationDayOverrideListQuery,
+  ): Promise<readonly LocationDayOverride[] | null>;
+  previewLocationDayOverride(
+    input: LocationDayOverridePreviewInput,
+  ): Promise<LocationDayOverridePreviewResult>;
+  upsertLocationDayOverride(
+    input: PersistLocationDayOverrideInput,
+  ): Promise<LocationDayOverrideMutationResult>;
 }
 
 export class ConfigurationValidationError extends Error {
@@ -196,7 +359,7 @@ function normalizePhone(
   return `+${digits}`;
 }
 
-function normalizeOpeningHours(openingHours: string): string {
+export function normalizeBusinessHours(openingHours: string): string {
   const normalized = normalizeText("openingHours", openingHours, 5, 180)
     .replace(/\s*·\s*/gu, " · ")
     .replace(/\s*\/\s*/gu, " / ");
@@ -235,6 +398,34 @@ function normalizeOpeningHours(openingHours: string): string {
     }
   }
   return normalized;
+}
+
+function normalizeCivilDate(field: string, localDate: string): string {
+  const normalized = normalizeText(field, localDate, 10, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(normalized)) {
+    throw new ConfigurationValidationError(
+      field,
+      `${field} debe usar el formato AAAA-MM-DD.`,
+    );
+  }
+  const date = new Date(`${normalized}T00:00:00.000Z`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== normalized
+  ) {
+    throw new ConfigurationValidationError(
+      field,
+      `${field} debe ser una fecha civil válida.`,
+    );
+  }
+  return normalized;
+}
+
+function normalizeOptionalVersion(
+  field: string,
+  version: number | undefined,
+): number | undefined {
+  return version === undefined ? undefined : normalizeVersion(field, version);
 }
 
 function normalizeTimeZone(timeZone: string): string {
@@ -294,11 +485,66 @@ export function normalizeLocationConfigurationUpdate(
     city: normalizeText("city", command.city, 2, 120),
     isActive: command.isActive,
     name: normalizeText("name", command.name, 2, 120),
-    openingHours: normalizeOpeningHours(command.openingHours),
+    openingHours: normalizeBusinessHours(command.openingHours),
     ...(phone === undefined ? {} : { phone }),
     province: normalizeText("province", command.province, 2, 120),
     timeZone: normalizeTimeZone(command.timeZone),
     version: normalizeVersion("version", command.version),
     ...(whatsapp === undefined ? {} : { whatsapp }),
+  });
+}
+
+export function normalizeLocationDayOverrideUpdate(
+  command: PreviewLocationDayOverrideCommand | UpsertLocationDayOverrideCommand,
+): NormalizedLocationDayOverrideUpdate {
+  const localDate = normalizeCivilDate("localDate", command.localDate);
+  const sourceLabel = normalizeText("sourceLabel", command.sourceLabel, 3, 180);
+  if (command.status === "closed") {
+    return Object.freeze({ localDate, sourceLabel, status: "closed" });
+  }
+  return Object.freeze({
+    localDate,
+    openingHours: normalizeBusinessHours(command.openingHours),
+    sourceLabel,
+    status: "open",
+  });
+}
+
+export function normalizeLocationDayOverrideExpectedVersion(
+  command: UpsertLocationDayOverrideCommand,
+): number | undefined {
+  return normalizeOptionalVersion("expectedVersion", command.expectedVersion);
+}
+
+export function normalizeLocationDayOverrideDeletion(
+  command: DeleteLocationDayOverrideCommand,
+): Readonly<{ expectedVersion: number; localDate: string }> {
+  return Object.freeze({
+    expectedVersion: normalizeVersion(
+      "expectedVersion",
+      command.expectedVersion,
+    ),
+    localDate: normalizeCivilDate("localDate", command.localDate),
+  });
+}
+
+export function normalizeLocationDayOverrideRange(
+  startDate: string,
+  endDate: string,
+): Readonly<{ endDate: string; startDate: string }> {
+  const normalizedStartDate = normalizeCivilDate("startDate", startDate);
+  const normalizedEndDate = normalizeCivilDate("endDate", endDate);
+  const start = Date.parse(`${normalizedStartDate}T00:00:00.000Z`);
+  const end = Date.parse(`${normalizedEndDate}T00:00:00.000Z`);
+  const maximumRangeDays = 93;
+  if (end < start || end - start > maximumRangeDays * 86_400_000) {
+    throw new ConfigurationValidationError(
+      "endDate",
+      "El rango de excepciones debe ser de hasta 93 días y terminar en la fecha inicial o después.",
+    );
+  }
+  return Object.freeze({
+    endDate: normalizedEndDate,
+    startDate: normalizedStartDate,
   });
 }

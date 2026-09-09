@@ -105,3 +105,91 @@ test("sucursal inactiva y horario faltante son bloqueos explícitos", () => {
     { reason: "missing-hours", status: "blocked" },
   );
 });
+
+test("la fecha civil manda sobre la fecha UTC en el borde de medianoche", () => {
+  // 22:00 del 31 de diciembre en Nueva York ya es 1 de enero en UTC.
+  const newYearsEve = {
+    occurrenceKey: "2026-12-31T22:00",
+    resolution: "exact" as const,
+    scheduledAt: "2027-01-01T03:00:00.000Z",
+  };
+  const newYork: RecurringStoryLocationSource = {
+    ...location,
+    timeZone: "America/New_York",
+  };
+
+  const result = resolveRecurringStoryDraft({
+    capturedAt: "2026-12-30T18:00:00.000Z",
+    dayOverride: {
+      localDate: "2026-12-31",
+      openingHours: "de 9:00 a 13:00",
+      sourceLabel: "Horario reducido de fin de año",
+      status: "open",
+      version: 1,
+    },
+    location: newYork,
+    occurrence: newYearsEve,
+    policy: "automatic-routine",
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.source.localDate, "2026-12-31");
+  assert.equal(result.source.hours, "de 9:00 a 13:00");
+  assert.throws(
+    () =>
+      resolveRecurringStoryDraft({
+        capturedAt: "2026-12-30T18:00:00.000Z",
+        dayOverride: {
+          localDate: "2027-01-01",
+          sourceLabel: "Feriado de Año Nuevo",
+          status: "closed",
+          version: 1,
+        },
+        location: newYork,
+        occurrence: newYearsEve,
+        policy: "automatic-routine",
+      }),
+    RangeError,
+  );
+});
+
+test("una excepción del día de cambio de hora se aplica a ese día y no al vecino", () => {
+  // 8 de marzo de 2026 adelanta la hora en Nueva York: 09:00 local existe.
+  const dstDay = {
+    occurrenceKey: "2026-03-08T09:00",
+    resolution: "exact" as const,
+    scheduledAt: "2026-03-08T13:00:00.000Z",
+  };
+  const newYork: RecurringStoryLocationSource = {
+    ...location,
+    timeZone: "America/New_York",
+  };
+
+  const result = resolveRecurringStoryDraft({
+    capturedAt: "2026-03-07T18:00:00.000Z",
+    dayOverride: {
+      localDate: "2026-03-08",
+      sourceLabel: "Cierre inesperado por corte de energía",
+      status: "closed",
+      version: 3,
+    },
+    location: newYork,
+    occurrence: dstDay,
+    policy: "automatic-routine",
+  });
+
+  assert.deepEqual(result, { reason: "location-closed", status: "blocked" });
+  assert.equal(
+    resolveRecurringStoryDraft({
+      capturedAt: "2026-03-07T18:00:00.000Z",
+      location: newYork,
+      occurrence: {
+        occurrenceKey: "2026-03-09T09:00",
+        resolution: "exact" as const,
+        scheduledAt: "2026-03-09T13:00:00.000Z",
+      },
+      policy: "automatic-routine",
+    }).status,
+    "ready",
+  );
+});
