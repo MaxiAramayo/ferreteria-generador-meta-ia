@@ -11,7 +11,10 @@ import type { NestExpressApplication } from "@nestjs/platform-express";
 
 import { AppModule } from "./app.module.ts";
 import { apiLog } from "./observability/api-log.ts";
-import { createCorrelationMiddleware } from "./observability/correlation.middleware.ts";
+import {
+  correlationHeader,
+  createCorrelationMiddleware,
+} from "./observability/correlation.middleware.ts";
 import { StructuredNestLogger } from "./observability/structured-nest-logger.ts";
 
 /**
@@ -50,6 +53,9 @@ async function bootstrap(): Promise<void> {
   application.use(createCorrelationMiddleware(apiLog));
   application.enableCors({
     credentials: true,
+    // El panel necesita leer la correlación para poder nombrarla cuando algo
+    // falla; sin exponerla, el navegador la esconde por ser cruzada de origen.
+    exposedHeaders: [correlationHeader],
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     origin: configuration.webOrigin,
   });

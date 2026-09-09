@@ -1,4 +1,5 @@
 import type {
+  OperationalHealthResponse,
   PublicationManualActionListResponse,
   PublicationOperationalAlertListResponse,
   PublicationOperationalAlertResolutionResponse,
@@ -27,6 +28,7 @@ import {
   CancelPublicationOrderDto,
   RequestPublicationOrderDto,
 } from "./dto/publication-order.dto.ts";
+import { OperationalHealthService } from "./operational-health.service.ts";
 import { PublicationManualActionService } from "./publication-manual-action.service.ts";
 import { PublicationOperationalAlertService } from "./publication-operational-alert.service.ts";
 import { PublicationOrderService } from "./publication-order.service.ts";
@@ -34,6 +36,7 @@ import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 
 @Controller()
 export class PublicationOrderController {
+  readonly #health: OperationalHealthService;
   readonly #manual: PublicationManualActionService;
   readonly #readiness: PublishingReadinessService;
   readonly #alerts: PublicationOperationalAlertService;
@@ -44,11 +47,22 @@ export class PublicationOrderController {
     manual: PublicationManualActionService,
     readiness: PublishingReadinessService,
     alerts: PublicationOperationalAlertService,
+    health: OperationalHealthService,
   ) {
     this.#alerts = alerts;
+    this.#health = health;
     this.#manual = manual;
     this.#readiness = readiness;
     this.#service = service;
+  }
+
+  /** Lectura sin efectos: el tablero explica el estado y no lo cambia. */
+  @Get("operational-health")
+  @RequirePermission("publishing:execute")
+  operationalHealth(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+  ): Promise<OperationalHealthResponse> {
+    return this.#health.read(session.actor);
   }
 
   @Get("operational-alerts")

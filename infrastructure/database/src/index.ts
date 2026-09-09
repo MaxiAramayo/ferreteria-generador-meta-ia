@@ -39,3 +39,4 @@ export { PrismaPublicationScheduleManagementRepository } from "./publication-sch
 export { PrismaPublicationScheduleMaterializationRepository } from "./publication-schedule-materialization-repository.ts";
 export { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 export { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
+export { PrismaOperationalHealthRepository } from "./operational-health-repository.ts";

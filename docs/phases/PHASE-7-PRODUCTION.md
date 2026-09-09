@@ -126,10 +126,10 @@ extremo.
 
 - [x] Request, publicación, generación, job e intento comparten correlation IDs.
 - [x] Se observan latencia/error de OpenAI, Meta, Cloudinary, DB y Redis.
-- [ ] Dashboards muestran backlog, atraso, éxito parcial y costo de IA.
+- [x] Dashboards muestran backlog, atraso, éxito parcial y costo de IA.
 - [x] Readiness impide tráfico cuando una dependencia crítica no está disponible.
 - [x] Datos sensibles y tokens están redactados.
-- [ ] Alertas tienen umbrales, propietario y runbook.
+- [x] Alertas tienen umbrales, propietario y runbook.
 
 ### Verificación obligatoria
 
@@ -183,8 +183,31 @@ extremo.
 - **Los proveedores externos no se consultan en cada readiness.** Probar OpenAI,
   Meta o Cloudinary por cada verificación sería lento y los limitaría; su salud
   se observa en el log y en la bandeja operativa de `P6-T07`.
-- Pendiente en esta tarea: tablero operativo con backlog, atraso, éxito parcial
-  y costo de IA; y umbrales de alerta con propietario y runbook.
+- Fecha: 2026-09-09. Tercer tramo entregado; la tarea sigue abierta por
+  verificación, no por implementación.
+- Entregado: tablero operativo en `/operacion` con backlog de turnos y trabajos,
+  atraso, salidas parciales, destinos sin confirmar y costo de IA del mes;
+  umbrales declarados en el dominio y documentados en
+  [`RUNBOOKS.md`](../operations/RUNBOOKS.md) con su dueño por rol y el runbook
+  que corresponde; dos runbooks nuevos —worker detenido y presupuesto de IA—.
+- **Los umbrales viven en el dominio, no en la pantalla.** Un tablero que decide
+  su propio criterio deja de coincidir con la bandeja de alertas y con el
+  runbook, y dos personas mirando lo mismo terminan discutiendo si está mal.
+  Cada motivo informa qué umbral cruzó y con qué número medido.
+- **No hay pipeline de métricas ni serie temporal.** La pregunta que responde el
+  tablero —¿hay algo que atender ahora?— se contesta con el estado presente de
+  las tablas que ya gobiernan el trabajo. Un contador en memoria del proceso
+  mentiría después de cada reinicio.
+- **Sin presupuesto declarado no se informa porcentaje.** Decir 0 % sería
+  afirmar que sobra presupuesto y 100 % que se agotó; ambas serían inventadas.
+- Consecuencia registrada: la API expone `x-correlation-id` en CORS. Sin eso el
+  navegador lo esconde por ser cruzada de origen y el panel no puede nombrar la
+  correlación de una solicitud que falló.
+- Pendiente en esta tarea, ambas de verificación en un entorno remoto:
+  interrumpir cada proveedor externo y observar su alerta —PostgreSQL y Redis ya
+  quedan cubiertos por el smoke—, y trazar un flujo completo en staging. El
+  trazado local ya está: el E2E con Chrome comprueba que la correlación que
+  devuelve la API llega a la auditoría y al trabajo que la ejecuta.
 
 ### Evidencia de cierre
 

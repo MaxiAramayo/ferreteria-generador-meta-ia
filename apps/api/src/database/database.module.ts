@@ -12,6 +12,7 @@ import {
   PrismaIdentityRepository,
   PrismaMediaAssetRepository,
   PrismaMetaConnectionRepository,
+  PrismaOperationalHealthRepository,
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
   PrismaPublicationOrderRepository,
@@ -36,6 +37,7 @@ import type {
   MediaAssetRepository,
   MetaConnectionRepository,
   MetaComplianceRepository,
+  OperationalHealthRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
   PublicationOrderRepository,
@@ -64,6 +66,7 @@ import {
   MEDIA_ASSET_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   META_COMPLIANCE_REPOSITORY,
+  OPERATIONAL_HEALTH_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
@@ -93,6 +96,7 @@ export class DatabaseModule {
         META_CONNECTION_REPOSITORY,
         META_COMPLIANCE_REPOSITORY,
         LOCATION_DAY_OVERRIDE_REPOSITORY,
+        OPERATIONAL_HEALTH_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
@@ -199,6 +203,12 @@ export class DatabaseModule {
           provide: PUBLICATION_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationRepository =>
             new PrismaPublicationRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: OPERATIONAL_HEALTH_REPOSITORY,
+          useFactory: (database: DatabaseClient): OperationalHealthRepository =>
+            new PrismaOperationalHealthRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],
