@@ -9,6 +9,14 @@ export {
   type CorrelationContext,
 } from "./correlation.ts";
 export {
+  dependencyFailureCode,
+  emitDependencyObservation,
+  observeDependency,
+  observedDependencies,
+  type DependencyCall,
+  type ObservedDependency,
+} from "./dependency.ts";
+export {
   looksSensitive,
   redactDetail,
   redactedPlaceholder,

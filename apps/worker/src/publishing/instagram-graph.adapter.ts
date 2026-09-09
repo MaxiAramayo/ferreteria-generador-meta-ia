@@ -34,6 +34,9 @@ import {
   type PublicMediaProbePort,
   type PublicMediaProbeResult,
 } from "@aramayo/domain";
+import { observeDependency } from "@aramayo/observability";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 type FetchLike = (
   input: string | URL | Request,
@@ -388,19 +391,24 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
   ): Promise<Record<string, unknown>> {
     let response: Response;
     try {
-      response = await this.#fetch(url, {
-        ...(init.body === undefined ? {} : { body: init.body }),
-        headers: {
-          accept: "application/json",
-          authorization: `Bearer ${accessToken}`,
-          ...(init.body === undefined
-            ? {}
-            : { "content-type": "application/x-www-form-urlencoded" }),
-        },
-        method: init.method,
-        redirect: "error",
-        signal: AbortSignal.timeout(requestTimeoutMilliseconds),
-      });
+      response = await observeDependency(
+        workerLog,
+        { dependency: "meta", operation: "graph.request" },
+        async () =>
+          this.#fetch(url, {
+            ...(init.body === undefined ? {} : { body: init.body }),
+            headers: {
+              accept: "application/json",
+              authorization: `Bearer ${accessToken}`,
+              ...(init.body === undefined
+                ? {}
+                : { "content-type": "application/x-www-form-urlencoded" }),
+            },
+            method: init.method,
+            redirect: "error",
+            signal: AbortSignal.timeout(requestTimeoutMilliseconds),
+          }),
+      );
     } catch (cause: unknown) {
       throw new MetaPublishingError(
         cause instanceof Error && cause.name === "TimeoutError"
@@ -467,12 +475,17 @@ export class HttpPublicMediaProbe implements PublicMediaProbePort {
     range?: string,
   ): Promise<Response | null> {
     try {
-      return await this.#fetch(url, {
-        headers: range === undefined ? {} : { range },
-        method,
-        redirect: "error",
-        signal: AbortSignal.timeout(probeTimeoutMilliseconds),
-      });
+      return await observeDependency(
+        workerLog,
+        { dependency: "cloudinary", operation: "media.probe" },
+        async () =>
+          this.#fetch(url, {
+            headers: range === undefined ? {} : { range },
+            method,
+            redirect: "error",
+            signal: AbortSignal.timeout(probeTimeoutMilliseconds),
+          }),
+      );
     } catch {
       return null;
     }

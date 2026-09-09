@@ -10,6 +10,7 @@ import {
   newCorrelationId,
   runWithCorrelation,
 } from "./correlation.ts";
+import { dependencyFailureCode, observeDependency } from "./dependency.ts";
 import { redactDetail, redactedPlaceholder } from "./redaction.ts";
 import { createLogEmitter } from "./structured-log.ts";
 
@@ -177,4 +178,70 @@ test("un salto de línea en el detalle no puede partir el registro", () => {
   assert.equal(sink.lines.length, 1);
   const record = parse(sink.lines[0]);
   assert.equal(record["event"], "worker.job");
+});
+
+test("una llamada a un proveedor deja latencia y desenlace dentro de su correlación", async () => {
+  const sink = collect();
+  const emitter = createLogEmitter("worker", sink.write);
+  let clock = 0;
+  const now = (): number => {
+    clock += 40;
+    return clock;
+  };
+  const correlationId = newCorrelationId();
+
+  await runWithCorrelation({ correlationId }, async () => {
+    assert.equal(
+      await observeDependency(
+        emitter,
+        { dependency: "openai", operation: "responses.create" },
+        () => Promise.resolve("listo"),
+        now,
+      ),
+      "listo",
+    );
+    const rejection = Object.assign(new Error("La clave sk-secreta falló."), {
+      code: "rate_limit_exceeded",
+    });
+    await assert.rejects(
+      observeDependency(
+        emitter,
+        { dependency: "meta", operation: "graph.publish" },
+        () => Promise.reject(rejection),
+        now,
+      ),
+      /sk-secreta/u,
+    );
+  });
+
+  assert.deepEqual(parse(sink.lines[0])["detail"], {
+    dependency: "openai",
+    operation: "responses.create",
+  });
+  assert.equal(parse(sink.lines[0])["correlationId"], correlationId);
+  assert.equal(parse(sink.lines[0])["durationMs"], 40);
+  const failure = parse(sink.lines[1]);
+  assert.equal(failure["outcome"], "failure");
+  assert.equal(failure["level"], "warn");
+  assert.deepEqual(failure["detail"], {
+    dependency: "meta",
+    failureCode: "rate_limit_exceeded",
+    operation: "graph.publish",
+  });
+  // El mensaje del proveedor no viaja al log aunque lo lleve la excepción.
+  assert.ok(!(sink.lines[1] ?? "").includes("sk-secreta"));
+});
+
+test("un fallo sin código usa el nombre del error y nunca su mensaje", () => {
+  assert.equal(
+    dependencyFailureCode(new TypeError("host secreto")),
+    "TypeError",
+  );
+  assert.equal(dependencyFailureCode("cualquier cosa"), "desconocido");
+  assert.equal(
+    dependencyFailureCode(
+      Object.assign(new Error("x"), { code: "mensaje largo con espacios" }),
+    ),
+    "Error",
+  );
 });

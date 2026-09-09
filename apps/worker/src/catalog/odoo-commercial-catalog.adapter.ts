@@ -20,6 +20,9 @@ import {
   type SearchProductsResult,
   type StockLookupResult,
 } from "@aramayo/domain";
+import { observeDependency } from "@aramayo/observability";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 const maximumResponseBytes = 65_536;
 const externalProductIdPattern = /^odoo-product-[1-9][0-9]*$/u;
@@ -479,15 +482,22 @@ export class OdooCommercialCatalogAdapter implements CommercialCatalogPort {
 
   async #get(url: URL): Promise<UnknownRecord> {
     try {
-      const response = await this.#fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${this.#credentials.token.reveal()}`,
-        },
-        method: "GET",
-        redirect: "error",
-        signal: AbortSignal.timeout(this.#policy.requestTimeoutMilliseconds),
-      });
+      const response = await observeDependency(
+        workerLog,
+        { dependency: "commercial", operation: "catalog.request" },
+        async () =>
+          this.#fetch(url, {
+            headers: {
+              Accept: "application/json",
+              Authorization: `Bearer ${this.#credentials.token.reveal()}`,
+            },
+            method: "GET",
+            redirect: "error",
+            signal: AbortSignal.timeout(
+              this.#policy.requestTimeoutMilliseconds,
+            ),
+          }),
+      );
       if (!response.ok) {
         throw normalizeHttpFailure(response.status);
       }

@@ -1,4 +1,5 @@
 import type { CloudinaryCredentials } from "@aramayo/configuration";
+import { observeDependency } from "@aramayo/observability";
 import {
   mediaUploadPolicy,
   type MediaDeliveryVariant,
@@ -10,6 +11,7 @@ import {
 } from "@aramayo/domain";
 import { v2 as cloudinary } from "cloudinary";
 
+import { workerLog } from "../observability/worker-log.ts";
 import { MediaLifecycleError } from "./media.errors.ts";
 
 export interface CloudinaryGateway {
@@ -40,32 +42,42 @@ class OfficialCloudinaryGateway implements CloudinaryGateway {
   }
 
   destroy(publicId: string): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      void cloudinary.uploader.destroy(
-        publicId,
-        {
-          invalidate: true,
-          resource_type: "image",
-          type: "upload",
-        },
-        (cause: unknown, result: unknown) => {
-          if (cause !== undefined && cause !== null) {
-            reject(
-              cause instanceof Error ? cause : new Error("Delete failed."),
-            );
-            return;
-          }
-          resolve(result);
-        },
-      );
-    });
+    return observeDependency(
+      workerLog,
+      { dependency: "cloudinary", operation: "uploader.destroy" },
+      () =>
+        new Promise((resolve, reject) => {
+          void cloudinary.uploader.destroy(
+            publicId,
+            {
+              invalidate: true,
+              resource_type: "image",
+              type: "upload",
+            },
+            (cause: unknown, result: unknown) => {
+              if (cause !== undefined && cause !== null) {
+                reject(
+                  cause instanceof Error ? cause : new Error("Delete failed."),
+                );
+                return;
+              }
+              resolve(result);
+            },
+          );
+        }),
+    );
   }
 
   async download(url: string): Promise<Uint8Array> {
-    const response = await fetch(url, {
-      headers: { accept: "image/png,image/jpeg" },
-      redirect: "error",
-    });
+    const response = await observeDependency(
+      workerLog,
+      { dependency: "cloudinary", operation: "media.download" },
+      async () =>
+        fetch(url, {
+          headers: { accept: "image/png,image/jpeg" },
+          redirect: "error",
+        }),
+    );
     if (!response.ok) throw new Error("Cloudinary download failed.");
     const declaredLength = Number(response.headers.get("content-length") ?? 0);
     if (
@@ -82,27 +94,32 @@ class OfficialCloudinaryGateway implements CloudinaryGateway {
   }
 
   upload(bytes: Uint8Array, publicId: string): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          overwrite: false,
-          public_id: publicId,
-          resource_type: "image",
-          type: "upload",
-          unique_filename: false,
-          use_filename: false,
-        },
-        (cause, result) => {
-          if (cause !== undefined) {
-            reject(new Error("Cloudinary upload failed."));
-            return;
-          }
-          resolve(result);
-        },
-      );
-      stream.once("error", reject);
-      stream.end(Buffer.from(bytes));
-    });
+    return observeDependency(
+      workerLog,
+      { dependency: "cloudinary", operation: "uploader.upload" },
+      () =>
+        new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            {
+              overwrite: false,
+              public_id: publicId,
+              resource_type: "image",
+              type: "upload",
+              unique_filename: false,
+              use_filename: false,
+            },
+            (cause, result) => {
+              if (cause !== undefined) {
+                reject(new Error("Cloudinary upload failed."));
+                return;
+              }
+              resolve(result);
+            },
+          );
+          stream.once("error", reject);
+          stream.end(Buffer.from(bytes));
+        }),
+    );
   }
 }
 

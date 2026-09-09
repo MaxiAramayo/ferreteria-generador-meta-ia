@@ -21,6 +21,9 @@ export function createPostgresProbe(
   timeoutMs: number = defaultProbeTimeoutMs,
 ): DependencyProbe {
   return Object.freeze({
+    // PostgreSQL y Redis son críticas: sin ellas el proceso no puede aceptar
+    // tráfico ni reclamar trabajo sin perderlo.
+    critical: true,
     dependency: "postgres",
     async check() {
       return measureProbe("postgres", async () => {

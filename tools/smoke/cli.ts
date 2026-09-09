@@ -227,6 +227,22 @@ async function smokeApi(): Promise<void> {
 
     const shutdown = await api.terminate();
     assertOrderedShutdown(shutdown, "La API");
+    // Interrumpir una dependencia tiene que verse en el log, no sólo en la
+    // respuesta: es lo que un operador consulta cuando nadie miró `/ready`.
+    for (const dependency of ["postgres", "redis"]) {
+      const observation = logRecords(shutdown.output).find(
+        (record) =>
+          record["event"] === "dependency.call" &&
+          logDetail(record)["dependency"] === dependency,
+      );
+      assert.ok(
+        observation,
+        `La API debe observar la dependencia ${dependency}.`,
+      );
+      assert.equal(observation["outcome"], "failure");
+      assert.equal(typeof observation["durationMs"], "number");
+    }
+    assertWithoutSecrets("El log de la API", shutdown.output);
     assert.equal(
       logDetail(findLogRecord(shutdown.output, "api.stopped"))["signal"],
       "SIGTERM",

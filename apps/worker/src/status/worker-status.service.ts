@@ -1,4 +1,5 @@
 import type { WorkerConfiguration } from "@aramayo/configuration/worker";
+import { emitDependencyObservation } from "@aramayo/observability";
 import {
   reportReadiness,
   summarizeDependencies,
@@ -62,6 +63,17 @@ export class WorkerStatusService
 
   async #reportStatus(event: string): Promise<void> {
     const readiness = await reportReadiness("worker", this.#probes);
+    // La sonda ya midió la latencia; publicarla deja a PostgreSQL y Redis en la
+    // misma serie observable que los proveedores externos.
+    for (const dependency of readiness.dependencies) {
+      emitDependencyObservation(
+        workerLog,
+        { dependency: dependency.dependency, operation: "probe" },
+        dependency.status === "up" ? "success" : "failure",
+        dependency.latencyMs,
+        dependency.status === "up" ? undefined : "unreachable",
+      );
+    }
 
     workerLog.emit({
       detail: {

@@ -125,17 +125,17 @@ extremo.
 ### Criterios de aceptación
 
 - [x] Request, publicación, generación, job e intento comparten correlation IDs.
-- [ ] Se observan latencia/error de OpenAI, Meta, Cloudinary, DB y Redis.
+- [x] Se observan latencia/error de OpenAI, Meta, Cloudinary, DB y Redis.
 - [ ] Dashboards muestran backlog, atraso, éxito parcial y costo de IA.
-- [ ] Readiness impide tráfico cuando una dependencia crítica no está disponible.
-- [ ] Datos sensibles y tokens están redactados.
+- [x] Readiness impide tráfico cuando una dependencia crítica no está disponible.
+- [x] Datos sensibles y tokens están redactados.
 - [ ] Alertas tienen umbrales, propietario y runbook.
 
 ### Verificación obligatoria
 
 - [ ] Trazar un flujo completo en staging.
 - [ ] Interrumpir cada dependencia y observar health/alerta.
-- [ ] Revisar muestras de logs por filtración.
+- [x] Revisar muestras de logs por filtración.
 
 ### Fuera de alcance
 
@@ -166,10 +166,25 @@ extremo.
 - Consecuencia técnica registrada: el cliente Prisma extendido tiene otro tipo
   que el base, así que `DatabaseTransactionClient` reemplazó a
   `Prisma.TransactionClient` en los repositorios que reciben una transacción.
-- Pendiente en esta tarea: latencia y error observables por dependencia
-  —OpenAI, Meta, Cloudinary, PostgreSQL y Redis—; tablero operativo con backlog,
-  atraso, éxito parcial y costo de IA; readiness que distinga dependencia
-  crítica de degradada; y umbrales de alerta con propietario y runbook.
+- Fecha: 2026-09-09. Segundo tramo entregado; la tarea sigue abierta.
+- Entregado: observación `dependency.call` con latencia y desenlace en cada
+  adaptador de proveedor —OpenAI respuestas e imágenes, Meta Graph, Cloudinary y
+  sistema comercial—; PostgreSQL y Redis publican la latencia que ya medía su
+  sonda; readiness con criticidad explícita.
+- **La observación no lleva URL ni mensaje del proveedor.** Una URL de Graph
+  lleva identificadores del negocio y un mensaje de error puede traer cualquier
+  cosa: se registran la dependencia, una operación de un conjunto acotado que
+  escribe el código y un código de fallo corto.
+- **La criticidad viene marcada por omisión.** `measureProbe` declara crítica
+  toda sonda que no diga lo contrario, así que abrir una dependencia es una
+  decisión explícita y no un descuido. El smoke lo mostró de la peor manera:
+  con la criticidad ausente, `/ready` respondía 200 con PostgreSQL y Redis
+  caídos.
+- **Los proveedores externos no se consultan en cada readiness.** Probar OpenAI,
+  Meta o Cloudinary por cada verificación sería lento y los limitaría; su salud
+  se observa en el log y en la bandeja operativa de `P6-T07`.
+- Pendiente en esta tarea: tablero operativo con backlog, atraso, éxito parcial
+  y costo de IA; y umbrales de alerta con propietario y runbook.
 
 ### Evidencia de cierre
 

@@ -11,6 +11,7 @@ export function createRedisProbe(
   timeoutMs: number = defaultProbeTimeoutMs,
 ): DependencyProbe {
   return Object.freeze({
+    critical: true,
     dependency: "redis",
     async check() {
       return measureProbe("redis", async () => {

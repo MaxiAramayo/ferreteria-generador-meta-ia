@@ -9,8 +9,9 @@ import {
 function report(
   dependency: DependencyReport["dependency"],
   status: DependencyReport["status"],
+  critical = true,
 ): DependencyReport {
-  return { dependency, latencyMs: 1, status };
+  return { critical, dependency, latencyMs: 1, status };
 }
 
 test("readiness es ready sólo con todas las dependencias disponibles", () => {
@@ -33,4 +34,14 @@ test("una dependencia caída deja el proceso not_ready", () => {
 
 test("un proceso sin dependencias declaradas queda ready", () => {
   assert.equal(resolveReadinessStatus([]), "ready");
+});
+
+test("sólo una dependencia crítica caída impide aceptar tráfico", () => {
+  assert.equal(
+    resolveReadinessStatus([
+      report("postgres", "up"),
+      report("redis", "down", false),
+    ]),
+    "ready",
+  );
 });
