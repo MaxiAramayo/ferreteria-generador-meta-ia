@@ -139,11 +139,15 @@ y están documentados en [`RUNBOOKS.md`](operations/RUNBOOKS.md) con su dueño p
 rol. Las decisiones están en
 [`ADR-028`](architecture/decisions/ADR-028-CORRELATION-AND-STRUCTURED-LOGS.md).
 
-Queda pendiente sólo verificación remota: interrumpir cada proveedor externo y
-observar su alerta —PostgreSQL y Redis ya los cubre el smoke— y trazar un flujo
-completo en staging. El trazado local ya existe: el E2E con Chrome comprueba que
-la correlación que devuelve la API llega a la auditoría y al trabajo que la
-ejecuta.
+Cortar cada dependencia ya está verificado: PostgreSQL y Redis dejan `/ready` en
+503 y su observación en el smoke; Meta, Cloudinary, el sistema comercial y
+OpenAI dejan observación con causa cuando se los interrumpe con su propio doble.
+
+**Queda una sola verificación: trazar un flujo completo en staging.** Necesita
+desplegar en el VPS, que hoy tiene la release seleccionada pero sin servicios
+iniciados y con OpenAI, Cloudinary y Meta deshabilitados. El trazado local ya
+existe: el E2E con Chrome comprueba que la correlación que devuelve la API llega
+a la auditoría y al trabajo que la ejecuta.
 
 **`P6-T08` quedó cerrada.** Un feriado, un horario reducido o un cierre
 inesperado dejaron de depender de que alguien se acuerde de pausar la regla: la

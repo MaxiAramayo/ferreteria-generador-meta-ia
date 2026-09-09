@@ -134,7 +134,7 @@ extremo.
 ### Verificación obligatoria
 
 - [ ] Trazar un flujo completo en staging.
-- [ ] Interrumpir cada dependencia y observar health/alerta.
+- [x] Interrumpir cada dependencia y observar health/alerta.
 - [x] Revisar muestras de logs por filtración.
 
 ### Fuera de alcance
@@ -203,11 +203,29 @@ extremo.
 - Consecuencia registrada: la API expone `x-correlation-id` en CORS. Sin eso el
   navegador lo esconde por ser cruzada de origen y el panel no puede nombrar la
   correlación de una solicitud que falló.
-- Pendiente en esta tarea, ambas de verificación en un entorno remoto:
-  interrumpir cada proveedor externo y observar su alerta —PostgreSQL y Redis ya
-  quedan cubiertos por el smoke—, y trazar un flujo completo en staging. El
-  trazado local ya está: el E2E con Chrome comprueba que la correlación que
-  devuelve la API llega a la auditoría y al trabajo que la ejecuta.
+- Fecha: 2026-09-09. Cuarto tramo: se cortó cada dependencia y se comprobó qué
+  deja observado.
+- Cada proveedor se interrumpe con su propio doble —conexión rechazada o
+  timeout— y la prueba exige que el corte deje observación con su dependencia,
+  su operación, una causa corta y su duración: Meta en `graph.request`,
+  Cloudinary en `media.probe`, el sistema comercial en `catalog.request` y
+  OpenAI en `responses.create`, este último contra un puerto reservado sin
+  servicio para no salir a la red. Sin esta prueba un adaptador podría perder su
+  instrumentación en un refactor y nadie lo notaría hasta necesitarla en un
+  incidente.
+- **Qué produce el corte de cada dependencia**: PostgreSQL y Redis, `/ready` en
+  503 más su observación, comprobado en el smoke; Meta, observación más la
+  alerta `connection-degraded` de `P6-T07`; Cloudinary, sistema comercial y
+  OpenAI, observación con causa. La carga y el borrado en Cloudinary se
+  ejercitan contra el proveedor real en `pnpm media:smoke:cloudinary`; la prueba
+  corta la lectura pública, que es la que decide si Meta alcanza la pieza.
+- La clave de OpenAI no aparece en el registro aunque el SDK la lleve en el
+  error: la prueba lo verifica sobre el texto emitido.
+- **Pendiente, y sólo eso: trazar un flujo completo en staging.** Necesita
+  desplegar esta rama en el VPS, que hoy tiene la release seleccionada pero sin
+  servicios iniciados y con OpenAI, Cloudinary y Meta deshabilitados. El trazado
+  local ya está: el E2E con Chrome comprueba que la correlación que devuelve la
+  API llega a la auditoría y al trabajo que la ejecuta.
 
 ### Evidencia de cierre
 
