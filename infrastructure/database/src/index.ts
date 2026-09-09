@@ -12,6 +12,7 @@ export {
   PrismaPublicationOrderRepository,
   publicationTargetKey,
 } from "./publication-order-repository.ts";
+export { PrismaPublicationOperationalAlertRepository } from "./publication-operational-alert-repository.ts";
 export {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,
@@ -34,5 +35,7 @@ export {
   PrismaGenerationPolicyRepository,
 } from "./generation-governance-repository.ts";
 export { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
+export { PrismaPublicationScheduleManagementRepository } from "./publication-schedule-management-repository.ts";
+export { PrismaPublicationScheduleMaterializationRepository } from "./publication-schedule-materialization-repository.ts";
 export { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 export { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";

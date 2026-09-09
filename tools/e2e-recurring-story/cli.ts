@@ -1,5 +1,6 @@
 /**
- * E2E de la cadena regla → borrador → aprobación → ocurrencia (`P6-T04`).
+ * E2E de la cadena regla → borrador → aprobación → ocurrencia → excepción
+ * (`P6-T04` y `P6-T08`).
  *
  * Levanta la vertical entera —base efímera migrada, API y panel— y recorre con
  * un navegador real el camino que convierte una rutina editorial en una
@@ -19,7 +20,10 @@
  *   horario y versión de la sucursal vigentes al crearlo;
  * - **aprobar programa**: la aprobación por HTTP responde `scheduled` y deja
  *   una programación con una única ocurrencia planificada;
- * - **programar no es publicar**: la ocurrencia queda sin orden de publicación.
+ * - **programar no es publicar**: la ocurrencia queda sin orden de publicación;
+ * - **una excepción de horario manda sobre lo programado** (`P6-T08`): el panel
+ *   no habilita guardar hasta calcular el impacto, y guardar el feriado cancela
+ *   la ocurrencia y devuelve la historia a revisión.
  *
  * No contacta Meta ni Cloudinary: el almacenamiento de medios es un doble local
  * y el render usa el mismo Chromium del worker.
@@ -292,6 +296,16 @@ async function main(): Promise<void> {
       },
     ]);
     const page = await context.newPage();
+    // Una respuesta rechazada de la API explica un fallo de panel mucho mejor
+    // que un timeout de localizador, así que se conservan para el mensaje.
+    const rejectedResponses: string[] = [];
+    page.on("response", (response) => {
+      if (response.url().startsWith(apiBaseUrl) && response.status() >= 400) {
+        rejectedResponses.push(
+          `${String(response.status())} ${response.request().method()} ${response.url()}`,
+        );
+      }
+    });
     await page.goto(`${webBaseUrl}/publicaciones`, { waitUntil: "load" });
     await page
       .getByRole("button", { name: "Historia recurrente" })
@@ -535,6 +549,82 @@ async function main(): Promise<void> {
         "Programar no puede crear una orden de publicación.",
       );
       reportCheck("programar no publica: la ocurrencia todavía no tiene orden");
+
+      // --- Una excepción de horario invalida lo que ya estaba programado ---
+      await page.goto(`${webBaseUrl}/configuracion`, { waitUntil: "load" });
+      const exceptions = page.getByRole("region", {
+        name: `Excepciones de ${fixture.locationName}`,
+      });
+      await exceptions.waitFor({ timeout: startupTimeoutMs });
+      await exceptions.getByLabel("Fecha").fill(tomorrow.localDate);
+      await exceptions.getByLabel("Qué pasa ese día").selectOption("closed");
+      await exceptions
+        .getByLabel("Fuente del dato")
+        .fill("Feriado confirmado por la dueña");
+      const saveOverride = exceptions.getByRole("button", {
+        name: "Guardar excepción",
+      });
+      assert.equal(
+        await saveOverride.isDisabled(),
+        true,
+        "Guardar no puede habilitarse antes de ver el impacto.",
+      );
+      await exceptions.getByRole("button", { name: "Ver impacto" }).click();
+      await exceptions
+        .getByText("1 historia futura vuelve a revisión", { exact: false })
+        .waitFor({ timeout: 30_000 });
+      assert.equal(
+        await saveOverride.isDisabled(),
+        false,
+        "Con el impacto a la vista, guardar tiene que habilitarse.",
+      );
+      reportCheck(
+        "el panel exige ver el impacto antes de guardar y lo cuenta en historias reales",
+      );
+
+      await saveOverride.click();
+      try {
+        await exceptions
+          .getByText("Excepción guardada", { exact: false })
+          .waitFor({ timeout: 30_000 });
+      } catch (cause) {
+        throw new Error(
+          `El panel no confirmó la excepción. Respuestas rechazadas: ${rejectedResponses.join(", ") || "ninguna"}.`,
+          cause instanceof Error ? { cause } : undefined,
+        );
+      }
+      await exceptions
+        .getByRole("listitem")
+        .getByText("Cerrado todo el día", { exact: true })
+        .waitFor({ timeout: 30_000 });
+
+      const invalidated =
+        await database.recurringStoryMaterialization.findUniqueOrThrow({
+          include: { publication: true },
+          where: { id: draft.id },
+        });
+      assert.equal(invalidated.status, "invalidated");
+      assert.equal(
+        invalidated.invalidatedReasonCode,
+        "location-day-override-changed",
+      );
+      assert.equal(invalidated.publication?.status, "validation_failed");
+      const cancelledOccurrence =
+        await database.publicationScheduleOccurrence.findUniqueOrThrow({
+          where: { id: occurrence.id },
+        });
+      assert.equal(cancelledOccurrence.status, "cancelled");
+      assert.equal(
+        (
+          await database.publicationSchedule.findUniqueOrThrow({
+            where: { id: schedule.id },
+          })
+        ).status,
+        "cancelled",
+      );
+      reportCheck(
+        "guardar el feriado cancela la ocurrencia y devuelve la historia a revisión",
+      );
     } finally {
       await database.$disconnect();
     }

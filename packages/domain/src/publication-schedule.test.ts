@@ -9,6 +9,7 @@ import {
   planOccurrences,
   publicationScheduleDefaultTimeZone,
   singleOccurrenceRule,
+  transitionPublicationSchedule,
   resolveLocalInstant,
   scheduleAcceptsOccurrences,
   scheduleExpirationDue,
@@ -52,6 +53,7 @@ function scheduleWith(
     rule: dailyRule(),
     status: "active",
     targets: ["instagram_feed", "facebook_page"],
+    version: 1,
     ...overrides,
   };
 }
@@ -295,6 +297,20 @@ test("una ocurrencia despachada queda congelada aunque la regla ya no la produzc
   assert.ok(occurrenceIsFrozen(dispatched));
 });
 
+test("una ocurrencia ya enviada al worker queda congelada aunque siga planificada", () => {
+  const queued: PublicationOccurrenceRecord = {
+    dispatchRequestedAt: "2026-09-01T12:00:00.000Z",
+    occurrenceKey: "2026-09-01T09:00",
+    resolution: "exact",
+    scheduledAt: "2026-09-01T12:00:00.000Z",
+    status: "planned",
+  };
+  const diff = diffOccurrences([], [queued]);
+  assert.deepEqual(diff.frozen, ["2026-09-01T09:00"]);
+  assert.deepEqual(diff.obsolete, []);
+  assert.ok(occurrenceIsFrozen(queued));
+});
+
 test("una ocurrencia planificada que la regla ya no produce queda obsoleta", () => {
   const diff = diffOccurrences(
     [],
@@ -375,6 +391,54 @@ test("una programación pausada o cancelada no produce ocurrencias", () => {
       `El estado ${status} no debería producir ocurrencias.`,
     );
   }
+});
+
+test("pausar, reanudar y cancelar compara versión sin tocar el snapshot", () => {
+  const active = scheduleWith({ version: 4 });
+  const paused = transitionPublicationSchedule(active, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 4,
+    occurredAt: "2026-09-15T12:00:00.000Z",
+    type: "pause",
+  });
+  assert.equal(paused.ok, true);
+  assert.equal(paused.schedule.status, "paused");
+  assert.equal(paused.schedule.version, 5);
+  assert.equal(paused.schedule.approvalSnapshotId, active.approvalSnapshotId);
+
+  const resumed = transitionPublicationSchedule(paused.schedule, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 5,
+    occurredAt: "2026-09-15T12:05:00.000Z",
+    type: "resume",
+  });
+  assert.equal(resumed.ok, true);
+  assert.equal(resumed.schedule.status, "active");
+
+  const cancelled = transitionPublicationSchedule(resumed.schedule, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 6,
+    occurredAt: "2026-09-15T12:10:00.000Z",
+    reasonCode: "schedule-cancelled",
+    type: "cancel",
+  });
+  assert.equal(cancelled.ok, true);
+  assert.equal(cancelled.schedule.status, "cancelled");
+  assert.equal(cancelled.event.reasonCode, "schedule-cancelled");
+
+  const stale = transitionPublicationSchedule(active, {
+    actorMembershipId: "actor-1",
+    expectedVersion: 3,
+    occurredAt: "2026-09-15T12:00:00.000Z",
+    type: "pause",
+  });
+  assert.deepEqual(stale, {
+    error: {
+      code: "version-conflict",
+      message: "The schedule changed before this command could be applied.",
+    },
+    ok: false,
+  });
 });
 
 test("una programación activa fuera de vigencia no produce ocurrencias", () => {

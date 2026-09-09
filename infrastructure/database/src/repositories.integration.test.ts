@@ -9,6 +9,7 @@ import {
   pendingPublicationTargets,
   publicationOccurrenceDispatchTopic,
   publicationOrderStatus,
+  singleOccurrenceRule,
   transitionPublication,
   type GenerationRunRecord,
   type GenerationVariantRecord,
@@ -48,7 +49,10 @@ import {
 } from "./publication-order-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
+import { PrismaPublicationOperationalAlertRepository } from "./publication-operational-alert-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
+import { PrismaPublicationScheduleManagementRepository } from "./publication-schedule-management-repository.ts";
+import { PrismaPublicationScheduleMaterializationRepository } from "./publication-schedule-materialization-repository.ts";
 import { PrismaRecurringStoryRepository } from "./recurring-story-repository.ts";
 import {
   PrismaOutboxRepository,
@@ -2781,6 +2785,11 @@ test("repositorios y constraints aíslan organizaciones y preservan snapshots", 
   const connection = await queryPool.connect();
   try {
     await connection.query("SET enable_seqscan = off");
+    // Con un fixture mínimo, el índice único por tenant también puede filtrar
+    // una fila y PostgreSQL prefiere ordenar esa única fila. Desactivar sólo
+    // ese plan alternativo hace que esta prueba compruebe el índice compuesto
+    // que sostiene el orden de la consulta real, sin cambiar el plan productivo.
+    await connection.query("SET enable_sort = off");
     const statusPlan = await connection.query<{ "QUERY PLAN": string }>(
       `
         EXPLAIN (FORMAT TEXT)
@@ -6334,6 +6343,648 @@ async function scheduleFixture(
   };
 }
 
+test("pausar, reanudar y cancelar una programación conserva la aprobación", async () => {
+  const fixture = await scheduleFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const pauseContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:pause",
+  );
+  const pause = await repository.transition({
+    command: {
+      actorMembershipId: fixture.membershipId,
+      expectedVersion: 1,
+      occurredAt: pauseContext.occurredAt,
+      type: "pause",
+    },
+    organizationId: fixture.organizationId,
+    reliableOperation: pauseContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(pause, {
+    cancelledOccurrenceCount: 0,
+    dispatchedOccurrenceCount: 0,
+    publication: { status: "approved", version: 1 },
+    scheduleId: fixture.scheduleId,
+    status: "updated",
+    version: 2,
+  });
+  const paused = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(paused.status, "paused");
+  assert.equal(paused.version, 2);
+  assert.ok(paused.pausedAt !== null);
+
+  const resumeContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:resume",
+  );
+  const resume = await repository.transition({
+    command: {
+      actorMembershipId: fixture.membershipId,
+      expectedVersion: 2,
+      occurredAt: resumeContext.occurredAt,
+      type: "resume",
+    },
+    organizationId: fixture.organizationId,
+    reliableOperation: resumeContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.equal(resume.status, "updated");
+  assert.equal(resume.version, 3);
+  const resumed = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(resumed.status, "active");
+  assert.equal(resumed.pausedAt, null);
+
+  await database.publication.update({
+    data: { status: "scheduled", version: 2 },
+    where: { id: fixture.publicationId },
+  });
+  await database.publicationStateTransition.create({
+    data: {
+      actorMembershipId: fixture.membershipId,
+      commandType: "advance",
+      fromStatus: "approved",
+      fromVersion: 1,
+      occurredAt: new Date("2026-09-01T11:00:00.000Z"),
+      organizationId: fixture.organizationId,
+      publicationId: fixture.publicationId,
+      toStatus: "scheduled",
+      toVersion: 2,
+    },
+  });
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      occurrenceKey: "2026-09-02T09:00",
+      organizationId: fixture.organizationId,
+      scheduleId: fixture.scheduleId,
+      scheduledAt: new Date("2026-09-02T12:00:00.000Z"),
+    },
+  });
+  const orderId = randomUUID();
+  await database.publicationOrder.create({
+    data: {
+      approvalSnapshotId: fixture.snapshotId,
+      id: orderId,
+      organizationId: fixture.organizationId,
+      publicationId: fixture.publicationId,
+      requestedByMembershipId: fixture.membershipId,
+      targets: { create: [{ target: "instagram_feed" }] },
+    },
+  });
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchedAt: new Date("2026-09-01T12:00:00.000Z"),
+      occurrenceKey: "2026-09-01T09:00",
+      organizationId: fixture.organizationId,
+      publicationOrderId: orderId,
+      scheduleId: fixture.scheduleId,
+      scheduledAt: new Date("2026-09-01T12:00:00.000Z"),
+      status: "dispatched",
+    },
+  });
+
+  const cancelContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:cancel",
+  );
+  const command = {
+    actorMembershipId: fixture.membershipId,
+    expectedVersion: 3,
+    occurredAt: cancelContext.occurredAt,
+    reasonCode: "operator-cancelled",
+    type: "cancel" as const,
+  };
+  const cancellation = await repository.transition({
+    command,
+    organizationId: fixture.organizationId,
+    reliableOperation: cancelContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(cancellation, {
+    cancelledOccurrenceCount: 1,
+    dispatchedOccurrenceCount: 1,
+    publication: { status: "approved", version: 3 },
+    scheduleId: fixture.scheduleId,
+    status: "updated",
+    version: 4,
+  });
+  const replayed = await repository.transition({
+    command,
+    organizationId: fixture.organizationId,
+    reliableOperation: cancelContext,
+    scheduleId: fixture.scheduleId,
+  });
+  assert.deepEqual(replayed, { ...cancellation, replayed: true });
+
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: fixture.scheduleId },
+  });
+  assert.equal(schedule.status, "cancelled");
+  assert.equal(schedule.version, 4);
+  assert.equal(schedule.cancelledReasonCode, "operator-cancelled");
+  const occurrences = await database.publicationScheduleOccurrence.findMany({
+    orderBy: { occurrenceKey: "asc" },
+    where: { scheduleId: fixture.scheduleId },
+  });
+  assert.deepEqual(
+    occurrences.map((occurrence) => occurrence.status),
+    ["dispatched", "cancelled"],
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: fixture.publicationId },
+  });
+  assert.equal(publication.status, "approved");
+  assert.equal(publication.version, 3);
+  const transition = await database.publicationStateTransition.findFirstOrThrow(
+    {
+      orderBy: { toVersion: "desc" },
+      where: { publicationId: fixture.publicationId },
+    },
+  );
+  assert.equal(transition.commandType, "unschedule");
+  assert.equal(transition.reasonCode, "operator-cancelled");
+});
+
+test("crear una programación aprobada materializa ocurrencias y se repite de forma idempotente", async () => {
+  const fixture = await publicationOrderFixture(["instagram_feed"]);
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const context = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const rule = {
+    effectiveFrom: context.occurredAt,
+    gapPolicy: "skip" as const,
+    localTime: "09:00",
+    recurrence: { interval: 1, kind: "daily" as const },
+    timeZone: "America/Argentina/Cordoba",
+  };
+  const input = {
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 15,
+    missedPolicy: "skip" as const,
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: context,
+    rule,
+    targets: ["instagram_feed" as const],
+  };
+
+  const created = await repository.create(input);
+  assert.equal(created.status, "created");
+  assert.equal(created.publication.status, "scheduled");
+  assert.equal(created.publication.version, 2);
+  assert.ok(created.materializedOccurrenceCount > 0);
+
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(schedule.approvalSnapshotId, fixture.snapshotId);
+  assert.equal(schedule.status, "active");
+  assert.equal(schedule.version, 1);
+  const occurrences = await database.publicationScheduleOccurrence.count({
+    where: { scheduleId: created.scheduleId, status: "planned" },
+  });
+  assert.equal(occurrences, created.materializedOccurrenceCount);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: fixture.publicationId },
+  });
+  assert.equal(publication.status, "scheduled");
+  assert.equal(publication.version, 2);
+  const stateTransition =
+    await database.publicationStateTransition.findFirstOrThrow({
+      where: { publicationId: fixture.publicationId, toStatus: "scheduled" },
+    });
+  assert.equal(stateTransition.commandType, "advance");
+
+  assert.deepEqual(await repository.create(input), {
+    ...created,
+    replayed: true,
+  });
+  assert.equal(
+    await database.publicationSchedule.count({
+      where: { organizationId: fixture.organizationId },
+    }),
+    1,
+  );
+  const calendarFrom = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const calendarTo = new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString();
+  const calendar = await repository.list({
+    from: calendarFrom,
+    organizationId: fixture.organizationId,
+    to: calendarTo,
+  });
+  assert.equal(calendar.length, 1);
+  const calendarEntry = calendar[0];
+  assert.ok(calendarEntry);
+  assert.equal(calendarEntry.schedule.id, created.scheduleId);
+  assert.ok(calendarEntry.occurrences.length > 0);
+  const detail = await repository.find({
+    from: calendarFrom,
+    organizationId: fixture.organizationId,
+    scheduleId: created.scheduleId,
+    to: calendarTo,
+  });
+  assert.equal(detail?.schedule.rule.timeZone, "America/Argentina/Cordoba");
+  await assert.rejects(
+    repository.list({
+      from: calendarFrom,
+      organizationId: fixture.organizationId,
+      to: new Date(Date.now() + 94 * 24 * 60 * 60_000).toISOString(),
+    }),
+    RangeError,
+  );
+});
+
+test("no se programa una publicación no aprobada ni una regla única vencida", async () => {
+  const nonApproved = await publicationOrderFixture();
+  await database.publication.update({
+    data: { status: "draft" },
+    where: { id: nonApproved.publicationId },
+  });
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const notApprovedContext = reliableMutation(
+    nonApproved.organizationId,
+    nonApproved.membershipId,
+    "scheduling.schedule:create",
+  );
+  const futureRule = {
+    effectiveFrom: notApprovedContext.occurredAt,
+    gapPolicy: "skip" as const,
+    localTime: "09:00",
+    recurrence: { interval: 1, kind: "daily" as const },
+    timeZone: "America/Argentina/Cordoba",
+  };
+  assert.deepEqual(
+    await repository.create({
+      actorMembershipId: nonApproved.membershipId,
+      expectedPublicationVersion: 1,
+      lateToleranceMinutes: 0,
+      missedPolicy: "skip",
+      organizationId: nonApproved.organizationId,
+      publicationId: nonApproved.publicationId,
+      reliableOperation: notApprovedContext,
+      rule: futureRule,
+      targets: ["instagram_feed"],
+    }),
+    { status: "not-approved" },
+  );
+
+  const expired = await publicationOrderFixture();
+  const expiredContext = reliableMutation(
+    expired.organizationId,
+    expired.membershipId,
+    "scheduling.schedule:create",
+  );
+  assert.deepEqual(
+    await repository.create({
+      actorMembershipId: expired.membershipId,
+      expectedPublicationVersion: 1,
+      lateToleranceMinutes: 0,
+      missedPolicy: "skip",
+      organizationId: expired.organizationId,
+      publicationId: expired.publicationId,
+      reliableOperation: expiredContext,
+      rule: {
+        effectiveFrom: "2020-01-01T12:00:00.000Z",
+        effectiveUntil: "2020-01-01T12:00:00.000Z",
+        gapPolicy: "skip",
+        localTime: "09:00",
+        recurrence: { kind: "once" },
+        timeZone: "America/Argentina/Cordoba",
+      },
+      targets: ["instagram_feed"],
+    }),
+    { status: "invalid-rule" },
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: expired.publicationId },
+  });
+  assert.equal(publication.status, "approved");
+  assert.equal(
+    await database.publicationSchedule.count({
+      where: { organizationId: expired.organizationId },
+    }),
+    0,
+  );
+});
+
+test("mover una programación hace diff, congela jobs solicitados y conserva idempotencia", async () => {
+  const fixture = await publicationOrderFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const localDate = new Date(Date.now() + 120 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+  const cordobaAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/Argentina/Cordoba",
+  });
+  const newYorkAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/New_York",
+  });
+  assert.ok(cordobaAnchor);
+  assert.ok(newYorkAnchor);
+  const createContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const created = await repository.create({
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: createContext,
+    rule: {
+      effectiveFrom: cordobaAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/Argentina/Cordoba",
+    },
+    targets: ["instagram_feed"],
+  });
+  assert.equal(created.status, "created");
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchOutboxEventId: randomUUID(),
+      dispatchRequestedAt: new Date(),
+      occurrenceKey: "2020-01-01T09:00",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2020-01-01T12:00:00.000Z"),
+      scheduleId: created.scheduleId,
+    },
+  });
+
+  const updateContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:update",
+  );
+  const input = {
+    actorMembershipId: fixture.membershipId,
+    expectedVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip" as const,
+    organizationId: fixture.organizationId,
+    reliableOperation: updateContext,
+    rule: {
+      effectiveFrom: newYorkAnchor.effectiveFrom,
+      gapPolicy: "skip" as const,
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" as const },
+      timeZone: "America/New_York",
+    },
+    scheduleId: created.scheduleId,
+    targets: ["instagram_feed" as const],
+  };
+  const updated = await repository.update(input);
+  assert.deepEqual(updated, {
+    cancelledOccurrenceCount: 0,
+    createdOccurrenceCount: 0,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 1,
+    scheduleId: created.scheduleId,
+    status: "updated",
+    version: 2,
+  });
+  assert.deepEqual(await repository.update(input), {
+    ...updated,
+    replayed: true,
+  });
+  const schedule = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(schedule.timeZone, "America/New_York");
+  assert.equal(schedule.version, 2);
+  const queued = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    where: {
+      occurrenceKey: "2020-01-01T09:00",
+      scheduleId: created.scheduleId,
+    },
+  });
+  assert.equal(queued.status, "planned");
+  assert.ok(queued.dispatchOutboxEventId);
+  const moved = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    where: {
+      occurrenceKey: `${localDate}T09:00`,
+      scheduleId: created.scheduleId,
+    },
+  });
+  assert.equal(moved.scheduledAt.toISOString(), newYorkAnchor.effectiveFrom);
+});
+
+test("la vista previa de mover no escribe y conserva las ocurrencias ya encoladas", async () => {
+  const fixture = await publicationOrderFixture();
+  const repository = new PrismaPublicationScheduleManagementRepository(
+    database,
+  );
+  const localDate = new Date(Date.now() + 120 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+  const cordobaAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/Argentina/Cordoba",
+  });
+  const newYorkAnchor = singleOccurrenceRule({
+    gapPolicy: "skip",
+    localDate,
+    localTime: "09:00",
+    timeZone: "America/New_York",
+  });
+  assert.ok(cordobaAnchor);
+  assert.ok(newYorkAnchor);
+  const createContext = reliableMutation(
+    fixture.organizationId,
+    fixture.membershipId,
+    "scheduling.schedule:create",
+  );
+  const created = await repository.create({
+    actorMembershipId: fixture.membershipId,
+    expectedPublicationVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    organizationId: fixture.organizationId,
+    publicationId: fixture.publicationId,
+    reliableOperation: createContext,
+    rule: {
+      effectiveFrom: cordobaAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/Argentina/Cordoba",
+    },
+    targets: ["instagram_feed"],
+  });
+  assert.equal(created.status, "created");
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      dispatchOutboxEventId: randomUUID(),
+      dispatchRequestedAt: new Date(),
+      occurrenceKey: "2020-01-01T09:00",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2020-01-01T12:00:00.000Z"),
+      scheduleId: created.scheduleId,
+    },
+  });
+
+  const preview = await repository.preview({
+    expectedVersion: 1,
+    lateToleranceMinutes: 0,
+    missedPolicy: "skip",
+    occurredAt: new Date().toISOString(),
+    organizationId: fixture.organizationId,
+    rule: {
+      effectiveFrom: newYorkAnchor.effectiveFrom,
+      gapPolicy: "skip",
+      localTime: "09:00",
+      recurrence: { interval: 1, kind: "daily" },
+      timeZone: "America/New_York",
+    },
+    scheduleId: created.scheduleId,
+    targets: ["instagram_feed"],
+  });
+  assert.deepEqual(preview, {
+    cancelledOccurrenceCount: 0,
+    createdOccurrenceCount: 0,
+    frozenOccurrenceCount: 1,
+    rescheduledOccurrenceCount: 1,
+    scheduleId: created.scheduleId,
+    status: "preview",
+    version: 1,
+  });
+  const unchanged = await database.publicationSchedule.findUniqueOrThrow({
+    where: { id: created.scheduleId },
+  });
+  assert.equal(unchanged.timeZone, "America/Argentina/Cordoba");
+  assert.equal(unchanged.version, 1);
+  const unchangedOccurrence =
+    await database.publicationScheduleOccurrence.findFirstOrThrow({
+      where: {
+        occurrenceKey: `${localDate}T09:00`,
+        scheduleId: created.scheduleId,
+      },
+    });
+  assert.equal(
+    unchangedOccurrence.scheduledAt.toISOString(),
+    cordobaAnchor.effectiveFrom,
+  );
+  assert.ok(unchangedOccurrence.dispatchOutboxEventId === null);
+});
+
+test("la reposición mantiene el horizonte y cierra reglas vencidas o únicas", async () => {
+  const fixture = await scheduleFixture();
+  const repository = new PrismaPublicationScheduleMaterializationRepository(
+    database,
+  );
+  const initialAt = "2026-09-10T12:00:00.000Z";
+  const initial = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.ok(initial.created > 0);
+  const replenishAt = "2026-12-08T12:00:00.000Z";
+  const replenished = await repository.materializeDue({
+    at: replenishAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.ok(replenished.created > 0);
+  const latest = await database.publicationScheduleOccurrence.findFirstOrThrow({
+    orderBy: { scheduledAt: "desc" },
+    where: { scheduleId: fixture.scheduleId },
+  });
+  assert.ok(
+    latest.scheduledAt.getTime() >=
+      new Date(replenishAt).getTime() + 89 * 24 * 60 * 60_000,
+  );
+  const repeated = await repository.materializeDue({
+    at: replenishAt,
+    limit: 100,
+    organizationId: fixture.organizationId,
+  });
+  assert.deepEqual(repeated, {
+    completed: 0,
+    created: 0,
+    expired: 0,
+    reviewed: 1,
+  });
+
+  const expired = await scheduleFixture({
+    effectiveUntil: new Date("2026-09-01T12:00:00.000Z"),
+  });
+  const expiredResult = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: expired.organizationId,
+  });
+  assert.ok(expiredResult.expired >= 1);
+  assert.equal(
+    (
+      await database.publicationSchedule.findUniqueOrThrow({
+        where: { id: expired.scheduleId },
+      })
+    ).status,
+    "expired",
+  );
+
+  const single = await scheduleFixture({
+    effectiveFrom: new Date("2026-09-20T12:00:00.000Z"),
+    kind: "once",
+    recurrenceInterval: null,
+  });
+  await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: single.organizationId,
+  });
+  await database.publicationScheduleOccurrence.updateMany({
+    data: { skippedReasonCode: "test-resolved", status: "skipped" },
+    where: { scheduleId: single.scheduleId, status: "planned" },
+  });
+  const completed = await repository.materializeDue({
+    at: initialAt,
+    limit: 100,
+    organizationId: single.organizationId,
+  });
+  assert.ok(completed.completed >= 1);
+  assert.equal(
+    (
+      await database.publicationSchedule.findUniqueOrThrow({
+        where: { id: single.scheduleId },
+      })
+    ).status,
+    "completed",
+  );
+});
+
 test("una programación sin destinos no se guarda", async () => {
   const { membershipId, organizationId, publicationId, snapshotId } =
     await publicationOrderFixture();
@@ -7006,6 +7657,171 @@ test("un desenlace ambiguo de una orden programada nunca vuelve a pending", asyn
     (await orders.openOutcomes(200)).some(
       (target) => target.publicationTargetId === targetKey,
     ),
+  );
+});
+
+// --- Revalidación inmediatamente anterior a Meta (`P6-T05`) ---
+
+test("un bloqueo previo invalida y audita la orden de forma atómica", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+
+  const result = await orders.blockPrePublish({
+    actorMembershipId: membershipId,
+    code: "prepublish-price-changed",
+    occurredAt: "2026-09-07T12:05:00.000Z",
+    orderId,
+    organizationId,
+    safeMessage:
+      "El precio cambió desde la aprobación. Actualizá la pieza y solicitá una nueva revisión.",
+  });
+  assert.equal(result.status, "blocked");
+
+  const [order, publication, transition, audit] = await Promise.all([
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+    database.publicationStateTransition.findFirstOrThrow({
+      orderBy: { occurredAt: "desc" },
+      where: { organizationId, publicationId, toStatus: "validation_failed" },
+    }),
+    database.auditEvent.findFirstOrThrow({
+      orderBy: { occurredAt: "desc" },
+      where: {
+        entityId: orderId,
+        operation: "content.publication:pre-publish-blocked",
+        organizationId,
+      },
+    }),
+  ]);
+  assert.equal(order.cancelledReasonCode, "prepublish-price-changed");
+  assert.equal(order.cancelledAt?.toISOString(), "2026-09-07T12:05:00.000Z");
+  assert.equal(publication.status, "validation_failed");
+  assert.equal(publication.failureCode, "prepublish-price-changed");
+  assert.equal(publication.failureRetryable, false);
+  assert.equal(transition.failureCode, "prepublish-price-changed");
+  assert.equal(audit.outcome, "failure");
+
+  assert.deepEqual(
+    await orders.blockPrePublish({
+      actorMembershipId: membershipId,
+      code: "prepublish-price-changed",
+      occurredAt: "2026-09-07T12:06:00.000Z",
+      orderId,
+      organizationId,
+      safeMessage: "No debe reemplazar el bloqueo original.",
+    }),
+    { status: "already-resolved" },
+  );
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: { organizationId, publicationId, toStatus: "validation_failed" },
+    }),
+    1,
+  );
+});
+
+test("un bloqueo posterior conserva una entrega remota ya confirmada", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.equal(
+    await orders.save(
+      publishedAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+        "remote-instagram",
+      ),
+    ),
+    "saved",
+  );
+
+  assert.equal(
+    (
+      await orders.blockPrePublish({
+        actorMembershipId: membershipId,
+        code: "prepublish-stock-changed",
+        occurredAt: "2026-09-07T12:05:00.000Z",
+        orderId,
+        organizationId,
+        safeMessage:
+          "El stock cambió desde la aprobación. Actualizá la pieza y solicitá una nueva revisión.",
+      })
+    ).status,
+    "blocked",
+  );
+  const [order, orderRow, publication] = await Promise.all([
+    orders.findById(organizationId, orderId),
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+  ]);
+  assert.ok(order);
+  assert.equal(orderRow.cancelledReasonCode, "prepublish-stock-changed");
+  assert.equal(
+    order.targets.find((target) => target.target === "instagram_feed")?.state,
+    "published",
+  );
+  assert.equal(publication.status, "partially_published");
+});
+
+test("un bloqueo previo no oculta un desenlace remoto que sigue en duda", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  assert.equal(
+    await orders.save(
+      unknownAttempt(
+        organizationId,
+        publicationTargetKey(orderId, "instagram_feed"),
+        1,
+      ),
+    ),
+    "saved",
+  );
+
+  const result = await orders.blockPrePublish({
+    actorMembershipId: membershipId,
+    code: "prepublish-media-unavailable",
+    occurredAt: "2026-09-07T12:05:00.000Z",
+    orderId,
+    organizationId,
+    safeMessage: "La pieza aprobada ya no está disponible.",
+  });
+  assert.equal(result.status, "blocked");
+
+  const [order, orderRow, publication] = await Promise.all([
+    orders.findById(organizationId, orderId),
+    database.publicationOrder.findUniqueOrThrow({ where: { id: orderId } }),
+    database.publication.findUniqueOrThrow({ where: { id: publicationId } }),
+  ]);
+  assert.ok(order);
+  assert.equal(orderRow.cancelledReasonCode, "prepublish-media-unavailable");
+  assert.equal(publication.status, "publishing");
+  assert.equal(
+    order.targets.find((target) => target.target === "instagram_feed")?.state,
+    "outcome_unknown",
   );
 });
 
@@ -7684,6 +8500,485 @@ test("una regla nueva materializa aunque las anteriores ya estén resueltas", as
   assert.equal(
     await database.recurringStoryMaterialization.count({
       where: { organizationId, ruleId: thirdRuleId },
+    }),
+    1,
+  );
+});
+
+test("las alertas operativas deduplican, se auditan y se reabren sin mezclar ocurrencias", async () => {
+  const fixture = await scheduleFixture({
+    lateToleranceMinutes: 30,
+    missedPolicy: "run_late",
+  });
+  const observedAt = "2026-09-08T12:00:00.000Z";
+  const occurrenceId = randomUUID();
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      id: occurrenceId,
+      occurrenceKey: "2026-09-08T08:55",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2026-09-08T11:50:00.000Z"),
+      scheduleId: fixture.scheduleId,
+    },
+  });
+
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    fixture.organizationId,
+    fixture.membershipId,
+    fixture.publicationId,
+    ["facebook_page"],
+  );
+  const targetId = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      failedAttempt(fixture.organizationId, targetId, 1, "permission-denied"),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId: fixture.organizationId,
+      publicationTargetId: targetId,
+      reason: "permanent-failure",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const connectionId = randomUUID();
+  await database.metaConnection.create({
+    data: {
+      accountName: "Conexión que requiere revisión",
+      accessCiphertext: "encrypted-token-placeholder",
+      accessIv: "initialization-vector",
+      accessKeyVersion: "v1",
+      accessTag: "authentication-tag",
+      connectedByMembershipId: fixture.membershipId,
+      grantedPermissions: [],
+      health: "token_expired",
+      id: connectionId,
+      lastCheckedAt: new Date(observedAt),
+      organizationId: fixture.organizationId,
+      providerAccountId: `degraded-${connectionId}`,
+    },
+  });
+
+  const alerts = new PrismaPublicationOperationalAlertRepository(database);
+  const policy = {
+    at: observedAt,
+    limit: 100,
+    nearPublicationWindowMilliseconds: 30 * 60 * 1_000,
+    occurrenceStuckThresholdMilliseconds: 5 * 60 * 1_000,
+  };
+  const first = await alerts.sweep(policy);
+  assert.ok(first.opened >= 3);
+  const opened = await alerts.listOpen(fixture.organizationId, 100);
+  assert.equal(opened.length, 3);
+  const stuck = opened.find((entry) => entry.kind === "occurrence-stuck");
+  assert.ok(stuck);
+  assert.equal(stuck.scheduleOccurrenceId, occurrenceId);
+  assert.equal(stuck.publicationId, fixture.publicationId);
+  assert.equal(stuck.publicationTarget, "instagram_feed");
+  assert.equal(stuck.cause, "dispatch-not-requested");
+  assert.equal(stuck.safeAction, "inspect-queue");
+  assert.equal(stuck.severity, "urgent");
+  const manual = opened.find(
+    (entry) => entry.kind === "publication-manual-action",
+  );
+  assert.ok(manual);
+  assert.equal(manual.publicationTarget, "facebook_page");
+  assert.equal(manual.cause, "permanent-failure");
+  assert.equal(manual.safeAction, "retry");
+  const connection = opened.find(
+    (entry) => entry.kind === "connection-degraded",
+  );
+  assert.ok(connection);
+  assert.equal(connection.metaConnectionId, connectionId);
+  assert.equal(connection.safeAction, "reconnect-meta");
+  // La tabla no tiene ni acepta payloads ni secretos de proveedor.
+  assert.equal(JSON.stringify(opened).includes("token"), false);
+
+  const second = await alerts.sweep(policy);
+  assert.ok(second.updated >= 3);
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 3);
+
+  const resolved = await alerts.resolve({
+    actorMembershipId: fixture.membershipId,
+    at: "2026-09-08T12:01:00.000Z",
+    id: stuck.id,
+    organizationId: fixture.organizationId,
+  });
+  assert.equal(resolved.status, "resolved");
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 2);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityId: stuck.id,
+        operation: "scheduling.operational-alert:resolve",
+        organizationId: fixture.organizationId,
+      },
+    }),
+    1,
+  );
+
+  const reopened = await alerts.sweep({
+    ...policy,
+    at: "2026-09-08T12:02:00.000Z",
+  });
+  assert.ok(reopened.reopened >= 1);
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 3);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityId: stuck.id,
+        operation: "scheduling.operational-alert:reopen",
+        organizationId: fixture.organizationId,
+      },
+    }),
+    1,
+  );
+});
+
+test("una excepción de horario invalida las historias futuras de esa fecha y respeta versiones", async () => {
+  const organizationId = randomUUID();
+  const otherOrganizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.createMany({
+    data: [
+      {
+        displayName: "Aramayo excepciones gestionadas",
+        id: organizationId,
+        legalName: "Aramayo excepciones gestionadas",
+        slug: `day-override-${organizationId}`,
+      },
+      {
+        displayName: "Aramayo ajena",
+        id: otherOrganizationId,
+        legalName: "Aramayo ajena",
+        slug: `day-override-other-${otherOrganizationId}`,
+      },
+    ],
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de excepciones",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "Rivadavia 673",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+      timeZone: "America/Argentina/Cordoba",
+    },
+  });
+  const actor = {
+    displayName: "Responsable de excepciones",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  await recurring.create({
+    actor,
+    approvalPolicy: "automatic-routine",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `day-override-${randomUUID()}`,
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId,
+    name: "Ya abrimos",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    weekdays: [2],
+  });
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 5,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+
+  const overrides = new PrismaOrganizationConfigurationRepository(database);
+  const holiday = {
+    localDate: "2026-09-08",
+    sourceLabel: "Feriado provincial confirmado",
+    status: "closed" as const,
+  };
+
+  // Previsualizar informa el impacto sin escribir nada.
+  const preview = await overrides.previewLocationDayOverride({
+    changedAt: "2026-09-07T13:00:00.000Z",
+    locationId,
+    organizationId,
+    update: holiday,
+  });
+  assert.deepEqual(preview, {
+    impact: {
+      affectedStoryCount: 1,
+      localDate: "2026-09-08",
+      timeZone: "America/Argentina/Cordoba",
+      willBlockHoursSensitiveStories: true,
+      willRequireHumanApproval: false,
+    },
+    status: "ready",
+  });
+  assert.equal(
+    await database.locationDayOverride.count({ where: { organizationId } }),
+    0,
+  );
+  assert.equal(
+    (
+      await database.recurringStoryMaterialization.findFirstOrThrow({
+        where: { organizationId },
+      })
+    ).status,
+    "draft_created",
+  );
+
+  // Una versión esperada sobre una fecha sin excepción es un conflicto.
+  assert.deepEqual(
+    await overrides.upsertLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T13:00:00.000Z",
+      expectedVersion: 1,
+      locationId,
+      organizationId,
+      update: holiday,
+    }),
+    { status: "conflict" },
+  );
+
+  const created = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T13:00:00.000Z",
+    locationId,
+    organizationId,
+    update: holiday,
+  });
+  assert.equal(created.status, "updated");
+  assert.equal(created.impact.affectedStoryCount, 1);
+  assert.equal(created.override.status, "closed");
+  assert.equal(created.override.localDate, "2026-09-08");
+  assert.equal(created.override.version, 1);
+
+  const invalidated =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  assert.equal(invalidated.status, "invalidated");
+  assert.equal(
+    invalidated.invalidatedReasonCode,
+    "location-day-override-changed",
+  );
+  assert.equal(invalidated.scheduleId, null);
+  assert.ok(invalidated.publicationId);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: invalidated.publicationId },
+  });
+  assert.equal(publication.status, "validation_failed");
+  assert.equal(publication.failureCode, "location-day-override-changed");
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: {
+        organizationId,
+        publicationId: invalidated.publicationId,
+        toStatus: "validation_failed",
+      },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityType: "location_day_override",
+        operation: "scheduling.location-day-override:upsert",
+        organizationId,
+      },
+    }),
+    1,
+  );
+
+  // Cambiar a horario reducido exige la versión vigente y sube la propia.
+  assert.deepEqual(
+    await overrides.upsertLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T14:00:00.000Z",
+      expectedVersion: 7,
+      locationId,
+      organizationId,
+      update: {
+        localDate: "2026-09-08",
+        openingHours: "09:00 a 12:00",
+        sourceLabel: "Horario reducido informado por la dueña",
+        status: "open",
+      },
+    }),
+    { status: "conflict" },
+  );
+  const reduced = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T14:00:00.000Z",
+    expectedVersion: 1,
+    locationId,
+    organizationId,
+    update: {
+      localDate: "2026-09-08",
+      openingHours: "09:00 a 12:00",
+      sourceLabel: "Horario reducido informado por la dueña",
+      status: "open",
+    },
+  });
+  assert.equal(reduced.status, "updated");
+  assert.equal(reduced.override.version, 2);
+  assert.equal(reduced.impact.willRequireHumanApproval, true);
+  // La historia ya estaba invalidada: no vuelve a contarse.
+  assert.equal(reduced.impact.affectedStoryCount, 0);
+
+  // Re-aprobación: el ciclo vuelve a mirar la ocurrencia pero no repone sola
+  // la historia invalidada. Hace falta una revisión humana.
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T15:00:00.000Z",
+      limit: 5,
+      organizationId,
+    }),
+    { blocked: 0, created: 0, reviewed: 1 },
+  );
+  assert.equal(
+    (
+      await database.recurringStoryMaterialization.findFirstOrThrow({
+        where: { organizationId },
+      })
+    ).status,
+    "invalidated",
+  );
+
+  // Un cierre inesperado en otra fecha no toca lo ya publicado ni lo ajeno.
+  const unexpectedClosure = await overrides.upsertLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T16:00:00.000Z",
+    locationId,
+    organizationId,
+    update: {
+      localDate: "2026-09-15",
+      sourceLabel: "Cierre inesperado por corte de energía",
+      status: "closed",
+    },
+  });
+  assert.equal(unexpectedClosure.status, "updated");
+  assert.equal(unexpectedClosure.impact.affectedStoryCount, 0);
+
+  assert.deepEqual(
+    (
+      await overrides.listLocationDayOverrides({
+        endDate: "2026-09-30",
+        locationId,
+        organizationId,
+        startDate: "2026-09-01",
+      })
+    )?.map((override) => `${override.localDate}:${override.status}`),
+    ["2026-09-08:open", "2026-09-15:closed"],
+  );
+  assert.deepEqual(
+    (
+      await overrides.listLocationDayOverrides({
+        endDate: "2026-09-10",
+        locationId,
+        organizationId,
+        startDate: "2026-09-09",
+      })
+    )?.map((override) => override.localDate),
+    [],
+  );
+  assert.equal(
+    await overrides.listLocationDayOverrides({
+      endDate: "2026-09-30",
+      locationId,
+      organizationId: otherOrganizationId,
+      startDate: "2026-09-01",
+    }),
+    null,
+  );
+
+  // Borrar compara versión y conserva la fecha civil pedida.
+  assert.deepEqual(
+    await overrides.deleteLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T17:00:00.000Z",
+      expectedVersion: 1,
+      localDate: "2026-09-15",
+      locationId,
+      organizationId: otherOrganizationId,
+    }),
+    { status: "not-found" },
+  );
+  assert.deepEqual(
+    await overrides.deleteLocationDayOverride({
+      actorMembershipId: membershipId,
+      changedAt: "2026-09-07T17:00:00.000Z",
+      expectedVersion: 9,
+      localDate: "2026-09-15",
+      locationId,
+      organizationId,
+    }),
+    { status: "conflict" },
+  );
+  const removed = await overrides.deleteLocationDayOverride({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T17:00:00.000Z",
+    expectedVersion: 1,
+    localDate: "2026-09-15",
+    locationId,
+    organizationId,
+  });
+  assert.equal(removed.status, "deleted");
+  assert.equal(removed.impact.localDate, "2026-09-15");
+  assert.equal(
+    await database.locationDayOverride.count({
+      where: { locationId, organizationId },
+    }),
+    1,
+  );
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityType: "location_day_override",
+        operation: "scheduling.location-day-override:delete",
+        organizationId,
+      },
     }),
     1,
   );

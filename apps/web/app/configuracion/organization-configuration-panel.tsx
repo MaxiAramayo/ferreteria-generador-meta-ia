@@ -27,6 +27,7 @@ import {
   type ConfigurationSaveResult,
   type GenerationPolicySaveResult,
 } from "../../lib/organization-configuration-api";
+import { LocationDayOverridesSection } from "./location-day-overrides-section";
 import { MetaConnectionsPanel } from "./meta-connections-panel";
 
 type ConfigurationNotice = Readonly<{
@@ -874,11 +875,14 @@ function ReadyView({
         ) : (
           <div className="location-list">
             {state.configuration.locations.map((location) => (
-              <LocationForm
-                disabled={disabled}
-                key={location.id}
-                location={location}
-              />
+              <div className="location-entry" key={location.id}>
+                <LocationForm disabled={disabled} location={location} />
+                <LocationDayOverridesSection
+                  apiBaseUrl={meta.apiBaseUrl}
+                  canEdit={state.canEdit}
+                  location={location}
+                />
+              </div>
             ))}
           </div>
         )}

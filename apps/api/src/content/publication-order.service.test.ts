@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type {
   AuthenticatedActor,
+  BlockPrePublishOrderResult,
   OrganizationRole,
   PublicationOrderRecord,
   PublicationOrderRepository,
@@ -54,6 +55,10 @@ class StubRepository implements PublicationOrderRepository {
   ) {
     this.#order = order;
     this.#result = result;
+  }
+
+  blockPrePublish(): Promise<BlockPrePublishOrderResult> {
+    return Promise.resolve({ status: "not-found" });
   }
 
   cancel(input: unknown): Promise<never> {

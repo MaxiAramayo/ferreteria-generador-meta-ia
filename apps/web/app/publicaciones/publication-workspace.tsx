@@ -379,6 +379,8 @@ export function PublicationWorkspace({
           <a aria-current="page" href="#publicaciones">
             Publicaciones
           </a>
+          <Link href="/programacion">Programación</Link>
+          <Link href="/operacion">Operación</Link>
           <Link href="/configuracion">Configuración</Link>
         </nav>
         <p>

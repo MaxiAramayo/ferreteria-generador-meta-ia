@@ -31,7 +31,10 @@ export class WorkerModule {
       available: briefAvailable,
       imports: [catalogModule, knowledgeModule],
     });
-    const publishingModule = PublishingModule.forConfiguration(configuration);
+    const publishingModule = PublishingModule.forConfiguration(
+      configuration,
+      catalogModule,
+    );
     const schedulingModule = SchedulingModule.forConfiguration(configuration);
 
     return {

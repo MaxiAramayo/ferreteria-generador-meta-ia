@@ -9,6 +9,7 @@ import type {
   CreateAuthenticationSessionInput,
   IdentityRepository,
   GenerationPolicyRepository,
+  LocationDayOverrideRepository,
   LoginIdentityRecord,
   OrganizationConfiguration,
   OrganizationConfigurationRepository,
@@ -33,6 +34,7 @@ import supertest from "supertest";
 import {
   GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
+  LOCATION_DAY_OVERRIDE_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { OrganizationsModule } from "../organizations/organizations.module.ts";
@@ -263,6 +265,7 @@ class TestPersistenceModule {
       exports: [
         GENERATION_POLICY_REPOSITORY,
         IDENTITY_REPOSITORY,
+        LOCATION_DAY_OVERRIDE_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
       ],
       global: true,
@@ -273,6 +276,10 @@ class TestPersistenceModule {
           useValue: generationPolicyRepository,
         },
         { provide: IDENTITY_REPOSITORY, useValue: identityRepository },
+        {
+          provide: LOCATION_DAY_OVERRIDE_REPOSITORY,
+          useValue: locationDayOverrideRepository,
+        },
         {
           provide: ORGANIZATION_CONFIGURATION_REPOSITORY,
           useValue: configurationRepository,
@@ -317,6 +324,16 @@ const generationPolicyRepository: GenerationPolicyRepository = {
   find: (): Promise<never> => Promise.reject(new Error("no usado")),
   preflight: (): Promise<never> => Promise.reject(new Error("no usado")),
   update: (): Promise<never> => Promise.reject(new Error("no usado")),
+};
+const locationDayOverrideRepository: LocationDayOverrideRepository = {
+  deleteLocationDayOverride: (): Promise<never> =>
+    Promise.reject(new Error("no usado")),
+  listLocationDayOverrides: (): Promise<never> =>
+    Promise.reject(new Error("no usado")),
+  previewLocationDayOverride: (): Promise<never> =>
+    Promise.reject(new Error("no usado")),
+  upsertLocationDayOverride: (): Promise<never> =>
+    Promise.reject(new Error("no usado")),
 };
 let application: INestApplication;
 let baseUrl: string;

@@ -30,7 +30,9 @@ export interface PublishingFixture {
   readonly approvedPublicationId: string;
   readonly draftPublicationId: string;
   readonly organizationId: string;
-  readonly people: Readonly<Record<"editor" | "publisher", SeededPerson>>;
+  readonly people: Readonly<
+    Record<"editor" | "publisher" | "scheduler", SeededPerson>
+  >;
 }
 
 const checksum = "a".repeat(64);
@@ -118,6 +120,13 @@ export async function seedPublishingFixture(
       email: "publicadora.e2e@aramayo.invalid",
       membershipId: randomUUID(),
       roles: ["publisher"] as const,
+    },
+    // La gestión de calendario se prueba con su permiso real, no mediante una
+    // cookie fabricada ni ampliando el rol de la persona que publica.
+    scheduler: {
+      email: "programadora.e2e@aramayo.invalid",
+      membershipId: randomUUID(),
+      roles: ["approver"] as const,
     },
   };
 

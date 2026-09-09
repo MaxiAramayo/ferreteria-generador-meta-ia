@@ -11,10 +11,12 @@ import {
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
   PrismaMetaConnectionRepository,
+  PrismaPublicationOperationalAlertRepository,
   PrismaPublicationOrderRepository,
   PrismaPublicationOccurrenceExecutionRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationScheduleDispatchRepository,
+  PrismaPublicationScheduleMaterializationRepository,
   PrismaRecurringStoryRepository,
 } from "@aramayo/database";
 import type {
@@ -29,7 +31,9 @@ import type {
   OutboxRepository,
   PublicationProductionRepository,
   PublicationOccurrenceExecutionRepository,
+  PublicationOperationalAlertRepository,
   PublicationScheduleDispatchRepository,
+  PublicationScheduleMaterializationRepository,
   RecurringStoryMaterializationRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
@@ -46,9 +50,11 @@ import {
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
+  PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
   PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+  PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
   RECURRING_STORY_MATERIALIZATION_REPOSITORY,
   WORKER_DATABASE_CLIENT,
 } from "./database.tokens.ts";
@@ -68,14 +74,24 @@ export class DatabaseModule {
         META_CONNECTION_REPOSITORY,
         OUTBOX_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
+        PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
         PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+        PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
         RECURRING_STORY_MATERIALIZATION_REPOSITORY,
       ],
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationOperationalAlertRepository =>
+            new PrismaPublicationOperationalAlertRepository(database),
+        },
         {
           inject: [WORKER_DATABASE_CLIENT],
           provide: RECURRING_STORY_MATERIALIZATION_REPOSITORY,
@@ -148,6 +164,14 @@ export class DatabaseModule {
             database: DatabaseClient,
           ): PublicationScheduleDispatchRepository =>
             new PrismaPublicationScheduleDispatchRepository(database),
+        },
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationScheduleMaterializationRepository =>
+            new PrismaPublicationScheduleMaterializationRepository(database),
         },
         {
           inject: [WORKER_DATABASE_CLIENT],

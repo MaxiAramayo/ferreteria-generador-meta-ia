@@ -45,7 +45,8 @@
  */
 
 import type { OrganizationScope } from "./persistence.ts";
-import type { PublicationTarget } from "./publication.ts";
+import type { PublicationStatus, PublicationTarget } from "./publication.ts";
+import type { ReliableMutationContext } from "./reliable-operations.ts";
 
 /** Zona por defecto del negocio. */
 export const publicationScheduleDefaultTimeZone =
@@ -152,6 +153,22 @@ export const publicationRecurrenceMaximumInterval = 52;
  */
 export const publicationOccurrenceWindowLimit = 366;
 
+/**
+ * Ventana inicial que una nueva regla deja persistida de forma atómica.
+ *
+ * No es una promesa de que la recurrencia termina a los noventa días: el
+ * materializador posterior debe reponer ocurrencias antes de que la ventana se
+ * agote. El límite sólo evita crear cientos de filas por una regla diaria al
+ * guardarla.
+ */
+export const publicationScheduleInitialMaterializationHorizonDays = 90;
+
+/** Máximo de reglas que un ciclo de reposición puede reclamar. */
+export const publicationScheduleMaterializationBatchMaximum = 100;
+
+/** Máxima ventana que una lectura de calendario puede expandir de una vez. */
+export const publicationScheduleCalendarWindowMaximumDays = 93;
+
 export type PublicationRecurrence =
   | {
       readonly kind: "daily";
@@ -205,6 +222,369 @@ export interface PublicationScheduleRecord {
   readonly rule: PublicationScheduleRule;
   readonly status: PublicationScheduleStatus;
   readonly targets: readonly PublicationTarget[];
+  /** Compare-and-swap para que una edición no pise otra. */
+  readonly version: number;
+}
+
+/**
+ * Comando que cambia la disponibilidad de una programación ya creada.
+ *
+ * Es deliberadamente distinto de una transición de publicación: pausar una
+ * regla no cambia ni la revisión ni su snapshot aprobado. La persistencia usa
+ * el evento para comparar versión, actualizar las marcas temporales y dejar
+ * auditoría en la misma transacción que las ocurrencias afectadas.
+ */
+interface PublicationScheduleCommandBase {
+  readonly actorMembershipId: string;
+  readonly expectedVersion: number;
+  readonly occurredAt: string;
+}
+
+export type PublicationScheduleTransitionCommand =
+  | (PublicationScheduleCommandBase & { readonly type: "pause" })
+  | (PublicationScheduleCommandBase & { readonly type: "resume" })
+  | (PublicationScheduleCommandBase & {
+      readonly reasonCode: string;
+      readonly type: "cancel";
+    });
+
+export interface PublicationScheduleTransitionEvent {
+  readonly actorMembershipId: string;
+  readonly commandType: PublicationScheduleTransitionCommand["type"];
+  readonly fromStatus: PublicationScheduleStatus;
+  readonly fromVersion: number;
+  readonly occurredAt: string;
+  readonly organizationId: string;
+  readonly reasonCode?: string;
+  readonly scheduleId: string;
+  readonly toStatus: PublicationScheduleStatus;
+  readonly toVersion: number;
+}
+
+export type PublicationScheduleTransitionErrorCode =
+  "invalid-command" | "invalid-transition" | "version-conflict";
+
+export type PublicationScheduleTransitionResult =
+  | Readonly<{
+      event: PublicationScheduleTransitionEvent;
+      ok: true;
+      schedule: PublicationScheduleRecord;
+    }>
+  | Readonly<{
+      error: Readonly<{
+        code: PublicationScheduleTransitionErrorCode;
+        message: string;
+      }>;
+      ok: false;
+    }>;
+
+const scheduleReasonCodePattern = /^[a-z0-9][a-z0-9._-]{0,79}$/u;
+
+function invalidScheduleTransition(
+  code: PublicationScheduleTransitionErrorCode,
+  message: string,
+): PublicationScheduleTransitionResult {
+  return Object.freeze({
+    error: Object.freeze({ code, message }),
+    ok: false as const,
+  });
+}
+
+/**
+ * Calcula el cambio de estado de una programación.
+ *
+ * No toca ocurrencias: la capa persistente cancela únicamente las `planned`
+ * como parte de la misma transacción. Separarlo evita que un consumidor use
+ * esta función para reinterpretar o modificar una ocurrencia `dispatched`.
+ */
+export function transitionPublicationSchedule(
+  schedule: PublicationScheduleRecord,
+  command: PublicationScheduleTransitionCommand,
+): PublicationScheduleTransitionResult {
+  if (schedule.version !== command.expectedVersion) {
+    return invalidScheduleTransition(
+      "version-conflict",
+      "The schedule changed before this command could be applied.",
+    );
+  }
+  if (
+    !Number.isInteger(command.expectedVersion) ||
+    command.expectedVersion < 1 ||
+    Number.isNaN(Date.parse(command.occurredAt))
+  ) {
+    return invalidScheduleTransition(
+      "invalid-command",
+      "The schedule command has an invalid version or timestamp.",
+    );
+  }
+
+  let target: PublicationScheduleStatus;
+  switch (command.type) {
+    case "pause":
+      if (schedule.status !== "active") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only an active schedule can be paused.",
+        );
+      }
+      target = "paused";
+      break;
+    case "resume":
+      if (schedule.status !== "paused") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only a paused schedule can be resumed.",
+        );
+      }
+      target = "active";
+      break;
+    case "cancel":
+      if (schedule.status !== "active" && schedule.status !== "paused") {
+        return invalidScheduleTransition(
+          "invalid-transition",
+          "Only an active or paused schedule can be cancelled.",
+        );
+      }
+      if (!scheduleReasonCodePattern.test(command.reasonCode)) {
+        return invalidScheduleTransition(
+          "invalid-command",
+          "Cancelling a schedule requires a safe reason code.",
+        );
+      }
+      target = "cancelled";
+      break;
+  }
+
+  const toVersion = schedule.version + 1;
+  const event: PublicationScheduleTransitionEvent = Object.freeze({
+    actorMembershipId: command.actorMembershipId,
+    commandType: command.type,
+    fromStatus: schedule.status,
+    fromVersion: schedule.version,
+    occurredAt: command.occurredAt,
+    organizationId: schedule.organizationId,
+    ...(command.type === "cancel" ? { reasonCode: command.reasonCode } : {}),
+    scheduleId: schedule.id,
+    toStatus: target,
+    toVersion,
+  });
+  return Object.freeze({
+    event,
+    ok: true as const,
+    schedule: Object.freeze({
+      ...schedule,
+      status: target,
+      version: toVersion,
+    }),
+  });
+}
+
+/** Entrada persistente para un cambio de disponibilidad de calendario. */
+export interface ApplyPublicationScheduleTransitionInput extends OrganizationScope {
+  readonly command: PublicationScheduleTransitionCommand;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly scheduleId: string;
+}
+
+/**
+ * Crea una intención temporal desde una publicación con snapshot aprobado.
+ *
+ * La regla llega ya resuelta a instantes UTC y zona IANA. El borde HTTP es el
+ * responsable de traducir el formulario civil a este contrato; de ese modo el
+ * repositorio sólo acepta una regla que el dominio puede expandir sin depender
+ * de la zona del navegador o del servidor.
+ */
+export interface CreatePublicationScheduleInput extends OrganizationScope {
+  readonly actorMembershipId: string;
+  /** CAS de la publicación que se programa, no de una regla inexistente. */
+  readonly expectedPublicationVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly publicationId: string;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly rule: PublicationScheduleRule;
+  readonly targets: readonly PublicationTarget[];
+}
+
+/** Sustituye la regla temporal sin tocar su snapshot de aprobación. */
+export interface UpdatePublicationScheduleInput extends OrganizationScope {
+  readonly actorMembershipId: string;
+  /** Compare-and-swap de la regla que se mueve. */
+  readonly expectedVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly reliableOperation: ReliableMutationContext;
+  readonly rule: PublicationScheduleRule;
+  readonly scheduleId: string;
+  readonly targets: readonly PublicationTarget[];
+}
+
+/**
+ * Calcula el impacto de sustituir una regla sin persistir ningún cambio.
+ *
+ * La vista previa recibe el mismo contrato temporal que una actualización,
+ * incluido el compare-and-swap. No tiene contexto idempotente porque no deja
+ * efectos; el cliente debe volver a enviar la misma versión al confirmar.
+ */
+export interface PreviewPublicationScheduleUpdateInput extends OrganizationScope {
+  readonly expectedVersion: number;
+  readonly lateToleranceMinutes: number;
+  readonly missedPolicy: PublicationMissedPolicy;
+  readonly occurredAt: string;
+  readonly rule: PublicationScheduleRule;
+  readonly scheduleId: string;
+  readonly targets: readonly PublicationTarget[];
+}
+
+/** Resultado de crear una regla y sus primeras ocurrencias en una transacción. */
+export type CreatePublicationScheduleResult =
+  | Readonly<{
+      materializedOccurrenceCount: number;
+      publication: Readonly<{
+        status: PublicationStatus;
+        version: number;
+      }>;
+      replayed?: true;
+      scheduleId: string;
+      status: "created";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "not-approved" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Consecuencias que el calendario debe mostrar, sin colapsarlas en éxito. */
+export type UpdatePublicationScheduleResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      createdOccurrenceCount: number;
+      frozenOccurrenceCount: number;
+      replayed?: true;
+      rescheduledOccurrenceCount: number;
+      scheduleId: string;
+      status: "updated";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Impacto de una edición que todavía no fue confirmada. */
+export type PreviewPublicationScheduleUpdateResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      createdOccurrenceCount: number;
+      frozenOccurrenceCount: number;
+      rescheduledOccurrenceCount: number;
+      scheduleId: string;
+      status: "preview";
+      /** Versión que debe conservarse al confirmar la actualización. */
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "invalid-rule" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "invalid-target" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Una regla y sólo sus ocurrencias dentro de la ventana solicitada. */
+export interface PublicationScheduleCalendarEntry {
+  readonly occurrences: readonly PublicationOccurrenceRecord[];
+  readonly schedule: PublicationScheduleRecord;
+}
+
+export interface ListPublicationSchedulesInput extends OrganizationScope {
+  readonly from: string;
+  readonly to: string;
+}
+
+export interface FindPublicationScheduleInput extends ListPublicationSchedulesInput {
+  readonly scheduleId: string;
+}
+
+/**
+ * El resultado informa las ocurrencias que no se pudieron retirar porque ya
+ * fueron despachadas. No es un fallo: es la evidencia explícita de un efecto
+ * parcial que el panel debe mostrar, no esconder tras un "cancelado" plano.
+ */
+export type ApplyPublicationScheduleTransitionResult =
+  | Readonly<{
+      cancelledOccurrenceCount: number;
+      dispatchedOccurrenceCount: number;
+      publication: Readonly<{
+        status: PublicationStatus;
+        version: number;
+      }>;
+      replayed?: true;
+      scheduleId: string;
+      status: "updated";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "not-found" }>;
+
+/**
+ * Puerto de gestión de una programación.
+ *
+ * La implementación debe ejecutar una transición junto con sus ocurrencias,
+ * la transición eventual `scheduled -> approved` de la publicación, auditoría
+ * e idempotencia. Hacerlo en operaciones independientes permitiría cancelar la
+ * regla y dejar la pieza suspendida sin una programación activa.
+ */
+export interface PublicationScheduleManagementRepository {
+  create(
+    input: CreatePublicationScheduleInput,
+  ): Promise<CreatePublicationScheduleResult>;
+  update(
+    input: UpdatePublicationScheduleInput,
+  ): Promise<UpdatePublicationScheduleResult>;
+  preview(
+    input: PreviewPublicationScheduleUpdateInput,
+  ): Promise<PreviewPublicationScheduleUpdateResult>;
+  find(
+    input: FindPublicationScheduleInput,
+  ): Promise<PublicationScheduleCalendarEntry | null>;
+  list(
+    input: ListPublicationSchedulesInput,
+  ): Promise<readonly PublicationScheduleCalendarEntry[]>;
+  transition(
+    input: ApplyPublicationScheduleTransitionInput,
+  ): Promise<ApplyPublicationScheduleTransitionResult>;
+}
+
+/** Entrada del ciclo que mantiene abastecidas las reglas recurrentes activas. */
+export interface MaterializePublicationSchedulesInput {
+  readonly at: string;
+  readonly limit: number;
+  readonly organizationId?: string;
+}
+
+/**
+ * Puerto de reposición de ocurrencias.
+ *
+ * No despacha trabajos ni edita la regla: sólo completa el horizonte futuro y
+ * deja una regla terminal cuando su vigencia o su única ocurrencia concluyen.
+ */
+export interface PublicationScheduleMaterializationRepository {
+  materializeDue(input: MaterializePublicationSchedulesInput): Promise<
+    Readonly<{
+      completed: number;
+      created: number;
+      expired: number;
+      reviewed: number;
+    }>
+  >;
 }
 
 /** Cómo se resolvió la hora local contra la zona. */
@@ -227,6 +607,8 @@ export interface PublicationOccurrencePlan {
 
 /** Una ocurrencia ya persistida. */
 export interface PublicationOccurrenceRecord {
+  /** Un job ya salió al outbox/Redis y no puede moverse sin duplicar. */
+  readonly dispatchRequestedAt?: string;
   readonly executionCompletedAt?: string;
   readonly executionStartedAt?: string;
   readonly occurrenceKey: string;
@@ -858,6 +1240,7 @@ export function occurrenceIsFrozen(
 ): boolean {
   return (
     occurrence.status === "dispatched" ||
+    occurrence.dispatchRequestedAt !== undefined ||
     occurrence.publicationOrderId !== undefined
   );
 }

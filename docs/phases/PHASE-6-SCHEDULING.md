@@ -252,7 +252,7 @@ concurrente y recuperación segura.
 
 ### Notas de progreso
 
-- Fecha: 2026-09-07.
+- Fecha: 2026-09-08.
 - Estado real: el consumidor BullMQ valida el payload mínimo y disputa una
   lease durable en PostgreSQL. La tarea cierra sin llamadas reales a Meta.
 - Responsabilidades: BullMQ transporta y retrasa; el servicio ejecutor mantiene
@@ -432,8 +432,8 @@ horario vigente, preview y aprobación según política.
 
 ## P6-T05 — Validar nuevamente antes de publicar
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T03`, `P6-T04`
 - Riesgo: Alto
 
@@ -450,18 +450,18 @@ del envío externo.
 
 ### Criterios de aceptación
 
-- [ ] Confirma snapshot aprobado y no invalidado.
-- [ ] Confirma conexión, permiso y destino saludables.
-- [ ] Confirma acceso y formato del medio.
-- [ ] Revalida precio, stock, promoción y horario cuando corresponda.
-- [ ] Un cambio material bloquea y solicita nueva revisión.
-- [ ] Una falla de validación no consume intento remoto.
+- [x] Confirma snapshot aprobado y no invalidado.
+- [x] Confirma conexión, permiso y destino saludables.
+- [x] Confirma acceso y formato del medio.
+- [x] Revalida precio, stock, promoción y horario cuando corresponda.
+- [x] Un cambio material bloquea y solicita nueva revisión.
+- [x] Una falla de validación no consume intento remoto.
 
 ### Verificación obligatoria
 
-- [ ] Casos de token revocado, medio ausente y evidencia vencida.
-- [ ] Cambiar precio/stock después de aprobar.
-- [ ] Confirmar código, alerta y estado correctos.
+- [x] Casos de token revocado, medio ausente y evidencia vencida.
+- [x] Cambiar precio/stock después de aprobar.
+- [x] Confirmar código, alerta y estado correctos.
 
 ### Fuera de alcance
 
@@ -469,16 +469,38 @@ del envío externo.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-07.
+- La aprobación persiste un perfil mínimo de prepublicación con los hechos
+  dinámicos requeridos, su evidencia y —para historias recurrentes— la fuente
+  de horario y sucursal. Los snapshots históricos sin perfil bloquean por
+  precaución; el contenido manual que menciona precio, stock, promoción u
+  horario también exige evidencia.
+- `PrePublishValidator` verifica estado/snapshot, evidencia y fuente recurrente,
+  activo y entrega pública, formato por destino, conexión, permisos, activos y
+  credencial de Meta. Precio y stock se reconsultan mediante el puerto comercial
+  existente, con ámbito de organización, sucursal y solicitante; una promoción
+  sin fuente aprobada bloquea, nunca se corrige sola.
+- Un bloqueo cancela la orden, registra el código accionable y auditoría en la
+  misma transacción y retorna antes del publicador. Si otro destino ya salió o
+  quedó con desenlace incierto, conserva ese hecho y cancela sólo los restantes.
+- Archivos principales: `packages/domain/src/pre-publish-validation.ts`,
+  `apps/worker/src/publishing/pre-publish.validator.ts`,
+  `apps/worker/src/publishing/pre-publish-commercial.adapter.ts`,
+  `infrastructure/database/src/publication-order-repository.ts` y sus pruebas.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `01a5e78` (`feat(scheduling): validate before external publication`).
+- `pnpm db:test` — base efímera, migración, aislamiento y reversión verificados.
+- `pnpm e2e:publishing` — flujo de publicación completo.
+- `pnpm e2e:recurring-story` — historia recurrente completa.
+- `pnpm verify` — stack, plan, formato, build, lint, typecheck, pruebas,
+  baseline y smoke completos.
 
 ## P6-T06 — Construir calendario y gestión de programación
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T01`, `P6-T05`
 - Riesgo: Medio
 
@@ -495,18 +517,18 @@ local y consecuencias explícitas.
 
 ### Criterios de aceptación
 
-- [ ] El usuario siempre ve fecha, hora y zona.
-- [ ] Cambiar una regla explica qué ocurrencias se modificarán.
-- [ ] No se programa una pieza no aprobada o en el pasado fuera de tolerancia.
-- [ ] Conflictos de versión no sobrescriben cambios ajenos.
-- [ ] Estados vacío, cargando, error, bloqueado y parcial son explícitos.
-- [ ] La UI es operable por teclado y usable en móvil.
+- [x] El usuario siempre ve fecha, hora y zona.
+- [x] Cambiar una regla explica qué ocurrencias se modificarán.
+- [x] No se programa una pieza no aprobada o en el pasado fuera de tolerancia.
+- [x] Conflictos de versión no sobrescriben cambios ajenos.
+- [x] Estados vacío, cargando, error, bloqueado y parcial son explícitos.
+- [x] La UI es operable por teclado y usable en móvil.
 
 ### Verificación obligatoria
 
-- [ ] E2E crear–mover–pausar–reanudar–cancelar.
-- [ ] Prueba en dos zonas horarias del navegador.
-- [ ] Auditoría de accesibilidad.
+- [x] E2E crear–mover–pausar–reanudar–cancelar.
+- [x] Prueba en dos zonas horarias del navegador.
+- [x] Auditoría de accesibilidad.
 
 ### Fuera de alcance
 
@@ -514,16 +536,184 @@ local y consecuencias explícitas.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-08.
+- Estado real: iniciada la revisión de arquitectura. Las dependencias
+  `P6-T01` y `P6-T05` están completas, pero la aplicación sólo expone la
+  creación de historias recurrentes; no existe aún un puerto/repositorio/API
+  para crear, mover, pausar, reanudar o cancelar programaciones generales.
+- Restricciones confirmadas: sólo snapshots aprobados; fecha civil, instante UTC
+  y zona IANA deben aparecer juntos; editar nunca reescribe ocurrencias
+  `dispatched`; cada mutación necesita compare-and-swap, idempotencia, auditoría
+  y una representación explícita de conflicto o resultado parcial.
+- Diseño de responsabilidades: `packages/domain` definirá el contrato de
+  gestión y sus diffs de ocurrencias; un repositorio Prisma hará la mutación de
+  programación, sus ocurrencias futuras y transición/auditoría en una única
+  transacción; `apps/api/scheduling` expondrá DTOs y mapeo de errores; el panel
+  consumirá contratos públicos en una vista calendario/lista separada de los
+  compositores de contenido.
+- Archivos previstos: contrato y pruebas de programación en dominio,
+  `infrastructure/database` (incluida versión CAS de `PublicationSchedule`),
+  módulo API de scheduling, contratos públicos, `apps/web/app/programacion/` y
+  un E2E de crear–mover–pausar–reanudar–cancelar.
+- Verificación prevista: pruebas unitarias de reglas y conflictos, integración
+  de PostgreSQL para transacción/ownership, E2E en Córdoba y Madrid, auditoría
+  de teclado/lectores y `pnpm verify`.
+- Próximo paso exacto: implementar el puerto de gestión y la migración de
+  versión de programación antes de crear la superficie HTTP o visual.
+- Avance 2026-09-08: `PublicationSchedule` ya tiene `version` persistida con
+  default `1`, migración reversible y contrato de dominio. La base efímera
+  verificó aplicar, revertir y reaplicar la migración; el siguiente cambio usa
+  esa versión como `expectedVersion` para los comandos de gestión.
+- Decisión registrada: [`ADR-026`](../architecture/decisions/ADR-026-SCHEDULE-CANCELLATION-SEMANTICS.md)
+  separa cancelar una programación de cancelar una pieza; sólo las ocurrencias
+  planificadas pueden cambiar y la última programación cancelada devuelve la
+  pieza aprobada a `approved`.
+- Avance 2026-09-08: el dominio ahora calcula `pause`, `resume` y `cancel`
+  con compare-and-swap de versión y sin alterar el snapshot; 230 pruebas
+  unitarias cubren esa matriz de transiciones.
+- Avance 2026-09-08: `PrismaPublicationScheduleManagementRepository` aplica
+  esas transiciones con idempotencia y auditoría en una única transacción.
+  `cancel` retira sólo ocurrencias `planned`, informa las `dispatched` que se
+  conservan y, si ya no queda otra programación activa o pausada, devuelve la
+  publicación de `scheduled` a `approved` con transición inmutable
+  `unschedule`. La migración del nuevo comando se aplica, revierte y reaplica
+  sobre datos de prueba sin dejar el trigger de historial desactivado.
+- Avance 2026-09-08: `POST /schedules/:scheduleId/transitions` requiere
+  `content:schedule`, versión esperada e `Idempotency-Key`; valida que el
+  motivo exista sólo al cancelar y expone recuentos de ocurrencias canceladas y
+  despachadas para que la interfaz represente el resultado parcial.
+- Avance 2026-09-08: el mismo puerto transaccional crea programaciones sólo
+  desde una publicación `approved` o `scheduled` que conserva snapshot. Valida
+  la política de destinos, la regla y la tolerancia antes de escribir; crea la
+  regla y sus primeras ocurrencias, deja la auditoría/idempotencia y mueve la
+  publicación de `approved` a `scheduled` en una única transacción. Una regla
+  única vencida no deja fila; una recurrencia recibe una ventana inicial de 90
+  días —o su próxima ocurrencia válida si cae más lejos— que el materializador
+  futuro deberá reponer antes de agotarse. La integración comprueba snapshot,
+  cambio de estado, ocurrencias, repetición idempotente y bloqueos por estado o
+  fecha pasada.
+- Avance 2026-09-08: `POST /publications/:publicationId/schedules` traduce el
+  formulario civil a una regla con instante UTC y zona IANA; admite una vez,
+  diaria, semanal y mensual con sus campos mutuamente excluyentes. Requiere
+  `content:schedule`, `expectedPublicationVersion` e `Idempotency-Key` y
+  devuelve el número de ocurrencias materializadas junto con la versión nueva
+  de la pieza. La API rechaza horas inexistentes, zonas inválidas, políticas de
+  recurrencia mezcladas y destinos que no fueron aprobados antes de llegar a
+  persistencia.
+- Avance 2026-09-08: mover una regla ya usa su versión propia como CAS y
+  calcula un diff contra las ocurrencias persistidas dentro de la misma
+  transacción. Crea, reprograma o cancela sólo las filas `planned`; conserva
+  como congeladas tanto las `dispatched` como las que ya tienen job solicitado
+  en el outbox, porque modificar una de esas filas podría ejecutar una fecha
+  diferente a la aprobada. El resultado idempotente informa los cuatro conteos
+  para que el formulario explique el efecto real y no presente una edición
+  parcial como éxito plano.
+- Avance 2026-09-08: `PATCH /schedules/:scheduleId` recibe el mismo contrato
+  civil de la creación, pero compara `expectedVersion` de la regla. Devuelve
+  filas creadas, reprogramadas, retiradas y congeladas por separado. Los DTOs
+  comparten la validación de regla —sin permitir campos semanales o mensuales
+  que la frecuencia elegida no usa— y la prueba del servicio verifica que esos
+  conteos e idempotencia lleguen sin perderse al contrato público.
+- Avance 2026-09-08: `GET /schedules?from&to` y
+  `GET /schedules/:scheduleId?from&to` exponen calendario y detalle bajo
+  `content:read`. La ventana UTC se normaliza y limita a 93 días, mientras la
+  respuesta conserva por ocurrencia el instante, clave civil, resolución y
+  estado, y por regla la fecha local, zona IANA, recurrencia, destinos, snapshot
+  y versión. La integración cubre listado, detalle y rechazo de una ventana
+  fuera del límite.
+- Avance 2026-09-08: `POST /schedules/:scheduleId/preview` calcula el mismo
+  diff de una edición sin crear operación idempotente ni escribir filas. Exige
+  versión de regla y permiso `content:schedule`, por lo que muestra altas,
+  bajas, reprogramaciones y ocurrencias congeladas antes de confirmar; el
+  `PATCH` posterior conserva CAS e idempotencia propios.
+- Avance 2026-09-08: el worker repone en PostgreSQL el horizonte de 90 días de
+  reglas activas con un puerto separado del dispatcher y `FOR UPDATE SKIP
+  LOCKED`. La reposición no toca Redis ni crea órdenes; sólo inserta claves
+  civiles ausentes, omite duplicados por índice único y mantiene el horizonte.
+  Una única ya resuelta pasa a `completed`; una regla con vigencia terminada
+  pasa a `expired` sólo cuando no conserva ocurrencias planificadas, para que
+  el dispatcher alcance a aplicar la política de atraso. Ambos cambios avanzan
+  versión para invalidar una edición concurrente.
+- Estado final 2026-09-08: el panel `/programacion` reúne el calendario y la
+  línea de tiempo móvil con el detalle de snapshot, destinos, ocurrencias y
+  estado. El cliente consume los contratos públicos con validación fail-closed;
+  crear, mover, pausar, reanudar y cancelar adquieren CSRF, versión e
+  idempotencia según corresponda. Mover exige `preview` de la misma versión
+  antes de habilitar su confirmación y muestra altas, bajas, reprogramaciones y
+  filas congeladas por job u orden ya solicitados.
+- La fecha local, hora y zona IANA viajan juntas en cada turno. El formulario
+  omite `effectiveUntil` para reglas únicas —aunque esa cota exista internamente
+  para materializarlas— y el detalle usa opciones compatibles de `Intl` para
+  no caerse al seleccionar una ocurrencia. Cada riel escribe `Planificada`,
+  `Cancelada`, `Despachada` o `Salteada`: el estado no queda implícito sólo en
+  color.
+- El E2E nuevo prepara una organización efímera y una sesión real con
+  `content:schedule`; usa teclado para crear, prueba el ciclo completo de
+  transiciones y confirma en PostgreSQL que nunca nace una orden ni se pierde el
+  snapshot. Repite la lectura desde un navegador en `America/New_York` y móvil:
+  la regla conserva `America/Argentina/Cordoba` y su hora local. La captura
+  generada, ignorada por Git, queda en
+  `output/playwright/p6-t06-calendar-mobile.png`.
+- Verificaciones ejecutadas: 77 pruebas del cliente web, lint, typecheck de
+  los tres E2E, build del panel, `pnpm e2e:scheduling` y formato. La auditoría
+  de accesibilidad comprobó foco y activación por teclado del alta, controles
+  con roles/etiquetas, feedback `aria-live`, estados textuales y la línea de
+  tiempo de 390 px. `pnpm verify` completo —incluidos `verify:plan`, build,
+  lint, typecheck, tests, baseline y smoke— terminó en verde.
+- Próximo paso exacto: `P6-T08`, excepciones y horarios especiales.
+
+### Contrato de diseño — Calendario de programación
+
+- **Sujeto y trabajo primario:** una persona operadora de Ferretería y
+  Lubricentro Aramayo decide cuándo saldrá una pieza ya aprobada y debe poder
+  detectar de inmediato si una ocurrencia ya quedó comprometida. La acción
+  primaria es calcular el impacto y confirmar una programación deliberada; no
+  es «rellenar eventos» ni publicar.
+- **Jerarquía y firma visual:** la pantalla reutiliza la `Mesa de contenido`:
+  papel cálido, tipografía condensada, tinta oscura y rieles de estado. El
+  calendario es una planilla de despacho: cada ocurrencia lleva una franja de
+  turno que muestra fecha civil, hora y zona IANA juntas. El detalle lateral
+  muestra snapshot, destinos y estado de las ocurrencias; nunca oculta un job
+  ya solicitado detrás de un evento movible.
+- **Acciones y estados:** el panel separa cargar, vacío, bloqueado, error,
+  listo y resultado parcial. Crear y mover poseen formularios distintos; mover
+  requiere calcular impacto antes de habilitar la confirmación. Pausar,
+  reanudar y cancelar son acciones explícitas con versión e idempotencia; la
+  cancelación expone qué quedó despachado.
+- **Responsive y accesibilidad:** en escritorio se ve mes/lista y detalle;
+  en móvil el listado cronológico sustituye la grilla comprimida. Todos los
+  eventos y acciones son botones etiquetados, el foco es visible y los estados
+  no dependen sólo de color.
+- **Referencia de investigación (2026-09-08):** se tomaron de
+  [Date of Birth / Revolut Business](https://uizze.com/screens/699b3f0200202d0554d0)
+  la grilla de días clara y navegable por teclado; de
+  [Spending period / Revolut Business](https://uizze.com/screens/699b41ce002688d29f0e)
+  la explicitud de un rango antes de aplicarlo; y de
+  [Bill Review / Revolut Business](https://uizze.com/screens/699b42df0006e5446371)
+  el vínculo entre un turno y la información para revisarlo. Se transfiere esa
+  claridad funcional, no su estética financiera oscura, sus métricas ni sus
+  tarjetas genéricas.
+- **Antipatrones prohibidos:** calendario de plantilla sin zona horaria,
+  tarjetas KPI que no ayudan a decidir, chips de color sin texto de estado,
+  fecha UTC sola, edición que parezca mover ocurrencias ya encoladas y mes
+  reducido a celdas ilegibles en móvil.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `92ab19d` (`feat(web): manage publication schedules`).
+- Comandos y resultados: `pnpm --filter @aramayo/web test` (77 pruebas),
+  `pnpm lint`, `pnpm run e2e:typecheck`, `pnpm --filter @aramayo/web build`,
+  `pnpm e2e:scheduling`, `pnpm format:check` y `pnpm verify`, todos en verde.
+- Evidencia visual o remota: Chrome real sobre base/API/panel efímeros en
+  Córdoba y Nueva York; captura móvil revisada en
+  `output/playwright/p6-t06-calendar-mobile.png`. No se contactó Meta ni otro
+  proveedor externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T07 — Implementar alertas y reconciliación operativa
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T03`, `P6-T05`
 - Riesgo: Alto
 
@@ -540,18 +730,18 @@ remota con mensajes accionables.
 
 ### Criterios de aceptación
 
-- [ ] Alertas incluyen publicación, destino, causa y acción segura.
-- [ ] No incluyen tokens ni payloads sensibles.
-- [ ] Se deduplican sin ocultar recurrencias reales.
-- [ ] La resolución queda auditada.
-- [ ] El sistema identifica ocurrencias atascadas por umbral.
-- [ ] Existe escalamiento para fallos cercanos a horario de publicación.
+- [x] Alertas incluyen publicación, destino, causa y acción segura.
+- [x] No incluyen tokens ni payloads sensibles.
+- [x] Se deduplican sin ocultar recurrencias reales.
+- [x] La resolución queda auditada.
+- [x] El sistema identifica ocurrencias atascadas por umbral.
+- [x] Existe escalamiento para fallos cercanos a horario de publicación.
 
 ### Verificación obligatoria
 
-- [ ] Inyectar cada categoría de alerta.
-- [ ] Confirmar deduplicación, resolución y reapertura.
-- [ ] Ejecutar reconciliación sobre órdenes ambiguas.
+- [x] Inyectar cada categoría de alerta.
+- [x] Confirmar deduplicación, resolución y reapertura.
+- [x] Ejecutar reconciliación sobre órdenes ambiguas.
 
 ### Fuera de alcance
 
@@ -559,16 +749,52 @@ remota con mensajes accionables.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-08.
+- Estado real: la tarea cierra. El worker conserva los barridos temporales y de
+  reconciliación existentes y agrega, aun sin Meta habilitada, un barrido
+  durable de alertas. La bandeja `/operacion` permite a quien tiene
+  `publishing:execute` revisar la señal y navegar al paso seguro; reconocerla
+  no publica, reintenta ni modifica Meta.
+- Archivos: contrato y política en
+  `packages/domain/src/publication-operational-alert.ts`; migración
+  `20260908140000_publication_operational_alerts`; repositorio Prisma y prueba
+  de integración; servicio del worker y mantenimiento; endpoints y servicio
+  Nest; contrato público, cliente fail-closed y panel web `/operacion`.
+- Cada huella se compone por tenant y recurso concreto. Una ocurrencia usa su
+  propia identidad más destino, por lo que dos recurrencias no se tapan; una
+  observación repetida incrementa el contador sin duplicar la alerta. Una
+  resolución humana queda en auditoría y la misma condición vuelve a abrir la
+  alerta con otra auditoría. Un barrido limitado nunca cierra por ausencia una
+  alerta que no alcanzó a observar.
+- A los cinco minutos una ocurrencia vencida sin despacho o sin ejecución
+  completada es urgente. Destinos con fallo permanente, presupuesto de intentos
+  agotado o desenlace remoto ambiguo se derivan de la acción manual segura; los
+  problemas a media hora del horario programado escalan a urgente. Una conexión
+  Meta degradada queda en atención o urgente si afecta una ocurrencia cercana.
+- La alerta sólo persiste IDs internos, códigos y acción segura. El repositorio,
+  auditoría, API y panel no incluyen token, payload remoto, copy ni mensaje
+  crudo del proveedor. Reconciliar continúa siendo obligatorio antes de
+  reintentar un desenlace ambiguo.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `e6192ab` (`feat(scheduling): detect operational publication alerts`)
+  y `a05dac3` (`feat(scheduling): expose operational alert inbox`).
+- Comandos y resultados: `pnpm db:test` (migración desde vacío, integración,
+  down/up y 71 pruebas); `pnpm --filter @aramayo/web test` (80 pruebas) y
+  `build`; `pnpm --filter @aramayo/api test` (120 pruebas) y `build`;
+  `pnpm --filter @aramayo/worker test` (328 aprobadas y una omitida existente);
+  `pnpm format:check` y `pnpm verify`, en verde.
+- Evidencia visual o remota: navegador local contra un doble efímero verificó
+  escritorio y 390 px, la alerta urgente, su acción segura, el reconocimiento
+  auditado representado y el estado vacío posterior. No se contactó Meta ni
+  otro proveedor externo.
+- Desviaciones aprobadas: ninguna.
 
 ## P6-T08 — Resolver zonas horarias, feriados y excepciones
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T04`, `P6-T06`
 - Riesgo: Alto
 
@@ -585,18 +811,18 @@ excepcionales y reglas que cruzan medianoche.
 
 ### Criterios de aceptación
 
-- [ ] Se usa zona IANA, nunca solo offset fijo.
-- [ ] Excepciones tienen prioridad explícita sobre horario semanal.
-- [ ] Cambios invalidan ocurrencias futuras afectadas.
-- [ ] Reglas al borde de medianoche usan la fecha local correcta.
-- [ ] Un dato faltante bloquea historias sensibles a horario.
-- [ ] El usuario ve el impacto antes de guardar.
+- [x] Se usa zona IANA, nunca solo offset fijo.
+- [x] Excepciones tienen prioridad explícita sobre horario semanal.
+- [x] Cambios invalidan ocurrencias futuras afectadas.
+- [x] Reglas al borde de medianoche usan la fecha local correcta.
+- [x] Un dato faltante bloquea historias sensibles a horario.
+- [x] El usuario ve el impacto antes de guardar.
 
 ### Verificación obligatoria
 
-- [ ] Casos de medianoche, fin de mes/año y DST en una zona que lo use.
-- [ ] Feriado completo, horario reducido y cierre inesperado.
-- [ ] Comprobar invalidación y re-aprobación.
+- [x] Casos de medianoche, fin de mes/año y DST en una zona que lo use.
+- [x] Feriado completo, horario reducido y cierre inesperado.
+- [x] Comprobar invalidación y re-aprobación.
 
 ### Fuera de alcance
 
@@ -604,11 +830,55 @@ excepcionales y reglas que cruzan medianoche.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09.
+- Alcance real: dominio de excepciones por fecha civil con normalización y
+  rango acotado; repositorio Prisma con previsualización, alta/edición, borrado
+  e invalidación en lote; contrato público, servicio y endpoints Nest;
+  cliente web fail-closed y pantalla de excepciones dentro de cada sucursal en
+  `/configuracion`.
+- La zona IANA la aporta siempre la sucursal. Una excepción se dirige por fecha
+  civil `AAAA-MM-DD` y la solicitud no transporta zona; con offset fijo o UTC el
+  borde de medianoche cierra el día equivocado, y en una zona con horario de
+  verano el error cambia según el mes.
+- Resolver una ocurrencia con la excepción de otro día civil pasó a ser un
+  error declarado del dominio. Antes se hubiera aplicado en silencio y habría
+  publicado el horario de otro día.
+- Crear, cambiar o quitar una excepción cancela la programación y las
+  ocurrencias planificadas de esa fecha, lleva la publicación a
+  `validation_failed` y marca la materialización `invalidated`, con auditoría
+  por historia. El barrido posterior la vuelve a mirar y no la repone: hace
+  falta una revisión humana.
+- El panel no habilita guardar hasta calcular el impacto sobre historias
+  reales, y ese cálculo sólo vale para el borrador exacto con el que se hizo:
+  cambiar cualquier campo lo invalida. Previsualizar no escribe.
+- No se agregó ninguna tolerancia nueva: la única sigue siendo
+  `lateToleranceMinutes` por programación. Un dato faltante bloquea; no se
+  publica tarde para alcanzar una ventana.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `cf10172` (`feat(scheduling): manage location day exceptions`).
+- Decisión: [`ADR-027`](../architecture/decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
+- Comandos y resultados: `pnpm verify` en verde —incluye `verify:stack`,
+  `verify:plan`, `format:check`, `build`, `lint`, `typecheck`, `test`
+  (dominio 240, API 125, panel 86, worker 328 con una omitida existente),
+  `baseline:verify` y `smoke`—; `pnpm db:test` con 72 pruebas de integración
+  sobre base efímera migrada desde vacío, incluida la nueva de excepciones;
+  `pnpm e2e:recurring-story` completo.
+- Evidencia visual o remota: el E2E con Chrome real recorrió regla → borrador →
+  aprobación → ocurrencia y después cargó el feriado desde `/configuracion`:
+  guardar quedó bloqueado hasta ver el impacto, el impacto contó la historia
+  programada real y guardarlo canceló la ocurrencia y devolvió la publicación a
+  revisión. No se contactó Meta ni Cloudinary.
+- Casos cubiertos: medianoche y fin de año con la fecha civil separada de la
+  UTC en `America/New_York`; día de cambio de hora; fin de mes y cruce de año en
+  la expansión de ocurrencias; feriado completo, horario reducido y cierre
+  inesperado; versión vencida al crear, editar y borrar; sucursal de otra
+  organización representada como inexistente.
+- Desviaciones aprobadas: la alta y edición de una excepción usa `POST` en vez
+  de `PUT` porque el panel sólo tiene habilitados `GET`, `POST`, `PATCH` y
+  `DELETE` en CORS; la comparación de versión conserva la semántica de
+  reemplazo.
 
 ## P6-T09 — Validar programación de punta a punta
 

@@ -8,6 +8,7 @@ import { GenerationRunService } from "./generation-run.service.ts";
 import { PublicationDraftController } from "./publication-draft.controller.ts";
 import { PublicationDraftService } from "./publication-draft.service.ts";
 import { PublicationManualActionService } from "./publication-manual-action.service.ts";
+import { PublicationOperationalAlertService } from "./publication-operational-alert.service.ts";
 import { PublicationOrderController } from "./publication-order.controller.ts";
 import { PublishingReadinessService } from "./publishing-readiness.service.ts";
 import { PublicationOrderService } from "./publication-order.service.ts";
@@ -29,6 +30,7 @@ import { PublicationTransitionService } from "./publication-transition.service.t
     GenerationRunService,
     PublicationDraftService,
     PublicationManualActionService,
+    PublicationOperationalAlertService,
     PublicationOrderService,
     PublishingReadinessService,
     PublicationProductionService,

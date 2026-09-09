@@ -223,6 +223,42 @@ export interface PublicationManualActionListResponse {
   readonly items: readonly PublicationManualActionResponse[];
 }
 
+/**
+ * Riesgo operativo detectado por el worker. No contiene el payload remoto ni
+ * credenciales: la persona recibe el recurso afectado, causa y acción segura.
+ */
+export interface PublicationOperationalAlertResponse {
+  readonly cause:
+    | "attempts-exhausted"
+    | "connection-not-publishable"
+    | "dispatch-not-requested"
+    | "execution-not-completed"
+    | "outcome-unresolved"
+    | "permanent-failure";
+  readonly firstObservedAt: string;
+  readonly id: string;
+  readonly kind:
+    "connection-degraded" | "occurrence-stuck" | "publication-manual-action";
+  readonly lastObservedAt: string;
+  readonly metaConnectionId?: string;
+  readonly observations: number;
+  readonly publicationId?: string;
+  readonly publicationTarget?: PublicationOrderTargetKind;
+  readonly safeAction:
+    "inspect-queue" | "reconcile" | "reconnect-meta" | "retry";
+  readonly scheduleOccurrenceId?: string;
+  readonly severity: "attention" | "urgent";
+}
+
+export interface PublicationOperationalAlertListResponse {
+  readonly items: readonly PublicationOperationalAlertResponse[];
+}
+
+export interface PublicationOperationalAlertResolutionResponse {
+  readonly alert: PublicationOperationalAlertResponse;
+  readonly status: "already-resolved" | "resolved";
+}
+
 export interface PublicationOrderResponse {
   readonly cancelledAt?: string;
   readonly createdAt: string;

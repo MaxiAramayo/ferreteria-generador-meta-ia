@@ -2,8 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import {
   publicationRenderTopic,
+  createApprovalPrePublishProfile,
+  readRecurringStorySourceSnapshot,
   type ApprovePublicationInput,
   type ApprovePublicationResult,
+  type ContentBrief,
+  type ContentBriefEvidenceEntry,
   type PublicationProductionRepository,
   type PublicationRenderCompletionResult,
   type PublicationRenderFailureInput,
@@ -85,6 +89,80 @@ function inputJson(
     );
   }
   return value;
+}
+
+function snapshotContentText(value: Prisma.JsonValue): readonly string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return Object.freeze([]);
+  }
+  const fields = ["caption", "title", "subtitle"] as const;
+  return Object.freeze(
+    fields.flatMap((field) =>
+      typeof value[field] === "string" ? [value[field]] : [],
+    ),
+  );
+}
+
+/**
+ * Las ejecuciones de brief se escriben sólo después de pasar el validador de
+ * dominio. Al aprobar no se vuelven a validar contra frescura —eso es justo lo
+ * que hará P6-T05—, pero sí se limita el cast a esa frontera persistida.
+ */
+function persistedBriefProfile(
+  input: Readonly<{
+    brief: Prisma.JsonValue | null;
+    content: Prisma.JsonValue;
+    evidence: Prisma.JsonValue;
+    recurringStorySource?: Prisma.JsonValue;
+  }>,
+): Prisma.InputJsonObject {
+  const recurringStorySource =
+    input.recurringStorySource === undefined
+      ? undefined
+      : readRecurringStorySourceSnapshot(input.recurringStorySource);
+  if (recurringStorySource === null) {
+    throw new Error(
+      "La materialización recurrente conserva una fuente inválida.",
+    );
+  }
+  const brief =
+    input.brief === null ? undefined : (input.brief as unknown as ContentBrief);
+  const evidence =
+    input.evidence as unknown as readonly ContentBriefEvidenceEntry[];
+  const profile = createApprovalPrePublishProfile({
+    ...(brief === undefined ? {} : { brief }),
+    contentText: snapshotContentText(input.content),
+    evidence,
+    ...(recurringStorySource === undefined ? {} : { recurringStorySource }),
+  });
+  return {
+    factualClaims: profile.factualClaims.map((claim) => ({
+      claimKind: claim.claimKind,
+      evidenceId: claim.evidenceId,
+      ...(claim.externalProductId === undefined
+        ? {}
+        : { externalProductId: claim.externalProductId }),
+      statement: claim.statement,
+    })),
+    ...(profile.recurringStorySource === undefined
+      ? {}
+      : {
+          recurringStorySource: {
+            address: profile.recurringStorySource.address,
+            capturedAt: profile.recurringStorySource.capturedAt,
+            hours: profile.recurringStorySource.hours,
+            localDate: profile.recurringStorySource.localDate,
+            locationId: profile.recurringStorySource.locationId,
+            locationName: profile.recurringStorySource.locationName,
+            locationVersion: profile.recurringStorySource.locationVersion,
+            sourceKind: profile.recurringStorySource.sourceKind,
+            sourceLabel: profile.recurringStorySource.sourceLabel,
+            sourceVersion: profile.recurringStorySource.sourceVersion,
+          },
+        }),
+    requiredClaims: [...profile.requiredClaims],
+    schemaVersion: profile.schemaVersion,
+  };
 }
 
 export class PrismaPublicationProductionRepository implements PublicationProductionRepository {
@@ -394,6 +472,9 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         const renderedRevision =
           await transaction.publicationRevision.findUnique({
             include: {
+              contentBriefRun: {
+                select: { brief: true, evidence: true },
+              },
               media: {
                 include: { mediaAsset: true },
                 orderBy: [{ slot: "asc" }, { id: "asc" }],
@@ -429,6 +510,12 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
                 slot: reference.slot,
                 storageVersion: reference.mediaAsset.storageVersion,
               })),
+              prePublishProfile: persistedBriefProfile({
+                brief: renderedRevision.contentBriefRun?.brief ?? null,
+                content: renderedRevision.content,
+                evidence: renderedRevision.contentBriefRun?.evidence ?? [],
+                recurringStorySource: automaticMaterialization.sourceSnapshot,
+              }),
               publishingTargetPolicy: {
                 mode: "exact",
                 targets: ["instagram_story"],
@@ -643,6 +730,9 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         select: {
           revisions: {
             include: {
+              contentBriefRun: {
+                select: { brief: true, evidence: true },
+              },
               media: {
                 include: { mediaAsset: true },
                 orderBy: [{ slot: "asc" }, { id: "asc" }],
@@ -706,6 +796,16 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           slot: reference.slot,
           storageVersion: reference.mediaAsset.storageVersion,
         })),
+        prePublishProfile: persistedBriefProfile({
+          brief: revision.contentBriefRun?.brief ?? null,
+          content: revision.content,
+          evidence: revision.contentBriefRun?.evidence ?? [],
+          ...(recurringMaterialization === null
+            ? {}
+            : {
+                recurringStorySource: recurringMaterialization.sourceSnapshot,
+              }),
+        }),
         ...(recurringMaterialization === null
           ? {}
           : {

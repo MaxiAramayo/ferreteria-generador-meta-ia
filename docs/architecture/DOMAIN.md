@@ -130,6 +130,16 @@ la publicación a `approved`, agrega la transición, auditoría y respuesta
 idempotente. El snapshot autocontenido conserva contenido, hash, documento y
 versión de diseño, medios de entrada y metadatos exactos del PNG derivado.
 
+Antes de cada envío a Meta, el worker vuelve a validar ese snapshot, el medio
+derivado y los permisos del destino. El snapshot aprobado conserva un perfil
+mínimo de hechos materiales (precio, stock, promoción y horario si aplican), sus
+fuentes y la versión de sucursal de una historia recurrente. Los hechos se
+reconsultan con el contexto de la orden; una fuente faltante, vencida o distinta
+bloquea la orden con un código accionable, auditoría y nueva revisión, sin
+intento remoto. Si ya existe una entrega confirmada o un desenlace remoto en
+duda, se cancelan sólo los destinos restantes y se preserva esa realidad para
+reconciliación.
+
 ### PublicationTarget
 
 Representa la entrega a un destino concreto. Cada destino tiene su propio
@@ -294,10 +304,20 @@ toda materialización aún no publicada. Está en
 ### LocationDayOverride
 
 Excepción por sucursal y fecha civil: cierre o horario especial, con su
-etiqueta de origen y versión. Se consulta al materializar y tiene precedencia
-sobre el horario configurado. Un horario especial exige aprobación humana
-aunque la regla sea automática. La gestión visual de estas excepciones es
-alcance de `P6-T08`.
+etiqueta de origen y versión. La zona IANA la aporta siempre la sucursal, nunca
+la solicitud. Se consulta al materializar y tiene precedencia sobre el horario
+configurado. Un horario especial exige aprobación humana aunque la regla sea
+automática, y resolver una ocurrencia con la excepción de otro día civil es un
+error declarado, no un dato que se acomode.
+
+La lectura requiere `content:read`; crear, cambiar o quitar una excepción
+requiere `organization:manage` y compara `expectedVersion` —crear exige su
+ausencia—. Cada mutación invalida en lote lo que todavía no salió de esa fecha:
+cancela programación y ocurrencias planificadas, lleva la publicación a
+`validation_failed` y marca la materialización `invalidated`. El barrido no la
+repone solo. El panel calcula ese impacto antes de guardar y consulta ventanas
+de hasta 93 días. La decisión está en
+[`ADR-027`](decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
 
 ### PublicationSchedule y PublicationScheduleOccurrence
 
@@ -342,6 +362,11 @@ Estados terminales adicionales:
 8. Un cambio de contenido posterior a la aprobación invalida la aprobación.
 9. Una regla recurrente materializa instancias auditables.
 10. OpenAI no puede efectuar la transición a `publishing`; solo la aplicación.
+11. Cancelar una programación conserva el snapshot aprobado y sólo cancela
+    ocurrencias aún planificadas; si era la última programación activa o
+    pausada, la publicación vuelve explícitamente de `scheduled` a `approved`.
+    Está definido en
+    [`ADR-026`](decisions/ADR-026-SCHEDULE-CANCELLATION-SEMANTICS.md).
 
 ## Política de aprobación
 

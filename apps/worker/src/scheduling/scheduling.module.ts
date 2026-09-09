@@ -2,6 +2,7 @@ import type { WorkerConfiguration } from "@aramayo/configuration/worker";
 import type {
   PublicationOccurrenceExecutionRepository,
   PublicationScheduleDispatchRepository,
+  PublicationScheduleMaterializationRepository,
   RecurringStoryMaterializationRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
@@ -9,6 +10,7 @@ import { Module, type DynamicModule } from "@nestjs/common";
 import {
   PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
+  PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY,
   RECURRING_STORY_MATERIALIZATION_REPOSITORY,
 } from "../database/database.tokens.ts";
 import { RecurringStoryMaterializationLoopService } from "./recurring-story-materialization-loop.service.ts";
@@ -23,6 +25,8 @@ import type {
 } from "./publication-occurrence.queue.ts";
 import { PublicationScheduleDispatchLoopService } from "./publication-schedule-dispatch-loop.service.ts";
 import { PublicationScheduleDispatchService } from "./publication-schedule-dispatch.service.ts";
+import { PublicationScheduleMaterializationLoopService } from "./publication-schedule-materialization-loop.service.ts";
+import { PublicationScheduleMaterializationService } from "./publication-schedule-materialization.service.ts";
 import { PUBLICATION_OCCURRENCE_QUEUE } from "./scheduling.tokens.ts";
 
 @Module({})
@@ -32,6 +36,22 @@ export class SchedulingModule {
       exports: [PUBLICATION_OCCURRENCE_QUEUE],
       module: SchedulingModule,
       providers: [
+        {
+          inject: [PUBLICATION_SCHEDULE_MATERIALIZATION_REPOSITORY],
+          provide: PublicationScheduleMaterializationService,
+          useFactory: (
+            repository: PublicationScheduleMaterializationRepository,
+          ): PublicationScheduleMaterializationService =>
+            new PublicationScheduleMaterializationService(repository),
+        },
+        {
+          inject: [PublicationScheduleMaterializationService],
+          provide: PublicationScheduleMaterializationLoopService,
+          useFactory: (
+            service: PublicationScheduleMaterializationService,
+          ): PublicationScheduleMaterializationLoopService =>
+            new PublicationScheduleMaterializationLoopService(service),
+        },
         {
           inject: [RECURRING_STORY_MATERIALIZATION_REPOSITORY],
           provide: RecurringStoryMaterializationService,

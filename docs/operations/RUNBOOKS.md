@@ -13,6 +13,23 @@ Debe incluir:
 - reintentar solo destino fallido;
 - escalar si el resultado sigue ambiguo.
 
+## Alerta operativa de programación o publicación
+
+1. Abrir `/operacion` con el permiso `publishing:execute` y registrar la causa,
+   recurso y hora de observación; no copiar tokens, payloads ni mensajes crudos
+   de Meta a un ticket.
+2. Seguir únicamente la acción segura indicada: revisar programación para una
+   ocurrencia atascada, publicaciones para un destino detenido o configuración
+   para una conexión degradada. La bandeja no reintenta ni publica.
+3. Para un desenlace ambiguo, reconciliar antes de considerar un reintento. Si
+   Meta ya confirmó el destino, no crear otra orden ni borrar la publicación
+   remota.
+4. Marcar la alerta como revisada sólo después de comprobar el recurso. La
+   operación queda auditada; si el barrido vuelve a observar la misma condición,
+   la reabre y también queda auditado.
+5. Priorizar las alertas urgentes: incluyen ocurrencias atascadas por más de
+   cinco minutos y riesgos dentro de media hora de su horario programado.
+
 ## Token de Meta vencido o revocado
 
 - pausar trabajos del destino;

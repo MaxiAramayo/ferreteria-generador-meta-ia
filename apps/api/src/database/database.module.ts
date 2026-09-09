@@ -15,8 +15,10 @@ import {
   PrismaOrganizationConfigurationRepository,
   PrismaPublicationDraftRepository,
   PrismaPublicationOrderRepository,
+  PrismaPublicationOperationalAlertRepository,
   PrismaPublicationProductionRepository,
   PrismaPublicationRepository,
+  PrismaPublicationScheduleManagementRepository,
   PrismaPublicationStateRepository,
   PrismaReliableOperationRepository,
   PrismaRecurringStoryRepository,
@@ -30,14 +32,17 @@ import type {
   GenerationRunRequestRepository,
   GenerationPolicyRepository,
   IdentityRepository,
+  LocationDayOverrideRepository,
   MediaAssetRepository,
   MetaConnectionRepository,
   MetaComplianceRepository,
   OrganizationConfigurationRepository,
   PublicationDraftRepository,
   PublicationOrderRepository,
+  PublicationOperationalAlertRepository,
   PublicationProductionRepository,
   PublicationRepository,
+  PublicationScheduleManagementRepository,
   PublicationStateRepository,
   ReliableOperationRepository,
   RecurringStoryRuleRepository,
@@ -55,14 +60,17 @@ import {
   GENERATION_RUN_REQUEST_REPOSITORY,
   GENERATION_POLICY_REPOSITORY,
   IDENTITY_REPOSITORY,
+  LOCATION_DAY_OVERRIDE_REPOSITORY,
   MEDIA_ASSET_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   META_COMPLIANCE_REPOSITORY,
   ORGANIZATION_CONFIGURATION_REPOSITORY,
   PUBLICATION_DRAFT_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
+  PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_REPOSITORY,
+  PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
   PUBLICATION_STATE_REPOSITORY,
   RELIABLE_OPERATION_REPOSITORY,
   RECURRING_STORY_RULE_REPOSITORY,
@@ -84,11 +92,14 @@ export class DatabaseModule {
         MEDIA_ASSET_REPOSITORY,
         META_CONNECTION_REPOSITORY,
         META_COMPLIANCE_REPOSITORY,
+        LOCATION_DAY_OVERRIDE_REPOSITORY,
         ORGANIZATION_CONFIGURATION_REPOSITORY,
         PUBLICATION_DRAFT_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
+        PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_REPOSITORY,
+        PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
         PUBLICATION_STATE_REPOSITORY,
         RELIABLE_OPERATION_REPOSITORY,
         RECURRING_STORY_RULE_REPOSITORY,
@@ -96,6 +107,14 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationOperationalAlertRepository =>
+            new PrismaPublicationOperationalAlertRepository(database),
+        },
         {
           inject: [DATABASE_CLIENT],
           provide: RECURRING_STORY_RULE_REPOSITORY,
@@ -157,6 +176,14 @@ export class DatabaseModule {
         },
         {
           inject: [DATABASE_CLIENT],
+          provide: PUBLICATION_SCHEDULE_MANAGEMENT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationScheduleManagementRepository =>
+            new PrismaPublicationScheduleManagementRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
           provide: RELIABLE_OPERATION_REPOSITORY,
           useFactory: (database: DatabaseClient): ReliableOperationRepository =>
             new PrismaReliableOperationRepository(database),
@@ -172,6 +199,14 @@ export class DatabaseModule {
           provide: PUBLICATION_REPOSITORY,
           useFactory: (database: DatabaseClient): PublicationRepository =>
             new PrismaPublicationRepository(database),
+        },
+        {
+          inject: [DATABASE_CLIENT],
+          provide: LOCATION_DAY_OVERRIDE_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): LocationDayOverrideRepository =>
+            new PrismaOrganizationConfigurationRepository(database),
         },
         {
           inject: [DATABASE_CLIENT],

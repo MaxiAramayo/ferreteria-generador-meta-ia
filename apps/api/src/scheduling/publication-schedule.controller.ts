@@ -1,0 +1,98 @@
+import type {
+  PublicationScheduleCalendarEntryResponse,
+  PublicationScheduleCalendarResponse,
+  PreviewPublicationScheduleUpdateResponse,
+  PublicationScheduleTransitionResponse,
+  UpdatePublicationScheduleResponse,
+} from "@aramayo/contracts";
+import type { AuthenticatedSessionRecord } from "@aramayo/domain";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
+
+import {
+  CurrentSession,
+  RequirePermission,
+} from "../identity/identity.decorators.ts";
+import { TransitionPublicationScheduleDto } from "./dto/transition-publication-schedule.dto.ts";
+import { PublicationScheduleCalendarQueryDto } from "./dto/publication-schedule-calendar-query.dto.ts";
+import { UpdatePublicationScheduleDto } from "./dto/update-publication-schedule.dto.ts";
+import { PublicationScheduleService } from "./publication-schedule.service.ts";
+
+@Controller("schedules")
+export class PublicationScheduleController {
+  readonly #service: PublicationScheduleService;
+
+  constructor(service: PublicationScheduleService) {
+    this.#service = service;
+  }
+
+  @Get()
+  @RequirePermission("content:read")
+  calendar(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Query() input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarResponse> {
+    return this.#service.calendar(session.actor, input);
+  }
+
+  @Get(":scheduleId")
+  @RequirePermission("content:read")
+  detail(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Query() input: PublicationScheduleCalendarQueryDto,
+  ): Promise<PublicationScheduleCalendarEntryResponse> {
+    return this.#service.detail(session.actor, scheduleId, input);
+  }
+
+  @Patch(":scheduleId")
+  @RequirePermission("content:schedule")
+  update(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Body() input: UpdatePublicationScheduleDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<UpdatePublicationScheduleResponse> {
+    return this.#service.update(
+      session.actor,
+      scheduleId,
+      input,
+      idempotencyKey,
+    );
+  }
+
+  @Post(":scheduleId/preview")
+  @RequirePermission("content:schedule")
+  preview(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Body() input: UpdatePublicationScheduleDto,
+  ): Promise<PreviewPublicationScheduleUpdateResponse> {
+    return this.#service.preview(session.actor, scheduleId, input);
+  }
+
+  @Post(":scheduleId/transitions")
+  @RequirePermission("content:schedule")
+  transition(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("scheduleId", new ParseUUIDPipe()) scheduleId: string,
+    @Body() input: TransitionPublicationScheduleDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<PublicationScheduleTransitionResponse> {
+    return this.#service.transition(
+      session.actor,
+      scheduleId,
+      input,
+      idempotencyKey,
+    );
+  }
+}

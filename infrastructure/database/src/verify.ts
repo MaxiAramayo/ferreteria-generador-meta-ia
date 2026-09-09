@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260907190000_recurring_story_materialization";
+const latestMigrationName = "20260908140000_publication_operational_alerts";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -183,7 +183,9 @@ async function verifyDatabase(): Promise<void> {
         meta_oauth_table: string | null;
         outbox_table: string | null;
         publication_attempt_state_type: string | null;
+        publication_transition_unschedule_exists: boolean;
         publication_order_targets_table: string | null;
+        publication_operational_alerts_table: string | null;
         publication_orders_table: string | null;
         publication_target_kind_type: string | null;
         retry_attempts_exists: boolean;
@@ -252,8 +254,17 @@ async function verifyDatabase(): Promise<void> {
             to_regclass('public.outbox_messages')::text AS "outbox_table",
             to_regclass('public.publication_orders')::text AS "publication_orders_table",
             to_regclass('public.publication_order_targets')::text AS "publication_order_targets_table",
+            to_regclass('public.publication_operational_alerts')::text AS "publication_operational_alerts_table",
             to_regtype('public.publication_target_kind')::text AS "publication_target_kind_type",
             to_regtype('public.publication_attempt_state')::text AS "publication_attempt_state_type",
+            EXISTS (
+              SELECT 1
+              FROM pg_enum AS "enum"
+              INNER JOIN pg_type AS "type"
+                ON "type"."oid" = "enum"."enumtypid"
+              WHERE "type"."typname" = 'publication_transition_command_type'
+                AND "enum"."enumlabel" = 'unschedule'
+            ) AS "publication_transition_unschedule_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -365,15 +376,29 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // La reversión afecta sólo a P6-T04: programación y ejecución previas
-      // siguen completas; desaparecen reglas, excepciones y materializaciones.
-      assert.equal(rollbackEvidence.recurring_story_rules_table, null);
+      // Esta reversión sólo quita la bandeja operativa. El comando de
+      // cancelación, calendario y materialización recurrente pertenecen a
+      // migraciones anteriores y siguen disponibles.
+      assert.equal(
+        rollbackEvidence.recurring_story_rules_table,
+        "recurring_story_rules",
+      );
       assert.equal(
         rollbackEvidence.recurring_story_materializations_table,
-        null,
+        "recurring_story_materializations",
       );
-      assert.equal(rollbackEvidence.location_day_overrides_table, null);
-      assert.equal(rollbackEvidence.recurring_story_policy_type, null);
+      assert.equal(
+        rollbackEvidence.location_day_overrides_table,
+        "location_day_overrides",
+      );
+      assert.equal(
+        rollbackEvidence.recurring_story_policy_type,
+        "recurring_story_approval_policy",
+      );
+      assert.equal(
+        rollbackEvidence.publication_transition_unschedule_exists,
+        true,
+      );
       assert.equal(rollbackEvidence.schedule_dispatch_event_exists, true);
       assert.equal(rollbackEvidence.schedule_dispatch_requested_exists, true);
       assert.equal(rollbackEvidence.schedule_execution_lock_exists, true);
@@ -387,6 +412,7 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
+      assert.equal(rollbackEvidence.publication_operational_alerts_table, null);
       // La orden y sus destinos son anteriores: revertir el transporte no
       // puede llevarse por delante lo que publica.
       assert.equal(

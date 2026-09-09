@@ -3,11 +3,7 @@ import test from "node:test";
 
 import {
   publicationOrderTopic,
-  type MediaAssetRecord,
-  type MediaAssetRepository,
-  type MediaDeliveryVariant,
   type MetaConnectionRecord,
-  type MetaConnectionRepository,
   type MetaPublishingAttemptState,
   type OutboxMessageRecord,
   type PublicationOrderJob,
@@ -19,10 +15,11 @@ import {
 
 import type { FacebookPublisher } from "./facebook-publisher.service.ts";
 import type { InstagramPublisher } from "./instagram-publisher.service.ts";
-import {
-  PublicationOrderOutboxTransport,
-  type PublicationCredentialPort,
-} from "./publication-order.transport.ts";
+import { PublicationOrderOutboxTransport } from "./publication-order.transport.ts";
+import type {
+  PrePublishValidation,
+  PrePublishValidatorPort,
+} from "./pre-publish.validator.ts";
 
 const organizationId = "org-aramayo";
 const orderId = "orden-1";
@@ -93,6 +90,7 @@ function snapshot(): unknown {
 }
 
 class StubOrders implements PublicationOrderRepository {
+  blockedWith: Readonly<{ code: string; safeMessage: string }> | null = null;
   cancelled = 0;
   settledWith: string | null = null;
   #targets: PublicationOrderTargetRecord[];
@@ -118,6 +116,13 @@ class StubOrders implements PublicationOrderRepository {
 
   cancel(): never {
     throw new Error("no usado");
+  }
+
+  blockPrePublish(
+    input: Readonly<{ code: string; safeMessage: string }>,
+  ): Promise<{ status: "blocked"; version: number }> {
+    this.blockedWith = input;
+    return Promise.resolve(Object.freeze({ status: "blocked", version: 4 }));
   }
 
   listByPublication(): Promise<readonly PublicationOrderRecord[]> {
@@ -150,6 +155,8 @@ class StubOrders implements PublicationOrderRepository {
         orderId,
         organizationId,
         publicationId: "publicacion-1",
+        publicationStatus: "publishing",
+        requestedByMembershipId: "membresia-1",
         snapshot: snapshot(),
         targets: Object.freeze([...this.#targets]),
       }),
@@ -170,63 +177,33 @@ class StubOrders implements PublicationOrderRepository {
   }
 }
 
-/** Sólo `list`: es lo único que el transporte le pide. */
-class StubConnections {
-  list(): Promise<readonly MetaConnectionRecord[]> {
-    return Promise.resolve(Object.freeze([connection()]));
+class ValidationDouble implements PrePublishValidatorPort {
+  readonly #result: PrePublishValidation;
+
+  constructor(result: PrePublishValidation) {
+    this.#result = result;
+  }
+
+  validate(): Promise<PrePublishValidation> {
+    return Promise.resolve(this.#result);
   }
 }
 
-/** Sólo `findById`: es lo único que el transporte le pide. */
-class StubMedia {
-  readonly #checksum: string;
-
-  constructor(checksumSha256: string = checksum) {
-    this.#checksum = checksumSha256;
-  }
-
-  findById(): Promise<MediaAssetRecord | null> {
-    return Promise.resolve(
-      Object.freeze({
-        checksumSha256: this.#checksum,
-        createdAt: "2026-08-19T20:00:00.000Z",
+function readyValidation(): PrePublishValidation {
+  return Object.freeze({
+    context: Object.freeze({
+      accessToken: "page-token",
+      caption: "Copy aprobado de la pieza.",
+      connection: connection(),
+      media: Object.freeze({
         height: 1350,
-        id: mediaAssetId,
-        mimeType: "image/png",
-        organizationId,
-        origin: "generated" as const,
-        originalFileName: "pieza.png",
-        ownerMembershipId: "membresia-1",
-        status: "available" as const,
-        storageKey: "aramayo-posts/staging/org/media-1",
-        storageProvider: "cloudinary" as const,
-        storageVersion: 3,
-        updatedAt: "2026-08-19T20:00:00.000Z",
+        url: "https://res.cloudinary.com/aramayo/pieza.jpg",
         width: 1080,
       }),
-    );
-  }
+    }),
+    status: "ready" as const,
+  });
 }
-
-const storage = {
-  delete: (): never => {
-    throw new Error("no usado");
-  },
-  deliveryUrl: (
-    object: Readonly<{ storageKey: string }>,
-    variant: MediaDeliveryVariant,
-  ): string => `https://res.cloudinary.com/${object.storageKey}?v=${variant}`,
-  read: (): never => {
-    throw new Error("no usado");
-  },
-  store: (): never => {
-    throw new Error("no usado");
-  },
-};
-
-const credentials: PublicationCredentialPort = {
-  pageAccessToken: (): Promise<string> => Promise.resolve("page-token"),
-};
 
 interface PublisherScript {
   readonly onPublish?: (target: string) => void;
@@ -263,7 +240,7 @@ function publishers(
 function transportFor(
   orders: StubOrders,
   script: PublisherScript = {},
-  media: StubMedia = new StubMedia(),
+  validation: PrePublishValidation = readyValidation(),
 ): Readonly<{
   calls: string[];
   transport: PublicationOrderOutboxTransport;
@@ -271,10 +248,7 @@ function transportFor(
   const { calls, facebook, instagram } = publishers(orders, script);
   const transport = new PublicationOrderOutboxTransport(
     orders,
-    new StubConnections() as unknown as MetaConnectionRepository,
-    credentials,
-    media as unknown as MediaAssetRepository,
-    storage,
+    new ValidationDouble(validation),
     instagram,
     facebook,
     { now: (): Date => new Date("2026-08-19T22:30:00.000Z") },
@@ -389,19 +363,25 @@ test("un fallo terminal cierra la orden como parcialmente publicada", async () =
   assert.equal(orders.settledWith, "2026-08-19T22:30:00.000Z");
 });
 
-test("una pieza que dejó de coincidir con la aprobada no se publica", async () => {
+test("un bloqueo previo no llama a Meta ni consume intentos", async () => {
   const orders = new StubOrders([targetOf("instagram_feed")]);
   const { calls, transport } = transportFor(
     orders,
     {},
-    new StubMedia("b".repeat(64)),
+    Object.freeze({
+      code: "prepublish-media-unavailable",
+      safeMessage: "La pieza aprobada ya no está disponible.",
+      status: "blocked" as const,
+    }),
   );
 
-  await assert.rejects(
-    () => transport.deliver(message()),
-    /no coincide con la aprobada/u,
-  );
+  await transport.deliver(message());
   assert.deepEqual(calls, []);
+  const blocked = orders.blockedWith;
+  assert.ok(blocked);
+  assert.equal(blocked.code, "prepublish-media-unavailable");
+  assert.equal(blocked.safeMessage, "La pieza aprobada ya no está disponible.");
+  assert.equal(orders.settledWith, null);
 });
 
 test("un tópico ajeno no se consume", async () => {
