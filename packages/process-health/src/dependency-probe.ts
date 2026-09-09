@@ -9,6 +9,7 @@ import type { DependencyName, DependencyReport } from "@aramayo/contracts";
  * base de datos.
  */
 export interface DependencyProbe {
+  readonly critical: boolean;
   readonly dependency: DependencyName;
   check(): Promise<DependencyReport>;
 }
@@ -18,18 +19,21 @@ export const defaultProbeTimeoutMs = 2_000;
 export async function measureProbe(
   dependency: DependencyName,
   probe: () => Promise<void>,
+  critical = true,
 ): Promise<DependencyReport> {
   const startedAt = performance.now();
 
   try {
     await probe();
     return Object.freeze({
+      critical,
       dependency,
       latencyMs: Math.round(performance.now() - startedAt),
       status: "up",
     });
   } catch {
     return Object.freeze({
+      critical,
       dependency,
       latencyMs: Math.round(performance.now() - startedAt),
       status: "down",

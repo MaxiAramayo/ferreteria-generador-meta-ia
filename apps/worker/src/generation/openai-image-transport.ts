@@ -13,6 +13,7 @@
 
 import type { OpenAICredentials } from "@aramayo/configuration";
 import { ImageGenerationError } from "@aramayo/domain";
+import { observeDependency } from "@aramayo/observability";
 import OpenAI, {
   APIConnectionError,
   APIConnectionTimeoutError,
@@ -20,6 +21,8 @@ import OpenAI, {
   RateLimitError,
 } from "openai";
 import { toFile } from "openai/uploads";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 export interface OpenAIImageTransportRequest {
   readonly background: "opaque" | "transparent";
@@ -140,21 +143,26 @@ export class OfficialOpenAIImagesTransport implements OpenAIImagesTransport {
     request: OpenAIImageTransportRequest,
   ): Promise<OpenAIImageTransportResponse> {
     try {
-      const { data, request_id: requestId } = await this.#client.images
-        .generate({
-          background: request.background,
-          model: request.model,
-          moderation: "auto",
-          n: 1,
-          output_format: "png",
-          prompt: request.prompt,
-          quality: request.quality,
-          size: request.size,
-          ...(request.safetyIdentifier === undefined
-            ? {}
-            : { user: request.safetyIdentifier }),
-        })
-        .withResponse();
+      const { data, request_id: requestId } = await observeDependency(
+        workerLog,
+        { dependency: "openai", operation: "images.generate" },
+        () =>
+          this.#client.images
+            .generate({
+              background: request.background,
+              model: request.model,
+              moderation: "auto",
+              n: 1,
+              output_format: "png",
+              prompt: request.prompt,
+              quality: request.quality,
+              size: request.size,
+              ...(request.safetyIdentifier === undefined
+                ? {}
+                : { user: request.safetyIdentifier }),
+            })
+            .withResponse(),
+      );
       return responseFrom(data, requestId ?? null);
     } catch (cause: unknown) {
       throw imageFailureFor(cause);
@@ -172,21 +180,26 @@ export class OfficialOpenAIImagesTransport implements OpenAIImagesTransport {
           }),
         ),
       );
-      const { data, request_id: requestId } = await this.#client.images
-        .edit({
-          background: request.background,
-          image: files,
-          model: request.model,
-          n: 1,
-          output_format: "png",
-          prompt: request.prompt,
-          quality: request.quality,
-          size: request.size,
-          ...(request.safetyIdentifier === undefined
-            ? {}
-            : { user: request.safetyIdentifier }),
-        })
-        .withResponse();
+      const { data, request_id: requestId } = await observeDependency(
+        workerLog,
+        { dependency: "openai", operation: "images.edit" },
+        () =>
+          this.#client.images
+            .edit({
+              background: request.background,
+              image: files,
+              model: request.model,
+              n: 1,
+              output_format: "png",
+              prompt: request.prompt,
+              quality: request.quality,
+              size: request.size,
+              ...(request.safetyIdentifier === undefined
+                ? {}
+                : { user: request.safetyIdentifier }),
+            })
+            .withResponse(),
+      );
       return responseFrom(data, requestId ?? null);
     } catch (cause: unknown) {
       throw imageFailureFor(cause);

@@ -118,6 +118,19 @@ framework: `ts`, `level`, `process`, `event`, `correlationId`, `outcome` y
 `durationMs`. El detalle variable pasa siempre por redacción, que tapa secretos
 por nombre de campo y por forma del valor.
 
+Cada llamada a un proveedor externo deja una observación `dependency.call` con
+su latencia y su desenlace: OpenAI, Meta, Cloudinary y el sistema comercial se
+instrumentan en su adaptador, y PostgreSQL y Redis publican la latencia que ya
+midió su sonda. Ninguna observación lleva URL, payload ni mensaje del proveedor:
+sólo la dependencia, una operación de un conjunto acotado y un código de fallo
+corto.
+
+La readiness distingue **dependencia crítica de degradada** y falla cerrado: una
+sonda que no se declare explícitamente no crítica sigue impidiendo tráfico.
+PostgreSQL y Redis son críticas. Los proveedores externos no se consultan en
+cada readiness —sería lento y los limitaría—: su salud se observa en el log y en
+la bandeja operativa.
+
 Una intención se sigue con una **correlación de 32 hexadecimales** que vive en
 un `AsyncLocalStorage` de `packages/observability`. La API abre el alcance antes
 de los guards —un 401 también es parte de la solicitud— y lo completa con

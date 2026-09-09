@@ -17,10 +17,13 @@ const probeTimeoutMs = 1_000;
 function stubProbe(
   dependency: DependencyProbe["dependency"],
   status: "up" | "down",
+  critical = true,
 ): DependencyProbe {
   return {
+    critical,
     dependency,
-    check: () => Promise.resolve({ dependency, latencyMs: 0, status }),
+    check: () =>
+      Promise.resolve({ critical, dependency, latencyMs: 0, status }),
   };
 }
 
@@ -73,8 +76,28 @@ test("el reporte no incluye credenciales ni mensajes del proveedor", async () =>
 
   assert.ok(!JSON.stringify(readiness).includes("secreto-de-prueba"));
   assert.deepEqual(Object.keys(readiness.dependencies[0] ?? {}).sort(), [
+    "critical",
     "dependency",
     "latencyMs",
     "status",
   ]);
+});
+
+test("una dependencia degradada se informa y no impide aceptar tráfico", async () => {
+  const readiness = await reportReadiness("api", [
+    stubProbe("postgres", "up"),
+    stubProbe("redis", "down", false),
+  ]);
+
+  assert.equal(readiness.status, "ready");
+  assert.equal(summarizeDependencies(readiness), "postgres:up,redis:down");
+  assert.equal(
+    (
+      await reportReadiness("api", [
+        stubProbe("postgres", "up"),
+        stubProbe("redis", "down"),
+      ])
+    ).status,
+    "not_ready",
+  );
 });

@@ -2,6 +2,7 @@ import type {
   OpenAICredentials,
   OpenAIRuntimePolicy,
 } from "@aramayo/configuration";
+import { observeDependency } from "@aramayo/observability";
 import OpenAI, {
   APIConnectionError,
   APIConnectionTimeoutError,
@@ -15,6 +16,8 @@ import type {
   ResponseOutputItem,
   ResponseUsage,
 } from "openai/resources/responses/responses";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 export type OpenAIReasoningEffort = "low" | "medium" | "none";
 
@@ -270,7 +273,11 @@ export class OfficialOpenAIResponsesTransport implements OpenAIResponsesTranspor
         service_tier: "default",
         store: false,
       };
-      const response = await this.#client.responses.create(requestBody);
+      const response = await observeDependency(
+        workerLog,
+        { dependency: "openai", operation: "responses.create" },
+        () => this.#client.responses.create(requestBody),
+      );
 
       if (
         response.incomplete_details?.reason === "content_filter" ||
@@ -338,30 +345,35 @@ export class OfficialOpenAIResponsesTransport implements OpenAIResponsesTranspor
 
     try {
       for (;;) {
-        const response = await this.#client.responses.create({
-          input: conversation,
-          instructions: request.instructions,
-          max_output_tokens: request.maximumOutputTokens,
-          model: request.model,
-          reasoning: { effort: request.reasoningEffort },
-          service_tier: "default",
-          store: false,
-          text: {
-            format: {
-              name: request.schemaName,
-              schema: { ...request.schema },
-              strict: true,
-              type: "json_schema",
-            },
-          },
-          tools: request.tools.map((tool) => ({
-            description: tool.description,
-            name: tool.name,
-            parameters: { ...tool.parameters },
-            strict: true,
-            type: "function",
-          })),
-        });
+        const response = await observeDependency(
+          workerLog,
+          { dependency: "openai", operation: "responses.create" },
+          () =>
+            this.#client.responses.create({
+              input: conversation,
+              instructions: request.instructions,
+              max_output_tokens: request.maximumOutputTokens,
+              model: request.model,
+              reasoning: { effort: request.reasoningEffort },
+              service_tier: "default",
+              store: false,
+              text: {
+                format: {
+                  name: request.schemaName,
+                  schema: { ...request.schema },
+                  strict: true,
+                  type: "json_schema",
+                },
+              },
+              tools: request.tools.map((tool) => ({
+                description: tool.description,
+                name: tool.name,
+                parameters: { ...tool.parameters },
+                strict: true,
+                type: "function",
+              })),
+            }),
+        );
 
         if (
           response.incomplete_details?.reason === "content_filter" ||

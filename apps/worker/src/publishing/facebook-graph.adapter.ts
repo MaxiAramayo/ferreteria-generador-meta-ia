@@ -25,6 +25,9 @@ import {
   type FacebookStagedPhoto,
   type FacebookStagedPhotoReport,
 } from "@aramayo/domain";
+import { observeDependency } from "@aramayo/observability";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 type FetchLike = (
   input: string | URL | Request,
@@ -280,19 +283,24 @@ export class FacebookGraphPublishingAdapter implements FacebookPublishingPort {
   ): Promise<Record<string, unknown>> {
     let response: Response;
     try {
-      response = await this.#fetch(url, {
-        ...(init.body === undefined ? {} : { body: init.body }),
-        headers: {
-          accept: "application/json",
-          authorization: `Bearer ${accessToken}`,
-          ...(init.body === undefined
-            ? {}
-            : { "content-type": "application/x-www-form-urlencoded" }),
-        },
-        method: init.method,
-        redirect: "error",
-        signal: AbortSignal.timeout(requestTimeoutMilliseconds),
-      });
+      response = await observeDependency(
+        workerLog,
+        { dependency: "meta", operation: "graph.request" },
+        async () =>
+          this.#fetch(url, {
+            ...(init.body === undefined ? {} : { body: init.body }),
+            headers: {
+              accept: "application/json",
+              authorization: `Bearer ${accessToken}`,
+              ...(init.body === undefined
+                ? {}
+                : { "content-type": "application/x-www-form-urlencoded" }),
+            },
+            method: init.method,
+            redirect: "error",
+            signal: AbortSignal.timeout(requestTimeoutMilliseconds),
+          }),
+      );
     } catch (cause: unknown) {
       throw new MetaPublishingError(
         cause instanceof Error && cause.name === "TimeoutError"

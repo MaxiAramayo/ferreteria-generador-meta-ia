@@ -19,6 +19,12 @@ export type DependencyReport = {
   readonly dependency: DependencyName;
   readonly status: DependencyStatus;
   readonly latencyMs: number;
+  /**
+   * Una dependencia crítica impide aceptar tráfico cuando no está disponible;
+   * una degradada se informa y no bloquea. La distinción es explícita para que
+   * agregar una sonda nueva obligue a decidirlo en vez de heredarlo.
+   */
+  readonly critical: boolean;
 };
 
 export type LivenessResponse = {
@@ -40,7 +46,13 @@ export type ReadinessResponse = {
 export function resolveReadinessStatus(
   dependencies: readonly DependencyReport[],
 ): ReadinessStatus {
-  return dependencies.every((dependency) => dependency.status === "up")
+  // Sólo una dependencia declarada no crítica deja de bloquear. El valor por
+  // omisión vive en `measureProbe`, que marca crítica toda sonda que no diga lo
+  // contrario: quien agregue una tiene que decidirlo explícitamente para
+  // abrirla.
+  return dependencies.every(
+    (dependency) => !dependency.critical || dependency.status === "up",
+  )
     ? "ready"
     : "not_ready";
 }
