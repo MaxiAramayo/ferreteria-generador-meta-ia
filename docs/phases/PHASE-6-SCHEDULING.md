@@ -857,7 +857,9 @@ excepcionales y reglas que cruzan medianoche.
 
 ### Evidencia de cierre
 
-- Commit: `cf10172` (`feat(scheduling): manage location day exceptions`).
+- Commit: `b89189f`, squash de la rama `codex/p6-t08-timezone-exceptions`
+  (PR #21, que además incorporó a `main` los commits pendientes de `P6-T05` a
+  `P6-T07`).
 - Decisión: [`ADR-027`](../architecture/decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
 - Comandos y resultados: `pnpm verify` en verde —incluye `verify:stack`,
   `verify:plan`, `format:check`, `build`, `lint`, `typecheck`, `test`
