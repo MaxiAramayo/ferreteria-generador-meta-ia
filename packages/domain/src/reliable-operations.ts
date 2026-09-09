@@ -297,6 +297,11 @@ export interface OutboxMessageRecord extends OrganizationScope {
   readonly aggregateType: string;
   readonly attempts: number;
   readonly availableAt: string;
+  /**
+   * Correlación de la intención que originó el mensaje. Es opcional porque un
+   * barrido interno no nace de ninguna solicitud y no puede inventarse una.
+   */
+  readonly correlationId?: string;
   readonly eventId: string;
   readonly payload: SafeJsonObject;
   readonly status: OutboxMessageStatus;

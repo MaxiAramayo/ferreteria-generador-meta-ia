@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { randomUUID } from "node:crypto";
 
+import { newCorrelationId, runWithCorrelation } from "@aramayo/observability";
 import { Pool } from "pg";
 import {
   normalizeBrandConfigurationUpdate,
@@ -8979,6 +8980,137 @@ test("una excepción de horario invalida las historias futuras de esa fecha y re
         operation: "scheduling.location-day-override:delete",
         organizationId,
       },
+    }),
+    1,
+  );
+});
+
+test("la correlación vigente se estampa sola en auditoría y outbox y llega al worker", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo correlación",
+      id: organizationId,
+      legalName: "Aramayo correlación",
+      slug: `correlation-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de correlación",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+
+  const reliable = new PrismaReliableOperationRepository(database);
+  const outbox = new PrismaOutboxRepository(database);
+  const correlationId = newCorrelationId();
+  const keyHash = "c".repeat(64);
+  const operation = "content.publication-draft:create";
+  const auditEventId = randomUUID();
+  const outboxEventId = randomUUID();
+
+  await runWithCorrelation({ correlationId, organizationId }, async () => {
+    const claim = await reliable.claim({
+      actorMembershipId: membershipId,
+      expiresAt: "2030-09-09T12:00:00.000Z",
+      keyHash,
+      operation,
+      organizationId,
+      requestHash: "d".repeat(64),
+    });
+    assert.equal(claim.status, "claimed");
+    assert.equal(
+      await reliable.commit({
+        audit: {
+          actorMembershipId: membershipId,
+          entityId: "publication-correlation",
+          entityType: "publication",
+          eventId: auditEventId,
+          metadata: { publicationId: "publication-correlation" },
+          occurredAt: "2026-09-09T12:00:00.000Z",
+          operation,
+          organizationId,
+          outcome: "success",
+        },
+        idempotency: {
+          actorMembershipId: membershipId,
+          expiresAt: "2030-09-10T12:00:00.000Z",
+          keyHash,
+          operation,
+          organizationId,
+          recordId: claim.recordId,
+          responseBody: { publicationId: "publication-correlation" },
+          responseStatus: 201,
+        },
+        outbox: [
+          {
+            aggregateId: "publication-correlation",
+            aggregateType: "publication",
+            availableAt: "2026-09-09T12:00:00.000Z",
+            eventId: outboxEventId,
+            organizationId,
+            payload: { publicationId: "publication-correlation" },
+            topic: "content.publication.created:v1",
+          },
+        ],
+      }),
+      true,
+    );
+  });
+
+  // Ningún repositorio recibió la correlación por argumento.
+  assert.equal(
+    (
+      await database.auditEvent.findUniqueOrThrow({
+        where: { id: auditEventId },
+      })
+    ).correlationId,
+    correlationId,
+  );
+  assert.equal(
+    (
+      await database.outboxMessage.findUniqueOrThrow({
+        where: { id: outboxEventId },
+      })
+    ).correlationId,
+    correlationId,
+  );
+
+  // El worker la recupera al reclamar el trabajo y puede volver a abrirla. El
+  // lote pide el máximo porque la base compartida arrastra mensajes de otras
+  // pruebas y los más viejos se reclaman primero.
+  const claimed = await outbox.claimBatch({
+    at: "2026-09-09T12:01:00.000Z",
+    leaseExpiresAt: "2026-09-09T12:02:00.000Z",
+    limit: 100,
+    workerId: "worker-correlation",
+  });
+  const message = claimed.find((entry) => entry.eventId === outboxEventId);
+  assert.ok(message);
+  assert.equal(message.correlationId, correlationId);
+
+  // Fuera de todo alcance, una escritura no inventa correlación.
+  await database.auditEvent.create({
+    data: {
+      entityType: "publication",
+      id: randomUUID(),
+      metadata: {},
+      occurredAt: new Date("2026-09-09T12:03:00.000Z"),
+      operation: "content.publication:sweep",
+      organizationId,
+      outcome: "success",
+    },
+  });
+  assert.equal(
+    await database.auditEvent.count({
+      where: { correlationId: null, organizationId },
     }),
     1,
   );

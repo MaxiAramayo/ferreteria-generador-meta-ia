@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260908140000_publication_operational_alerts";
+const latestMigrationName = "20260909120000_observability_correlation";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -177,10 +177,12 @@ async function verifyDatabase(): Promise<void> {
         generation_lineage_exists: boolean;
         idempotency_table: string | null;
         knowledge_documents_table: string | null;
+        audit_correlation_exists: boolean;
         knowledge_versions_table: string | null;
         meta_assets_table: string | null;
         meta_connections_table: string | null;
         meta_oauth_table: string | null;
+        outbox_correlation_exists: boolean;
         outbox_table: string | null;
         publication_attempt_state_type: string | null;
         publication_transition_unschedule_exists: boolean;
@@ -250,6 +252,18 @@ async function verifyDatabase(): Promise<void> {
             ) AS "revision_brief_run_exists",
             to_regclass('public.organization_configuration_events')::text AS "configuration_table",
             to_regclass('public.audit_events')::text AS "audit_table",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE "table_name" = 'audit_events'
+                AND "column_name" = 'correlation_id'
+            ) AS "audit_correlation_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE "table_name" = 'outbox_messages'
+                AND "column_name" = 'correlation_id'
+            ) AS "outbox_correlation_exists",
             to_regclass('public.idempotency_records')::text AS "idempotency_table",
             to_regclass('public.outbox_messages')::text AS "outbox_table",
             to_regclass('public.publication_orders')::text AS "publication_orders_table",
@@ -412,7 +426,14 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
-      assert.equal(rollbackEvidence.publication_operational_alerts_table, null);
+      // Revertir la correlación no puede llevarse por delante la bandeja
+      // operativa, que es de una migración anterior.
+      assert.equal(rollbackEvidence.audit_correlation_exists, false);
+      assert.equal(rollbackEvidence.outbox_correlation_exists, false);
+      assert.equal(
+        rollbackEvidence.publication_operational_alerts_table,
+        "publication_operational_alerts",
+      );
       // La orden y sus destinos son anteriores: revertir el transporte no
       // puede llevarse por delante lo que publica.
       assert.equal(

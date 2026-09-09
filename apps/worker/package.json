@@ -30,7 +30,10 @@
     "@aramayo/database": "workspace:*",
     "@aramayo/design-engine": "workspace:*",
     "@aramayo/domain": "workspace:*",
+    "@aramayo/observability": "workspace:*",
     "@aramayo/process-health": "workspace:*",
+    "@fontsource/archivo": "catalog:",
+    "@fontsource/saira-condensed": "catalog:",
     "@nestjs/common": "catalog:",
     "@nestjs/core": "catalog:",
     "bullmq": "catalog:",
@@ -42,9 +45,7 @@
     "redis": "catalog:",
     "reflect-metadata": "catalog:",
     "rxjs": "catalog:",
-    "sharp": "catalog:",
-    "@fontsource/archivo": "catalog:",
-    "@fontsource/saira-condensed": "catalog:"
+    "sharp": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

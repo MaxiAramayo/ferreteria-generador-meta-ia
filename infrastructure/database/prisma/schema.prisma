@@ -1154,6 +1154,7 @@ model AuditEvent {
   entityId          String?  @map("entity_id") @db.VarChar(160)
   outcome           String   @db.VarChar(20)
   metadata          Json
+  correlationId     String?  @map("correlation_id") @db.Char(32)
   occurredAt        DateTime @map("occurred_at") @db.Timestamptz(3)
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -1162,6 +1163,7 @@ model AuditEvent {
 
   @@index([organizationId, occurredAt(sort: Desc), id], map: "audit_events_org_occurred_idx")
   @@index([organizationId, entityType, entityId, occurredAt(sort: Desc)], map: "audit_events_entity_idx")
+  @@index([organizationId, correlationId, occurredAt(sort: Desc)], map: "audit_events_correlation_idx")
   @@map("audit_events")
 }
 
@@ -1416,6 +1418,7 @@ model OutboxMessage {
   aggregateType    String              @map("aggregate_type") @db.VarChar(120)
   aggregateId      String              @map("aggregate_id") @db.VarChar(160)
   payload          Json
+  correlationId    String?             @map("correlation_id") @db.Char(32)
   status           OutboxMessageStatus @default(pending)
   attempts         Int                 @default(0)
   availableAt      DateTime            @map("available_at") @db.Timestamptz(3)
@@ -1432,6 +1435,7 @@ model OutboxMessage {
 
   @@index([status, availableAt, leaseExpiresAt, createdAt, id], map: "outbox_claim_idx")
   @@index([organizationId, aggregateType, aggregateId, createdAt(sort: Desc)], map: "outbox_aggregate_idx")
+  @@index([correlationId, createdAt(sort: Desc)], map: "outbox_correlation_idx")
   @@index([status, deliveredAt], map: "outbox_retention_idx")
   @@map("outbox_messages")
 }

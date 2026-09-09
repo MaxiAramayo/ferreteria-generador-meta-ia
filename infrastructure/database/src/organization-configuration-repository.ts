@@ -20,7 +20,7 @@ import type {
   PersistLocationConfigurationInput,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
 
 const configurationSelection = {
@@ -197,7 +197,7 @@ function dayOverrideImpact(
 }
 
 async function countAffectedFutureStories(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: Readonly<{
     invalidatedAt: Date;
     localDate: string;
@@ -218,7 +218,7 @@ async function countAffectedFutureStories(
 }
 
 async function invalidateRecurringStories(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: RecurringStoryInvalidationInput,
 ): Promise<number> {
   const query = {
@@ -370,7 +370,7 @@ function mapConfiguration(
 }
 
 async function findConfiguration(
-  database: DatabaseClient | Prisma.TransactionClient,
+  database: DatabaseClient | DatabaseTransactionClient,
   organizationId: string,
 ): Promise<OrganizationConfiguration | null> {
   const row = await database.organization.findUnique({

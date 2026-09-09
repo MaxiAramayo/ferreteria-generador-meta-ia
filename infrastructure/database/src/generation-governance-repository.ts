@@ -20,10 +20,10 @@ import {
   type ImageGenerationSize,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import type { Prisma } from "./generated/prisma/client.ts";
 
-type Transaction = Prisma.TransactionClient;
+type Transaction = DatabaseTransactionClient;
 
 const policySelection = {
   enabled: true,

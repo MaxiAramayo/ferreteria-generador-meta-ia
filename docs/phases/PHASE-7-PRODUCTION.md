@@ -107,7 +107,7 @@ pruebas proporcionales a su riesgo y gates estables.
 ## P7-T03 — Implementar observabilidad y health operacional
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P6-T07`
 - Riesgo: Alto
 
@@ -124,7 +124,7 @@ extremo.
 
 ### Criterios de aceptación
 
-- [ ] Request, publicación, generación, job e intento comparten correlation IDs.
+- [x] Request, publicación, generación, job e intento comparten correlation IDs.
 - [ ] Se observan latencia/error de OpenAI, Meta, Cloudinary, DB y Redis.
 - [ ] Dashboards muestran backlog, atraso, éxito parcial y costo de IA.
 - [ ] Readiness impide tráfico cuando una dependencia crítica no está disponible.
@@ -143,7 +143,33 @@ extremo.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09. Primer tramo entregado; la tarea sigue abierta.
+- Entregado: `packages/observability` —correlación en `AsyncLocalStorage`, log
+  estructurado y redacción—; correlación de extremo a extremo entre API, base y
+  worker; migración `20260909120000_observability_correlation`; log JSON en
+  ambos procesos, incluido el del framework; smoke que verifica registros y no
+  frases. La decisión está en
+  [`ADR-028`](../architecture/decisions/ADR-028-CORRELATION-AND-STRUCTURED-LOGS.md).
+- **La correlación no se pasa por argumento.** Hay más de treinta lugares que
+  escriben auditoría, casi todos dentro de transacciones de un repositorio;
+  alcanza con que uno la olvide para que la cadena se corte justo en el caso que
+  se quería investigar. Se estampa en el borde de persistencia con una extensión
+  del cliente Prisma.
+- **Un identificador entrante se acepta sólo con su forma exacta.** Sin eso,
+  cualquiera puede escribir texto arbitrario en los logs y en la base desde un
+  encabezado.
+- **El alcance se abre antes de los guards.** Un 401 o un 403 son parte de la
+  solicitud; con el registro en un interceptor no aparecerían en ningún lado.
+- **El worker no hereda la correlación del trabajo anterior.** Un mensaje sin
+  correlación recibe una nueva: mezclar dos intenciones es peor que no tener
+  ninguna.
+- Consecuencia técnica registrada: el cliente Prisma extendido tiene otro tipo
+  que el base, así que `DatabaseTransactionClient` reemplazó a
+  `Prisma.TransactionClient` en los repositorios que reciben una transacción.
+- Pendiente en esta tarea: latencia y error observables por dependencia
+  —OpenAI, Meta, Cloudinary, PostgreSQL y Redis—; tablero operativo con backlog,
+  atraso, éxito parcial y costo de IA; readiness que distinga dependencia
+  crítica de degradada; y umbrales de alerta con propietario y runbook.
 
 ### Evidencia de cierre
 
