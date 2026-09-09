@@ -113,10 +113,37 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P6-T09` — validar la programación de punta a punta. Sus dependencias `P6-T07` y
-`P6-T08` están completas, y es la última de la Fase 6. `P5-T09` sigue esperando
-una autorización concreta y no tiene trabajo de código pendiente, así que Fase 6
-continúa avanzando en paralelo.
+`P7-T03` — observabilidad y health operacional, **en progreso**. Se eligió
+porque es la única tarea habilitada sin bloqueo externo: depende sólo de
+`P6-T07`, que está completa. Sus seis criterios de aceptación quedaron cubiertos
+en tres tramos; lo que falta es verificación en un entorno remoto.
+
+`P6-T09` —validar la programación de punta a punta— **no puede empezar**:
+necesita publicar de verdad en los activos de Meta y eso exige la misma
+autorización concreta que traba `P5-T09`, que todavía no existe. Ninguna de las
+dos tiene trabajo de código pendiente esperando a la otra.
+
+**`P7-T03` lleva tres tramos entregados.** Una intención se sigue de punta a
+punta con una correlación de 32 hexadecimales que vive en un
+`AsyncLocalStorage` y se estampa sola en auditoría y outbox: ningún repositorio
+la recibe por argumento, porque hay más de treinta lugares que escriben
+auditoría y alcanza con que uno la olvide para cortar la cadena. Cada línea de
+log es un objeto JSON con campos fijos y todo detalle variable pasa por
+redacción. Cada llamada a un proveedor —OpenAI, Meta, Cloudinary y el sistema
+comercial— deja su latencia y su desenlace sin URL ni mensaje del proveedor, y
+PostgreSQL y Redis publican la latencia que su sonda ya medía. La readiness
+distingue dependencia crítica de degradada, con la criticidad marcada por
+omisión. `/operacion` suma un tablero con backlog, atraso, salidas parciales,
+destinos sin confirmar y costo de IA del mes, cuyos umbrales viven en el dominio
+y están documentados en [`RUNBOOKS.md`](operations/RUNBOOKS.md) con su dueño por
+rol. Las decisiones están en
+[`ADR-028`](architecture/decisions/ADR-028-CORRELATION-AND-STRUCTURED-LOGS.md).
+
+Queda pendiente sólo verificación remota: interrumpir cada proveedor externo y
+observar su alerta —PostgreSQL y Redis ya los cubre el smoke— y trazar un flujo
+completo en staging. El trazado local ya existe: el E2E con Chrome comprueba que
+la correlación que devuelve la API llega a la auditoría y al trabajo que la
+ejecuta.
 
 **`P6-T08` quedó cerrada.** Un feriado, un horario reducido o un cierre
 inesperado dejaron de depender de que alguien se acuerde de pausar la regla: la
