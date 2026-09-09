@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-08
+Actualizado: 2026-09-09
 
 ## Fase activa
 
@@ -113,10 +113,26 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
-`P6-T08` — resolver zonas horarias, feriados y excepciones. Sus dependencias
-`P6-T04` y `P6-T06` están completas. `P5-T09` sigue esperando una autorización
-concreta y no tiene trabajo de código pendiente, así que Fase 6 continúa
-avanzando en paralelo.
+`P6-T09` — validar la programación de punta a punta. Sus dependencias `P6-T07` y
+`P6-T08` están completas, y es la última de la Fase 6. `P5-T09` sigue esperando
+una autorización concreta y no tiene trabajo de código pendiente, así que Fase 6
+continúa avanzando en paralelo.
+
+**`P6-T08` quedó cerrada.** Un feriado, un horario reducido o un cierre
+inesperado dejaron de depender de que alguien se acuerde de pausar la regla: la
+excepción es el dato y el bloqueo es su consecuencia. La fecha civil la
+interpreta la zona IANA de la sucursal y nunca la solicitud; resolver una
+ocurrencia con la excepción de otro día pasó a ser un error declarado en vez de
+un horario equivocado publicado en silencio. Crear, cambiar o quitar una
+excepción cancela la programación y las ocurrencias planificadas de esa fecha,
+lleva la publicación a `validation_failed` y marca la materialización
+`invalidated`; el barrido no la repone solo. La pantalla de excepciones vive
+dentro de cada sucursal en `/configuracion` y no habilita guardar hasta calcular
+el impacto sobre historias reales, cálculo que se invalida al tocar cualquier
+campo. No se agregó ninguna tolerancia nueva: la única sigue siendo
+`lateToleranceMinutes` por programación, y un dato faltante bloquea en vez de
+publicar tarde. La decisión está en
+[`ADR-027`](architecture/decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
 
 **`P6-T07` quedó cerrada.** El worker detecta y persiste tres señales operativas:
 ocurrencia atascada, destino detenido para decisión humana y conexión Meta
@@ -170,13 +186,15 @@ Tres cosas que conviene no volver a descubrir:
 
 La decisión está en
 [`ADR-025`](architecture/decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
-Queda un límite conocido entregado a `P6-T08`: las excepciones por día existen y
-se consultan, pero todavía no tienen pantalla de gestión.
+El límite que quedaba —excepciones consultadas pero sin pantalla de gestión— lo
+cerró `P6-T08`.
 
 - **`pnpm e2e:recurring-story`** levanta base efímera, API y panel y recorre con
-  Chrome la cadena regla → borrador → aprobación → ocurrencia. Comprueba además
-  que activar una regla no cree ninguna pieza y que la vista previa respete
-  `FORMATS.historia`. No contacta Meta ni Cloudinary.
+  Chrome la cadena regla → borrador → aprobación → ocurrencia → excepción.
+  Comprueba además que activar una regla no cree ninguna pieza, que la vista
+  previa respete `FORMATS.historia` y que cargar un feriado bloquee el guardado
+  hasta ver su impacto y después cancele la ocurrencia. No contacta Meta ni
+  Cloudinary.
 
 **`P6-T03` quedó cerrada.** El consumidor de ocurrencias adquiere una lease
 durable con heartbeat en PostgreSQL y BullMQ retrasa el job hasta su vencimiento

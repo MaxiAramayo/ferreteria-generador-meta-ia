@@ -281,7 +281,7 @@ obligatorio según lo que se toca:
 | API | Smoke de `apps/api`; pruebas de contrato, autorización e idempotencia de las rutas nuevas |
 | Worker | Smoke de `apps/worker`; pruebas de reintentos, concurrencia y cierre ordenado |
 | Panel web | Smoke de `apps/web`; revisión de estados vacío, carga, error y accesibilidad |
-| Programación o recurrencias | `pnpm db:test` y `pnpm e2e:recurring-story`; casos de feriado, horario especial, sucursal cerrada y dato faltante |
+| Programación o recurrencias | `pnpm db:test` y `pnpm e2e:recurring-story`; casos de feriado, horario especial, sucursal cerrada y dato faltante, más medianoche, fin de año y cambio de hora en la zona de la sucursal |
 | Persistencia y migraciones | Integración con PostgreSQL real efímero; migración aplicada y revertida |
 | Infraestructura local | `pnpm infra:test` y ciclo real `infra:up`, `infra:health`, `infra:down` |
 | Infraestructura de producción | `pnpm production:verify`, `pnpm production:build` y `pnpm production:smoke`; el smoke debe usar únicamente el proyecto efímero de validación |

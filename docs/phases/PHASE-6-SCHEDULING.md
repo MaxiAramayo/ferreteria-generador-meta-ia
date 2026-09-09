@@ -793,8 +793,8 @@ remota con mensajes accionables.
 
 ## P6-T08 — Resolver zonas horarias, feriados y excepciones
 
-- [ ] Tarea completada
-- Estado: PENDIENTE
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T04`, `P6-T06`
 - Riesgo: Alto
 
@@ -811,18 +811,18 @@ excepcionales y reglas que cruzan medianoche.
 
 ### Criterios de aceptación
 
-- [ ] Se usa zona IANA, nunca solo offset fijo.
-- [ ] Excepciones tienen prioridad explícita sobre horario semanal.
-- [ ] Cambios invalidan ocurrencias futuras afectadas.
-- [ ] Reglas al borde de medianoche usan la fecha local correcta.
-- [ ] Un dato faltante bloquea historias sensibles a horario.
-- [ ] El usuario ve el impacto antes de guardar.
+- [x] Se usa zona IANA, nunca solo offset fijo.
+- [x] Excepciones tienen prioridad explícita sobre horario semanal.
+- [x] Cambios invalidan ocurrencias futuras afectadas.
+- [x] Reglas al borde de medianoche usan la fecha local correcta.
+- [x] Un dato faltante bloquea historias sensibles a horario.
+- [x] El usuario ve el impacto antes de guardar.
 
 ### Verificación obligatoria
 
-- [ ] Casos de medianoche, fin de mes/año y DST en una zona que lo use.
-- [ ] Feriado completo, horario reducido y cierre inesperado.
-- [ ] Comprobar invalidación y re-aprobación.
+- [x] Casos de medianoche, fin de mes/año y DST en una zona que lo use.
+- [x] Feriado completo, horario reducido y cierre inesperado.
+- [x] Comprobar invalidación y re-aprobación.
 
 ### Fuera de alcance
 
@@ -830,11 +830,55 @@ excepcionales y reglas que cruzan medianoche.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09.
+- Alcance real: dominio de excepciones por fecha civil con normalización y
+  rango acotado; repositorio Prisma con previsualización, alta/edición, borrado
+  e invalidación en lote; contrato público, servicio y endpoints Nest;
+  cliente web fail-closed y pantalla de excepciones dentro de cada sucursal en
+  `/configuracion`.
+- La zona IANA la aporta siempre la sucursal. Una excepción se dirige por fecha
+  civil `AAAA-MM-DD` y la solicitud no transporta zona; con offset fijo o UTC el
+  borde de medianoche cierra el día equivocado, y en una zona con horario de
+  verano el error cambia según el mes.
+- Resolver una ocurrencia con la excepción de otro día civil pasó a ser un
+  error declarado del dominio. Antes se hubiera aplicado en silencio y habría
+  publicado el horario de otro día.
+- Crear, cambiar o quitar una excepción cancela la programación y las
+  ocurrencias planificadas de esa fecha, lleva la publicación a
+  `validation_failed` y marca la materialización `invalidated`, con auditoría
+  por historia. El barrido posterior la vuelve a mirar y no la repone: hace
+  falta una revisión humana.
+- El panel no habilita guardar hasta calcular el impacto sobre historias
+  reales, y ese cálculo sólo vale para el borrador exacto con el que se hizo:
+  cambiar cualquier campo lo invalida. Previsualizar no escribe.
+- No se agregó ninguna tolerancia nueva: la única sigue siendo
+  `lateToleranceMinutes` por programación. Un dato faltante bloquea; no se
+  publica tarde para alcanzar una ventana.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: `cf10172` (`feat(scheduling): manage location day exceptions`).
+- Decisión: [`ADR-027`](../architecture/decisions/ADR-027-LOCATION-DAY-EXCEPTIONS.md).
+- Comandos y resultados: `pnpm verify` en verde —incluye `verify:stack`,
+  `verify:plan`, `format:check`, `build`, `lint`, `typecheck`, `test`
+  (dominio 240, API 125, panel 86, worker 328 con una omitida existente),
+  `baseline:verify` y `smoke`—; `pnpm db:test` con 72 pruebas de integración
+  sobre base efímera migrada desde vacío, incluida la nueva de excepciones;
+  `pnpm e2e:recurring-story` completo.
+- Evidencia visual o remota: el E2E con Chrome real recorrió regla → borrador →
+  aprobación → ocurrencia y después cargó el feriado desde `/configuracion`:
+  guardar quedó bloqueado hasta ver el impacto, el impacto contó la historia
+  programada real y guardarlo canceló la ocurrencia y devolvió la publicación a
+  revisión. No se contactó Meta ni Cloudinary.
+- Casos cubiertos: medianoche y fin de año con la fecha civil separada de la
+  UTC en `America/New_York`; día de cambio de hora; fin de mes y cruce de año en
+  la expansión de ocurrencias; feriado completo, horario reducido y cierre
+  inesperado; versión vencida al crear, editar y borrar; sucursal de otra
+  organización representada como inexistente.
+- Desviaciones aprobadas: la alta y edición de una excepción usa `POST` en vez
+  de `PUT` porque el panel sólo tiene habilitados `GET`, `POST`, `PATCH` y
+  `DELETE` en CORS; la comparación de versión conserva la semántica de
+  reemplazo.
 
 ## P6-T09 — Validar programación de punta a punta
 
