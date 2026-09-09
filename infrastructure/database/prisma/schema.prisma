@@ -358,6 +358,7 @@ model Organization {
   metaConnectionAssets           MetaConnectionAsset[]
   publicationOrders              PublicationOrder[]
   publicationOrderTargets        PublicationOrderTarget[]
+  publicationOperationalAlerts   PublicationOperationalAlert[]
   metaConnections                MetaConnection[]
   metaOAuthTransactions          MetaOAuthTransaction[]
   memberships                    OrganizationMembership[]
@@ -1022,6 +1023,37 @@ model PublicationOrderTarget {
   @@index([organizationId, nextAttemptAt], map: "publication_order_targets_retry_due_idx")
   @@index([organizationId, manualReason], map: "publication_order_targets_manual_idx")
   @@map("publication_order_targets")
+}
+
+/// Observación durable de un riesgo operativo. No guarda respuestas de Meta,
+/// tokens ni payloads: sólo IDs internos, códigos y la acción segura que la
+/// persona puede tomar. La huella es única por organización para que un barrido
+/// repetido actualice la misma alerta y una ocurrencia distinta conserve la suya.
+model PublicationOperationalAlert {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  fingerprint          String   @db.VarChar(180)
+  kind                 String   @db.VarChar(50)
+  cause                String   @db.VarChar(80)
+  severity             String   @db.VarChar(20)
+  safeAction           String   @map("safe_action") @db.VarChar(40)
+  publicationId        String?  @map("publication_id") @db.Uuid
+  publicationTarget    PublicationTargetKind? @map("publication_target")
+  scheduleOccurrenceId String?  @map("schedule_occurrence_id") @db.Uuid
+  metaConnectionId     String?  @map("meta_connection_id") @db.Uuid
+  observations         Int      @default(1)
+  firstObservedAt      DateTime @map("first_observed_at") @db.Timestamptz(3)
+  lastObservedAt       DateTime @map("last_observed_at") @db.Timestamptz(3)
+  resolvedAt           DateTime? @map("resolved_at") @db.Timestamptz(3)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([organizationId, fingerprint], map: "publication_operational_alerts_org_fingerprint_key")
+  @@index([organizationId, resolvedAt, lastObservedAt(sort: Desc)], map: "publication_operational_alerts_open_idx")
+  @@index([organizationId, scheduleOccurrenceId], map: "publication_operational_alerts_occurrence_idx")
+  @@map("publication_operational_alerts")
 }
 
 /// Intención temporal: qué snapshot aprobado sale, a qué destinos y cuándo.

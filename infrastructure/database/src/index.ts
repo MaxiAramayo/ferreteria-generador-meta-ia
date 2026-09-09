@@ -12,6 +12,7 @@ export {
   PrismaPublicationOrderRepository,
   publicationTargetKey,
 } from "./publication-order-repository.ts";
+export { PrismaPublicationOperationalAlertRepository } from "./publication-operational-alert-repository.ts";
 export {
   PrismaOutboxRepository,
   PrismaReliableOperationRepository,

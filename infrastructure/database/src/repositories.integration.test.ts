@@ -49,6 +49,7 @@ import {
 } from "./publication-order-repository.ts";
 import { PrismaPublicationProductionRepository } from "./publication-production-repository.ts";
 import { PrismaPublicationOccurrenceExecutionRepository } from "./publication-occurrence-execution-repository.ts";
+import { PrismaPublicationOperationalAlertRepository } from "./publication-operational-alert-repository.ts";
 import { PrismaPublicationScheduleDispatchRepository } from "./publication-schedule-dispatch-repository.ts";
 import { PrismaPublicationScheduleManagementRepository } from "./publication-schedule-management-repository.ts";
 import { PrismaPublicationScheduleMaterializationRepository } from "./publication-schedule-materialization-repository.ts";
@@ -8494,6 +8495,142 @@ test("una regla nueva materializa aunque las anteriores ya estén resueltas", as
   assert.equal(
     await database.recurringStoryMaterialization.count({
       where: { organizationId, ruleId: thirdRuleId },
+    }),
+    1,
+  );
+});
+
+test("las alertas operativas deduplican, se auditan y se reabren sin mezclar ocurrencias", async () => {
+  const fixture = await scheduleFixture({
+    lateToleranceMinutes: 30,
+    missedPolicy: "run_late",
+  });
+  const observedAt = "2026-09-08T12:00:00.000Z";
+  const occurrenceId = randomUUID();
+  await database.publicationScheduleOccurrence.create({
+    data: {
+      id: occurrenceId,
+      occurrenceKey: "2026-09-08T08:55",
+      organizationId: fixture.organizationId,
+      scheduledAt: new Date("2026-09-08T11:50:00.000Z"),
+      scheduleId: fixture.scheduleId,
+    },
+  });
+
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    fixture.organizationId,
+    fixture.membershipId,
+    fixture.publicationId,
+    ["facebook_page"],
+  );
+  const targetId = publicationTargetKey(orderId, "facebook_page");
+  assert.equal(
+    await orders.save(
+      failedAttempt(fixture.organizationId, targetId, 1, "permission-denied"),
+    ),
+    "saved",
+  );
+  assert.equal(
+    await orders.requireManualAction({
+      organizationId: fixture.organizationId,
+      publicationTargetId: targetId,
+      reason: "permanent-failure",
+      sequence: 1,
+    }),
+    "saved",
+  );
+
+  const connectionId = randomUUID();
+  await database.metaConnection.create({
+    data: {
+      accountName: "Conexión que requiere revisión",
+      accessCiphertext: "encrypted-token-placeholder",
+      accessIv: "initialization-vector",
+      accessKeyVersion: "v1",
+      accessTag: "authentication-tag",
+      connectedByMembershipId: fixture.membershipId,
+      grantedPermissions: [],
+      health: "token_expired",
+      id: connectionId,
+      lastCheckedAt: new Date(observedAt),
+      organizationId: fixture.organizationId,
+      providerAccountId: `degraded-${connectionId}`,
+    },
+  });
+
+  const alerts = new PrismaPublicationOperationalAlertRepository(database);
+  const policy = {
+    at: observedAt,
+    limit: 100,
+    nearPublicationWindowMilliseconds: 30 * 60 * 1_000,
+    occurrenceStuckThresholdMilliseconds: 5 * 60 * 1_000,
+  };
+  const first = await alerts.sweep(policy);
+  assert.ok(first.opened >= 3);
+  const opened = await alerts.listOpen(fixture.organizationId, 100);
+  assert.equal(opened.length, 3);
+  const stuck = opened.find((entry) => entry.kind === "occurrence-stuck");
+  assert.ok(stuck);
+  assert.equal(stuck.scheduleOccurrenceId, occurrenceId);
+  assert.equal(stuck.publicationId, fixture.publicationId);
+  assert.equal(stuck.publicationTarget, "instagram_feed");
+  assert.equal(stuck.cause, "dispatch-not-requested");
+  assert.equal(stuck.safeAction, "inspect-queue");
+  assert.equal(stuck.severity, "urgent");
+  const manual = opened.find(
+    (entry) => entry.kind === "publication-manual-action",
+  );
+  assert.ok(manual);
+  assert.equal(manual.publicationTarget, "facebook_page");
+  assert.equal(manual.cause, "permanent-failure");
+  assert.equal(manual.safeAction, "retry");
+  const connection = opened.find(
+    (entry) => entry.kind === "connection-degraded",
+  );
+  assert.ok(connection);
+  assert.equal(connection.metaConnectionId, connectionId);
+  assert.equal(connection.safeAction, "reconnect-meta");
+  // La tabla no tiene ni acepta payloads ni secretos de proveedor.
+  assert.equal(JSON.stringify(opened).includes("token"), false);
+
+  const second = await alerts.sweep(policy);
+  assert.ok(second.updated >= 3);
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 3);
+
+  const resolved = await alerts.resolve({
+    actorMembershipId: fixture.membershipId,
+    at: "2026-09-08T12:01:00.000Z",
+    id: stuck.id,
+    organizationId: fixture.organizationId,
+  });
+  assert.equal(resolved.status, "resolved");
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 2);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityId: stuck.id,
+        operation: "scheduling.operational-alert:resolve",
+        organizationId: fixture.organizationId,
+      },
+    }),
+    1,
+  );
+
+  const reopened = await alerts.sweep({
+    ...policy,
+    at: "2026-09-08T12:02:00.000Z",
+  });
+  assert.ok(reopened.reopened >= 1);
+  assert.equal((await alerts.listOpen(fixture.organizationId, 100)).length, 3);
+  assert.equal(
+    await database.auditEvent.count({
+      where: {
+        entityId: stuck.id,
+        operation: "scheduling.operational-alert:reopen",
+        organizationId: fixture.organizationId,
+      },
     }),
     1,
   );

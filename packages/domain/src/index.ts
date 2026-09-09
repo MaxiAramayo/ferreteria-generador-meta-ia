@@ -27,6 +27,23 @@ export {
   type UpdateMetaConnectionHealthInput,
 } from "./meta-connection.ts";
 export {
+  manualActionForOperationalAlert,
+  publicationOperationalAlertFingerprint,
+  publicationOperationalAlertKinds,
+  publicationOperationalAlertPolicy,
+  safeActionForPublicationManualReason,
+  type PublicationOperationalAlertCandidate,
+  type PublicationOperationalAlertCause,
+  type PublicationOperationalAlertKind,
+  type PublicationOperationalAlertRecord,
+  type PublicationOperationalAlertRepository,
+  type PublicationOperationalAlertSafeAction,
+  type PublicationOperationalAlertSeverity,
+  type PublicationOperationalAlertSweepInput,
+  type PublicationOperationalAlertSweepResult,
+  type ResolvePublicationOperationalAlertResult,
+} from "./publication-operational-alert.ts";
+export {
   checkImageQualityGate,
   imageQualityFactualCheckNames,
   imageQualityHumanCriteria,

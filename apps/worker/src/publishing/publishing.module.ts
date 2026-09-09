@@ -17,6 +17,7 @@ import type {
   MediaAssetRepository,
   MediaStorage,
   MetaConnectionRepository,
+  PublicationOperationalAlertRepository,
 } from "@aramayo/domain";
 import { Module, type DynamicModule } from "@nestjs/common";
 
@@ -24,6 +25,7 @@ import { COMMERCIAL_TOOL_EXECUTION_PORT } from "../catalog/catalog.tokens.ts";
 import type { CommercialToolExecutionPort } from "../catalog/commercial-tool-execution.service.ts";
 import {
   META_CONNECTION_REPOSITORY,
+  PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
 } from "../database/database.tokens.ts";
 import {
@@ -40,6 +42,7 @@ import { InstagramPublisher } from "./instagram-publisher.service.ts";
 import { MetaPageCredentialAdapter } from "./meta-credential.adapter.ts";
 import { MetaPublicationLookupAdapter } from "./meta-publication-lookup.adapter.ts";
 import { PublicationMaintenanceService } from "./publication-maintenance.service.ts";
+import { PublicationOperationalAlertService } from "./publication-operational-alert.service.ts";
 import { PrePublishCommercialAdapter } from "./pre-publish-commercial.adapter.ts";
 import { PrePublishValidator } from "./pre-publish.validator.ts";
 import { PublicationOrderOutboxTransport } from "./publication-order.transport.ts";
@@ -74,13 +77,20 @@ export class PublishingModule {
           { provide: PUBLICATION_RETRY_SERVICE, useValue: null },
           { provide: PUBLICATION_RECONCILIATION_SERVICE, useValue: null },
           {
-            inject: [
-              PUBLICATION_RETRY_SERVICE,
-              PUBLICATION_RECONCILIATION_SERVICE,
-            ],
+            inject: [PUBLICATION_OPERATIONAL_ALERT_REPOSITORY],
+            provide: PublicationOperationalAlertService,
+            useFactory: (
+              alerts: PublicationOperationalAlertRepository,
+            ): PublicationOperationalAlertService =>
+              new PublicationOperationalAlertService(alerts),
+          },
+          {
+            inject: [PublicationOperationalAlertService],
             provide: PublicationMaintenanceService,
-            useFactory: (): PublicationMaintenanceService =>
-              new PublicationMaintenanceService(null, null),
+            useFactory: (
+              alerts: PublicationOperationalAlertService,
+            ): PublicationMaintenanceService =>
+              new PublicationMaintenanceService(null, null, alerts),
           },
         ],
       };
@@ -92,6 +102,14 @@ export class PublishingModule {
       imports: [catalogModule],
       module: PublishingModule,
       providers: [
+        {
+          inject: [PUBLICATION_OPERATIONAL_ALERT_REPOSITORY],
+          provide: PublicationOperationalAlertService,
+          useFactory: (
+            alerts: PublicationOperationalAlertRepository,
+          ): PublicationOperationalAlertService =>
+            new PublicationOperationalAlertService(alerts),
+        },
         {
           inject: [PUBLICATION_ORDER_REPOSITORY],
           provide: PUBLICATION_RETRY_SERVICE,
@@ -124,13 +142,15 @@ export class PublishingModule {
           inject: [
             PUBLICATION_RETRY_SERVICE,
             PUBLICATION_RECONCILIATION_SERVICE,
+            PublicationOperationalAlertService,
           ],
           provide: PublicationMaintenanceService,
           useFactory: (
             retries: PublicationRetryService,
             reconciliation: PublicationReconciliationService,
+            alerts: PublicationOperationalAlertService,
           ): PublicationMaintenanceService =>
-            new PublicationMaintenanceService(retries, reconciliation),
+            new PublicationMaintenanceService(retries, reconciliation, alerts),
         },
         {
           inject: [

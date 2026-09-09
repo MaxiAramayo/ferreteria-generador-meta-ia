@@ -11,6 +11,7 @@ import {
   PrismaMediaAssetRepository,
   PrismaOutboxRepository,
   PrismaMetaConnectionRepository,
+  PrismaPublicationOperationalAlertRepository,
   PrismaPublicationOrderRepository,
   PrismaPublicationOccurrenceExecutionRepository,
   PrismaPublicationProductionRepository,
@@ -30,6 +31,7 @@ import type {
   OutboxRepository,
   PublicationProductionRepository,
   PublicationOccurrenceExecutionRepository,
+  PublicationOperationalAlertRepository,
   PublicationScheduleDispatchRepository,
   PublicationScheduleMaterializationRepository,
   RecurringStoryMaterializationRepository,
@@ -48,6 +50,7 @@ import {
   KNOWLEDGE_DOCUMENT_REPOSITORY,
   META_CONNECTION_REPOSITORY,
   PUBLICATION_ORDER_REPOSITORY,
+  PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
   PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
   PUBLICATION_PRODUCTION_REPOSITORY,
   PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
@@ -71,6 +74,7 @@ export class DatabaseModule {
         META_CONNECTION_REPOSITORY,
         OUTBOX_REPOSITORY,
         PUBLICATION_ORDER_REPOSITORY,
+        PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
         PUBLICATION_OCCURRENCE_EXECUTION_REPOSITORY,
         PUBLICATION_PRODUCTION_REPOSITORY,
         PUBLICATION_SCHEDULE_DISPATCH_REPOSITORY,
@@ -80,6 +84,14 @@ export class DatabaseModule {
       global: true,
       module: DatabaseModule,
       providers: [
+        {
+          inject: [WORKER_DATABASE_CLIENT],
+          provide: PUBLICATION_OPERATIONAL_ALERT_REPOSITORY,
+          useFactory: (
+            database: DatabaseClient,
+          ): PublicationOperationalAlertRepository =>
+            new PrismaPublicationOperationalAlertRepository(database),
+        },
         {
           inject: [WORKER_DATABASE_CLIENT],
           provide: RECURRING_STORY_MATERIALIZATION_REPOSITORY,

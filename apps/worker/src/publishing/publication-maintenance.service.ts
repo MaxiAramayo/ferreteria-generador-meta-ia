@@ -27,6 +27,7 @@ import {
 
 import type { PublicationReconciliationService } from "./publication-reconciliation.service.ts";
 import type { PublicationRetryService } from "./publication-retry.service.ts";
+import type { PublicationOperationalAlertService } from "./publication-operational-alert.service.ts";
 
 const sweepIntervalMilliseconds = 60_000;
 /** Cotas por vuelta. La de reconciliación es la que toca la red. */
@@ -46,20 +47,30 @@ export class PublicationMaintenanceService
   readonly #logger = new Logger("worker");
   readonly #reconciliation: PublicationReconciliationService | null;
   readonly #retries: PublicationRetryService | null;
+  readonly #alerts: PublicationOperationalAlertService | null;
   #interval: NodeJS.Timeout | undefined;
   #running = false;
 
   constructor(
     retries: PublicationRetryService | null,
     reconciliation: PublicationReconciliationService | null,
+    alerts: PublicationOperationalAlertService | null = null,
   ) {
+    this.#alerts = alerts;
     this.#reconciliation = reconciliation;
     this.#retries = retries;
   }
 
   onApplicationBootstrap(): void {
-    // Sin Meta configurada no hay publicaciones y no hay nada que barrer.
-    if (this.#retries === null || this.#reconciliation === null) return;
+    // Incluso sin Meta se revisa el calendario: una ocurrencia detenida no debe
+    // quedar silenciosa sólo porque no exista un adaptador externo configurado.
+    if (
+      this.#retries === null &&
+      this.#reconciliation === null &&
+      this.#alerts === null
+    ) {
+      return;
+    }
     this.#interval = setInterval(() => {
       void this.sweep();
     }, sweepIntervalMilliseconds);
@@ -83,42 +94,64 @@ export class PublicationMaintenanceService
   async sweep(): Promise<void> {
     const retries = this.#retries;
     const reconciliation = this.#reconciliation;
-    if (retries === null || reconciliation === null) return;
+    const alerts = this.#alerts;
+    if (retries === null && reconciliation === null && alerts === null) return;
     if (this.#running) return;
     this.#running = true;
 
     try {
-      const planned = await retries.planBatch(planningLimit);
-      if (planned.reviewed > 0) {
-        this.#logger.log(
-          `publishing.retry.plan reviewed=${String(planned.reviewed)} planned=${String(planned.planned)} manual=${String(planned.manual)} reconcilable=${String(planned.reconcilable)}`,
-        );
+      if (retries !== null) {
+        try {
+          const planned = await retries.planBatch(planningLimit);
+          if (planned.reviewed > 0) {
+            this.#logger.log(
+              `publishing.retry.plan reviewed=${String(planned.reviewed)} planned=${String(planned.planned)} manual=${String(planned.manual)} reconcilable=${String(planned.reconcilable)}`,
+            );
+          }
+        } catch {
+          this.#logger.warn("publishing.retry.plan.failed");
+        }
       }
-    } catch {
-      this.#logger.warn("publishing.retry.plan.failed");
-    }
 
-    try {
-      const reconciled =
-        await reconciliation.reconcileBatch(reconciliationLimit);
-      if (reconciled.reviewed > 0) {
-        this.#logger.log(
-          `publishing.reconcile reviewed=${String(reconciled.reviewed)} confirmed=${String(reconciled.confirmed)} republishable=${String(reconciled.republishable)} unresolved=${String(reconciled.unresolved)} failed=${String(reconciled.failed)}`,
-        );
+      if (reconciliation !== null) {
+        try {
+          const reconciled =
+            await reconciliation.reconcileBatch(reconciliationLimit);
+          if (reconciled.reviewed > 0) {
+            this.#logger.log(
+              `publishing.reconcile reviewed=${String(reconciled.reviewed)} confirmed=${String(reconciled.confirmed)} republishable=${String(reconciled.republishable)} unresolved=${String(reconciled.unresolved)} failed=${String(reconciled.failed)}`,
+            );
+          }
+        } catch {
+          this.#logger.warn("publishing.reconcile.failed");
+        }
       }
-    } catch {
-      this.#logger.warn("publishing.reconcile.failed");
-    }
 
-    try {
-      const dispatched = await retries.dispatchDueBatch(dispatchLimit);
-      if (dispatched.reviewed > 0) {
-        this.#logger.log(
-          `publishing.retry.dispatch reviewed=${String(dispatched.reviewed)} dispatched=${String(dispatched.dispatched)} closed=${String(dispatched.closed)} skipped=${String(dispatched.skipped)}`,
-        );
+      if (retries !== null) {
+        try {
+          const dispatched = await retries.dispatchDueBatch(dispatchLimit);
+          if (dispatched.reviewed > 0) {
+            this.#logger.log(
+              `publishing.retry.dispatch reviewed=${String(dispatched.reviewed)} dispatched=${String(dispatched.dispatched)} closed=${String(dispatched.closed)} skipped=${String(dispatched.skipped)}`,
+            );
+          }
+        } catch {
+          this.#logger.warn("publishing.retry.dispatch.failed");
+        }
       }
-    } catch {
-      this.#logger.warn("publishing.retry.dispatch.failed");
+
+      if (alerts !== null) {
+        try {
+          const summary = await alerts.sweep();
+          if (summary.observed > 0) {
+            this.#logger.log(
+              `scheduling.alerts observed=${String(summary.observed)} opened=${String(summary.opened)} reopened=${String(summary.reopened)} updated=${String(summary.updated)}`,
+            );
+          }
+        } catch {
+          this.#logger.warn("scheduling.alerts.failed");
+        }
+      }
     } finally {
       this.#running = false;
     }
