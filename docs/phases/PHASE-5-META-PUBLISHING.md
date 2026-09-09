@@ -1258,6 +1258,12 @@ destino previsto y que el sistema conserva evidencia completa.
 - Próximo paso exacto: obtener esa autorización sobre una pieza concreta nacida
   de un brief; recién entonces ejecutar la corrida, inducir el fallo de un
   destino, reconciliarlo y levantar el informe de fallos, latencia y auditoría.
+- Fecha: 2026-09-09. La solicitud quedó redactada en
+  [`PUBLICATION-AUTHORIZATION-P5-T09.md`](../operations/PUBLICATION-AUTHORIZATION-P5-T09.md):
+  nombra las cinco decisiones que faltan —producto, copy, medios, destinos y
+  ventana—, lo que la plataforma ya determina, el efecto público e irreversible,
+  las precondiciones técnicas y qué se verificará después. Es un pedido, no una
+  autorización: la tarea sigue sin poder empezar.
 
 ### Evidencia de cierre
 

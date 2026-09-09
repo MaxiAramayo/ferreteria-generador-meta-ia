@@ -123,6 +123,13 @@ necesita publicar de verdad en los activos de Meta y eso exige la misma
 autorización concreta que traba `P5-T09`, que todavía no existe. Ninguna de las
 dos tiene trabajo de código pendiente esperando a la otra.
 
+La solicitud de esa autorización ya está redactada en
+[`PUBLICATION-AUTHORIZATION-P5-T09.md`](operations/PUBLICATION-AUTHORIZATION-P5-T09.md).
+Nombra las cinco decisiones que faltan —producto, copy, medios, destinos y
+ventana horaria—, el efecto público e irreversible, las precondiciones técnicas
+y qué se verificará después. Responderla desbloquea `P5-T09`, después `P6-T09` y
+con ellas toda la Fase 7, cuyas ocho tareas restantes dependen de `P7-T01`.
+
 **`P7-T03` lleva tres tramos entregados.** Una intención se sigue de punta a
 punta con una correlación de 32 hexadecimales que vive en un
 `AsyncLocalStorage` y se estampa sola en auditoría y outbox: ningún repositorio
