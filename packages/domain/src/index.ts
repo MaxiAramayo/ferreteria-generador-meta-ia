@@ -314,6 +314,16 @@ export {
   type ValidatedMediaUpload,
 } from "./media.ts";
 export {
+  operationalHealthThresholds,
+  resolveOperationalHealth,
+  type OperationalHealthReason,
+  type OperationalHealthReasonCode,
+  type OperationalHealthReport,
+  type OperationalHealthRepository,
+  type OperationalHealthSeverity,
+  type OperationalHealthSignals,
+} from "./operational-health.ts";
+export {
   brandThemeIds,
   ConfigurationValidationError,
   normalizeBrandConfigurationUpdate,

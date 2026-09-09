@@ -5,6 +5,7 @@ export * from "./generation-policy.ts";
 export * from "./knowledge-retrieval.ts";
 export * from "./location-day-override.ts";
 export * from "./meta-connection.ts";
+export * from "./operational-health.ts";
 export * from "./organization-configuration.ts";
 export * from "./publication-draft.ts";
 export * from "./publication-schedule.ts";

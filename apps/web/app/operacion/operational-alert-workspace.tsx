@@ -8,6 +8,7 @@ import {
   loadOperationalAlerts,
   resolveOperationalAlert,
 } from "../../lib/publication-operational-alert-api";
+import { OperationalHealthBoard } from "./operational-health-board";
 
 type WorkspaceState =
   | Readonly<{ kind: "loading" }>
@@ -290,6 +291,8 @@ export function OperationalAlertWorkspace({
           paso seguro. Esta bandeja no reintenta ni publica por sí sola.
         </p>
       </section>
+
+      <OperationalHealthBoard apiBaseUrl={apiBaseUrl} />
 
       <section aria-labelledby="alertas-activas" className="operational-board">
         <div className="workspace-section-heading">

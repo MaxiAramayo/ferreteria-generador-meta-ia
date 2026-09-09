@@ -31,6 +31,7 @@ import {
 } from "./repositories.ts";
 import { PrismaOrganizationConfigurationRepository } from "./organization-configuration-repository.ts";
 import { PrismaKnowledgeDocumentRepository } from "./knowledge-document-repository.ts";
+import { PrismaOperationalHealthRepository } from "./operational-health-repository.ts";
 import { PrismaCommercialToolAuditRepository } from "./commercial-tool-audit-repository.ts";
 import {
   PrismaContentBriefRequestRepository,
@@ -9114,4 +9115,267 @@ test("la correlación vigente se estampa sola en auditoría y outbox y llega al 
     }),
     1,
   );
+});
+
+test("el tablero operativo cuenta backlog, atraso, salida parcial y costo de IA", async () => {
+  const fixture = await scheduleFixture();
+  const observedAt = "2026-09-09T15:00:00.000Z";
+  const health = new PrismaOperationalHealthRepository(database);
+
+  // Una organización sin trabajo pendiente no inventa señales; el presupuesto
+  // es el que ya tiene declarado.
+  assert.deepEqual(await health.observe(fixture.organizationId, observedAt), {
+    ambiguousTargets: 0,
+    deadLetterMessages: 0,
+    generationBudgetMicrousd: 20_000_000,
+    generationCommittedMicrousd: 0,
+    maximumOccurrenceDelayMinutes: 0,
+    oldestPendingOutboxMinutes: 0,
+    openAttentionAlerts: 0,
+    openUrgentAlerts: 0,
+    overdueOccurrences: 0,
+    partialPublications: 0,
+    pendingOutboxMessages: 0,
+  });
+
+  await database.publicationScheduleOccurrence.createMany({
+    data: [
+      {
+        occurrenceKey: "2026-09-09T11:20",
+        organizationId: fixture.organizationId,
+        scheduledAt: new Date("2026-09-09T14:20:00.000Z"),
+        scheduleId: fixture.scheduleId,
+      },
+      {
+        occurrenceKey: "2026-09-09T11:50",
+        organizationId: fixture.organizationId,
+        scheduledAt: new Date("2026-09-09T14:50:00.000Z"),
+        scheduleId: fixture.scheduleId,
+      },
+      // Todavía no vence: no es backlog.
+      {
+        occurrenceKey: "2026-09-09T13:00",
+        organizationId: fixture.organizationId,
+        scheduledAt: new Date("2026-09-09T16:00:00.000Z"),
+        scheduleId: fixture.scheduleId,
+      },
+      // Ya pidió despacho: dejó de esperar.
+      {
+        dispatchOutboxEventId: randomUUID(),
+        dispatchRequestedAt: new Date("2026-09-09T14:00:00.000Z"),
+        occurrenceKey: "2026-09-09T10:50",
+        organizationId: fixture.organizationId,
+        scheduledAt: new Date("2026-09-09T13:50:00.000Z"),
+        scheduleId: fixture.scheduleId,
+      },
+    ],
+  });
+  await database.outboxMessage.createMany({
+    data: [
+      {
+        aggregateId: fixture.publicationId,
+        aggregateType: "publication",
+        availableAt: new Date("2026-09-09T14:45:00.000Z"),
+        id: randomUUID(),
+        organizationId: fixture.organizationId,
+        payload: {},
+        topic: "content.publication.render:v1",
+      },
+      // Programado hacia adelante: no es backlog todavía.
+      {
+        aggregateId: fixture.publicationId,
+        aggregateType: "publication",
+        availableAt: new Date("2026-09-09T16:00:00.000Z"),
+        id: randomUUID(),
+        organizationId: fixture.organizationId,
+        payload: {},
+        topic: "content.publication.render:v1",
+      },
+      // Un mensaje detenido conserva su causa: la base no admite uno sin ella.
+      {
+        aggregateId: fixture.publicationId,
+        aggregateType: "publication",
+        availableAt: new Date("2026-09-09T12:00:00.000Z"),
+        id: randomUUID(),
+        lastErrorCode: "delivery-failed",
+        lastErrorMessage: "La entrega outbox falló.",
+        organizationId: fixture.organizationId,
+        payload: {},
+        status: "dead_letter",
+        topic: "content.publication.render:v1",
+      },
+    ],
+  });
+  await database.publication.update({
+    data: { status: "partially_published" },
+    where: { id: fixture.publicationId },
+  });
+  await database.publicationOrder.create({
+    data: {
+      approvalSnapshotId: fixture.snapshotId,
+      id: randomUUID(),
+      organizationId: fixture.organizationId,
+      publicationId: fixture.publicationId,
+      requestedByMembershipId: fixture.membershipId,
+      targets: {
+        create: [
+          { state: "outcome_unknown", target: "instagram_feed" },
+          // Un destino publicado conserva su identificador remoto; ese no
+          // necesita reconciliación y no debe contarse.
+          {
+            remotePostId: "1784500000000000",
+            state: "published",
+            target: "facebook_page",
+          },
+        ],
+      },
+    },
+  });
+  const stuckOccurrence =
+    await database.publicationScheduleOccurrence.findFirstOrThrow({
+      select: { id: true },
+      where: {
+        occurrenceKey: "2026-09-09T11:20",
+        organizationId: fixture.organizationId,
+      },
+    });
+  await database.publicationOperationalAlert.createMany({
+    data: [
+      {
+        cause: "dispatch-not-requested",
+        fingerprint: `salud-urgente-${randomUUID()}`,
+        firstObservedAt: new Date("2026-09-09T14:30:00.000Z"),
+        kind: "occurrence-stuck",
+        lastObservedAt: new Date("2026-09-09T14:55:00.000Z"),
+        organizationId: fixture.organizationId,
+        publicationId: fixture.publicationId,
+        publicationTarget: "instagram_story",
+        safeAction: "inspect-queue",
+        scheduleOccurrenceId: stuckOccurrence.id,
+        severity: "urgent",
+      },
+      // Ya revisada: no vuelve a contarse hasta que el barrido la reabra.
+      {
+        cause: "outcome-unresolved",
+        fingerprint: `salud-resuelta-${randomUUID()}`,
+        firstObservedAt: new Date("2026-09-09T13:30:00.000Z"),
+        kind: "publication-manual-action",
+        lastObservedAt: new Date("2026-09-09T13:55:00.000Z"),
+        organizationId: fixture.organizationId,
+        publicationId: fixture.publicationId,
+        publicationTarget: "instagram_feed",
+        resolvedAt: new Date("2026-09-09T14:00:00.000Z"),
+        safeAction: "reconcile",
+        severity: "attention",
+      },
+    ],
+  });
+
+  assert.deepEqual(await health.observe(fixture.organizationId, observedAt), {
+    ambiguousTargets: 1,
+    deadLetterMessages: 1,
+    generationBudgetMicrousd: 20_000_000,
+    generationCommittedMicrousd: 0,
+    maximumOccurrenceDelayMinutes: 40,
+    oldestPendingOutboxMinutes: 15,
+    openAttentionAlerts: 0,
+    openUrgentAlerts: 1,
+    overdueOccurrences: 2,
+    partialPublications: 1,
+    pendingOutboxMessages: 1,
+  });
+
+  // Otra organización no ve nada de esto.
+  assert.deepEqual(await health.observe(randomUUID(), observedAt), {
+    ambiguousTargets: 0,
+    deadLetterMessages: 0,
+    generationBudgetMicrousd: 0,
+    generationCommittedMicrousd: 0,
+    maximumOccurrenceDelayMinutes: 0,
+    oldestPendingOutboxMinutes: 0,
+    openAttentionAlerts: 0,
+    openUrgentAlerts: 0,
+    overdueOccurrences: 0,
+    partialPublications: 0,
+    pendingOutboxMessages: 0,
+  });
+});
+
+test("el costo de IA del tablero suma sólo el mes en curso de esa organización", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runId = randomUUID();
+  await database.generationRun.create({
+    data: {
+      actorMembershipId: membershipId,
+      contentBriefRunId: briefRunId,
+      format: "feed",
+      id: runId,
+      lineageRootId: runId,
+      organizationId,
+      requestedAt: new Date("2026-09-05T12:00:00.000Z"),
+      status: "pending",
+    },
+  });
+  const variantId = randomUUID();
+  await database.generationRunVariant.create({
+    data: {
+      id: variantId,
+      organizationId,
+      position: 1,
+      runId,
+      status: "pending",
+    },
+  });
+  const attempt = {
+    actorMembershipId: membershipId,
+    model: "gpt-image-1",
+    organizationId,
+    pricingVersion: "2026-08-01",
+    quality: "high",
+    runId,
+    size: "1024x1536",
+    variantId,
+  };
+  await database.generationAttempt.createMany({
+    data: [
+      {
+        ...attempt,
+        attemptNumber: 1,
+        completedAt: new Date("2026-09-05T12:00:30.000Z"),
+        id: randomUUID(),
+        reservedAt: new Date("2026-09-05T12:00:00.000Z"),
+        reservedMicrousd: 2_000_000,
+        settledMicrousd: 1_500_000,
+        startedAt: new Date("2026-09-05T12:00:05.000Z"),
+        status: "settled",
+      },
+      {
+        ...attempt,
+        attemptNumber: 2,
+        id: randomUUID(),
+        reservedAt: new Date("2026-09-08T12:00:00.000Z"),
+        reservedMicrousd: 1_000_000,
+        status: "reserved",
+      },
+      // Mes anterior: no entra en el costo del mes en curso.
+      {
+        ...attempt,
+        attemptNumber: 3,
+        id: randomUUID(),
+        reservedAt: new Date("2026-08-31T12:00:00.000Z"),
+        reservedMicrousd: 5_000_000,
+        status: "reserved",
+      },
+    ],
+  });
+
+  const signals = await new PrismaOperationalHealthRepository(database).observe(
+    organizationId,
+    "2026-09-09T15:00:00.000Z",
+  );
+
+  // Reservado del mes más liquidado del mes: 1.000.000 + 1.500.000.
+  assert.equal(signals.generationCommittedMicrousd, 2_500_000);
+  assert.equal(signals.generationBudgetMicrousd, 20_000_000);
 });

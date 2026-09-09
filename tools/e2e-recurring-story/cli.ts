@@ -145,7 +145,9 @@ async function mutateFromPage(
   apiBaseUrl: string,
   path: string,
   body: Readonly<Record<string, unknown>>,
-): Promise<Readonly<{ body: unknown; status: number }>> {
+): Promise<
+  Readonly<{ body: unknown; correlationId: string | null; status: number }>
+> {
   const result = await page.evaluate(
     `(async () => {
       const base = ${JSON.stringify(apiBaseUrl)};
@@ -163,7 +165,11 @@ async function mutateFromPage(
         },
         method: "POST",
       });
-      return { body: await response.json(), status: response.status };
+      return {
+        body: await response.json(),
+        correlationId: response.headers.get("x-correlation-id"),
+        status: response.status,
+      };
     })()`,
   );
   assert.ok(
@@ -172,8 +178,10 @@ async function mutateFromPage(
   );
   const status = (result as { status?: unknown }).status;
   assert.equal(typeof status, "number", "La respuesta no trae estado.");
+  const correlationId = (result as { correlationId?: unknown }).correlationId;
   return Object.freeze({
     body: (result as { body?: unknown }).body,
+    correlationId: typeof correlationId === "string" ? correlationId : null,
     status: status as number,
   });
 }
@@ -441,6 +449,26 @@ async function main(): Promise<void> {
       );
       assert.equal(renderResponse.status, 201, "El render no fue aceptado.");
       const revisionId = fieldFrom(renderResponse.body, "revisionId");
+
+      // --- La correlación de la solicitud llega a la base (`P7-T03`) ---
+      const correlationId = renderResponse.correlationId;
+      assert.ok(
+        correlationId !== null && /^[0-9a-f]{32}$/u.test(correlationId),
+        "La API debe devolver la correlación de la solicitud.",
+      );
+      const correlatedAudit = await database.auditEvent.count({
+        where: { correlationId, organizationId: fixture.organizationId },
+      });
+      const correlatedOutbox = await database.outboxMessage.count({
+        where: { correlationId, organizationId: fixture.organizationId },
+      });
+      assert.ok(
+        correlatedAudit >= 1 && correlatedOutbox >= 1,
+        `La correlación ${correlationId} debe alcanzar auditoría (${String(correlatedAudit)}) y outbox (${String(correlatedOutbox)}).`,
+      );
+      reportCheck(
+        "la correlación de la solicitud llega a la auditoría y al trabajo que la ejecuta",
+      );
       const production = new PrismaPublicationProductionRepository(database);
       const mediaRepository = new PrismaMediaAssetRepository(database);
       const renderer = createPlaywrightRenderer({

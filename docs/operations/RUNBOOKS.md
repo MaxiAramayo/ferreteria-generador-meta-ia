@@ -13,6 +13,54 @@ Debe incluir:
 - reintentar solo destino fallido;
 - escalar si el resultado sigue ambiguo.
 
+## Umbrales operativos, dueño y runbook
+
+El tablero `/operacion` mide estas señales y decide su severidad con los
+umbrales del dominio (`operationalHealthThresholds`). La pantalla no define
+criterio propio: si un número hay que cambiarlo, se cambia ahí y el tablero, la
+bandeja y este runbook siguen contando la misma historia.
+
+| Señal | Atención | Urgente | Dueño | Runbook |
+|---|---|---|---|---|
+| Turnos vencidos sin despachar | 1 | 5 | rol `publisher` | Alerta operativa de programación o publicación |
+| Atraso del turno más viejo | 5 min | 30 min | rol `publisher` | Alerta operativa de programación o publicación |
+| Trabajos esperando transporte | 20 | 100 | rol `admin` | Worker detenido o cola sin consumo |
+| Antigüedad del trabajo más viejo | 5 min | 30 min | rol `admin` | Worker detenido o cola sin consumo |
+| Trabajos detenidos (`dead_letter`) | — | 1 | rol `admin` | Worker detenido o cola sin consumo |
+| Destinos sin confirmar con Meta | — | 1 | rol `publisher` | Publicación fallida |
+| Publicaciones que salieron a medias | 1 | — | rol `publisher` | Publicación fallida |
+| Presupuesto de IA del mes | 80 % | 100 % | rol `admin` | Presupuesto de IA agotado |
+| Alertas abiertas en la bandeja | 1 de atención | 1 urgente | rol `publisher` | Alerta operativa de programación o publicación |
+
+Los dueños son roles, no personas: la asignación nominal se confirma al
+provisionar el entorno y se mantiene fuera de Git.
+
+Antes de escalar, mirar el log estructurado por `correlationId`: la solicitud, la
+auditoría y el trabajo que la ejecuta comparten el mismo identificador, y la API
+lo devuelve en el encabezado `x-correlation-id` de cada respuesta.
+
+## Worker detenido o cola sin consumo
+
+1. Comprobar `GET /ready` de la API: si PostgreSQL o Redis están caídos, el
+   backlog es consecuencia y no causa.
+2. Buscar en el log del worker los eventos `worker.heartbeat` y
+   `worker.outbox.batch`. Sin latidos, el proceso no está vivo; con latidos y sin
+   lotes, no hay trabajo disponible.
+3. Un mensaje en `dead_letter` agotó sus intentos: conserva su código de error.
+   No borrarlo; revisar el recurso que describe antes de reponerlo.
+4. Reiniciar el worker no pierde trabajo: la cola se reconstruye desde
+   PostgreSQL. Reiniciar sí interrumpe un lote en curso, que vuelve a reclamarse
+   cuando vence su lease.
+
+## Presupuesto de IA agotado
+
+1. Abrir `/configuracion` y comparar el costo comprometido del mes con el
+   presupuesto declarado.
+2. Al 100 % la política de generación deja de admitir intentos nuevos. No
+   subir el presupuesto sin decisión del negocio.
+3. Revisar si el consumo viene de reintentos: un lote que falla después de
+   Images conserva el costo igual.
+
 ## Alerta operativa de programación o publicación
 
 1. Abrir `/operacion` con el permiso `publishing:execute` y registrar la causa,

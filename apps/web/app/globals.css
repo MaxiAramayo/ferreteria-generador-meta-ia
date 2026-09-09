@@ -1309,6 +1309,65 @@ a {
   color: #7e1f11;
 }
 
+.operational-health-quiet {
+  color: var(--workspace-muted);
+  margin: 1rem 0 0;
+}
+
+.operational-health-reasons {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1rem 0 0;
+  max-width: 68rem;
+  padding: 0;
+}
+
+.operational-health-reasons li {
+  background: #ffffff;
+  border-left: 0.35rem solid var(--workspace-safety);
+  padding: 0.75rem 1rem;
+}
+
+.operational-health-reasons li[data-severity="urgent"] {
+  background: #fff1ee;
+  border-left-color: var(--workspace-rust);
+}
+
+.operational-health-signals {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  margin: 1.25rem 0 0;
+}
+
+.operational-health-signals > div {
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  padding: 0.85rem 1rem;
+}
+
+.operational-health-signals dt {
+  color: var(--workspace-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.operational-health-signals dd {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0.35rem 0 0;
+}
+
+.operational-health-signals dd span {
+  color: var(--workspace-muted);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .operational-empty {
   border: 1px solid var(--workspace-ink);
   box-shadow: 0.45rem 0.45rem 0 var(--workspace-ink);
