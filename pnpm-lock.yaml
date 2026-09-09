@@ -233,6 +233,9 @@ importers:
       '@aramayo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@aramayo/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@aramayo/process-health':
         specifier: workspace:*
         version: link:../../packages/process-health
@@ -349,6 +352,9 @@ importers:
       '@aramayo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@aramayo/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@aramayo/process-health':
         specifier: workspace:*
         version: link:../../packages/process-health
@@ -416,6 +422,9 @@ importers:
       '@aramayo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@aramayo/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@prisma/adapter-pg':
         specifier: 'catalog:'
         version: 7.9.0
@@ -502,6 +511,19 @@ importers:
         version: 5.9.3
 
   packages/domain:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
+  packages/observability:
+    dependencies:
+      '@aramayo/contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

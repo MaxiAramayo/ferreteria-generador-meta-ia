@@ -20,6 +20,7 @@
   "dependencies": {
     "@aramayo/brand-knowledge": "workspace:*",
     "@aramayo/domain": "workspace:*",
+    "@aramayo/observability": "workspace:*",
     "@prisma/adapter-pg": "catalog:",
     "@prisma/client": "catalog:",
     "pg": "catalog:"

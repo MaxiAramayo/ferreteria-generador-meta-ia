@@ -111,6 +111,21 @@ explícita. Ambos procesos comparten las sondas de
 `packages/process-health` ([ADR-010](decisions/ADR-010-PROCESS-HEALTH-BOUNDARY.md))
 y cierran de forma ordenada mediante los hooks de apagado de NestJS.
 
+## Observabilidad
+
+Los dos procesos escriben **una línea JSON por evento**, incluidas las del
+framework: `ts`, `level`, `process`, `event`, `correlationId`, `outcome` y
+`durationMs`. El detalle variable pasa siempre por redacción, que tapa secretos
+por nombre de campo y por forma del valor.
+
+Una intención se sigue con una **correlación de 32 hexadecimales** que vive en
+un `AsyncLocalStorage` de `packages/observability`. La API abre el alcance antes
+de los guards —un 401 también es parte de la solicitud— y lo completa con
+organización y actor al resolver la sesión. La correlación se estampa sola en
+`audit_events` y `outbox_messages` mediante una extensión del cliente Prisma, y
+el worker vuelve a abrir el alcance con la que trae el mensaje que reclama. Está
+en [ADR-028](decisions/ADR-028-CORRELATION-AND-STRUCTURED-LOGS.md).
+
 ## Flujos largos
 
 IA, render y publicación se modelan como trabajos:

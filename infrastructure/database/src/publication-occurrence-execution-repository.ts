@@ -22,7 +22,7 @@ import {
   type PublicationTarget,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
 
 const uuidPattern =
@@ -416,7 +416,7 @@ export class PrismaPublicationOccurrenceExecutionRepository implements Publicati
   }
 
   async #release(
-    transaction: Prisma.TransactionClient,
+    transaction: DatabaseTransactionClient,
     lease: PublicationOccurrenceExecutionLease,
     at: Date,
   ): Promise<void> {

@@ -1,10 +1,10 @@
 import {
   Injectable,
-  Logger,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from "@nestjs/common";
 
+import { workerLog } from "../observability/worker-log.ts";
 import { OutboxDispatcherService } from "./outbox-dispatcher.service.ts";
 
 const dispatchIntervalMilliseconds = 1_000;
@@ -14,7 +14,6 @@ export class OutboxConsumerService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
   readonly #dispatcher: OutboxDispatcherService;
-  readonly #logger = new Logger("worker");
   #interval: NodeJS.Timeout | undefined;
   #running = false;
 
@@ -44,12 +43,24 @@ export class OutboxConsumerService
     try {
       const result = await this.#dispatcher.dispatchBatch(new Date(), 20);
       if (result.claimed > 0) {
-        this.#logger.log(
-          `outbox.batch claimed=${result.claimed} delivered=${result.delivered} failed=${result.failed} lostLease=${result.lostLease}`,
-        );
+        workerLog.emit({
+          detail: {
+            claimed: result.claimed,
+            delivered: result.delivered,
+            failed: result.failed,
+            lostLease: result.lostLease,
+          },
+          event: "worker.outbox.batch",
+          level: result.failed > 0 ? "warn" : "info",
+          outcome: result.failed > 0 ? "degraded" : "success",
+        });
       }
     } catch {
-      this.#logger.warn("outbox.batch.failed");
+      workerLog.emit({
+        event: "worker.outbox.batch",
+        level: "error",
+        outcome: "failure",
+      });
     } finally {
       this.#running = false;
     }

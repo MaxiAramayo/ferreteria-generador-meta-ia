@@ -7,11 +7,11 @@ import {
 import {
   Inject,
   Injectable,
-  Logger,
   type OnApplicationBootstrap,
   type OnApplicationShutdown,
 } from "@nestjs/common";
 
+import { workerLog } from "../observability/worker-log.ts";
 import { DEPENDENCY_PROBES, WORKER_CONFIGURATION } from "./status.tokens.ts";
 
 const heartbeatIntervalMs = 30_000;
@@ -27,7 +27,6 @@ const heartbeatIntervalMs = 30_000;
 export class WorkerStatusService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
-  readonly #logger = new Logger("worker");
   readonly #configuration: WorkerConfiguration;
   readonly #probes: readonly DependencyProbe[];
   #heartbeat: NodeJS.Timeout | undefined;
@@ -54,23 +53,31 @@ export class WorkerStatusService
       this.#heartbeat = undefined;
     }
 
-    this.#logger.log(`worker.stopped señal=${signal ?? "sin señal"}`);
+    workerLog.emit({
+      detail: { signal: signal ?? "sin señal" },
+      event: "worker.stopped",
+      outcome: "success",
+    });
   }
 
   async #reportStatus(event: string): Promise<void> {
     const readiness = await reportReadiness("worker", this.#probes);
 
-    this.#logger.log(
-      [
-        event,
-        `estado=${readiness.status}`,
-        `dependencias=${summarizeDependencies(readiness)}`,
-        `concurrencia=${this.#configuration.concurrency}`,
-        `openai=${this.#describeIntegration(this.#configuration.openAi.enabled)}`,
-        `cloudinary=${this.#describeIntegration(this.#configuration.cloudinary.enabled)}`,
-        `meta=${this.#describeIntegration(this.#configuration.meta.enabled)}`,
-      ].join(" "),
-    );
+    workerLog.emit({
+      detail: {
+        cloudinary: this.#describeIntegration(
+          this.#configuration.cloudinary.enabled,
+        ),
+        concurrency: this.#configuration.concurrency,
+        dependencies: summarizeDependencies(readiness),
+        meta: this.#describeIntegration(this.#configuration.meta.enabled),
+        openai: this.#describeIntegration(this.#configuration.openAi.enabled),
+        readiness: readiness.status,
+      },
+      event,
+      level: readiness.status === "ready" ? "info" : "warn",
+      outcome: readiness.status === "ready" ? "success" : "degraded",
+    });
   }
 
   #describeIntegration(enabled: boolean): string {

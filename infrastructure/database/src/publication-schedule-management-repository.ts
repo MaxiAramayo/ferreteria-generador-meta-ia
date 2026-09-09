@@ -196,18 +196,33 @@ function calendarBounds(
   return Object.freeze({ from: fromDate, to: toDate });
 }
 
-function calendarSelection(
-  from: Date,
-  to: Date,
-): Prisma.PublicationScheduleSelect {
+/**
+ * La selección se describe una vez y su tipo se deriva de ella.
+ *
+ * Anotar el retorno con `Prisma.PublicationScheduleSelect` deja de servir con
+ * el cliente extendido: sus argumentos internos son otros y comparar los dos
+ * tipos genéricos agota la recursión del compilador. El tipo inferido de esta
+ * muestra es exactamente el que la consulta acepta.
+ */
+const calendarSelectionShape = {
+  ...scheduleSelection,
+  occurrences: {
+    orderBy: [{ scheduledAt: "asc" }, { occurrenceKey: "asc" }],
+    select: occurrenceSelection,
+    where: { scheduledAt: { gte: new Date(0), lt: new Date(0) } },
+  },
+} satisfies Prisma.PublicationScheduleSelect;
+
+type CalendarSelection = typeof calendarSelectionShape;
+
+function calendarSelection(from: Date, to: Date): CalendarSelection {
   return {
-    ...scheduleSelection,
+    ...calendarSelectionShape,
     occurrences: {
-      orderBy: [{ scheduledAt: "asc" }, { occurrenceKey: "asc" }],
-      select: occurrenceSelection,
+      ...calendarSelectionShape.occurrences,
       where: { scheduledAt: { gte: from, lt: to } },
     },
-  } satisfies Prisma.PublicationScheduleSelect;
+  };
 }
 
 function scheduleRuleColumns(rule: PublicationScheduleRule): Readonly<{

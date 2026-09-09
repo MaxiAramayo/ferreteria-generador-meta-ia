@@ -32,6 +32,7 @@ import type { PublicationOrderOutboxTransport } from "../publishing/publication-
 import type { PublicationOccurrenceQueue } from "../scheduling/publication-occurrence.queue.ts";
 import { PublicationOccurrenceOutboxTransport } from "../scheduling/publication-occurrence-outbox.transport.ts";
 import { PUBLICATION_OCCURRENCE_QUEUE } from "../scheduling/scheduling.tokens.ts";
+import { workerLog } from "../observability/worker-log.ts";
 import { OutboxConsumerService } from "./outbox-consumer.service.ts";
 import { OutboxDispatcherService } from "./outbox-dispatcher.service.ts";
 import { TopicRoutingOutboxTransport } from "./topic-routing-outbox.transport.ts";
@@ -113,7 +114,12 @@ export class OutboxModule {
             repository: OutboxRepository,
             transport: OutboxTransport,
           ): OutboxDispatcherService =>
-            new OutboxDispatcherService(repository, transport, randomUUID()),
+            new OutboxDispatcherService(
+              repository,
+              transport,
+              randomUUID(),
+              workerLog,
+            ),
         },
         OutboxConsumerService,
       ],

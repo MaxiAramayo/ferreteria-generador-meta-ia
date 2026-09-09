@@ -1,5 +1,6 @@
 import type { ApiConfiguration } from "@aramayo/configuration/api";
 import { authorizeActor, type OrganizationPermission } from "@aramayo/domain";
+import { attachCorrelationActor } from "@aramayo/observability";
 import {
   ForbiddenException,
   Inject,
@@ -102,6 +103,12 @@ export class SessionAuthenticationGuard implements CanActivate {
       throw new UnauthorizedException("La sesión no es válida.");
     }
     request.authenticationSession = session;
+    // La correlación ya existe desde el borde HTTP; recién acá se sabe a qué
+    // organización y actor pertenece.
+    attachCorrelationActor({
+      actorMembershipId: session.actor.membershipId,
+      organizationId: session.actor.organizationId,
+    });
     return true;
   }
 }

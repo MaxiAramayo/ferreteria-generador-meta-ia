@@ -1,4 +1,6 @@
-import { Injectable, Logger, type OnApplicationShutdown } from "@nestjs/common";
+import { Injectable, type OnApplicationShutdown } from "@nestjs/common";
+
+import { apiLog } from "../observability/api-log.ts";
 
 /**
  * Deja rastro observable del cierre ordenado.
@@ -9,9 +11,11 @@ import { Injectable, Logger, type OnApplicationShutdown } from "@nestjs/common";
  */
 @Injectable()
 export class ApplicationLifecycleService implements OnApplicationShutdown {
-  readonly #logger = new Logger("api");
-
   onApplicationShutdown(signal?: string): void {
-    this.#logger.log(`api.stopped señal=${signal ?? "sin señal"}`);
+    apiLog.emit({
+      detail: { signal: signal ?? "sin señal" },
+      event: "api.stopped",
+      outcome: "success",
+    });
   }
 }

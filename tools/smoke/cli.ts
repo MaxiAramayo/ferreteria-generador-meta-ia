@@ -81,6 +81,57 @@ function assertOrderedShutdown(
   );
 }
 
+/**
+ * Los procesos escriben una línea JSON por evento. El smoke las interpreta como
+ * registros y no como texto: así comprueba el contenido observable sin quedar
+ * atado a cómo estaba redactada la frase.
+ */
+function logRecords(
+  output: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  const records: Readonly<Record<string, unknown>>[] = [];
+  for (const line of output.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("{")) {
+      continue;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      records.push(parsed as Readonly<Record<string, unknown>>);
+    }
+  }
+  return records;
+}
+
+function findLogRecord(
+  output: string,
+  event: string,
+): Readonly<Record<string, unknown>> {
+  const record = logRecords(output).find((entry) => entry["event"] === event);
+  assert.ok(record, `El proceso debe registrar el evento ${event}.`);
+  return record;
+}
+
+function logDetail(
+  record: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+  const detail = record["detail"];
+  assert.ok(
+    typeof detail === "object" && detail !== null && !Array.isArray(detail),
+    "El registro debe traer detalle observable.",
+  );
+  return detail as Readonly<Record<string, unknown>>;
+}
+
 function assertWithoutSecrets(source: string, content: string): void {
   for (const forbiddenValue of forbiddenClientValues()) {
     assert.ok(
@@ -127,7 +178,12 @@ async function smokeApi(): Promise<void> {
   });
 
   try {
-    await api.waitForOutput("api.ready", startupTimeoutMs);
+    const readyOutput = await api.waitForOutput("api.ready", startupTimeoutMs);
+    const ready = findLogRecord(readyOutput, "api.ready");
+    assert.equal(ready["process"], "api");
+    assert.equal(ready["outcome"], "success");
+    assert.equal(logDetail(ready)["port"], port);
+    assertWithoutSecrets("El arranque de la API", readyOutput);
     reportCheck("el proceso arranca y valida su configuración");
 
     const liveness = await waitForHttp(
@@ -171,9 +227,9 @@ async function smokeApi(): Promise<void> {
 
     const shutdown = await api.terminate();
     assertOrderedShutdown(shutdown, "La API");
-    assert.ok(
-      shutdown.output.includes("api.stopped señal=SIGTERM"),
-      "El cierre ordenado debe quedar registrado.",
+    assert.equal(
+      logDetail(findLogRecord(shutdown.output, "api.stopped"))["signal"],
+      "SIGTERM",
     );
     reportCheck("SIGTERM ejecuta los hooks de apagado y detiene el proceso");
   } finally {
@@ -236,12 +292,15 @@ async function smokeWorkerStartup(
       "worker.ready",
       startupTimeoutMs,
     );
-    assert.ok(
-      readyOutput.includes("dependencias=postgres:down,redis:down"),
+    const ready = logDetail(findLogRecord(readyOutput, "worker.ready"));
+    assert.equal(
+      ready["dependencies"],
+      "postgres:down,redis:down",
       "El worker debe reportar el estado real de sus dependencias.",
     );
-    assert.ok(
-      readyOutput.includes("concurrencia=4"),
+    assert.equal(
+      ready["concurrency"],
+      4,
       "El worker debe reportar su concurrencia configurada.",
     );
     assertWithoutSecrets("El reporte de estado del worker", readyOutput);
@@ -251,9 +310,9 @@ async function smokeWorkerStartup(
 
     const shutdown = await worker.terminate();
     assertOrderedShutdown(shutdown, "El worker");
-    assert.ok(
-      shutdown.output.includes("worker.stopped señal=SIGTERM"),
-      "El cierre ordenado debe quedar registrado.",
+    assert.equal(
+      logDetail(findLogRecord(shutdown.output, "worker.stopped"))["signal"],
+      "SIGTERM",
     );
     reportCheck("SIGTERM detiene el reporte de estado y cierra el proceso");
   } finally {

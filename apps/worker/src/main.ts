@@ -5,12 +5,11 @@ import {
   parseWorkerEnvironment,
   type WorkerConfiguration,
 } from "@aramayo/configuration/worker";
-import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 
+import { workerLog } from "./observability/worker-log.ts";
+import { StructuredNestLogger } from "./observability/structured-nest-logger.ts";
 import { WorkerModule } from "./worker.module.ts";
-
-const bootstrapLogger = new Logger("worker");
 
 /**
  * El worker valida su configuración antes de crear el contexto de aplicación:
@@ -21,7 +20,12 @@ function readConfiguration(): WorkerConfiguration {
     return parseWorkerEnvironment(process.env);
   } catch (cause: unknown) {
     if (cause instanceof ConfigurationError) {
-      bootstrapLogger.error(cause.message);
+      workerLog.emit({
+        detail: { message: cause.message },
+        event: "worker.configuration.rejected",
+        level: "error",
+        outcome: "failure",
+      });
       process.exit(1);
     }
 
@@ -33,6 +37,7 @@ async function bootstrap(): Promise<void> {
   const configuration = readConfiguration();
   const application = await NestFactory.createApplicationContext(
     WorkerModule.forConfiguration(configuration),
+    { logger: new StructuredNestLogger(workerLog) },
   );
 
   application.enableShutdownHooks();
@@ -41,8 +46,16 @@ async function bootstrap(): Promise<void> {
 try {
   await bootstrap();
 } catch (cause: unknown) {
-  bootstrapLogger.error(
-    cause instanceof Error ? cause.message : "Fallo desconocido de arranque.",
-  );
+  workerLog.emit({
+    detail: {
+      message:
+        cause instanceof Error
+          ? cause.message
+          : "Fallo desconocido de arranque.",
+    },
+    event: "worker.start.failed",
+    level: "error",
+    outcome: "failure",
+  });
   process.exit(1);
 }

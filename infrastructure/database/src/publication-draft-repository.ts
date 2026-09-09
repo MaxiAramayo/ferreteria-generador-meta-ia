@@ -20,7 +20,7 @@ import type {
   SafeJsonValue,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
 import {
   claimReliableOperation,
@@ -549,7 +549,7 @@ function assertReliableMutationScope(
 }
 
 async function completeDraftMutation(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: PersistPublicationDraftInput,
   recordId: string,
   detail: PublicationDraftDetailRecord,
@@ -678,7 +678,7 @@ function revisionData(input: PersistPublicationDraftInput): Readonly<{
 }
 
 async function writeReferencesAreValid(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: PersistPublicationDraftInput,
 ): Promise<boolean> {
   const actor = await transaction.organizationMembership.findFirst({
@@ -724,7 +724,7 @@ async function writeReferencesAreValid(
 }
 
 async function createRevisionMedia(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: PersistPublicationDraftInput,
 ): Promise<void> {
   if (input.media.length === 0) {
@@ -742,7 +742,7 @@ async function createRevisionMedia(
 }
 
 async function findDetail(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   organizationId: string,
   publicationId: string,
 ): Promise<PublicationDraftDetailRecord> {

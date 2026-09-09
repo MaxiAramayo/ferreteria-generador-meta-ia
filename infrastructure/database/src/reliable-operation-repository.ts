@@ -22,7 +22,7 @@ import {
   validateSha256,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
 
 function prismaNestedJson(value: SafeJsonValue): Prisma.InputJsonValue | null {
@@ -126,7 +126,7 @@ type IdempotencyRow = Readonly<{
 }>;
 
 async function insertClaim(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: ClaimIdempotencyInput,
 ): Promise<readonly { id: string }[]> {
   return transaction.$queryRaw<{ id: string }[]>(Prisma.sql`
@@ -168,7 +168,7 @@ function replayResult(row: IdempotencyRow): IdempotencyClaimResult {
 }
 
 export async function claimReliableOperation(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: ClaimIdempotencyInput,
 ): Promise<IdempotencyClaimResult> {
   validateClaim(input);
@@ -225,7 +225,7 @@ export async function claimReliableOperation(
 }
 
 export async function discardReliableOperationClaim(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   recordId: string,
 ): Promise<void> {
   const deleted = await transaction.idempotencyRecord.deleteMany({
@@ -237,7 +237,7 @@ export async function discardReliableOperationClaim(
 }
 
 export async function commitReliableOperation(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   input: ReliableOperationCommitInput,
 ): Promise<boolean> {
   validateReliableOperationName(input.audit.operation);
@@ -357,6 +357,7 @@ type OutboxRow = Readonly<{
   aggregateType: string;
   attempts: number;
   availableAt: Date;
+  correlationId: string | null;
   id: string;
   organizationId: string;
   payload: unknown;
@@ -370,6 +371,7 @@ function mapOutbox(row: OutboxRow): OutboxMessageRecord {
     aggregateType: row.aggregateType,
     attempts: row.attempts,
     availableAt: row.availableAt.toISOString(),
+    ...(row.correlationId === null ? {} : { correlationId: row.correlationId }),
     eventId: row.id,
     organizationId: row.organizationId,
     payload: safeJsonObject(row.payload, "outbox.payload"),
@@ -458,7 +460,8 @@ export class PrismaOutboxRepository implements OutboxRepository {
           "message"."payload",
           "message"."status"::text AS "status",
           "message"."attempts",
-          "message"."available_at" AS "availableAt"
+          "message"."available_at" AS "availableAt",
+          "message"."correlation_id" AS "correlationId"
       `);
       return Object.freeze(rows.map(mapOutbox));
     });

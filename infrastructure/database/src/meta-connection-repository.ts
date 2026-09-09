@@ -11,7 +11,7 @@ import {
   type PersistedMetaAssetInput,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
 import type { Prisma } from "./generated/prisma/client.ts";
 
 const metaConnectionSelection = {
@@ -198,7 +198,7 @@ function encryptedColumns(secret: EncryptedSecret): Readonly<{
 }
 
 async function reconcileAssets(
-  transaction: Prisma.TransactionClient,
+  transaction: DatabaseTransactionClient,
   organizationId: string,
   metaConnectionId: string,
   assets: readonly PersistedMetaAssetInput[],
