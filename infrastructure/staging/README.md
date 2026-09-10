@@ -2,25 +2,22 @@
 
 ## Alcance
 
-Este perfil habilita el smoke remoto de OAuth de `P5-T02`. Comparte
-temporalmente el VPS físico decidido en `ADR-013`, pero no comparte proyecto
-Compose, base, volúmenes, credenciales, llaves ni aplicaciones externas con
-producción.
+Staging corre las mismas imágenes y manifiestos que producción, con datos y
+credenciales propios. Comparte temporalmente el VPS físico decidido en
+`ADR-013`, pero no comparte proyecto Compose, base, volúmenes, credenciales,
+llaves ni aplicaciones externas con producción.
 
 Producción debe permanecer detenida mientras staging publique `80/443`. No se
 ejecutan ambos Caddy al mismo tiempo. Detener staging conserva sus volúmenes;
 eliminarlos requiere una autorización destructiva separada.
 
-Durante el smoke OAuth se inician solamente:
-
-- Caddy;
-- web y API;
-- PostgreSQL y Redis aislados;
-- la migración one-shot.
-
-El worker queda detenido. OpenAI, Odoo y Cloudinary permanecen sin credenciales.
-Meta se usa sólo para OAuth y descubrimiento de activos; este perfil no autoriza
-crear containers, publicar contenido ni cambiar la app a modo publicado.
+Empezó habilitando el smoke remoto de OAuth de `P5-T02`, sin worker ni
+proveedores. Desde el 2026-09-10, por autorización del usuario, corren todos los
+servicios —Caddy, web, API, worker, PostgreSQL y Redis aislados, y la migración
+one-shot— y el worker tiene las credenciales de staging de OpenAI y Cloudinary.
+Odoo sigue sin credenciales. Meta se usa sólo para OAuth y descubrimiento de
+activos: este perfil no autoriza crear containers, publicar contenido ni cambiar
+la app a modo publicado.
 
 ## Topología y artefactos
 
@@ -54,7 +51,8 @@ no coincidan con esta tabla.
 5. Cargar juntos App ID, App Secret, callback exacta y Graph `v26.0` de
    `Aramayo Content Staging`. Mientras Meta esté deshabilitada, los cuatro
    valores permanecen vacíos; un grupo parcial hace fallar el bootstrap.
-6. Mantener vacíos OpenAI, Odoo y Cloudinary.
+6. Dejar vacíos OpenAI, Odoo y Cloudinary: se cargan después, sin imprimirlos,
+   como indica [Credenciales de proveedores](#credenciales-de-proveedores).
 7. Validar con `docker compose config --quiet` antes de descargar o iniciar.
 
 No usar el seed como credencial. El seed canónico crea la organización, marca y
@@ -70,16 +68,48 @@ Con la release y el entorno ya validados:
 sudo docker compose \
   --env-file /etc/aramayo-content/staging.env \
   --file /opt/aramayo-content-staging/current/compose.yaml \
-  pull web api migrate
+  pull web api worker migrate
 
 sudo docker compose \
   --env-file /etc/aramayo-content/staging.env \
   --file /opt/aramayo-content-staging/current/compose.yaml \
-  up --detach --wait postgres redis migrate api web caddy
+  up --detach --wait postgres redis migrate api web caddy worker
 ```
 
-Verificar HTTPS, `/health`, `/ready`, login y OAuth. El servicio `worker` no
-debe aparecer activo.
+Verificar HTTPS, `/health`, `/ready`, login y OAuth, y que el último
+`worker.heartbeat` del log del worker informe cada proveedor como `habilitada` o
+`deshabilitada` según lo cargado.
+
+Antes de cambiar de release se toma una copia con
+`sudo aramayo-backup run staging`: queda verificada con una restauración,
+cifrada y en Drive. El procedimiento está en
+[`BACKUP-RESTORE.md`](../../docs/operations/BACKUP-RESTORE.md).
+
+## Credenciales de proveedores
+
+Las credenciales de staging de OpenAI y Cloudinary —y las de Odoo, cuando
+existan— las carga quien las administra, desde la raíz del repositorio:
+
+```bash
+bash infrastructure/staging/load-provider-credentials.sh
+```
+
+El script las toma del `.env` local, exige que la carpeta de Cloudinary nombre
+staging y trata a Odoo como un grupo que se carga entero o no se carga. Las
+manda por SSH, por la entrada estándar, a
+[`aramayo-staging-credentials`](aramayo-staging-credentials) —instalado en el
+VPS como `/usr/local/sbin/aramayo-staging-credentials`—, que acepta sólo los
+nombres de su lista, valida el Compose resultante y deja junto al entorno una
+copia del anterior. Ninguno de los dos imprime un valor.
+
+Sólo el worker usa esas credenciales, y las toma al recrearse:
+
+```bash
+sudo docker compose \
+  --env-file /etc/aramayo-content/staging.env \
+  --file /opt/aramayo-content-staging/current/compose.yaml \
+  up --detach --wait --no-deps worker
+```
 
 ## Detención recuperable
 

@@ -388,8 +388,23 @@ extremo.
   que las tiene: el script exige que la carpeta de Cloudinary sea de staging, el
   VPS acepta sólo nombres de una lista cerrada y ninguno de los dos imprime
   valores. Después se recrean API y worker para que tomen el entorno.
-- Meta sigue deshabilitada en staging. Si el trazado tiene que llegar a una
-  publicación, necesita la misma autorización concreta que `P5-T09`.
+- Meta en staging sirve sólo para OAuth y descubrimiento de activos: publicar no
+  está autorizado. Si el trazado tiene que llegar a una publicación, necesita la
+  misma autorización concreta que `P5-T09`.
+- Fecha: 2026-09-10, 23:35 UTC. Credenciales de proveedores cargadas y worker
+  con salida; el trazado espera sólo una sesión en el panel.
+- OpenAI y Cloudinary de staging quedaron cargadas —con la carpeta de staging— y
+  Odoo sigue sin credenciales. Al recrear el worker, su latido pasó a informar
+  `openai` y `cloudinary` como `habilitada`.
+- **Y aun así el worker no llegaba a ningún proveedor**: `EAI_AGAIN` para
+  OpenAI, Cloudinary y Meta, porque sólo estaba en `backend`, que es interna. Es
+  el defecto que registra `P7-T07`; se corrigió con una red `egress` propia.
+- Con `b0f0cac` desplegado, desde el worker: OpenAI responde 200 al listado de
+  modelos y al vector store, Cloudinary 200 al ping y Meta Graph resuelve;
+  PostgreSQL y Redis siguen sin resolver nombres de afuera. El latido informa
+  los tres proveedores habilitados y ningún error.
+- Pendiente, y sólo eso: una sesión en el panel para disparar una intención y
+  seguir su correlación hasta el render y la auditoría.
 
 ### Evidencia de cierre
 
@@ -745,6 +760,15 @@ rollback de aplicación y migraciones compatibles.
   quedó como enmienda de
   [`ADR-013`](../architecture/decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md) y
   `production:verify` la hace cumplir.
+- 2026-09-10: **staging quedó en `b0f0cac`** con la red `egress`
+  ([PR #41](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/41)).
+  Antes se tomó la copia `aramayo-staging-20260910T233101Z`, verificada con
+  restauración y subida a Drive. El worker quedó en `backend` y `egress`, la API
+  en `backend` y `edge`, y PostgreSQL y Redis sólo en `backend`, sin resolver
+  nombres de afuera. Desde el worker, OpenAI y Cloudinary respondieron 200 y
+  Meta Graph resolvió; Chromium 151 abrió y capturó. `/health`, `/ready` y el
+  panel en 200, sin errores en el log del worker. `a6fbcf9` se conserva para
+  rollback.
 
 ### Evidencia de cierre
 
