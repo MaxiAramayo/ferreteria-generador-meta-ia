@@ -85,11 +85,14 @@ compose() {
   docker compose --env-file "$ENV_FILE" --file "$COMPOSE_FILE" "$@"
 }
 
+# `docker compose exec` reenvía la entrada estándar al contenedor aunque el
+# comando no la use. Invocado desde `ssh … bash -s`, esa entrada es el resto del
+# script remoto y desaparecería: por eso toda consulta lee de /dev/null.
 psql_on() {
   local database="$1"
   shift
   compose exec -T postgres psql -U "$DB_USER" -d "$database" \
-    -v ON_ERROR_STOP=1 -At -c "$1"
+    -v ON_ERROR_STOP=1 -At -c "$1" </dev/null
 }
 
 table_counts() {
@@ -138,7 +141,8 @@ create_backup() {
   WORK_DIR="$(mktemp -d "$TARGET_DIR/.trabajo.XXXXXX")"
   trap cleanup EXIT
 
-  compose exec -T postgres pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc >"$WORK_DIR/copia.dump"
+  compose exec -T postgres pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc \
+    </dev/null >"$WORK_DIR/copia.dump"
   local dump_bytes
   dump_bytes="$(stat -c %s "$WORK_DIR/copia.dump")"
   [[ "$dump_bytes" -gt 0 ]] || fail "pg_dump produjo una copia vacía"
@@ -211,22 +215,22 @@ upload_backups() {
   # además que todo lo local está del otro lado con el mismo contenido.
   rclone copy "$TARGET_DIR" "$daily" \
     --include "aramayo-$ENVIRONMENT-*.dump.age" \
-    --include "aramayo-$ENVIRONMENT-*.manifest.json"
+    --include "aramayo-$ENVIRONMENT-*.manifest.json" </dev/null
   rclone check "$TARGET_DIR" "$daily" --one-way \
     --include "aramayo-$ENVIRONMENT-*.dump.age" \
-    --include "aramayo-$ENVIRONMENT-*.manifest.json"
+    --include "aramayo-$ENVIRONMENT-*.manifest.json" </dev/null
 
   # La primera copia de cada mes se conserva un año.
   month="$(date -u +%Y%m)"
-  if ! rclone lsf "$monthly" --include "aramayo-$ENVIRONMENT-$month*.dump.age" 2>/dev/null | grep -q .; then
-    rclone copy "$TARGET_DIR/$latest" "$monthly"
-    rclone copy "$TARGET_DIR/${latest%.dump.age}.manifest.json" "$monthly"
+  if ! rclone lsf "$monthly" --include "aramayo-$ENVIRONMENT-$month*.dump.age" </dev/null 2>/dev/null | grep -q .; then
+    rclone copy "$TARGET_DIR/$latest" "$monthly" </dev/null
+    rclone copy "$TARGET_DIR/${latest%.dump.age}.manifest.json" "$monthly" </dev/null
     log "evento=copia.mensual ambiente=$ENVIRONMENT archivo=$latest"
   fi
 
   # Drive manda lo borrado a la papelera, de donde se recupera por 30 días más.
-  rclone delete "$daily" --min-age "$DAILY_RETENTION"
-  rclone delete "$monthly" --min-age "$MONTHLY_RETENTION"
+  rclone delete "$daily" --min-age "$DAILY_RETENTION" </dev/null
+  rclone delete "$monthly" --min-age "$MONTHLY_RETENTION" </dev/null
   log "evento=copia.subida ambiente=$ENVIRONMENT archivo=$latest destino=\"$REMOTE_ROOT/$ENVIRONMENT\""
 }
 
@@ -249,7 +253,7 @@ configure_remote() {
   chmod 600 "$merged"
   mv -- "$merged" "$config"
 
-  rclone lsd "$REMOTE:" >/dev/null || fail "Drive rechazó la autorización recibida"
+  rclone lsd "$REMOTE:" </dev/null >/dev/null || fail "Drive rechazó la autorización recibida"
   log "evento=remoto.configurado remoto=$REMOTE alcance=drive.file"
 }
 
