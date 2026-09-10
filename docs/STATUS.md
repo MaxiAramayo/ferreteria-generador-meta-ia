@@ -128,6 +128,16 @@ optimización de imágenes—, las vulnerabilidades de libvips y libheif en shar
 permiso, y una imagen de producción que no copiaba el manifiesto de un workspace
 nuevo. Las excepciones que quedan abiertas tienen dueño y fecha de revisión.
 
+**`P7-T04` también avanzó.** El simulacro de restauración corrió con datos
+reales: la suite de integración pobló la base, se tomó la copia, se restauró en
+una base aislada y las 75 pruebas volvieron a correr **contra la base
+restaurada**. Copia en 110 ms, restauración en 210 ms, conteos idénticos en las
+37 tablas y huella idéntica de los snapshots aprobados. Está en
+[`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md). Quedan tres decisiones del
+negocio: dónde viven las copias —hoy ninguna sale del host—, aceptar el RPO de
+24 h y el RTO de 1 h propuestos, y verificar las referencias de medios contra
+Cloudinary tras restaurar.
+
 `P7-T03` — observabilidad y health operacional, **en progreso**. Se eligió
 porque es la única tarea habilitada sin bloqueo externo: depende sólo de
 `P6-T07`, que está completa. Sus seis criterios de aceptación quedaron cubiertos
