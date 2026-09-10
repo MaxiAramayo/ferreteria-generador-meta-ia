@@ -115,8 +115,9 @@ línea y fuentes. Una tolerancia que absorbiera lo primero dejaría pasar un
 cambio de color de marca; lo segundo se puede exigir exacto.
 
 La línea base generada en macOS pasó sin tocarla en el contenedor de
-producción, desde un árbol limpio con instalación nueva, y en cinco corridas
-seguidas en macOS: ninguna diferencia.
+producción —en `aarch64`, desde un árbol limpio con instalación nueva, y en CI
+en x86_64, como producción— y en cinco corridas seguidas en macOS: ninguna
+diferencia.
 
 Reescribir la línea base es una decisión de diseño, no un trámite:
 
@@ -434,6 +435,11 @@ Dos compuertas más corren en jobs propios:
   del Compose de producción: la compuerta mediría un navegador que producción
   ya no usa. Si encuentra diferencias, el job conserva
   `output/visual-regression/` como artefacto durante 14 días.
+
+Esa ubicación no es un detalle: en su primera corrida, antes de comparar una
+sola pieza, el job no pudo abrir Chromium porque la ruta que declaraba el
+Compose de producción era la de arm64, y la imagen x64 lo ubica en
+`chrome-linux64/`. El worker desplegado habría fallado igual en cada render.
 
 Antes de producción:
 
