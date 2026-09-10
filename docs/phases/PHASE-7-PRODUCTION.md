@@ -216,14 +216,16 @@ pruebas proporcionales a su riesgo y gates estables.
 
 ### Evidencia de cierre
 
-- Commit: PR #34 (`codex/p7-t02-visual-regression`): `7097c7d` suite y línea
-  base, `20cb1a9` ruta de Chromium de producción y `fb78b84` smoke de
-  producción en `linux/amd64`.
+- Commit: `9953d37` en `main`, squash del PR #34
+  (`codex/p7-t02-visual-regression`) que reúne `7097c7d` suite y línea base,
+  `20cb1a9` ruta de Chromium de producción, `fb78b84` smoke de producción en
+  `linux/amd64` y `5b947c2` cierre.
 - CI, corrida `34483980653` sobre `20cb1a9`: «Regresión visual aprobada: 53
   piezas —26 del catálogo, 18 de perfil, 3 deterministas y 6 de tema— iguales a
   la línea base, con 151.0.7922.34 en 30 s», dentro de
   `mcr.microsoft.com/playwright:v1.62.0-noble` fijada por digest, en x86_64.
-  Calidad e integración, en verde en la misma corrida.
+  Calidad e integración, en verde en la misma corrida. La corrida final,
+  `34484599126` sobre `5b947c2`, repitió los tres jobs en verde.
 - Local, Chrome 151.0.7922.137 en macOS: 53 piezas iguales en cinco corridas
   seguidas, de 23 a 26 s cada una.
 - Contenedor de producción en `aarch64`, árbol limpio sin `node_modules`, `dist`
