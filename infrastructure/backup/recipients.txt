@@ -1,0 +1,8 @@
+# Destinatarios age de las copias de PostgreSQL (`P7-T04`).
+#
+# Sólo llaves públicas. La privada correspondiente vive fuera del VPS —en la
+# máquina de quien opera y en su gestor de contraseñas—, así que quien entre al
+# servidor no puede leer las copias que ya salieron. Agregar una llave no vuelve
+# legibles las copias anteriores para ella; quitarla no las vuelve ilegibles
+# para las que quedan.
+age1vuhg6vspzstdaznakypywphrfmf6436he9hkv7lq2tpq7zn5nqnq84c3sp
