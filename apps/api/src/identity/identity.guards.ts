@@ -15,6 +15,7 @@ import { parseCookie } from "cookie";
 import { API_CONFIGURATION } from "../configuration.tokens.ts";
 import { AuthenticationService } from "./authentication.service.ts";
 import {
+  AUTHENTICATED_ROUTE_METADATA,
   PUBLIC_ROUTE_METADATA,
   REQUIRED_PERMISSION_METADATA,
   type AuthenticatedRequest,
@@ -156,11 +157,27 @@ export class PermissionGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
+    if (isPublicRoute(context, this.#reflector)) {
+      return true;
+    }
     const permission = this.#reflector.getAllAndOverride<
       OrganizationPermission | undefined
     >(REQUIRED_PERMISSION_METADATA, [context.getHandler(), context.getClass()]);
     if (permission === undefined) {
-      return true;
+      // Falla cerrado: una ruta que no declara permiso ni se declara de sesión
+      // se rechaza. Antes alcanzaba con olvidar el decorador para que cualquier
+      // rol autenticado alcanzara la ruta, y nada lo denunciaba.
+      if (
+        this.#reflector.getAllAndOverride<boolean | undefined>(
+          AUTHENTICATED_ROUTE_METADATA,
+          [context.getHandler(), context.getClass()],
+        ) === true
+      ) {
+        return true;
+      }
+      throw new ForbiddenException(
+        "Esta ruta no declara su autorización y no puede atenderse.",
+      );
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();

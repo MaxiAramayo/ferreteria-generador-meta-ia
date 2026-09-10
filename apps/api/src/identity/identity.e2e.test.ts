@@ -296,6 +296,12 @@ class PermissionProbeController {
   approve(): Readonly<{ allowed: true }> {
     return Object.freeze({ allowed: true });
   }
+
+  /** Sin decorador a propósito: representa el olvido que hay que rechazar. */
+  @Get("undeclared")
+  undeclared(): Readonly<{ allowed: true }> {
+    return Object.freeze({ allowed: true });
+  }
 }
 
 function readJsonObject(text: string): Readonly<Record<string, unknown>> {
@@ -484,6 +490,14 @@ test("el flujo HTTP aplica sesión, CSRF, permisos, validación y revocación", 
     .get("/permission-probe/approve")
     .set("Cookie", sessionCookie);
   assert.equal(approverApproval.status, 200);
+
+  // Una ruta que olvidó declarar su autorización se rechaza aunque la sesión
+  // sea válida: antes alcanzaba con el olvido para dejarla al alcance de
+  // cualquier rol.
+  const undeclared = await supertest(baseUrl)
+    .get("/permission-probe/undeclared")
+    .set("Cookie", sessionCookie);
+  assert.equal(undeclared.status, 403);
 
   const logout = await supertest(baseUrl)
     .post("/auth/logout")
