@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# Copias cifradas de PostgreSQL de Aramayo Content Platform (`P7-T04`).
+#
+# Corre en el VPS como root. Cada copia:
+#
+# 1. sale del `pg_dump` del mismo contenedor que corre la base, en formato
+#    custom: un `pg_dump` de otra versión mayor se niega a leerla;
+# 2. se restaura entera en una base descartable del mismo servidor antes de
+#    contar como copia. Los conteos por tabla y la huella de los snapshots
+#    aprobados salen de esa restauración, así que describen el dump exacto y no
+#    una base que pudo cambiar mientras se copiaba;
+# 3. se cifra con age para las llaves públicas del archivo de destinatarios. El
+#    VPS no guarda ninguna llave privada: quien entre al servidor no puede leer
+#    las copias que ya salieron;
+# 4. se sube a Google Drive con rclone —fuera de OVHcloud— y se aplica la
+#    retención.
+#
+# Uso:
+#   aramayo-backup create <staging|production>   copia cifrada y verificada, local
+#   aramayo-backup upload <staging|production>   sube a Drive y aplica retención
+#   aramayo-backup run <staging|production>      las dos, en ese orden
+#   aramayo-backup configure-remote              instala la autorización de Drive
+#                                                que envía authorize-drive.sh
+#
+# La política, la custodia de la llave y la restauración están en
+# docs/operations/BACKUP-RESTORE.md.
+
+set -euo pipefail
+umask 077
+
+readonly BACKUP_ROOT="${ARAMAYO_BACKUP_ROOT:-/var/backups/aramayo-content}"
+readonly RECIPIENTS_FILE="${ARAMAYO_BACKUP_RECIPIENTS:-/etc/aramayo-content/backup-recipients.txt}"
+readonly REMOTE="${ARAMAYO_BACKUP_REMOTE:-aramayo-drive}"
+readonly REMOTE_ROOT="${ARAMAYO_BACKUP_REMOTE_ROOT:-Aramayo Content Platform/respaldos}"
+readonly RCLONE_CONFIG_DIR=/root/.config/rclone
+# En el VPS quedan las últimas copias para restaurar rápido; la protección
+# contra perder el host es la de Drive.
+readonly LOCAL_KEEP=7
+readonly DAILY_RETENTION="30d"
+readonly MONTHLY_RETENTION="365d"
+
+WORK_DIR=""
+CHECK_DATABASE=""
+
+log() {
+  printf '%s aramayo-backup %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+}
+
+fail() {
+  log "evento=error ambiente=${ENVIRONMENT:-ninguno} detalle=\"$*\"" >&2
+  exit 1
+}
+
+resolve_environment() {
+  case "${1:-}" in
+    staging)
+      ENV_FILE=/etc/aramayo-content/staging.env
+      COMPOSE_FILE=/opt/aramayo-content-staging/current/compose.yaml
+      ;;
+    production)
+      ENV_FILE=/etc/aramayo-content/production.env
+      COMPOSE_FILE=/opt/aramayo-content/current/compose.yaml
+      ;;
+    *)
+      fail "ambiente desconocido «${1:-}»: usá staging o production"
+      ;;
+  esac
+
+  ENVIRONMENT="$1"
+  TARGET_DIR="$BACKUP_ROOT/$ENVIRONMENT"
+  [[ -r "$ENV_FILE" ]] || fail "no se puede leer $ENV_FILE"
+  [[ -r "$COMPOSE_FILE" ]] || fail "no se puede leer $COMPOSE_FILE"
+}
+
+# Lee una sola variable del archivo de entorno sin cargarlo entero: tiene
+# secretos que este script no necesita y no debe exponer.
+env_value() {
+  local line
+  line="$(grep -m1 -E "^$1=" "$ENV_FILE" || true)"
+  [[ -n "$line" ]] || fail "$ENV_FILE no declara $1"
+  printf '%s' "${line#*=}"
+}
+
+compose() {
+  docker compose --env-file "$ENV_FILE" --file "$COMPOSE_FILE" "$@"
+}
+
+# `docker compose exec` reenvía la entrada estándar al contenedor aunque el
+# comando no la use. Invocado desde `ssh … bash -s`, esa entrada es el resto del
+# script remoto y desaparecería: por eso toda consulta lee de /dev/null.
+psql_on() {
+  local database="$1"
+  shift
+  compose exec -T postgres psql -U "$DB_USER" -d "$database" \
+    -v ON_ERROR_STOP=1 -At -c "$1" </dev/null
+}
+
+table_counts() {
+  local database="$1" query
+  query="$(psql_on "$database" "SELECT string_agg(format('SELECT %L AS tabla, count(*) AS filas FROM %I.%I', table_name, table_schema, table_name), ' UNION ALL ' ORDER BY table_name) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'")"
+  [[ -n "$query" ]] || fail "la copia no tiene tablas en el esquema public"
+  psql_on "$database" "SELECT tabla || '=' || filas FROM ($query) AS conteos ORDER BY tabla"
+}
+
+snapshot_fingerprint() {
+  psql_on "$1" "SELECT coalesce(md5(string_agg(id::text || ':' || content_hash, ',' ORDER BY id)), 'sin-snapshots') FROM approval_snapshots"
+}
+
+cleanup() {
+  if [[ -n "$CHECK_DATABASE" ]]; then
+    psql_on "$DB_NAME" "DROP DATABASE IF EXISTS \"$CHECK_DATABASE\"" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$WORK_DIR" ]]; then
+    rm -rf -- "$WORK_DIR"
+  fi
+}
+
+prune_local() {
+  local file
+  while IFS= read -r file; do
+    rm -f -- "$file" "${file%.dump.age}.manifest.json"
+    log "evento=copia.local.retirada ambiente=$ENVIRONMENT archivo=$(basename "$file")"
+  done < <(find "$TARGET_DIR" -maxdepth 1 -name "aramayo-$ENVIRONMENT-*.dump.age" -printf '%f\n' |
+    sort -r | tail -n +$((LOCAL_KEEP + 1)) | sed "s|^|$TARGET_DIR/|")
+}
+
+create_backup() {
+  command -v age >/dev/null || fail "age no está instalado"
+  grep -qE '^age1[0-9a-z]+$' "$RECIPIENTS_FILE" 2>/dev/null ||
+    fail "$RECIPIENTS_FILE no tiene ninguna llave pública de age"
+
+  DB_USER="$(env_value POSTGRES_USER)"
+  DB_NAME="$(env_value POSTGRES_DB)"
+  local image_tag stamp name
+  image_tag="$(env_value IMAGE_TAG)"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+  name="aramayo-$ENVIRONMENT-$stamp"
+
+  mkdir -p "$TARGET_DIR"
+  chmod 700 "$BACKUP_ROOT" "$TARGET_DIR"
+  WORK_DIR="$(mktemp -d "$TARGET_DIR/.trabajo.XXXXXX")"
+  trap cleanup EXIT
+
+  compose exec -T postgres pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc \
+    </dev/null >"$WORK_DIR/copia.dump"
+  local dump_bytes
+  dump_bytes="$(stat -c %s "$WORK_DIR/copia.dump")"
+  [[ "$dump_bytes" -gt 0 ]] || fail "pg_dump produjo una copia vacía"
+
+  # Una copia no cuenta hasta que se restaura. Se restaura entera en una base
+  # descartable; `--exit-on-error` hace fallar una restauración a medias.
+  CHECK_DATABASE="aramayo_restore_check_$stamp"
+  CHECK_DATABASE="${CHECK_DATABASE,,}"
+  psql_on "$DB_NAME" "CREATE DATABASE \"$CHECK_DATABASE\"" >/dev/null
+  compose exec -T postgres pg_restore -U "$DB_USER" -d "$CHECK_DATABASE" \
+    --exit-on-error <"$WORK_DIR/copia.dump"
+
+  local counts fingerprint postgres_version
+  counts="$(table_counts "$CHECK_DATABASE")"
+  fingerprint="$(snapshot_fingerprint "$CHECK_DATABASE")"
+  postgres_version="$(psql_on "$CHECK_DATABASE" "SHOW server_version")"
+  psql_on "$DB_NAME" "DROP DATABASE \"$CHECK_DATABASE\"" >/dev/null
+  CHECK_DATABASE=""
+
+  age --encrypt --recipients-file "$RECIPIENTS_FILE" \
+    --output "$WORK_DIR/$name.dump.age" "$WORK_DIR/copia.dump"
+
+  local tables_json recipients_json
+  tables_json="$(printf '%s\n' "$counts" | awk -F= '
+    BEGIN { printf "{" }
+    NR > 1 { printf "," }
+    { printf "\n    \"%s\": %s", $1, $2 }
+    END { printf "\n  }" }')"
+  recipients_json="$(grep -E '^age1[0-9a-z]+$' "$RECIPIENTS_FILE" | awk '
+    BEGIN { printf "[" }
+    NR > 1 { printf ", " }
+    { printf "\"%s\"", $0 }
+    END { printf "]" }')"
+
+  cat >"$WORK_DIR/$name.manifest.json" <<MANIFEST
+{
+  "environment": "$ENVIRONMENT",
+  "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "file": "$name.dump.age",
+  "encryptedBytes": $(stat -c %s "$WORK_DIR/$name.dump.age"),
+  "encryptedSha256": "$(sha256sum "$WORK_DIR/$name.dump.age" | cut -d' ' -f1)",
+  "dumpBytes": $dump_bytes,
+  "dumpSha256": "$(sha256sum "$WORK_DIR/copia.dump" | cut -d' ' -f1)",
+  "imageTag": "$image_tag",
+  "postgresVersion": "$postgres_version",
+  "restoreVerified": true,
+  "approvedSnapshotFingerprint": "$fingerprint",
+  "recipients": $recipients_json,
+  "tableCounts": $tables_json
+}
+MANIFEST
+
+  mv -- "$WORK_DIR/$name.dump.age" "$WORK_DIR/$name.manifest.json" "$TARGET_DIR/"
+  log "evento=copia.creada ambiente=$ENVIRONMENT archivo=$name.dump.age bytes=$dump_bytes tablas=$(printf '%s\n' "$counts" | wc -l) restauracion=verificada"
+  prune_local
+}
+
+upload_backups() {
+  command -v rclone >/dev/null || fail "rclone no está instalado"
+  rclone listremotes | grep -qx "$REMOTE:" ||
+    fail "rclone no tiene el remoto $REMOTE: configurado (infrastructure/backup/authorize-drive.sh)"
+
+  local latest daily monthly month
+  latest="$(find "$TARGET_DIR" -maxdepth 1 -name "aramayo-$ENVIRONMENT-*.dump.age" -printf '%f\n' 2>/dev/null | sort -r | head -1)"
+  [[ -n "$latest" ]] || fail "no hay copias locales de $ENVIRONMENT para subir"
+  daily="$REMOTE:$REMOTE_ROOT/$ENVIRONMENT/diarias"
+  monthly="$REMOTE:$REMOTE_ROOT/$ENVIRONMENT/mensuales"
+
+  # rclone verifica el hash de cada archivo al subirlo; `check` confirma
+  # además que todo lo local está del otro lado con el mismo contenido.
+  rclone copy "$TARGET_DIR" "$daily" \
+    --include "aramayo-$ENVIRONMENT-*.dump.age" \
+    --include "aramayo-$ENVIRONMENT-*.manifest.json" </dev/null
+  rclone check "$TARGET_DIR" "$daily" --one-way \
+    --include "aramayo-$ENVIRONMENT-*.dump.age" \
+    --include "aramayo-$ENVIRONMENT-*.manifest.json" </dev/null
+
+  # La primera copia de cada mes se conserva un año.
+  month="$(date -u +%Y%m)"
+  if ! rclone lsf "$monthly" --include "aramayo-$ENVIRONMENT-$month*.dump.age" </dev/null 2>/dev/null | grep -q .; then
+    rclone copy "$TARGET_DIR/$latest" "$monthly" </dev/null
+    rclone copy "$TARGET_DIR/${latest%.dump.age}.manifest.json" "$monthly" </dev/null
+    log "evento=copia.mensual ambiente=$ENVIRONMENT archivo=$latest"
+  fi
+
+  # Drive manda lo borrado a la papelera, de donde se recupera por 30 días más.
+  rclone delete "$daily" --min-age "$DAILY_RETENTION" </dev/null
+  rclone delete "$monthly" --min-age "$MONTHLY_RETENTION" </dev/null
+  log "evento=copia.subida ambiente=$ENVIRONMENT archivo=$latest destino=\"$REMOTE_ROOT/$ENVIRONMENT\""
+}
+
+# Recibe por la entrada estándar la sección de rclone que genera
+# authorize-drive.sh y la instala en la configuración de root. El token nunca
+# pasa por argumentos ni se imprime.
+configure_remote() {
+  command -v rclone >/dev/null || fail "rclone no está instalado"
+  local section merged config="$RCLONE_CONFIG_DIR/rclone.conf"
+  section="$(cat)"
+  [[ "$section" == "[$REMOTE]"* ]] || fail "la configuración recibida no es la del remoto $REMOTE"
+  grep -q '^token = {' <<<"$section" || fail "la configuración recibida no trae token"
+
+  mkdir -p "$RCLONE_CONFIG_DIR"
+  chmod 700 "$RCLONE_CONFIG_DIR"
+  touch "$config"
+  merged="$(mktemp "$RCLONE_CONFIG_DIR/.rclone.XXXXXX")"
+  awk -v section="[$REMOTE]" '/^\[/ { skip = ($0 == section) } !skip' "$config" >"$merged"
+  printf '%s\n' "$section" >>"$merged"
+  chmod 600 "$merged"
+  mv -- "$merged" "$config"
+
+  rclone lsd "$REMOTE:" </dev/null >/dev/null || fail "Drive rechazó la autorización recibida"
+  log "evento=remoto.configurado remoto=$REMOTE alcance=drive.file"
+}
+
+main() {
+  local command="${1:-}"
+
+  if [[ "$command" == "configure-remote" ]]; then
+    configure_remote
+    return
+  fi
+
+  resolve_environment "${2:-}"
+
+  case "$command" in
+    create) create_backup ;;
+    upload) upload_backups ;;
+    run)
+      create_backup
+      upload_backups
+      ;;
+    *) fail "comando desconocido «$command»: usá create, upload, run o configure-remote" ;;
+  esac
+}
+
+main "$@"

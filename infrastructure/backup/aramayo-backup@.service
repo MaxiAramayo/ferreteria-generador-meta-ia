@@ -1,0 +1,17 @@
+[Unit]
+Description=Copia cifrada de PostgreSQL de Aramayo Content Platform (%i)
+Documentation=https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/blob/main/docs/operations/BACKUP-RESTORE.md
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/aramayo-backup run %i
+# La copia no compite con la aplicación: baja prioridad de CPU y de disco.
+Nice=10
+IOSchedulingClass=idle
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=45min

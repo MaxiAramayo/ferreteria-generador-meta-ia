@@ -400,10 +400,10 @@ y RTO acordados.
 
 ### Criterios de aceptación
 
-- [ ] RPO y RTO están definidos y aceptados.
+- [x] RPO y RTO están definidos y aceptados.
 - [ ] Backups están cifrados y separados del entorno primario.
 - [x] Restauración reconstruye usuarios, publicaciones, estados y auditoría.
-- [ ] Referencias a medios se verifican tras restaurar.
+- [x] Referencias a medios se verifican tras restaurar.
 - [x] Secretos se reinyectan; no se almacenan en el backup documental.
 - [ ] Retención y borrado cumplen política de datos.
 
@@ -446,6 +446,40 @@ y RTO acordados.
   las dos—, **aceptar el RPO de 24 h y el RTO de 1 h** propuestos, y verificar
   las referencias de medios contra Cloudinary tras restaurar, que necesita
   credenciales de staging.
+- Fecha: 2026-09-10. Destino decidido, herramientas instaladas y primera copia
+  real verificada; la tarea sigue abierta hasta que la cuenta dueña autorice
+  Drive.
+- **Decisiones del usuario del 2026-09-10**: las copias van a Google Drive, y la
+  autorización general para completar la tarea se tomó como aceptación del RPO
+  de 24 h y el RTO de 1 h propuestos.
+- Entregado: [`infrastructure/backup`](../../infrastructure/backup/README.md)
+  —`aramayo-backup`, sus unidades de systemd, las llaves públicas,
+  `authorize-drive.sh` y `restore-drill.sh`— y
+  [`BACKUP-RESTORE.md`](../operations/BACKUP-RESTORE.md) con la política vigente.
+  Instalado en el VPS, con `aramayo-backup@staging.timer` activo a las 03:30 de
+  Córdoba.
+- **Cada copia se restaura antes de contar**, en una base descartable del mismo
+  servidor; los conteos y la huella del manifiesto salen de esa restauración. Se
+  cifra con age para una llave pública: el VPS no guarda ninguna privada, y la
+  de restauración vive en la máquina de quien opera.
+- **Drive se autoriza con alcance `drive.file`** desde la máquina de la persona
+  dueña de la cuenta: el VPS sólo ve lo que él mismo sube, y el token viaja por
+  SSH sin imprimirse.
+- **Primera copia real**, `aramayo-staging-20260910T214909Z`, tomada antes de
+  desplegar `25d6790`: el simulacro la descifró con la llave local, la restauró
+  en un PostgreSQL efímero y encontró 31 tablas y 103 filas iguales al
+  manifiesto, con la huella de snapshots aprobados idéntica.
+- **La verificación de medios encontró un defecto real**: el bitmap de la
+  revisión técnica de App Review se sirve desde `apps/web/public`, y `c581b35`
+  lo había retirado dejando su snapshot aprobado sin respaldo. El
+  [PR #37](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/37)
+  lo restaura con el mismo `checksum_sha256` que registra la base.
+- Defecto propio encontrado al instalar: `docker compose exec` se tragaba el
+  resto de un script remoto por la entrada estándar. Toda consulta lee ahora de
+  `/dev/null`.
+- Pendiente: que la cuenta dueña corra `authorize-drive.sh`, la primera subida y
+  un simulacro desde Drive —cierran «separados del entorno primario» y la
+  retención— y el timer de producción con `P7-T07`.
 
 ### Evidencia de cierre
 
