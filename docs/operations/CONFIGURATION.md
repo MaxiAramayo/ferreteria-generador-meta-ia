@@ -132,6 +132,10 @@ considera administrador de secretos.
   `linux/amd64`, que es la que se despliega, y `chrome-linux/chrome` en arm64.
   El job de regresión visual de CI la usa en la misma imagen y arquitectura: una
   ruta que no abre Chromium en producción tampoco pasa CI.
+- `HOME` del worker: el Compose lo fija en `/tmp`. El sistema de archivos del
+  contenedor es de sólo lectura y Chromium x64 necesita un `HOME` escribible
+  para la base de sus reportes de fallos; con el de la imagen aborta al
+  arrancar (`chrome_crashpad_handler: --database is required`).
 
 Para crear material local de cifrado:
 
