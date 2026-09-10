@@ -636,6 +636,18 @@ rollback de aplicación y migraciones compatibles.
   Redis. Corrida del 2026-09-10 en una Mac arm64 con emulación: build en 123 s y
   smoke en 38 s, con migración, readiness, panel y Chromium verificados sobre
   las imágenes amd64.
+- 2026-09-10: **staging quedó en `25d6790` con el worker iniciado**, por
+  autorización explícita del usuario. Antes se tomó una copia cifrada y
+  verificada con restauración (`aramayo-staging-20260910T214909Z`); la migración
+  aplicó las 8 pendientes —de 21 a 29— y API, panel y Caddy quedaron sanos, con
+  `/health` y `/ready` en 200. La release anterior, `57d6d72`, se conserva para
+  rollback.
+- **El worker no podía abrir Chromium en el VPS**: el sistema de archivos del
+  contenedor es de sólo lectura y Chromium x64 aborta sin un `HOME` escribible
+  (`chrome_crashpad_handler: --database is required`). Con `HOME=/tmp`, el tmpfs
+  del contenedor, arrancó y capturó. El smoke local bajo emulación no lo había
+  mostrado: sólo el host x86_64 real lo reprodujo. El Compose fija ahora
+  `HOME: /tmp` para el worker.
 
 ### Evidencia de cierre
 

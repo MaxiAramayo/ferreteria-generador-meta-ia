@@ -145,6 +145,11 @@ services:
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-}
+      # El sistema de archivos es de sólo lectura y Chromium x64 necesita un
+      # HOME escribible para la base de sus reportes de fallos: sin él aborta
+      # al arrancar (`chrome_crashpad_handler: --database is required`). /tmp
+      # es el tmpfs del contenedor.
+      HOME: /tmp
       META_APP_ID: ${META_APP_ID:-}
       META_APP_SECRET: ${META_APP_SECRET:-}
       META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-}
