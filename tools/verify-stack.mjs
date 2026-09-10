@@ -6,7 +6,7 @@ const repositoryUrl = new URL("../", import.meta.url);
 const expectedVersions = Object.freeze({
   node: "24.18.0",
   pnpm: "11.17.0",
-  next: "16.2.11",
+  next: "16.3.4",
   react: "19.2.8",
   "react-dom": "19.2.8",
   "@nestjs/common": "11.1.28",

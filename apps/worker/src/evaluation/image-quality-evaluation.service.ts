@@ -228,11 +228,9 @@ export async function composeImageQualityCaseWithBase(
 ): Promise<ComposedPiece> {
   const metadata = await sharp(bytes).metadata();
 
-  if (
-    metadata.format !== "png" &&
-    metadata.format !== "jpeg" &&
-    metadata.format !== "jpg"
-  ) {
+  // sharp informa siempre `jpeg` para un JPEG; desde 0.35 `jpg` ya no existe
+  // como formato leído y compararlo era código muerto.
+  if (metadata.format !== "png" && metadata.format !== "jpeg") {
     throw new Error(`El activo de ${entry.caseId} debe ser PNG o JPEG.`);
   }
 
