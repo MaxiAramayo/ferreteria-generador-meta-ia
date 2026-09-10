@@ -17,7 +17,7 @@ antes de ampliar automatizaciones o integrar eventos del sistema comercial.
 ## P7-T01 — Completar threat model y revisión de seguridad
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P5-T08`, `P6-T09`
 - Riesgo: Alto
 
@@ -34,17 +34,17 @@ acciones externas antes de exponer producción.
 
 ### Criterios de aceptación
 
-- [ ] Se modelan abuso de tokens, SSRF, uploads, prompt injection e IDOR.
-- [ ] Autorización se prueba en todos los endpoints y jobs.
-- [ ] URLs remotas se validan contra política y no habilitan red interna.
-- [ ] Dependencias críticas no tienen vulnerabilidades sin decisión.
-- [ ] Secretos, logs y backups tienen controles revisados.
-- [ ] Hallazgos altos están resueltos; excepciones tienen propietario y fecha.
+- [x] Se modelan abuso de tokens, SSRF, uploads, prompt injection e IDOR.
+- [x] Autorización se prueba en todos los endpoints y jobs.
+- [x] URLs remotas se validan contra política y no habilitan red interna.
+- [x] Dependencias críticas no tienen vulnerabilidades sin decisión.
+- [x] Secretos, logs y backups tienen controles revisados.
+- [x] Hallazgos altos están resueltos; excepciones tienen propietario y fecha.
 
 ### Verificación obligatoria
 
-- [ ] Escaneo de dependencias y secretos.
-- [ ] Tests de autorización/tenancy y entradas maliciosas.
+- [x] Escaneo de dependencias y secretos.
+- [x] Tests de autorización/tenancy y entradas maliciosas.
 - [ ] Revisión manual independiente del checklist.
 
 ### Fuera de alcance
@@ -53,11 +53,48 @@ acciones externas antes de exponer producción.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09.
+- **Desviación registrada**: la tarea empezó con `P6-T09` sin cerrar. Lo que esa
+  tarea agrega es evidencia de una corrida real de publicación, no superficie de
+  ataque nueva: todo el código de programación está en `main`, así que la
+  superficie a revisar ya existe entera. El usuario pidió avanzar igual.
+- Entregado: [`THREAT-MODEL.md`](../operations/THREAT-MODEL.md) con límites de
+  confianza, las seis amenazas modeladas con su evidencia, cuatro hallazgos y
+  las excepciones aceptadas con dueño y fecha de revisión.
+- **F-01, crítica**: Next.js 16.2.11 arrastraba dos avisos de ejecución remota,
+  uno en optimización de imágenes. Resuelto con 16.3.4; el panel además declara
+  `images.unoptimized`, que apaga `/_next/image` —un endpoint que no usaba y que
+  igual quedaba expuesto en el ingreso público—.
+- **F-02, alta**: sharp 0.34.5 con las vulnerabilidades de libvips y libheif. Es
+  la dependencia más expuesta del sistema porque procesa lo que llega de afuera.
+  Resuelto con 0.35.4; el salto probó de paso que la comparación con `"jpg"` en
+  la evaluación de calidad era código muerto.
+- **F-03, alta**: `PermissionGuard` devolvía `true` cuando la ruta no declaraba
+  permiso, así que **olvidar el decorador dejaba el endpoint al alcance de
+  cualquier rol autenticado** y nada lo denunciaba. Ahora falla cerrado.
+  `AuthenticatedRoute` nombra el tercer estado que existía sin nombre —exige
+  sesión y ningún permiso— para que decidirlo no se confunda con olvidarlo.
+- **F-04, media**: la imagen de producción no copiaba el manifiesto de
+  `packages/observability`. CI corre `pnpm verify` y nunca construye la imagen,
+  así que el defecto no tenía dónde aparecer hasta el despliegue. `verify:stack`
+  ahora enumera los workspaces y lo exige.
+- **Lo que la revisión confirmó sin hallazgo**: ninguna entrada de la API acepta
+  una URL y no hay ruta multipart, así que no existe SSRF por dirección elegida
+  por una persona; la URL de un medio la devuelve el proveedor y se rechaza si
+  no pertenece al cloud propio; la evidencia de un brief la emite el servidor y
+  no el modelo, que es la defensa real contra prompt injection; los tokens de
+  Meta se cifran con AES-256-GCM; ningún secreto está versionado.
+- **Sobre tenancy**: auditadas 232 consultas de repositorio. Las que no filtran
+  por organización son barridos del worker que cruzan tenants a propósito; cada
+  fila que devuelven lleva su organización y la escritura posterior vuelve a
+  acotar.
+- Pendiente: la revisión manual independiente del checklist. Es la única
+  verificación que no puede hacerse desde adentro de la sesión que escribió el
+  código.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta la revisión manual independiente.
 
 ## P7-T02 — Consolidar suite de calidad
 

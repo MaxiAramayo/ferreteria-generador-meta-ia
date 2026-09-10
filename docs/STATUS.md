@@ -113,6 +113,21 @@ ni cierra tareas de Fase 7 y no representa un despliegue remoto.
 
 ## Próxima tarea
 
+`P7-T01` — threat model y revisión de seguridad, **en progreso**. Se empezó con
+su dependencia `P6-T09` sin cerrar, por pedido explícito del usuario y con la
+desviación registrada: lo que esa tarea agrega es evidencia de una corrida real
+de publicación, no superficie de ataque nueva. Cinco de sus seis criterios están
+cubiertos y falta sólo la revisión manual independiente del checklist, que no
+puede hacerse desde adentro de la sesión que escribió el código.
+
+El [threat model](operations/THREAT-MODEL.md) dejó cuatro hallazgos, todos
+resueltos: dos avisos críticos de ejecución remota en Next.js —uno en
+optimización de imágenes—, las vulnerabilidades de libvips y libheif en sharp
+—la dependencia más expuesta, porque procesa lo que llega de afuera—, un
+`PermissionGuard` que **fallaba abierto** cuando una ruta olvidaba declarar su
+permiso, y una imagen de producción que no copiaba el manifiesto de un workspace
+nuevo. Las excepciones que quedan abiertas tienen dueño y fecha de revisión.
+
 `P7-T03` — observabilidad y health operacional, **en progreso**. Se eligió
 porque es la única tarea habilitada sin bloqueo externo: depende sólo de
 `P6-T07`, que está completa. Sus seis criterios de aceptación quedaron cubiertos
