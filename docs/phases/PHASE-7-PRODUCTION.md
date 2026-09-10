@@ -416,11 +416,11 @@ y RTO acordados.
 ### Criterios de aceptación
 
 - [x] RPO y RTO están definidos y aceptados.
-- [ ] Backups están cifrados y separados del entorno primario.
+- [x] Backups están cifrados y separados del entorno primario.
 - [x] Restauración reconstruye usuarios, publicaciones, estados y auditoría.
 - [x] Referencias a medios se verifican tras restaurar.
 - [x] Secretos se reinyectan; no se almacenan en el backup documental.
-- [ ] Retención y borrado cumplen política de datos.
+- [x] Retención y borrado cumplen política de datos.
 
 ### Verificación obligatoria
 
@@ -497,9 +497,29 @@ y RTO acordados.
   migraciones de `25d6790`— y 111 filas iguales al manifiesto, huella idéntica y
   **los tres medios respondiendo**, incluido el bitmap restaurado. El simulacro
   completo tardó 3 s.
-- Pendiente: que la cuenta dueña corra `authorize-drive.sh`, la primera subida y
-  un simulacro desde Drive —cierran «separados del entorno primario» y la
-  retención— y el timer de producción con `P7-T07`.
+- Fecha: 2026-09-10, 22:55 UTC. La cuenta dueña autorizó Drive; los seis
+  criterios quedan cumplidos.
+- **La unidad que corre el timer se ejecutó completa** con el endurecimiento de
+  systemd: copia `aramayo-staging-20260910T225852Z` creada, restaurada en el
+  VPS, cifrada y subida, y `rclone check` sin diferencias en los seis archivos.
+  1 min 55 s de reloj, casi todo de Drive, y 1,5 s de CPU.
+- **Simulacro desde Drive**: esa copia se descargó con el rclone de la máquina
+  de quien opera, sin pasar por el VPS, se descifró al dump exacto y se restauró
+  con 37 tablas y 111 filas iguales al manifiesto, huella idéntica y 3 de 3
+  medios, en 12 s con la descarga. Es lo que prueba la separación: la copia se
+  recupera sin el servidor.
+- **La retención se comprobó borrando**: en una carpeta de prueba aparte, un
+  archivo con fecha de hace 40 días desapareció con el mismo
+  `rclone delete --min-age 30d` de la subida y el reciente quedó. Sobre las
+  copias reales los filtros no seleccionan nada —todas son de hoy— y con una
+  edad de un minuto seleccionan exactamente las diarias. La poda local instalada
+  dejó siete de nueve copias de prueba.
+- Pendiente, y sólo eso: **la segunda copia de la llave privada**. La política
+  exige dos lugares fuera del VPS y, hasta que quien opera confirme la de su
+  gestor de contraseñas, hay que contar con una sola, en su máquina; sin ella
+  ninguna copia se restaura. Con esa confirmación la tarea cierra, con `P7-T01`
+  abierta como desviación registrada, igual que `P7-T02`.
+- El timer de producción queda para `P7-T07`.
 
 ### Evidencia de cierre
 
@@ -711,6 +731,10 @@ rollback de aplicación y migraciones compatibles.
   log desde el arranque, `/health` y `/ready` en 200, Chromium 151 abre y
   captura dentro del worker desplegado, y el panel sirve el bitmap con el mismo
   sha256 que registra la base. `25d6790` y `57d6d72` se conservan para rollback.
+- Para cuando exista producción: las copias de `P7-T04` ya están instaladas y
+  probadas en el VPS. Falta activar `aramayo-backup@production.timer` y repetir
+  el simulacro desde Drive antes de abrir tráfico, con la retención y la llave
+  de [`BACKUP-RESTORE.md`](../operations/BACKUP-RESTORE.md).
 
 ### Evidencia de cierre
 

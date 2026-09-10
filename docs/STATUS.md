@@ -163,21 +163,23 @@ del panel —se restauró con el mismo `checksum_sha256` que registra la base—
 Health, readiness y el panel responden 200, y la correlación llega a la
 respuesta pública.
 
-**`P7-T04` tiene destino y copias reales.** Las copias van a Google Drive, y el
-RPO de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
+**`P7-T04` cumple sus seis criterios.** Las copias van a Google Drive, y el RPO
+de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
 `aramayo-backup` corre en el VPS todos los días a las 03:30 de Córdoba: cada
 copia se restaura antes de contar, se cifra con una llave pública —la privada
-vive fuera del VPS— y se sube con alcance `drive.file`. El simulacro sobre la
-copia de staging la descifró y restauró 37 tablas y 111 filas iguales al
-manifiesto, con la huella idéntica y los tres medios respondiendo, en 3 s. Está
-en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
+vive fuera del VPS— y se sube con alcance `drive.file`. La cuenta dueña autorizó
+Drive el 2026-09-10 y la misma unidad del timer corrió completa. **Una copia
+descargada de Drive**, sin pasar por el servidor, se restauró con 37 tablas y
+111 filas iguales al manifiesto, la huella idéntica y los tres medios
+respondiendo, en 12 s. La retención se comprobó borrando en Drive un archivo de
+prueba de 40 días. Está en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
 
 **Lo que falta ya no es código: son pasos de personas.** Lo que destraba cada
 tarea:
 
-- `P7-T04`: que la cuenta dueña del Drive corra
-  `bash infrastructure/backup/authorize-drive.sh`; la primera subida y un
-  simulacro desde Drive cierran la tarea;
+- `P7-T04`: confirmar que la llave privada de las copias está guardada también
+  en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
+  máquina es perder todas las copias;
 - `P7-T03`: que quien administra las credenciales de staging corra
   `bash infrastructure/staging/load-provider-credentials.sh` —sin Cloudinary el
   worker no puede guardar un render— y una sesión en el panel para trazar un
