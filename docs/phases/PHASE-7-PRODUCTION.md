@@ -375,6 +375,21 @@ extremo.
   servicios iniciados y con OpenAI, Cloudinary y Meta deshabilitados. El trazado
   local ya está: el E2E con Chrome comprueba que la correlación que devuelve la
   API llega a la auditoría y al trabajo que la ejecuta.
+- Fecha: 2026-09-10. Staging desplegado con el worker; el trazado sigue
+  pendiente, ahora por credenciales y no por despliegue.
+- Staging corre `a6fbcf9` con API, panel, worker y Caddy, por autorización
+  explícita del usuario. `/health` y `/ready` responden 200 y cada respuesta
+  pública lleva su `x-correlation-id` de 32 hexadecimales; el worker abre
+  Chromium y captura en el host real.
+- **Lo que falta para trazar el flujo**: las credenciales de OpenAI y Cloudinary
+  de staging —sin Cloudinary el worker no puede guardar un render— y una sesión
+  en el panel para disparar la intención. Se cargan con
+  `bash infrastructure/staging/load-provider-credentials.sh` desde la máquina
+  que las tiene: el script exige que la carpeta de Cloudinary sea de staging, el
+  VPS acepta sólo nombres de una lista cerrada y ninguno de los dos imprime
+  valores. Después se recrean API y worker para que tomen el entorno.
+- Meta sigue deshabilitada en staging. Si el trazado tiene que llegar a una
+  publicación, necesita la misma autorización concreta que `P5-T09`.
 
 ### Evidencia de cierre
 
@@ -477,6 +492,11 @@ y RTO acordados.
 - Defecto propio encontrado al instalar: `docker compose exec` se tragaba el
   resto de un script remoto por la entrada estándar. Toda consulta lee ahora de
   `/dev/null`.
+- **Segunda copia real**, `aramayo-staging-20260910T221414Z`, tomada segundos
+  antes de desplegar `a6fbcf9`: 37 tablas —seis más que la primera, por las
+  migraciones de `25d6790`— y 111 filas iguales al manifiesto, huella idéntica y
+  **los tres medios respondiendo**, incluido el bitmap restaurado. El simulacro
+  completo tardó 3 s.
 - Pendiente: que la cuenta dueña corra `authorize-drive.sh`, la primera subida y
   un simulacro desde Drive —cierran «separados del entorno primario» y la
   retención— y el timer de producción con `P7-T07`.
@@ -682,6 +702,15 @@ rollback de aplicación y migraciones compatibles.
   del contenedor, arrancó y capturó. El smoke local bajo emulación no lo había
   mostrado: sólo el host x86_64 real lo reprodujo. El Compose fija ahora
   `HOME: /tmp` para el worker.
+- 2026-09-10: **staging quedó en `a6fbcf9`**, con `HOME: /tmp` para el worker
+  ([PR #36](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/36))
+  y el bitmap de App Review restaurado
+  ([PR #37](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/37)).
+  Antes se tomó la copia `aramayo-staging-20260910T221414Z`, verificada con
+  restauración; la release no trae migraciones. Sin reinicios ni errores en el
+  log desde el arranque, `/health` y `/ready` en 200, Chromium 151 abre y
+  captura dentro del worker desplegado, y el panel sirve el bitmap con el mismo
+  sha256 que registra la base. `25d6790` y `57d6d72` se conservan para rollback.
 
 ### Evidencia de cierre
 
