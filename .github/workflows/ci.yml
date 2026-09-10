@@ -69,3 +69,60 @@ jobs:
 
       - name: Smoke de procesos
         run: pnpm run smoke
+
+  # Las suites que necesitan PostgreSQL, Redis y un navegador real corrían sólo
+  # cuando alguien se acordaba en su máquina. Son las que encuentran los fallos
+  # que las pruebas con dobles no pueden ver —migraciones, aislamiento entre
+  # organizaciones, la cadena completa de una historia recurrente—, así que son
+  # una compuerta y no una tarea opcional.
+  integration:
+    name: Integración y extremo a extremo
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # Valores falsos y efímeros: la infraestructura vive dentro del job y no
+      # es alcanzable desde afuera. `.env` está ignorado por Git.
+      - name: Preparar entorno efímero
+        run: |
+          cat > .env <<'ENVIRONMENT'
+          NODE_ENV=test
+          APP_TIMEZONE=America/Argentina/Cordoba
+          POSTGRES_USER=aramayo
+          POSTGRES_PASSWORD=integracion-ci-postgres-falsa
+          POSTGRES_DB=aramayo_content
+          POSTGRES_PORT=5432
+          REDIS_PASSWORD=integracion-ci-redis-falsa
+          REDIS_PORT=6379
+          DATABASE_URL=postgresql://aramayo:integracion-ci-postgres-falsa@127.0.0.1:5432/aramayo_content
+          REDIS_URL=redis://default:integracion-ci-redis-falsa@127.0.0.1:6379
+          ENVIRONMENT
+
+      # Se usa el mismo Compose que en desarrollo, con las imágenes fijadas por
+      # digest: probar contra otra versión del motor no probaría lo que corre.
+      - name: Levantar PostgreSQL y Redis
+        run: pnpm run infra:up
+
+      - name: Base, migraciones e integración
+        run: pnpm run db:test
+
+      - name: Extremo a extremo de historia recurrente
+        run: pnpm run e2e:recurring-story
+
+      - name: Detener infraestructura
+        if: always()
+        run: pnpm run infra:down

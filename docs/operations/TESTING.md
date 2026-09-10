@@ -241,6 +241,68 @@ columnas cifradas sin copiar tokens, códigos OAuth ni secretos a capturas o
 logs. Este smoke no crea containers ni publica contenido en los activos
 existentes; conserva los límites de `ADR-019`.
 
+## Pirámide medida
+
+Medido el 2026-09-09. Los números importan menos que la proporción: el dominio
+—donde viven las reglas que un error rompe en silencio— concentra la mayoría, y
+las capas caras se reservan para lo que ninguna otra puede probar.
+
+| Capa | Pruebas | Qué prueba que ninguna otra pueda |
+|---|---|---|
+| Dominio | 246 | Transiciones, autorización, idempotencia y cálculo temporal, sin infraestructura |
+| API | 133 | Casos de uso, permisos por ruta y contratos de transporte |
+| Panel | 90 | Clientes fail-closed y presentación de estados |
+| Motor de diseño | 82 | Composición, formatos y paleta aprobada |
+| Configuración, contratos, observabilidad y salud | 29 | Bordes de entorno, correlación y redacción |
+| Integración | 75 | Aislamiento entre organizaciones, transacciones y concurrencia real sobre PostgreSQL |
+| Extremo a extremo | 3 suites | La cadena completa con Chrome real: regla, borrador, aprobación, ocurrencia y excepción |
+| Smoke de procesos | 14 comprobaciones | Arranque, readiness, cierre ordenado y ausencia de secretos |
+
+**Integración y extremo a extremo son ahora una compuerta de CI.** Corrían sólo
+cuando alguien se acordaba en su máquina, y son justamente las que encuentran lo
+que los dobles no pueden ver: migraciones, aislamiento entre organizaciones y la
+cadena completa de una historia recurrente.
+
+## Política de inestabilidad
+
+Una prueba inestable no se reintenta hasta que pase ni se ignora en silencio.
+
+1. Se registra acá con la fecha, la tasa observada y quién la mira.
+2. Se busca la causa antes que el paliativo: casi siempre es tiempo, orden o
+   estado compartido, no «el runner».
+3. Si hay que desactivarla, se desactiva **con** su entrada acá y una fecha de
+   revisión. Una prueba desactivada sin registro es una prueba borrada.
+4. Ninguna suite se reintenta automáticamente en CI: un reintento convierte una
+   señal en ruido y esconde exactamente lo que hay que arreglar.
+
+### Inestabilidades abiertas
+
+| Observada | Suite | Tasa | Estado | Dueño |
+|---|---|---|---|---|
+| 2026-09-09 | `pnpm --recursive test` | 1 fallo en 13 corridas | Sin identificar: la corrida que falló sólo conservó los conteos. No se reprodujo en 24 corridas posteriores —10 completas, 6 del worker, 4 de la API y 4 de salud—. La próxima aparición en CI conserva el nombre y el diagnóstico. | rol `admin` |
+
+## Regresión intencional: qué detecta cada capa
+
+Comprobado el 2026-09-09 rompiendo a propósito y confirmando quién avisa.
+
+| Categoría | Rotura introducida | Detectada por |
+|---|---|---|
+| Dominio | Un día pasó a durar 86.400.001 ms | Pruebas de programación |
+| Autorización | Se quitó `RequirePermission` de una ruta | Prueba que enumera rutas |
+| Entrega | Se quitó el manifiesto de un workspace del `Dockerfile` | `verify:stack` |
+| Marca | Se cambió el color `ferre` | Huella de paleta aprobada |
+
+La categoría **marca no tenía quién avisara**: `baseline:verify` confirma que los
+PNG de referencia siguen íntegros, no que el motor siga pintando igual, y
+ninguna prueba de composición mira el color resultante. Se cerró con una huella
+de la paleta aprobada, que obliga a actualizarla en el mismo commit.
+
+**Sigue faltando una regresión sobre la imagen renderizada.** Compararla por
+hash de píxeles entre macOS y el contenedor de CI sería inestable por
+rasterización de fuentes, así que la comparación tiene que ser estructural
+—documento resuelto— o correr fijada al contenedor. Queda como trabajo
+declarado, no como agujero silencioso.
+
 ## Puertas de calidad
 
 Antes de merge:

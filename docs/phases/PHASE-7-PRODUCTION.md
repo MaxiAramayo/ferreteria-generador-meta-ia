@@ -99,7 +99,7 @@ acciones externas antes de exponer producción.
 ## P7-T02 — Consolidar suite de calidad
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P6-T09`, `P7-T01`
 - Riesgo: Alto
 
@@ -116,18 +116,18 @@ pruebas proporcionales a su riesgo y gates estables.
 
 ### Criterios de aceptación
 
-- [ ] Transiciones, autorización, idempotencia y cálculo temporal tienen cobertura exhaustiva.
-- [ ] Contratos OpenAI, Cloudinary y Meta se prueban con dobles y smoke tests reales controlados.
-- [ ] Flujos críticos tienen E2E.
+- [x] Transiciones, autorización, idempotencia y cálculo temporal tienen cobertura exhaustiva.
+- [x] Contratos OpenAI, Cloudinary y Meta se prueban con dobles y smoke tests reales controlados.
+- [x] Flujos críticos tienen E2E.
 - [ ] Visual regression cubre formatos y perfiles aprobados.
-- [ ] Un test inestable no se reintenta indefinidamente ni se ignora sin ticket.
-- [ ] CI produce evidencia diagnóstica sin secretos.
+- [x] Un test inestable no se reintenta indefinidamente ni se ignora sin ticket.
+- [x] CI produce evidencia diagnóstica sin secretos.
 
 ### Verificación obligatoria
 
 - [ ] Ejecutar pipeline desde checkout limpio.
-- [ ] Ejecutar suites críticas repetidas para medir flakes.
-- [ ] Confirmar detección de una regresión intencional por categoría.
+- [x] Ejecutar suites críticas repetidas para medir flakes.
+- [x] Confirmar detección de una regresión intencional por categoría.
 
 ### Fuera de alcance
 
@@ -135,7 +135,31 @@ pruebas proporcionales a su riesgo y gates estables.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09.
+- **Desviación registrada**: igual que `P7-T01`, la tarea empezó con `P6-T09`
+  sin cerrar y por pedido explícito del usuario. Nada de lo que consolida el
+  suite depende de una publicación real.
+- **El hallazgo estructural: integración y extremo a extremo no eran una
+  compuerta.** CI corría `pnpm verify` y nada más, así que las 75 pruebas de
+  integración, la migración desde vacío y los E2E con Chrome corrían sólo cuando
+  alguien se acordaba en su máquina. Son justamente las que encuentran lo que
+  los dobles no pueden ver. Ahora hay un job que levanta el mismo Compose
+  —imágenes fijadas por digest— y las ejecuta.
+- **Se midió inestabilidad**: 1 fallo en 13 corridas del suite completo. No se
+  reprodujo en 24 corridas posteriores y su identidad se perdió porque esa
+  corrida sólo conservó conteos. Queda registrada con dueño y con la corrección
+  de proceso: en CI el log conserva el nombre.
+- **Se rompió a propósito una cosa por categoría** para confirmar quién avisa.
+  Dominio, autorización y entrega tienen quien avise. **Marca no tenía**:
+  cambiar el color `ferre` no hacía fallar nada, porque `baseline:verify`
+  comprueba que los PNG de referencia sigan íntegros y no que el motor siga
+  pintando igual. Se cerró con una huella de la paleta aprobada.
+- Pendiente: **regresión sobre la imagen renderizada**. Compararla por hash de
+  píxeles entre macOS y el contenedor de CI sería inestable por rasterización de
+  fuentes; la comparación tiene que ser estructural o correr fijada al
+  contenedor. Queda declarada, no escondida.
+- Pendiente también: ejecutar el pipeline desde un checkout limpio, que es lo
+  que hace el job nuevo en su primera corrida sobre este PR.
 
 ### Evidencia de cierre
 

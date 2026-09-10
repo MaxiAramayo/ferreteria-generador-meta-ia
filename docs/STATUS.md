@@ -128,6 +128,17 @@ optimización de imágenes—, las vulnerabilidades de libvips y libheif en shar
 permiso, y una imagen de producción que no copiaba el manifiesto de un workspace
 nuevo. Las excepciones que quedan abiertas tienen dueño y fecha de revisión.
 
+**`P7-T02` avanzó y dejó el hallazgo más incómodo del día**: integración y
+extremo a extremo **no eran una compuerta**. CI corría `pnpm verify` y nada más,
+así que las 75 pruebas de integración, la migración desde vacío y los E2E con
+Chrome corrían sólo cuando alguien se acordaba en su máquina —justamente las que
+encuentran lo que los dobles no pueden ver—. Ahora hay un job que levanta el
+mismo Compose y las ejecuta. Se midió además la inestabilidad —1 fallo en 13
+corridas, registrado con dueño— y se rompió a propósito una cosa por categoría
+para confirmar quién avisa: marca no tenía quien avisara, porque cambiar un
+color de la paleta no hacía fallar nada. Está en
+[`TESTING.md`](operations/TESTING.md).
+
 **`P7-T04` también avanzó.** El simulacro de restauración corrió con datos
 reales: la suite de integración pobló la base, se tomó la copia, se restauró en
 una base aislada y las 75 pruebas volvieron a correr **contra la base
