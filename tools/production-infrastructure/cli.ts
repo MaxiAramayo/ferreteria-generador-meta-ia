@@ -130,6 +130,11 @@ function validateCaddy(): void {
 function smokeContainers(): void {
   let failure: unknown;
   try {
+    // La infraestructura se pide explícitamente para la plataforma de
+    // producción: si el almacén local ya tiene la imagen descargada para otra
+    // arquitectura, `up` la da por presente y no busca la variante que se va a
+    // ejecutar. Las imágenes de la aplicación se construyen localmente.
+    runDocker(composeArguments(["pull", "postgres", "redis"]));
     runDocker(
       composeArguments([
         "up",
