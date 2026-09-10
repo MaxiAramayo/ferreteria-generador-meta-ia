@@ -125,7 +125,7 @@ pruebas proporcionales a su riesgo y gates estables.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar pipeline desde checkout limpio.
+- [x] Ejecutar pipeline desde checkout limpio.
 - [x] Ejecutar suites críticas repetidas para medir flakes.
 - [x] Confirmar detección de una regresión intencional por categoría.
 
@@ -158,8 +158,14 @@ pruebas proporcionales a su riesgo y gates estables.
   píxeles entre macOS y el contenedor de CI sería inestable por rasterización de
   fuentes; la comparación tiene que ser estructural o correr fijada al
   contenedor. Queda declarada, no escondida.
-- Pendiente también: ejecutar el pipeline desde un checkout limpio, que es lo
-  que hace el job nuevo en su primera corrida sobre este PR.
+- **El job nuevo encontró en su primera corrida lo que buscaba**: `db:test` y
+  los tres E2E no eran autosuficientes desde un checkout limpio. Enumeraban a
+  mano los paquetes a construir y se habían quedado cortos —faltaban
+  `observability` y `brand-knowledge`—; en una máquina de desarrollo pasaban
+  porque el `dist` de una corrida anterior seguía ahí. Ahora construyen todos
+  los paquetes antes, como ya hacía `pnpm dev`.
+- Ejecutar el pipeline desde un checkout limpio queda comprobado: se borraron
+  los `dist` y tanto `db:test` como el E2E corrieron en verde.
 
 ### Evidencia de cierre
 

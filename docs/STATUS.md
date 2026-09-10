@@ -133,7 +133,10 @@ extremo a extremo **no eran una compuerta**. CI corría `pnpm verify` y nada má
 así que las 75 pruebas de integración, la migración desde vacío y los E2E con
 Chrome corrían sólo cuando alguien se acordaba en su máquina —justamente las que
 encuentran lo que los dobles no pueden ver—. Ahora hay un job que levanta el
-mismo Compose y las ejecuta. Se midió además la inestabilidad —1 fallo en 13
+mismo Compose y las ejecuta, y en su primera corrida encontró que `db:test` y
+los E2E no eran autosuficientes desde un checkout limpio: enumeraban los
+paquetes a construir y se habían quedado cortos, cosa que en una máquina de
+desarrollo no se nota porque el `dist` anterior sigue ahí. Se midió además la inestabilidad —1 fallo en 13
 corridas, registrado con dueño— y se rompió a propósito una cosa por categoría
 para confirmar quién avisa: marca no tenía quien avisara, porque cambiar un
 color de la paleta no hacía fallar nada. Está en
