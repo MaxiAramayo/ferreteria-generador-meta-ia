@@ -162,6 +162,29 @@ Un medio de `brand_library` depende de que el panel lo siga sirviendo: retirar u
 archivo de `public/` rompe cualquier snapshot que lo cite. Ahora el simulacro lo
 detecta.
 
+### 2026-09-10: segunda copia, con el medio restaurado
+
+Copia `aramayo-staging-20260910T221414Z`, tomada con `25d6790` en marcha,
+segundos antes de desplegar `a6fbcf9`. Se trajo del VPS por SSH: Drive todavía
+no está autorizado.
+
+| Medición | Resultado |
+|---|---|
+| Dump | 242.243 bytes, formato custom, PostgreSQL 17.9 |
+| Restauración de verificación en el VPS | completa, 37 tablas |
+| Copia cifrada | 242.491 bytes, sha256 `3bfca1a8…1d234706` |
+| Descifrado en la máquina de quien opera | reproduce exactamente el sha256 del dump |
+| Restauración en un PostgreSQL efímero | menos de 1 s |
+| Conteos | 37 tablas y 111 filas iguales al manifiesto |
+| Huella de snapshots aprobados | idéntica |
+| Medios vigentes que responden | 3 de 3 |
+| Simulacro completo | 3 s |
+
+Las seis tablas más que en la primera copia son las que agregaron las
+migraciones de `25d6790`. El bitmap de App Review volvió a responder, con el
+mismo sha256 que el archivo del repositorio: la verificación que encontró el
+defecto ahora confirma su corrección.
+
 ## Lo que falta
 
 1. **Autorizar Drive desde la cuenta dueña**, con

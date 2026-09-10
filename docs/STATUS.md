@@ -153,30 +153,41 @@ veía porque construía para la máquina local; ahora construye y prueba
 revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
 en [`TESTING.md`](operations/TESTING.md).
 
-**Con `P7-T02` cerrada no queda ninguna tarea que pueda avanzar sin una
-decisión o una autorización.** Lo que destraba cada una:
+**Staging quedó en `a6fbcf9`, con el worker iniciado**, por autorización
+explícita del usuario del 2026-09-10. El despliegue destapó dos defectos más,
+los dos corregidos y verificados en el host real: el worker **no podía abrir
+Chromium** porque su sistema de archivos es de sólo lectura y Chromium x64
+necesita un `HOME` escribible —el Compose le fija `/tmp`—, y un **bitmap
+aprobado de App Review había dejado de servirse** desde que un cambio lo retiró
+del panel —se restauró con el mismo `checksum_sha256` que registra la base—.
+Health, readiness y el panel responden 200, y la correlación llega a la
+respuesta pública.
 
-- `P7-T01`: una revisión manual del checklist, hecha por alguien que no
-  escribió el código;
-- `P7-T03`: autorizar el despliegue en el VPS de staging para trazar un flujo
-  completo;
-- `P7-T04`: decidir dónde viven las copias, aceptar el RPO de 24 h y el RTO de
-  1 h, y habilitar las credenciales de Cloudinary staging para verificar los
-  medios restaurados;
-- `P5-T09` y `P6-T09`: la autorización de publicación real, que ya está
-  redactada.
+**`P7-T04` tiene destino y copias reales.** Las copias van a Google Drive, y el
+RPO de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
+`aramayo-backup` corre en el VPS todos los días a las 03:30 de Córdoba: cada
+copia se restaura antes de contar, se cifra con una llave pública —la privada
+vive fuera del VPS— y se sube con alcance `drive.file`. El simulacro sobre la
+copia de staging la descifró y restauró 37 tablas y 111 filas iguales al
+manifiesto, con la huella idéntica y los tres medios respondiendo, en 3 s. Está
+en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
+
+**Lo que falta ya no es código: son pasos de personas.** Lo que destraba cada
+tarea:
+
+- `P7-T04`: que la cuenta dueña del Drive corra
+  `bash infrastructure/backup/authorize-drive.sh`; la primera subida y un
+  simulacro desde Drive cierran la tarea;
+- `P7-T03`: que quien administra las credenciales de staging corra
+  `bash infrastructure/staging/load-provider-credentials.sh` —sin Cloudinary el
+  worker no puede guardar un render— y una sesión en el panel para trazar un
+  flujo completo;
+- `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
+  el código;
+- `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
+  destinos y horario— la publicación real que ya está redactada.
 
 `P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
-
-**`P7-T04` también avanzó.** El simulacro de restauración corrió con datos
-reales: la suite de integración pobló la base, se tomó la copia, se restauró en
-una base aislada y las 75 pruebas volvieron a correr **contra la base
-restaurada**. Copia en 110 ms, restauración en 210 ms, conteos idénticos en las
-37 tablas y huella idéntica de los snapshots aprobados. Está en
-[`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md). Quedan tres decisiones del
-negocio: dónde viven las copias —hoy ninguna sale del host—, aceptar el RPO de
-24 h y el RTO de 1 h propuestos, y verificar las referencias de medios contra
-Cloudinary tras restaurar.
 
 `P7-T03` — observabilidad y health operacional, **en progreso**. Se eligió
 porque es la única tarea habilitada sin bloqueo externo: depende sólo de
