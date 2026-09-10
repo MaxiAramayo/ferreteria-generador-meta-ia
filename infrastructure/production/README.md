@@ -98,6 +98,14 @@ publica. `production:smoke` crea un proyecto efímero, aplica migraciones,
 comprueba readiness/web/Chromium y elimina sus contenedores y volúmenes al
 terminar; nunca usa una base configurada por el desarrollador.
 
+Las dos construyen y ejecutan `linux/amd64`, la arquitectura que se publica y
+se despliega, aunque el equipo local sea arm64. La imagen Playwright ubica
+Chromium en `chrome-linux64/` en x64 y en `chrome-linux/` en arm64: hasta el
+2026-09-10 el Compose declaraba la ruta de arm64, así que el worker desplegado
+no habría podido abrir Chromium, y el smoke no lo veía porque construía para la
+máquina local. En un equipo arm64 la emulación lo hace más lento; es el precio
+de probar lo que corre.
+
 ## Preparación del archivo de entorno remoto
 
 Cuando exista acceso al VPS:

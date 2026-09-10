@@ -127,7 +127,11 @@ considera administrador de secretos.
 - `TRUST_PROXY_HOPS`: `0` cuando la API recibe tráfico directo; `1` en la
   topología donde sólo Caddy comparte la red `edge`.
 - `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`: ruta absoluta. La imagen productiva la
-  fija a su Chromium compatible con `playwright-core`.
+  fija a su Chromium compatible con `playwright-core`, y la ruta depende de la
+  arquitectura: `/ms-playwright/chromium-1234/chrome-linux64/chrome` en
+  `linux/amd64`, que es la que se despliega, y `chrome-linux/chrome` en arm64.
+  El job de regresión visual de CI la usa en la misma imagen y arquitectura: una
+  ruta que no abre Chromium en producción tampoco pasa CI.
 
 Para crear material local de cifrado:
 

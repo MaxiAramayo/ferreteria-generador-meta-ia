@@ -46,6 +46,14 @@ const validationEnvironment = Object.freeze({
   WORKER_CONCURRENCY: "1",
 });
 
+/**
+ * Arquitectura que se publica y se despliega (`publish-production-images.yml`).
+ * Construir y probar la del equipo local valida imágenes que nunca llegan al
+ * VPS: así pasó inadvertido que la imagen Playwright ubica Chromium en otra
+ * ruta en x64 que en arm64.
+ */
+const productionPlatform = "linux/amd64";
+
 function runDocker(
   dockerArguments: readonly string[],
   captureOutput = false,
@@ -53,7 +61,11 @@ function runDocker(
   const result = spawnSync("docker", dockerArguments, {
     cwd: repositoryDirectory,
     encoding: "utf8",
-    env: { ...process.env, ...validationEnvironment },
+    env: {
+      ...process.env,
+      ...validationEnvironment,
+      DOCKER_DEFAULT_PLATFORM: productionPlatform,
+    },
     stdio: captureOutput ? ["ignore", "pipe", "pipe"] : "inherit",
   });
 
