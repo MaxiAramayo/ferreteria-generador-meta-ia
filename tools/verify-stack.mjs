@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import typescript from "typescript";
 
@@ -6,7 +6,7 @@ const repositoryUrl = new URL("../", import.meta.url);
 const expectedVersions = Object.freeze({
   node: "24.18.0",
   pnpm: "11.17.0",
-  next: "16.2.11",
+  next: "16.3.4",
   react: "19.2.8",
   "react-dom": "19.2.8",
   "@nestjs/common": "11.1.28",
@@ -123,6 +123,38 @@ for (const [packageName, expectedVersion] of Object.entries(expectedVersions)) {
     catalogVersions.get(packageName),
     expectedVersion,
   );
+}
+
+/**
+ * La imagen de producción instala dependencias antes de copiar el código, así
+ * que enumera a mano el manifiesto de cada workspace. Un paquete nuevo que se
+ * olvide ahí rompe `pnpm install --frozen-lockfile` recién al construir la
+ * imagen, mucho después de que CI haya dado verde.
+ */
+async function workspacePackageDirectories() {
+  const directories = ["infrastructure/database"];
+  for (const parent of ["apps", "packages"]) {
+    for (const entry of await readdir(new URL(`${parent}/`, repositoryUrl), {
+      withFileTypes: true,
+    })) {
+      if (entry.isDirectory()) {
+        directories.push(`${parent}/${entry.name}`);
+      }
+    }
+  }
+  return directories.sort();
+}
+
+const dockerfile = await readFile(
+  new URL("infrastructure/production/Dockerfile", repositoryUrl),
+  "utf8",
+);
+for (const directory of await workspacePackageDirectories()) {
+  if (!dockerfile.includes(`COPY ${directory}/package.json`)) {
+    errors.push(
+      `La imagen de producción no copia ${directory}/package.json; la instalación con lockfile fijo va a fallar.`,
+    );
+  }
 }
 
 const actualNodeVersion = process.versions.node;

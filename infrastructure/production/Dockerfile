@@ -29,6 +29,7 @@ COPY packages/configuration/package.json packages/configuration/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
 COPY packages/design-engine/package.json packages/design-engine/package.json
 COPY packages/domain/package.json packages/domain/package.json
+COPY packages/observability/package.json packages/observability/package.json
 COPY packages/process-health/package.json packages/process-health/package.json
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
