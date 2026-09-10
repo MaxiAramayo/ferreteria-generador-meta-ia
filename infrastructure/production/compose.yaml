@@ -174,8 +174,13 @@ services:
       ODOO_CONTENT_API_TOKEN: ${ODOO_CONTENT_API_TOKEN:-}
       PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /ms-playwright/chromium-1234/chrome-linux64/chrome
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+    # `backend` es interna y no sale a internet. El worker es quien llama a
+    # Cloudinary, OpenAI, Meta y Odoo, así que sale por `egress`, una red propia
+    # que ningún otro servicio comparte. No se une a `edge`: nadie le envía
+    # tráfico, y ni Caddy ni el panel tienen por qué alcanzarlo.
     networks:
       - backend
+      - egress
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -261,6 +266,7 @@ networks:
   edge:
   backend:
     internal: true
+  egress:
 
 volumes:
   caddy_config:

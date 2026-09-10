@@ -38,8 +38,11 @@ flowchart LR
 
 - Caddy es el único servicio que publica puertos: `80/tcp`, `443/tcp` y
   `443/udp`.
-- `backend` es una red Docker interna. PostgreSQL, Redis y el worker no tienen
-  entrada pública.
+- `backend` es una red Docker interna, sin salida a internet. PostgreSQL, Redis
+  y el worker no tienen entrada pública.
+- El worker sale a Cloudinary, OpenAI, Meta y Odoo por `egress`, una red propia
+  que ningún otro servicio comparte: ni Caddy ni el panel lo alcanzan, y
+  PostgreSQL y Redis siguen sin salida.
 - La API comparte `edge` sólo para recibir tráfico de Caddy y confía exactamente
   en un salto de proxy.
 - La migración termina correctamente antes de iniciar API o worker.

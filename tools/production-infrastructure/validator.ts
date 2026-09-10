@@ -42,6 +42,19 @@ function assertServiceNetwork(
   }
 }
 
+function assertServiceOutsideNetwork(
+  services: UnknownRecord,
+  serviceName: string,
+  networkName: string,
+): void {
+  const service = record(services[serviceName], `services.${serviceName}`);
+  if (serviceNames(service["networks"]).has(networkName)) {
+    throw new Error(
+      `services.${serviceName} no debe pertenecer a la red ${networkName}.`,
+    );
+  }
+}
+
 function assertDependencyCondition(
   services: UnknownRecord,
   serviceName: string,
@@ -107,12 +120,29 @@ export function assertProductionComposeConfiguration(
   if (backendNetwork["internal"] !== true) {
     throw new Error("La red backend debe ser interna.");
   }
+  if (networks["egress"] === undefined) {
+    throw new Error(
+      "Falta la red egress: el worker no tendría salida a sus proveedores.",
+    );
+  }
+  if (record(networks["egress"], "networks.egress")["internal"] === true) {
+    throw new Error(
+      "La red egress no puede ser interna: es la salida del worker a sus proveedores.",
+    );
+  }
 
   for (const serviceName of ["api", "migrate", "postgres", "redis", "worker"]) {
     assertServiceNetwork(services, serviceName, "backend");
   }
   for (const serviceName of ["api", "caddy", "web"]) {
     assertServiceNetwork(services, serviceName, "edge");
+  }
+  assertServiceNetwork(services, "worker", "egress");
+  assertServiceOutsideNetwork(services, "worker", "edge");
+  for (const serviceName of actualServices) {
+    if (serviceName !== "worker") {
+      assertServiceOutsideNetwork(services, serviceName, "egress");
+    }
   }
 
   for (const serviceName of ["api", "web", "worker"]) {

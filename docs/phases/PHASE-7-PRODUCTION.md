@@ -735,6 +735,16 @@ rollback de aplicación y migraciones compatibles.
   probadas en el VPS. Falta activar `aramayo-backup@production.timer` y repetir
   el simulacro desde Drive antes de abrir tráfico, con la retención y la llave
   de [`BACKUP-RESTORE.md`](../operations/BACKUP-RESTORE.md).
+- 2026-09-10: **el worker no tenía salida a internet.** Estaba sólo en
+  `backend`, que es `internal: true` desde el primer Compose, y es el proceso
+  que llama a Cloudinary, OpenAI, Meta y Odoo. Con las credenciales de staging
+  cargadas respondió `EAI_AGAIN` a los tres proveedores; la API, que comparte
+  `edge`, los resolvía. La primera publicación real ya lo había señalado el
+  2026-08-19 y el hueco pasó a `P5-T05` sin corregirse en el Compose. El worker
+  suma `egress`, una red propia que ningún otro servicio comparte; la decisión
+  quedó como enmienda de
+  [`ADR-013`](../architecture/decisions/ADR-013-DEDICATED-VPS-DEPLOYMENT.md) y
+  `production:verify` la hace cumplir.
 
 ### Evidencia de cierre
 
