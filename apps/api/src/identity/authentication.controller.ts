@@ -12,7 +12,11 @@ import {
   AuthenticationService,
   type LoginResult,
 } from "./authentication.service.ts";
-import { CurrentSession, PublicRoute } from "./identity.decorators.ts";
+import {
+  AuthenticatedRoute,
+  CurrentSession,
+  PublicRoute,
+} from "./identity.decorators.ts";
 import { clientFingerprintHash } from "./identity-http.ts";
 import { sessionCookieName } from "./identity.guards.ts";
 import { LoginDto } from "./dto/login.dto.ts";
@@ -90,6 +94,7 @@ export class AuthenticationController {
     return publicLoginResult(result);
   }
 
+  @AuthenticatedRoute()
   @Get("session")
   readSession(
     @CurrentSession() session: AuthenticatedSessionRecord,
@@ -100,6 +105,7 @@ export class AuthenticationController {
     });
   }
 
+  @AuthenticatedRoute()
   @Get("csrf")
   async issueCsrf(
     @CurrentSession() session: AuthenticatedSessionRecord,
@@ -109,6 +115,7 @@ export class AuthenticationController {
     });
   }
 
+  @AuthenticatedRoute()
   @Post("logout")
   async logout(
     @CurrentSession() session: AuthenticatedSessionRecord,
@@ -118,6 +125,7 @@ export class AuthenticationController {
     this.#clearSessionCookie(response);
   }
 
+  @AuthenticatedRoute()
   @Post("logout-all")
   async logoutAll(
     @CurrentSession() session: AuthenticatedSessionRecord,
