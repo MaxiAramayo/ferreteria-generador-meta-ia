@@ -185,12 +185,55 @@ migraciones de `25d6790`. El bitmap de App Review volvió a responder, con el
 mismo sha256 que el archivo del repositorio: la verificación que encontró el
 defecto ahora confirma su corrección.
 
+### 2026-09-10: la unidad diaria y el simulacro desde Drive
+
+La cuenta dueña autorizó Drive a las 22:55 UTC y su primera subida llevó las dos
+copias del día. Después se corrió a mano la misma unidad que dispara el timer,
+con el endurecimiento de systemd:
+
+| Medición | Resultado |
+|---|---|
+| `aramayo-backup@staging.service` | `Result=success`, salida 0 |
+| Copia | `aramayo-staging-20260910T225852Z`, restaurada en el VPS antes de contar, 37 tablas |
+| Duración | 1 min 55 s de reloj —3 s la copia, el resto Drive— y 1,5 s de CPU |
+| `rclone check` contra Drive | 0 diferencias en 6 archivos |
+| Drive | tres copias en `diarias` y una en `mensuales`, bajo una sola carpeta raíz |
+
+Esa copia se restauró **descargándola de Drive** con el rclone de la máquina de
+quien opera, sin pasar por el VPS:
+
+| Medición | Resultado |
+|---|---|
+| Descifrado | reproduce exactamente el sha256 del dump |
+| Restauración en un PostgreSQL efímero | menos de 1 s |
+| Conteos | 37 tablas y 111 filas iguales al manifiesto |
+| Huella de snapshots aprobados | idéntica |
+| Medios vigentes que responden | 3 de 3 |
+| Simulacro completo, con la descarga | 12 s |
+
+La retención se comprobó borrando, no sólo listando:
+
+- **En Drive**, en una carpeta de prueba aparte: un archivo con fecha de hace 40
+  días desapareció con el mismo `rclone delete --min-age 30d` que corre la
+  subida, y uno reciente quedó. Con el alcance `drive.file`, el VPS borra lo que
+  él mismo subió. La carpeta de prueba se retiró después.
+- **Sobre las copias reales**, sin borrar: el filtro de 30 días de `diarias` y el
+  de 365 de `mensuales` no seleccionan nada —todas son de hoy— y el de `diarias`
+  con una edad de un minuto selecciona exactamente sus seis archivos.
+- **En el VPS**, la función de poda instalada, sobre nueve copias de prueba en un
+  directorio aparte, retiró las dos más viejas con sus manifiestos y dejó siete.
+
+La copia mensual de septiembre es `…221414Z` y no la primera del día: la subida
+guarda en `mensuales` la más reciente cuando el mes todavía no tiene ninguna, y
+la primera subida llevó dos copias juntas. En la marcha diaria es la primera del
+mes.
+
 ## Lo que falta
 
-1. **Autorizar Drive desde la cuenta dueña**, con
-   `bash infrastructure/backup/authorize-drive.sh`. Hasta entonces las copias
-   quedan cifradas en el VPS y la unidad diaria falla en la subida.
-2. **Repetir el simulacro desde Drive**: es lo que demuestra la separación del
-   entorno primario.
+1. **Guardar la segunda copia de la llave privada** en el gestor de contraseñas
+   de quien opera. Mientras no se confirme, hay que contar con que existe sólo
+   en su máquina: perderla es perder todas las copias, aunque sigan en Drive.
+2. **Confirmar el primer borrado real**: la corrida del 2026-10-11 tiene que
+   retirar de `diarias` la primera copia, que cumple 30 días la noche anterior.
 3. **Activar `aramayo-backup@production.timer`** cuando exista producción
-   (`P7-T07`).
+   (`P7-T07`) y repetir allí el simulacro desde Drive.
