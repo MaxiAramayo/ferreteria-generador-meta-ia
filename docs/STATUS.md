@@ -153,15 +153,18 @@ veía porque construía para la máquina local; ahora construye y prueba
 revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
 en [`TESTING.md`](operations/TESTING.md).
 
-**Staging quedó en `a6fbcf9`, con el worker iniciado**, por autorización
-explícita del usuario del 2026-09-10. El despliegue destapó dos defectos más,
-los dos corregidos y verificados en el host real: el worker **no podía abrir
-Chromium** porque su sistema de archivos es de sólo lectura y Chromium x64
-necesita un `HOME` escribible —el Compose le fija `/tmp`—, y un **bitmap
-aprobado de App Review había dejado de servirse** desde que un cambio lo retiró
-del panel —se restauró con el mismo `checksum_sha256` que registra la base—.
-Health, readiness y el panel responden 200, y la correlación llega a la
-respuesta pública.
+**Staging quedó en `b0f0cac`, con el worker y sus proveedores**, por
+autorización explícita del usuario del 2026-09-10. Staging destapó tres
+defectos más, los tres corregidos y verificados en el host real: el worker **no
+podía abrir Chromium** porque su sistema de archivos es de sólo lectura y
+Chromium x64 necesita un `HOME` escribible —el Compose le fija `/tmp`—; un
+**bitmap aprobado de App Review había dejado de servirse** desde que un cambio
+lo retiró del panel —se restauró con el mismo `checksum_sha256` que registra la
+base—, y **el worker no tenía salida a internet**: estaba sólo en la red
+interna y no habría podido llamar a OpenAI, Cloudinary ni Meta. Ahora sale por
+una red propia que ningún otro servicio comparte, y desde él OpenAI y Cloudinary
+responden 200. Health, readiness y el panel responden 200, y la correlación
+llega a la respuesta pública.
 
 **`P7-T04` cumple sus seis criterios.** Las copias van a Google Drive, y el RPO
 de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
@@ -180,10 +183,9 @@ tarea:
 - `P7-T04`: confirmar que la llave privada de las copias está guardada también
   en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
   máquina es perder todas las copias;
-- `P7-T03`: que quien administra las credenciales de staging corra
-  `bash infrastructure/staging/load-provider-credentials.sh` —sin Cloudinary el
-  worker no puede guardar un render— y una sesión en el panel para trazar un
-  flujo completo;
+- `P7-T03`: una sesión en el panel para trazar un flujo completo; las
+  credenciales de OpenAI y Cloudinary ya están cargadas y el worker llega a sus
+  proveedores;
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
