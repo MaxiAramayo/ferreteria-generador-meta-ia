@@ -157,6 +157,39 @@ for (const directory of await workspacePackageDirectories()) {
   }
 }
 
+/**
+ * La regresión visual de CI mide lo que produce el Chromium de producción:
+ * corre en la imagen del worker y con su misma ruta de ejecutable. Si una de
+ * las dos cambiara sin la otra, la compuerta seguiría en verde midiendo un
+ * navegador que producción ya no usa.
+ */
+const workflow = await readFile(
+  new URL(".github/workflows/ci.yml", repositoryUrl),
+  "utf8",
+);
+const productionCompose = await readFile(
+  new URL("infrastructure/production/compose.yaml", repositoryUrl),
+  "utf8",
+);
+const workerImage = dockerfile.match(/^ARG PLAYWRIGHT_IMAGE=(\S+)$/m)?.[1];
+const workerChromium = productionCompose.match(
+  /PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: (\S+)/,
+)?.[1];
+
+if (workerImage === undefined || !workflow.includes(`image: ${workerImage}`)) {
+  errors.push(
+    "La regresión visual de CI no corre en la imagen de Playwright del worker de producción.",
+  );
+}
+if (
+  workerChromium === undefined ||
+  !workflow.includes(`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: ${workerChromium}`)
+) {
+  errors.push(
+    "La regresión visual de CI no usa la ruta de Chromium del worker de producción.",
+  );
+}
+
 const actualNodeVersion = process.versions.node;
 const actualPnpmVersion = detectPnpmVersion();
 recordMismatch("runtime Node.js", actualNodeVersion, expectedVersions.node);

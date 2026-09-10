@@ -1,0 +1,36 @@
+{
+  "id": "perfil-promocion-estacional-historia",
+  "format": "historia",
+  "fonts": [
+    "Archivo 600 normal",
+    "Archivo 800 normal",
+    "Saira Condensed 800 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1920 div[data-card][data-format=historia][data-safe-area={\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}][data-theme=promo] · color rgb(255, 255, 255) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(230, 59, 30) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1920 div · background-image linear-gradient(135deg, rgba(246, 241, 234, 0.08) 0px, rgba(246, 241, 234, 0.08) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 42px), linear-gradient(rgba(230, 59, 30, 0.12), rgba(0, 0, 0, 0) 48%) · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @0,0 1080×1920 div · background-image linear-gradient(rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.12))",
+    "  @0,0 1080×1920 div",
+    "    @0,0 1080×1920 div · overflow-x hidden · overflow-y hidden",
+    "      @0,0 1080×1920 img imagen inline 1024×1536 · object-fit cover · overflow-x clip · overflow-y clip",
+    "    @0,0 1080×1920 div · background-image linear-gradient(to top, rgba(28, 26, 25, 0.9) 0%, rgba(28, 26, 25, 0.58) 36%, rgba(28, 26, 25, 0.08) 72%)",
+    "  @259,654 562×562 div[data-panel] · text-align center · background-color rgb(28, 26, 25) · z-index 10 · border-radius 28px",
+    "    @287,682 506×74 div",
+    "      @287,682 234×74 div[data-logo][data-role=logo] · color rgb(246, 241, 234)",
+    "        @287,695 48×48 span · color rgb(230, 59, 30)",
+    "          @287,695 48×48 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "            @289,700 43×38 polygon forma 8054943f · stroke rgb(230, 59, 30) · stroke-linejoin round · stroke-width 8px",
+    "            @301,706 21×30 path forma 84f97282 · stroke rgb(230, 59, 30) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "            @305,725 12×0 path forma 019592ec · stroke rgb(230, 59, 30) · stroke-linecap round · stroke-width 12px",
+    "        @351,682 170×74 span",
+    "          @351,682 170×59 span «Ferretería Aramayo» 2 líneas · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 38px · font-weight 800 · line-height 29.64px · text-transform uppercase",
+    "            @519,666 0×60 br",
+    "          @351,745 170×11 span «Frías · Santiago del Estero» 1 línea · font-size 11px · font-weight 600 · line-height 11px · text-transform uppercase · opacity 0.7",
+    "      @636,694 157×50 span «Oferta» 1 línea · color rgb(230, 59, 30) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 255, 255) · border-radius 9999px",
+    "    @296,830 488×61 h1 «Kit para tu taller» 1 línea · color rgb(246, 241, 234) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
+    "    @430,965 219×89 div[data-price][data-role=precio]",
+    "      @430,965 219×61 div «$ 49.900» 1 línea · color rgb(246, 241, 234) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
+    "      @430,1030 219×24 div «hasta el sábado» 1 línea · color rgba(246, 241, 234, 0.78) · font-size 22px · font-weight 600",
+    "    @367,1128 347×60 div[data-cta][data-role=cta] «Reservalo por WhatsApp» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-transform uppercase · background-color rgb(246, 241, 234) · border-radius 9999px"
+  ]
+}

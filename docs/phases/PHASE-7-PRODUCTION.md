@@ -119,7 +119,7 @@ pruebas proporcionales a su riesgo y gates estables.
 - [x] Transiciones, autorización, idempotencia y cálculo temporal tienen cobertura exhaustiva.
 - [x] Contratos OpenAI, Cloudinary y Meta se prueban con dobles y smoke tests reales controlados.
 - [x] Flujos críticos tienen E2E.
-- [ ] Visual regression cubre formatos y perfiles aprobados.
+- [x] Visual regression cubre formatos y perfiles aprobados.
 - [x] Un test inestable no se reintenta indefinidamente ni se ignora sin ticket.
 - [x] CI produce evidencia diagnóstica sin secretos.
 
@@ -166,6 +166,46 @@ pruebas proporcionales a su riesgo y gates estables.
   los paquetes antes, como ya hacía `pnpm dev`.
 - Ejecutar el pipeline desde un checkout limpio queda comprobado: se borraron
   los `dist` y tanto `db:test` como el E2E corrieron en verde.
+- Fecha: 2026-09-10. Regresión visual entregada; los seis criterios y las tres
+  verificaciones quedan cumplidos.
+- **Se midió antes de elegir cómo comparar.** Las mismas 53 piezas
+  renderizadas con Chrome 151 en macOS y con el Chromium 151 del contenedor de
+  producción difieren en el 34 % al 70 % de sus píxeles, hasta 237 niveles; ni
+  promediando celdas de 54 px la diferencia baja de 14 niveles. La geometría
+  del DOM coincide a 0,02 px, con los mismos estilos computados, cortes de
+  línea y fuentes. Comparar píxeles obligaba a elegir entre una tolerancia que
+  deja pasar un cambio de color de marca y una compuerta que falla por la
+  plataforma; comparar la composición, no.
+- Entregado: `pnpm visual:regression`. El inventario del render vive en
+  `apps/worker/src/visual/render-inventory.ts`, el recorrido en
+  `visual-regression-cases.ts` y la línea base de 53 piezas en
+  `apps/worker/visual-regression/`. Cubre las 26 piezas vigentes del catálogo
+  en sus cinco formatos, los seis perfiles visuales en los tres formatos que
+  componen —los casos de `P4-T08`—, el camino determinista de las tres
+  composiciones y los cuatro temas.
+- **La compuerta corre donde renderiza producción**: un job de CI dentro de la
+  imagen de Playwright del worker, fijada por el mismo digest y con la misma
+  ruta de Chromium. `verify:stack` falla si se separan.
+- **El worker y la regresión abren el navegador igual.** Las opciones de
+  lanzamiento —perfil de color sRGB y hinting de fuentes— pasaron a
+  `renderBrowserLaunchOptions`, una sola definición para los dos; si cada uno
+  abriera el navegador a su manera, la regresión aprobaría piezas que
+  producción no genera.
+- **Por qué hacía falta, además del criterio**: `pnpm design:review` reescribe
+  `catalog-reference/` sin comparar contra nada y su última corrida es del
+  2026-07-27, con 18 de las 29 piezas vigentes. La referencia aprobada del
+  catálogo había quedado atrás sin que nada avisara.
+- **Tres roturas intencionales, tres detecciones**: el tema `claro` pintando su
+  fondo con `white` en lugar de `paper` —la huella de paleta siguió en
+  verde—, el titular `h1` de 92 a 88 px —15 piezas— y Saira Condensed 800 sin
+  cargar —52 de 53 piezas: el navegador sintetiza el peso y el llamado a la
+  acción se ensancha 2 px—. El detalle está en
+  [`TESTING.md`](../operations/TESTING.md).
+- **Estabilidad**: la línea base generada en macOS pasó sin tocarla en el
+  contenedor de producción, desde un árbol limpio con instalación nueva, y en
+  cinco corridas seguidas en macOS. Ninguna diferencia.
+- Pendiente para cerrar: la primera corrida del job en CI, que corre en x86_64
+  como producción, y `pnpm verify` completo.
 
 ### Evidencia de cierre
 

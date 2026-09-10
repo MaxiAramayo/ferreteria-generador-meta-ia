@@ -39,10 +39,14 @@ pnpm verify
 pnpm dev
 ```
 
-`pnpm verify` ejecuta la misma secuencia que integración continua:
-`verify:stack`, `verify:plan`, `format:check`, `build`, `lint`, `typecheck`,
-`test` y `smoke`. Cada paso también puede ejecutarse por separado; el detalle y
-las pruebas obligatorias por tipo de cambio están en
+`pnpm verify` ejecuta la misma secuencia que el job de calidad de integración
+continua: `verify:stack`, `verify:plan`, `format:check`, `build`, `lint`,
+`typecheck`, `test`, `baseline:verify` y `smoke`. Integración, extremo a
+extremo y regresión visual corren en jobs propios porque necesitan
+infraestructura o el navegador de producción, y también se ejecutan en local
+con `pnpm db:test`, `pnpm e2e:recurring-story` y `pnpm visual:regression`.
+Cada paso puede ejecutarse por separado; el detalle y las pruebas obligatorias
+por tipo de cambio están en
 [`docs/operations/TESTING.md`](docs/operations/TESTING.md).
 
 No asumir comandos no listados en `package.json`.

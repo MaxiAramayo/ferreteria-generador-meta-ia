@@ -1,0 +1,38 @@
+{
+  "id": "perfil-lubricentro-producto-limpio-historia",
+  "format": "historia",
+  "fonts": [
+    "Archivo 500 normal",
+    "Archivo 600 normal",
+    "Archivo 800 normal",
+    "Saira Condensed 800 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1920 div[data-card][data-format=historia][data-safe-area={\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}][data-theme=lubricentro] · color rgb(246, 241, 234) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(20, 20, 20) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1920 div · background-image linear-gradient(135deg, rgba(246, 241, 234, 0.08) 0px, rgba(246, 241, 234, 0.08) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 42px), linear-gradient(rgba(255, 178, 0, 0.12), rgba(0, 0, 0, 0) 48%) · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @0,0 1080×1920 div · background-image linear-gradient(rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.12))",
+    "  @0,0 1080×1920 div",
+    "    @0,0 1080×1920 div · overflow-x hidden · overflow-y hidden",
+    "      @0,0 1080×1920 img imagen inline 1024×1536 · object-fit cover · overflow-x clip · overflow-y clip",
+    "    @0,0 1080×1920 div · background-image linear-gradient(to top, rgba(28, 26, 25, 0.9) 0%, rgba(28, 26, 25, 0.58) 36%, rgba(28, 26, 25, 0.08) 72%)",
+    "  @72,1163 936×457 div[data-panel] · background-color rgb(28, 26, 25) · z-index 10 · border-radius 28px",
+    "    @100,1191 880×74 div",
+    "      @100,1191 250×74 div[data-logo][data-role=logo]",
+    "        @100,1204 48×48 span · color rgb(255, 178, 0)",
+    "          @100,1204 48×48 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "            @102,1209 43×38 polygon forma 8054943f · stroke rgb(255, 178, 0) · stroke-linejoin round · stroke-width 8px",
+    "            @114,1215 21×30 path forma 84f97282 · stroke rgb(255, 178, 0) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "            @118,1234 12×0 path forma 019592ec · stroke rgb(255, 178, 0) · stroke-linecap round · stroke-width 12px",
+    "        @164,1191 186×74 span",
+    "          @164,1191 186×59 span «Lubricentro Aramayo» 2 líneas · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 38px · font-weight 800 · line-height 29.64px · text-transform uppercase",
+    "            @350,1175 0×60 br",
+    "          @164,1254 186×11 span «Frías · Santiago del Estero» 1 línea · font-size 11px · font-weight 600 · line-height 11px · text-transform uppercase · opacity 0.7",
+    "      @769,1203 211×50 span «Disponible» 1 línea · color rgb(20, 20, 20) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 178, 0) · border-radius 9999px",
+    "    @100,1314 880×79 h1 «Lubricante 5W-30» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 92px · font-weight 800 · line-height 79.12px · text-transform uppercase",
+    "    @100,1441 880×41 p «Envase de referencia obligatorio» 1 línea · color rgba(246, 241, 234, 0.78) · font-size 31px · font-weight 500 · line-height 40.92px",
+    "    @100,1531 880×61 div",
+    "      @100,1531 207×61 div[data-price][data-role=precio]",
+    "        @100,1531 207×61 div «$ 31.900» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
+    "      @678,1532 302×60 div[data-cta][data-role=cta] «Pedilo por WhatsApp» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px"
+  ]
+}

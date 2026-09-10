@@ -81,13 +81,57 @@ ni Cloudinary.
 
 ### Visual
 
-- fixtures representativos por layout;
-- comparación de dimensiones;
-- screenshot regression;
-- textos largos;
-- imágenes ausentes o corruptas;
-- zonas seguras;
-- feed e historia.
+`pnpm visual:regression` renderiza 53 piezas por el mismo camino que el worker
+—documento por `file://`, fuentes y activos locales, recorte de
+`[data-card]`— y compara lo que el navegador compuso contra la línea base
+versionada en `apps/worker/visual-regression/`:
+
+- **catálogo**: cada pieza vigente en cada formato que declara —feed,
+  cuadrado, historia, banner y portada destacada—, 26 piezas;
+- **perfil**: los seis perfiles visuales en los tres formatos que componen,
+  con los briefs y los fondos sintéticos de `P4-T08`, 18 piezas;
+- **determinista**: las tres piezas de composición sin imagen generada;
+- **tema**: los cuatro temas sobre una publicación y una historia, para que
+  ninguno quede sin una pieza que lo pinte.
+
+Por cada elemento se anota su caja, los estilos que lo pintan —color, fondo,
+tipografía, borde, radio, sombra, filtro, opacidad y transformación—, su texto
+y en cuántas líneas corta, la imagen que muestra y la forma de cada trazo SVG;
+además, qué fuentes cargaron. La geometría tolera 1 px y todo lo demás tiene
+que coincidir exacto. Una diferencia se informa por elemento, con sólo lo que
+cambió:
+
+```text
+@72,752 900×79 → @72,754 900×76 h1 «Taladro percutor 650 W» 1 línea: font-size 92px → 88px; line-height 79.12px → 75.68px
+```
+
+**No se comparan píxeles, y es una decisión medida.** El 2026-09-10 las
+mismas 53 piezas renderizadas con Chrome 151 en macOS y con el Chromium 151
+del contenedor de producción difirieron en el 34 % al 70 % de sus píxeles,
+hasta en 237 niveles, por el antialiasing del texto y el remuestreo de las
+fotos; ni promediando celdas de 54 px la diferencia bajó de 14 niveles. La
+composición, en cambio, coincidió a 0,02 px, con los mismos estilos, cortes de
+línea y fuentes. Una tolerancia que absorbiera lo primero dejaría pasar un
+cambio de color de marca; lo segundo se puede exigir exacto.
+
+La línea base generada en macOS pasó sin tocarla en el contenedor de
+producción, desde un árbol limpio con instalación nueva, y en cinco corridas
+seguidas en macOS: ninguna diferencia.
+
+Reescribir la línea base es una decisión de diseño, no un trámite:
+
+```bash
+pnpm visual:regression -- --update
+```
+
+Renderiza cada pieza dos veces, no escribe una cuyos dos renders difieran y
+deja el diff de los archivos para revisar en el PR. Una corrida con
+diferencias guarda en `output/visual-regression/` el PNG, el inventario actual
+y el informe de cada pieza distinta; CI conserva esa carpeta como artefacto.
+
+Textos largos, zonas seguras, imágenes rotas y dimensiones de formato siguen
+en las pruebas del motor y del render; esta suite cubre lo que sólo se ve
+renderizando.
 
 ### Smoke de procesos
 
@@ -256,12 +300,15 @@ las capas caras se reservan para lo que ninguna otra puede probar.
 | Configuración, contratos, observabilidad y salud | 29 | Bordes de entorno, correlación y redacción |
 | Integración | 75 | Aislamiento entre organizaciones, transacciones y concurrencia real sobre PostgreSQL |
 | Extremo a extremo | 3 suites | La cadena completa con Chrome real: regla, borrador, aprobación, ocurrencia y excepción |
+| Regresión visual | 53 piezas | Lo que el navegador compone en cada formato, perfil y tema aprobados |
 | Smoke de procesos | 14 comprobaciones | Arranque, readiness, cierre ordenado y ausencia de secretos |
 
 **Integración y extremo a extremo son ahora una compuerta de CI.** Corrían sólo
 cuando alguien se acordaba en su máquina, y son justamente las que encuentran lo
 que los dobles no pueden ver: migraciones, aislamiento entre organizaciones y la
-cadena completa de una historia recurrente.
+cadena completa de una historia recurrente. Desde el 2026-09-10 la regresión
+visual también lo es, en su propio job y dentro de la imagen que renderiza en
+producción.
 
 ## Política de inestabilidad
 
@@ -283,7 +330,8 @@ Una prueba inestable no se reintenta hasta que pase ni se ignora en silencio.
 
 ## Regresión intencional: qué detecta cada capa
 
-Comprobado el 2026-09-09 rompiendo a propósito y confirmando quién avisa.
+Comprobado el 2026-09-09 rompiendo a propósito y confirmando quién avisa; las
+tres últimas filas, el 2026-09-10.
 
 | Categoría | Rotura introducida | Detectada por |
 |---|---|---|
@@ -291,17 +339,21 @@ Comprobado el 2026-09-09 rompiendo a propósito y confirmando quién avisa.
 | Autorización | Se quitó `RequirePermission` de una ruta | Prueba que enumera rutas |
 | Entrega | Se quitó el manifiesto de un workspace del `Dockerfile` | `verify:stack` |
 | Marca | Se cambió el color `ferre` | Huella de paleta aprobada |
+| Tema | El tema `claro` pintó su fondo con `white` en lugar de `paper` | Regresión visual, en sus dos piezas; la huella de paleta siguió en verde |
+| Tipografía | El titular `h1` pasó de 92 a 88 px | Regresión visual, en las 15 piezas que lo usan |
+| Fuentes | Saira Condensed 800 dejó de cargarse | Regresión visual, en 52 de las 53 piezas |
 
 La categoría **marca no tenía quién avisara**: `baseline:verify` confirma que los
 PNG de referencia siguen íntegros, no que el motor siga pintando igual, y
 ninguna prueba de composición mira el color resultante. Se cerró con una huella
 de la paleta aprobada, que obliga a actualizarla en el mismo commit.
 
-**Sigue faltando una regresión sobre la imagen renderizada.** Compararla por
-hash de píxeles entre macOS y el contenedor de CI sería inestable por
-rasterización de fuentes, así que la comparación tiene que ser estructural
-—documento resuelto— o correr fijada al contenedor. Queda como trabajo
-declarado, no como agujero silencioso.
+**La regresión sobre la imagen renderizada existe desde el 2026-09-10**, y las
+tres roturas nuevas la prueban. La del tema es justo la que la huella no puede
+ver: los dos colores están en la paleta aprobada, así que la paleta no cambió;
+cambió qué color pinta la pieza. La de fuentes es la más silenciosa: el
+navegador sintetiza el peso con el más cercano, la pieza se sigue viendo bien y
+el llamado a la acción se ensancha 2 px.
 
 ## Puertas de calidad
 
@@ -347,7 +399,7 @@ obligatorio según lo que se toca:
 | Persistencia y migraciones | Integración con PostgreSQL real efímero; migración aplicada y revertida |
 | Infraestructura local | `pnpm infra:test` y ciclo real `infra:up`, `infra:health`, `infra:down` |
 | Infraestructura de producción | `pnpm production:verify`, `pnpm production:build` y `pnpm production:smoke`; el smoke debe usar únicamente el proyecto efímero de validación |
-| Motor visual | Fixtures por layout y regresión visual con comparación de dimensiones |
+| Motor visual | `pnpm visual:regression`; si el cambio es deliberado, `--update` y el diff de la línea base revisado en el PR |
 | OpenAI, Meta o sistema comercial | Fixtures de contrato y dobles; las llamadas reales van en suites separadas y nunca en CI |
 | Documentación o plan | `pnpm verify:plan` y actualización de `docs/STATUS.md` cuando cambia la tarea activa |
 
@@ -360,8 +412,9 @@ reaplicar la última migración.
 
 ### Integración continua
 
-El workflow [`ci.yml`](../../.github/workflows/ci.yml) ejecuta los mismos pasos
-en `push` a `main`, en cada pull request y a demanda:
+El workflow [`ci.yml`](../../.github/workflows/ci.yml) corre en `push` a
+`main`, en cada pull request y a demanda. Su job de calidad ejecuta los mismos
+pasos que `pnpm verify`:
 
 - instala con `pnpm install --frozen-lockfile`; un lockfile desactualizado falla
   antes de compilar;
@@ -370,6 +423,17 @@ en `push` a `main`, en cada pull request y a demanda:
   `dist/`, `.next/` ni `*.tsbuildinfo`, de modo que ninguna caché puede ocultar
   un fallo reproducible;
 - ejecuta cada puerta como paso independiente para identificar cuál falló.
+
+Dos compuertas más corren en jobs propios:
+
+- **integración y extremo a extremo**, con PostgreSQL y Redis levantados por el
+  mismo Compose de desarrollo;
+- **regresión visual**, dentro de la imagen de Playwright del worker de
+  producción, fijada por el mismo digest y con la misma ruta de Chromium.
+  `verify:stack` falla si esa imagen o esa ruta se separan del `Dockerfile` o
+  del Compose de producción: la compuerta mediría un navegador que producción
+  ya no usa. Si encuentra diferencias, el job conserva
+  `output/visual-regression/` como artefacto durante 14 días.
 
 Antes de producción:
 

@@ -1,0 +1,21 @@
+{
+  "id": "catalogo-destacada-cover-destacada",
+  "format": "destacada",
+  "fonts": [
+    "Archivo 700 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1080 div[data-card][data-format=destacada][data-safe-area={\"bottom\":110,\"circleDiameter\":860,\"left\":110,\"right\":110,\"top\":110}][data-theme=taller] · color rgb(246, 241, 234) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(28, 26, 25) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1080 div · background-color rgb(28, 26, 25) · background-image radial-gradient(circle at 50% 46%, rgba(230, 59, 30, 0.2), rgba(0, 0, 0, 0) 48%), none · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @231,231 619×619 div · background-color rgba(230, 59, 30, 0.08) · transform matrix(1, 0, 0, 1, -309.5, -309.5) · z-index 10 · border 3px solid rgba(230, 59, 30, 0.28) · border-radius 132px",
+    "    @305,305 470×470 div · color rgb(255, 255, 255) · background-color rgb(230, 59, 30) · border-radius 96px",
+    "      @416,416 248×248 svg[class=lucide lucide-drill][viewBox=0 0 24 24] · fill none · stroke rgb(255, 255, 255) · stroke-linecap round · stroke-linejoin round · stroke-width 2.6px · overflow-x hidden · overflow-y hidden",
+    "        @437,602 93×41 path forma a51c568d",
+    "        @437,437 124×124 path forma e7c5473b",
+    "        @561,457 41×41 path forma f6335e4e",
+    "        @602,478 41×0 path forma 1c459e74",
+    "        @447,519 21×83 path forma c58ee76c",
+    "        @488,519 21×83 path forma b051e566",
+    "  @-1,-1 1×1 h1 «Taladro percutor 650 W» 1 línea · font-size 32px · font-weight 700 · clip-path inset(50%) · overflow-x hidden · overflow-y hidden"
+  ]
+}

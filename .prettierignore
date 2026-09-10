@@ -12,6 +12,9 @@ next-env.d.ts
 packages/design-engine/baseline/
 packages/design-engine/catalog-reference/
 
+# Regresión visual: inventarios que produce "pnpm visual:regression -- --update".
+apps/worker/visual-regression/
+
 # La documentación se escribe con saltos de línea deliberados a 80 columnas;
 # reformatearla automáticamente rompe tablas y listas revisadas a mano.
 *.md

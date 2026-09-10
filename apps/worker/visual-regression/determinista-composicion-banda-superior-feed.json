@@ -1,0 +1,24 @@
+{
+  "id": "determinista-composicion-banda-superior-feed",
+  "format": "feed",
+  "fonts": [
+    "Archivo 800 normal",
+    "Saira Condensed 800 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1350 div[data-card][data-format=feed][data-safe-area={\"bottom\":72,\"left\":72,\"right\":72,\"top\":72}][data-theme=promo] · color rgb(255, 255, 255) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(230, 59, 30) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1350 div · background-image linear-gradient(135deg, rgba(246, 241, 234, 0.08) 0px, rgba(246, 241, 234, 0.08) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 42px), linear-gradient(rgba(230, 59, 30, 0.12), rgba(0, 0, 0, 0) 48%) · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @0,0 1080×1350 div · background-image linear-gradient(rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.12))",
+    "  @72,72 936×338 div[data-panel] · background-color rgb(28, 26, 25) · z-index 10 · border-radius 28px",
+    "    @100,100 880×50 div",
+    "      @100,101 48×48 div[data-logo][data-role=logo] · color rgb(246, 241, 234)",
+    "        @100,101 48×48 span · color rgb(230, 59, 30)",
+    "          @100,101 48×48 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "            @102,106 43×38 polygon forma 8054943f · stroke rgb(230, 59, 30) · stroke-linejoin round · stroke-width 8px",
+    "            @114,111 21×30 path forma 84f97282 · stroke rgb(230, 59, 30) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "            @118,131 12×0 path forma 019592ec · stroke rgb(230, 59, 30) · stroke-linecap round · stroke-width 12px",
+    "      @823,100 157×50 span «Oferta» 1 línea · color rgb(230, 59, 30) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 255, 255) · border-radius 9999px",
+    "    @100,205 880×61 h1 «Perforadora 650 W» 1 línea · color rgb(246, 241, 234) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
+    "    @100,322 347×60 div[data-cta][data-role=cta] «Reservalo por WhatsApp» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-align center · text-transform uppercase · background-color rgb(246, 241, 234) · border-radius 9999px"
+  ]
+}

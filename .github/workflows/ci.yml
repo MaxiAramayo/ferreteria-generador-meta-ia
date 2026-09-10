@@ -126,3 +126,47 @@ jobs:
       - name: Detener infraestructura
         if: always()
         run: pnpm run infra:down
+
+  # La regresión visual renderiza con el Chromium y las fuentes del sistema del
+  # worker de producción: la imagen es la del Dockerfile, fijada por el mismo
+  # digest, y `verify:stack` exige que sigan siendo la misma. Compara lo que el
+  # navegador compuso —geometría, estilos, texto, fuentes e imágenes— y no los
+  # píxeles, que difieren entre plataformas aunque la pieza sea la misma.
+  visual:
+    name: Regresión visual
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble@sha256:baed2032d533817f3dbe6425de795788430ba345e819a1201337009ba17c9d07
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /ms-playwright/chromium-1234/chrome-linux/chrome
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v7
+
+      - name: Instalar pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Regresión visual
+        run: pnpm run visual:regression
+
+      # Sólo existe si algo cambió: el PNG de cada pieza distinta, su
+      # inventario y el informe. Las piezas usan contenido de muestra.
+      - name: Conservar la evidencia de la regresión
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regresion-visual
+          path: output/visual-regression/
+          if-no-files-found: ignore
+          retention-days: 14
