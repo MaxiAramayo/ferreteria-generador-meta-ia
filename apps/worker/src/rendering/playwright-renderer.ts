@@ -13,7 +13,12 @@ import {
   type RenderResult,
 } from "@aramayo/design-engine";
 import type { LayoutContext } from "@aramayo/design-engine/react";
-import { chromium, type Browser, type Page } from "playwright-core";
+import {
+  chromium,
+  type Browser,
+  type LaunchOptions,
+  type Page,
+} from "playwright-core";
 
 import { buildRenderHtml, waitForRenderAssets } from "./render-document.ts";
 
@@ -46,6 +51,26 @@ export interface ManagedRenderer extends DesignRenderer {
 const defaultTimeoutMs = 30_000;
 const defaultConcurrency = 2;
 const defaultChannel = "chrome";
+
+/**
+ * Cómo se abre el navegador de render.
+ *
+ * Es la única definición: el worker la usa para producir piezas y la regresión
+ * visual para medirlas. Si cada una abriera el navegador a su manera —otro
+ * perfil de color, otro hinting de fuentes—, la regresión aprobaría piezas que
+ * producción nunca genera.
+ */
+export function renderBrowserLaunchOptions(
+  options: Pick<PlaywrightRendererOptions, "browserChannel" | "executablePath">,
+): LaunchOptions {
+  return {
+    ...(options.executablePath === undefined
+      ? { channel: options.browserChannel ?? defaultChannel }
+      : { executablePath: options.executablePath }),
+    args: ["--force-color-profile=srgb", "--font-render-hinting=none"],
+    headless: true,
+  };
+}
 
 function failure(
   failureValue: DesignFailure,
@@ -97,13 +122,7 @@ export function createPlaywrightRenderer(
     }
 
     browserLaunch ??= chromium
-      .launch({
-        ...(options.executablePath === undefined
-          ? { channel: options.browserChannel ?? defaultChannel }
-          : { executablePath: options.executablePath }),
-        args: ["--force-color-profile=srgb", "--font-render-hinting=none"],
-        headless: true,
-      })
+      .launch(renderBrowserLaunchOptions(options))
       .then((launchedBrowser) => {
         browser = launchedBrowser;
         return launchedBrowser;

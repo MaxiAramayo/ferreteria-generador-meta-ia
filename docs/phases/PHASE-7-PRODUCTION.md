@@ -98,8 +98,8 @@ acciones externas antes de exponer producción.
 
 ## P7-T02 — Consolidar suite de calidad
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T09`, `P7-T01`
 - Riesgo: Alto
 
@@ -119,7 +119,7 @@ pruebas proporcionales a su riesgo y gates estables.
 - [x] Transiciones, autorización, idempotencia y cálculo temporal tienen cobertura exhaustiva.
 - [x] Contratos OpenAI, Cloudinary y Meta se prueban con dobles y smoke tests reales controlados.
 - [x] Flujos críticos tienen E2E.
-- [ ] Visual regression cubre formatos y perfiles aprobados.
+- [x] Visual regression cubre formatos y perfiles aprobados.
 - [x] Un test inestable no se reintenta indefinidamente ni se ignora sin ticket.
 - [x] CI produce evidencia diagnóstica sin secretos.
 
@@ -166,10 +166,90 @@ pruebas proporcionales a su riesgo y gates estables.
   los paquetes antes, como ya hacía `pnpm dev`.
 - Ejecutar el pipeline desde un checkout limpio queda comprobado: se borraron
   los `dist` y tanto `db:test` como el E2E corrieron en verde.
+- Fecha: 2026-09-10. Regresión visual entregada; los seis criterios y las tres
+  verificaciones quedan cumplidos.
+- **Se midió antes de elegir cómo comparar.** Las mismas 53 piezas
+  renderizadas con Chrome 151 en macOS y con el Chromium 151 del contenedor de
+  producción difieren en el 34 % al 70 % de sus píxeles, hasta 237 niveles; ni
+  promediando celdas de 54 px la diferencia baja de 14 niveles. La geometría
+  del DOM coincide a 0,02 px, con los mismos estilos computados, cortes de
+  línea y fuentes. Comparar píxeles obligaba a elegir entre una tolerancia que
+  deja pasar un cambio de color de marca y una compuerta que falla por la
+  plataforma; comparar la composición, no.
+- Entregado: `pnpm visual:regression`. El inventario del render vive en
+  `apps/worker/src/visual/render-inventory.ts`, el recorrido en
+  `visual-regression-cases.ts` y la línea base de 53 piezas en
+  `apps/worker/visual-regression/`. Cubre las 26 piezas vigentes del catálogo
+  en sus cinco formatos, los seis perfiles visuales en los tres formatos que
+  componen —los casos de `P4-T08`—, el camino determinista de las tres
+  composiciones y los cuatro temas.
+- **La compuerta corre donde renderiza producción**: un job de CI dentro de la
+  imagen de Playwright del worker, fijada por el mismo digest y con la misma
+  ruta de Chromium. `verify:stack` falla si se separan.
+- **El worker y la regresión abren el navegador igual.** Las opciones de
+  lanzamiento —perfil de color sRGB y hinting de fuentes— pasaron a
+  `renderBrowserLaunchOptions`, una sola definición para los dos; si cada uno
+  abriera el navegador a su manera, la regresión aprobaría piezas que
+  producción no genera.
+- **Por qué hacía falta, además del criterio**: `pnpm design:review` reescribe
+  `catalog-reference/` sin comparar contra nada y su última corrida es del
+  2026-07-27, con 18 de las 29 piezas vigentes. La referencia aprobada del
+  catálogo había quedado atrás sin que nada avisara.
+- **Tres roturas intencionales, tres detecciones**: el tema `claro` pintando su
+  fondo con `white` en lugar de `paper` —la huella de paleta siguió en
+  verde—, el titular `h1` de 92 a 88 px —15 piezas— y Saira Condensed 800 sin
+  cargar —52 de 53 piezas: el navegador sintetiza el peso y el llamado a la
+  acción se ensancha 2 px—. El detalle está en
+  [`TESTING.md`](../operations/TESTING.md).
+- **Estabilidad**: la línea base generada en macOS pasó sin tocarla en el
+  contenedor de producción, desde un árbol limpio con instalación nueva, y en
+  cinco corridas seguidas en macOS. Ninguna diferencia.
+- **La primera corrida en CI encontró un defecto de producción antes de
+  comparar una sola pieza**: el job no pudo abrir Chromium porque la ruta que
+  declaraba el Compose de producción era la de arm64, y la imagen x64 lo ubica
+  en `chrome-linux64/`. El worker desplegado habría fallado igual en cada
+  render, y `production:smoke` no lo veía porque construía para la máquina
+  local. Se corrigió en este mismo PR; el detalle está en `P7-T07`.
+- Con la ruta corregida, la línea base generada en macOS pasó sin tocarla en CI,
+  en x86_64 y con el Chromium 151.0.7922.34 de producción.
+- Fecha: 2026-09-10. Tarea completada.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Commit: PR #34 (`codex/p7-t02-visual-regression`): `7097c7d` suite y línea
+  base, `20cb1a9` ruta de Chromium de producción y `fb78b84` smoke de
+  producción en `linux/amd64`.
+- CI, corrida `34483980653` sobre `20cb1a9`: «Regresión visual aprobada: 53
+  piezas —26 del catálogo, 18 de perfil, 3 deterministas y 6 de tema— iguales a
+  la línea base, con 151.0.7922.34 en 30 s», dentro de
+  `mcr.microsoft.com/playwright:v1.62.0-noble` fijada por digest, en x86_64.
+  Calidad e integración, en verde en la misma corrida.
+- Local, Chrome 151.0.7922.137 en macOS: 53 piezas iguales en cinco corridas
+  seguidas, de 23 a 26 s cada una.
+- Contenedor de producción en `aarch64`, árbol limpio sin `node_modules`, `dist`
+  ni `.env`, `pnpm install --frozen-lockfile` y `pnpm run visual:regression`:
+  53 piezas iguales en 16 s.
+- `--update`: cada pieza se renderizó dos veces sin diferencias antes de
+  escribirse.
+- Roturas intencionales: tema `claro` con fondo `white`, 2 piezas; titular `h1`
+  de 92 a 88 px, 15 piezas; Saira Condensed 800 sin cargar, 52 de 53. Con la
+  imagen de CI cambiada a otro tag de Playwright, `verify:stack` falló.
+- `node --test apps/worker/src/visual/visual-regression.test.ts`: 17 pruebas.
+- `pnpm verify`: salida 0, con las 350 pruebas del worker.
+- `pnpm production:build` y `pnpm production:smoke` en `linux/amd64`: 123 s y
+  38 s, con migración, readiness, panel y Chromium verificados.
+- Desviaciones:
+  - Se cierra con `P6-T09` y `P7-T01` abiertas. `P6-T09` espera la
+    autorización de publicación real y `P7-T01` una revisión humana
+    independiente; ninguna de las dos cambia lo que este suite verifica. Si esa
+    revisión pide pruebas nuevas, se agregan en `P7-T01`.
+  - La regresión visual compara la composición y no los píxeles, por la
+    medición registrada arriba. La revisión humana de legibilidad y marca
+    sigue siendo manual.
+  - El PR corrige además la ruta de Chromium y el smoke de producción, fuera
+    del alcance nominal de la tarea: la compuerta no podía pasar sin esa
+    corrección, y dejarla para `P7-T07` habría dejado un worker desplegable que
+    no renderiza.
 
 ## P7-T03 — Implementar observabilidad y health operacional
 
@@ -541,6 +621,19 @@ rollback de aplicación y migraciones compatibles.
   contenedores ni volúmenes.
 - Los cuatro registros DNS ya responden en 1.1.1.1 y 8.8.8.8. Caddy permanece
   detenido hasta autorizar el despliegue.
+- 2026-09-10: **la ruta de Chromium de producción era la de arm64.** La imagen
+  Playwright `1.62.0` ubica Chromium en `chrome-linux64/` en x64 y en
+  `chrome-linux/` en arm64, y el Compose declaraba
+  `/ms-playwright/chromium-1234/chrome-linux/chrome`: el worker desplegado en el
+  VPS, que es `linux/amd64`, no habría podido abrir el navegador. Lo encontró el
+  job de regresión visual de `P7-T02`, que corre en la misma imagen y
+  arquitectura. El Compose pasó a `chrome-linux64/chrome`.
+- `production:build` y `production:smoke` construían para la máquina local, así
+  que el smoke validaba la ruta en una imagen arm64 que nunca se publica. Ahora
+  fijan `linux/amd64` y piden explícitamente la variante amd64 de PostgreSQL y
+  Redis. Corrida del 2026-09-10 en una Mac arm64 con emulación: build en 123 s y
+  smoke en 38 s, con migración, readiness, panel y Chromium verificados sobre
+  las imágenes amd64.
 
 ### Evidencia de cierre
 

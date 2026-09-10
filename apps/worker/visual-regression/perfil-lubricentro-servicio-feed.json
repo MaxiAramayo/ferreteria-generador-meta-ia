@@ -1,0 +1,28 @@
+{
+  "id": "perfil-lubricentro-servicio-feed",
+  "format": "feed",
+  "fonts": [
+    "Archivo 800 normal",
+    "Saira Condensed 800 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1350 div[data-card][data-format=feed][data-safe-area={\"bottom\":72,\"left\":72,\"right\":72,\"top\":72}][data-theme=lubricentro] · color rgb(246, 241, 234) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(20, 20, 20) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1350 div · background-image linear-gradient(135deg, rgba(246, 241, 234, 0.08) 0px, rgba(246, 241, 234, 0.08) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 42px), linear-gradient(rgba(255, 178, 0, 0.12), rgba(0, 0, 0, 0) 48%) · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @0,0 1080×1350 div · background-image linear-gradient(rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.12))",
+    "  @0,0 1080×1350 div",
+    "    @0,0 1080×1350 div · overflow-x hidden · overflow-y hidden",
+    "      @0,0 1080×1350 img imagen inline 1024×1536 · object-fit cover · object-position 50% 65% · overflow-x clip · overflow-y clip",
+    "    @0,0 1080×1350 div · background-image linear-gradient(to top, rgba(28, 26, 25, 0.9) 0%, rgba(28, 26, 25, 0.58) 36%, rgba(28, 26, 25, 0.08) 72%)",
+    "  @72,72 936×338 div[data-panel] · background-color rgb(28, 26, 25) · z-index 10 · border-radius 28px",
+    "    @100,100 880×50 div",
+    "      @100,101 48×48 div[data-logo][data-role=logo]",
+    "        @100,101 48×48 span · color rgb(255, 178, 0)",
+    "          @100,101 48×48 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "            @102,106 43×38 polygon forma 8054943f · stroke rgb(255, 178, 0) · stroke-linejoin round · stroke-width 8px",
+    "            @114,111 21×30 path forma 84f97282 · stroke rgb(255, 178, 0) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "            @118,131 12×0 path forma 019592ec · stroke rgb(255, 178, 0) · stroke-linecap round · stroke-width 12px",
+    "      @796,100 184×50 span «Aramayo» 1 línea · color rgb(20, 20, 20) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 178, 0) · border-radius 9999px",
+    "    @100,205 880×61 h1 «Cuidamos tu vehículo» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
+    "    @100,322 374×60 div[data-cta][data-role=cta] «Consultanos por WhatsApp» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px"
+  ]
+}

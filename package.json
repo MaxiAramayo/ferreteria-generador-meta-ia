@@ -76,6 +76,7 @@
     "verify": "pnpm run verify:stack && pnpm run verify:plan && pnpm run format:check && pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run baseline:verify && pnpm run smoke",
     "verify:plan": "node tools/verify-plan.mjs",
     "verify:stack": "node tools/verify-stack.mjs",
+    "visual:regression": "pnpm --recursive --filter \"./packages/*\" build && pnpm --filter @aramayo/worker regression:visual",
     "visual:snapshot": "pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker snapshot:visual"
   },
   "devDependencies": {

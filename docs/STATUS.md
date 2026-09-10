@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-09
+Actualizado: 2026-09-10
 
 ## Fase activa
 
@@ -128,19 +128,45 @@ optimización de imágenes—, las vulnerabilidades de libvips y libheif en shar
 permiso, y una imagen de producción que no copiaba el manifiesto de un workspace
 nuevo. Las excepciones que quedan abiertas tienen dueño y fecha de revisión.
 
-**`P7-T02` avanzó y dejó el hallazgo más incómodo del día**: integración y
-extremo a extremo **no eran una compuerta**. CI corría `pnpm verify` y nada más,
-así que las 75 pruebas de integración, la migración desde vacío y los E2E con
-Chrome corrían sólo cuando alguien se acordaba en su máquina —justamente las que
-encuentran lo que los dobles no pueden ver—. Ahora hay un job que levanta el
-mismo Compose y las ejecuta, y en su primera corrida encontró que `db:test` y
-los E2E no eran autosuficientes desde un checkout limpio: enumeraban los
-paquetes a construir y se habían quedado cortos, cosa que en una máquina de
-desarrollo no se nota porque el `dist` anterior sigue ahí. Se midió además la inestabilidad —1 fallo en 13
-corridas, registrado con dueño— y se rompió a propósito una cosa por categoría
-para confirmar quién avisa: marca no tenía quien avisara, porque cambiar un
-color de la paleta no hacía fallar nada. Está en
-[`TESTING.md`](operations/TESTING.md).
+**`P7-T02` quedó cerrada el 2026-09-10.** El día anterior había dejado el
+hallazgo más incómodo: integración y extremo a extremo **no eran una
+compuerta** —CI corría `pnpm verify` y nada más— y ahora lo son. Faltaba la
+regresión sobre la imagen renderizada, y existe: compara lo que el navegador
+compuso —caja, estilos que pintan, texto, cortes de línea, imágenes, trazos
+SVG y fuentes cargadas de cada elemento— en 53 piezas, que son el catálogo
+vigente en sus cinco formatos, los seis perfiles visuales en los tres formatos
+que componen, el camino determinista y los cuatro temas. **No compara píxeles,
+y es una decisión medida**: el mismo documento difiere en más de un tercio de
+sus píxeles entre el Chrome de macOS y el Chromium del contenedor de
+producción, pero su composición coincide a 0,02 px. CI la corre dentro de la
+imagen del worker de producción, y `verify:stack` impide que se separen.
+Detectó las tres roturas intencionales —un tema que pinta otro color de la
+paleta, un titular 4 px más chico y una fuente que deja de cargar—; la primera
+es justo la que la huella de paleta no puede ver. **Y encontró un defecto de
+producción antes de comparar una sola pieza**: la ruta de Chromium que
+declaraba el Compose era la de arm64 —la imagen Playwright usa
+`chrome-linux64/` en x64— y producción corre en `linux/amd64`, así que el
+worker desplegado no habría podido renderizar nada. `production:smoke` no lo
+veía porque construía para la máquina local; ahora construye y prueba
+`linux/amd64`, lo mismo que se publica. Se cerró con `P6-T09` y
+`P7-T01` abiertas: lo que les falta es una publicación autorizada y una
+revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
+en [`TESTING.md`](operations/TESTING.md).
+
+**Con `P7-T02` cerrada no queda ninguna tarea que pueda avanzar sin una
+decisión o una autorización.** Lo que destraba cada una:
+
+- `P7-T01`: una revisión manual del checklist, hecha por alguien que no
+  escribió el código;
+- `P7-T03`: autorizar el despliegue en el VPS de staging para trazar un flujo
+  completo;
+- `P7-T04`: decidir dónde viven las copias, aceptar el RPO de 24 h y el RTO de
+  1 h, y habilitar las credenciales de Cloudinary staging para verificar los
+  medios restaurados;
+- `P5-T09` y `P6-T09`: la autorización de publicación real, que ya está
+  redactada.
+
+`P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
 
 **`P7-T04` también avanzó.** El simulacro de restauración corrió con datos
 reales: la suite de integración pobló la base, se tomó la copia, se restauró en
