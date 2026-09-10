@@ -100,7 +100,7 @@ function validateCompose(): void {
   );
   assertProductionComposeConfiguration(JSON.parse(configurationJson));
   process.stdout.write(
-    "Compose válido: sólo Caddy publica puertos y backend permanece privado.\n",
+    "Compose válido: sólo Caddy publica puertos, backend permanece privado y sólo el worker sale por egress.\n",
   );
 }
 

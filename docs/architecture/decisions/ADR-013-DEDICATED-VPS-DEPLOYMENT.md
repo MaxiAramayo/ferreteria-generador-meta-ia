@@ -120,6 +120,28 @@ RTO o backlog lo requieren.
 Funciona, pero agrega configuración y renovación separada sin una necesidad de
 routing que Caddy no pueda cubrir.
 
+## Enmienda 2026-09-10 — el worker sale por una red propia
+
+La decisión dejó al worker sólo en la red interna, pero el worker es el proceso
+que llama a Cloudinary, OpenAI, Meta y Odoo, y una red `internal: true` no tiene
+salida ni resuelve nombres de afuera. La primera publicación real lo mostró el
+2026-08-19 y quedó registrado como hueco sin corregirse en el Compose. En
+staging, con las credenciales de OpenAI y Cloudinary cargadas el 2026-09-10, el
+worker respondió `EAI_AGAIN` a los tres proveedores mientras la API, que
+comparte `edge`, los resolvía.
+
+El worker suma la red `egress`:
+
+- sigue en `backend` para PostgreSQL y Redis, que continúan sin salida;
+- `egress` no es interna y ningún otro servicio la comparte, así que el worker
+  sale a internet sin que nadie pueda entrarle por ahí;
+- no se une a `edge`, que es la entrada de Caddy, el panel y la API: el worker
+  no recibe tráfico.
+
+`pnpm production:verify` rechaza una red `egress` interna o ausente, un worker
+fuera de ella o dentro de `edge`, y cualquier otro servicio conectado a
+`egress`.
+
 ## Evidencia local
 
 - [`infrastructure/production/`](../../../infrastructure/production/) contiene

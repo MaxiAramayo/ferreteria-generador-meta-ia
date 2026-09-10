@@ -12,6 +12,7 @@ function validConfiguration(): unknown {
     networks: {
       backend: { internal: true },
       edge: {},
+      egress: {},
     },
     services: {
       api: {
@@ -58,7 +59,7 @@ function validConfiguration(): unknown {
           PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: "/ms-playwright/chromium/chrome",
         },
         image: "local.invalid/worker:sha",
-        networks: { backend: null },
+        networks: { backend: null, egress: null },
       },
     },
   };
@@ -90,4 +91,63 @@ test("rejects a backend network reachable from outside its Compose project", () 
   assert.throws(() => {
     assertProductionComposeConfiguration(configuration);
   }, /red backend debe ser interna/u);
+});
+
+test("rejects a worker that cannot reach its providers", () => {
+  const configuration = validConfiguration() as {
+    services: { worker: { networks: Record<string, null> } };
+  };
+  configuration.services.worker.networks = { backend: null };
+
+  assert.throws(() => {
+    assertProductionComposeConfiguration(configuration);
+  }, /services\.worker debe pertenecer a la red egress/u);
+});
+
+test("rejects a topology without an egress network", () => {
+  const configuration = validConfiguration() as {
+    networks: { egress?: unknown };
+  };
+  delete configuration.networks.egress;
+
+  assert.throws(() => {
+    assertProductionComposeConfiguration(configuration);
+  }, /Falta la red egress/u);
+});
+
+test("rejects an egress network without a route outside", () => {
+  const configuration = validConfiguration() as {
+    networks: { egress: { internal?: boolean } };
+  };
+  configuration.networks.egress.internal = true;
+
+  assert.throws(() => {
+    assertProductionComposeConfiguration(configuration);
+  }, /red egress no puede ser interna/u);
+});
+
+test("keeps the data stores off the egress network", () => {
+  const configuration = validConfiguration() as {
+    services: { postgres: { networks: Record<string, null> } };
+  };
+  configuration.services.postgres.networks = { backend: null, egress: null };
+
+  assert.throws(() => {
+    assertProductionComposeConfiguration(configuration);
+  }, /services\.postgres no debe pertenecer a la red egress/u);
+});
+
+test("keeps the worker unreachable from the ingress network", () => {
+  const configuration = validConfiguration() as {
+    services: { worker: { networks: Record<string, null> } };
+  };
+  configuration.services.worker.networks = {
+    backend: null,
+    edge: null,
+    egress: null,
+  };
+
+  assert.throws(() => {
+    assertProductionComposeConfiguration(configuration);
+  }, /services\.worker no debe pertenecer a la red edge/u);
 });
