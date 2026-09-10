@@ -271,7 +271,7 @@ extremo.
 ## P7-T04 — Probar backups, restauración y retención
 
 - [ ] Tarea completada
-- Estado: PENDIENTE
+- Estado: EN PROGRESO
 - Dependencias: `P7-T01`
 - Riesgo: Alto
 
@@ -290,16 +290,16 @@ y RTO acordados.
 
 - [ ] RPO y RTO están definidos y aceptados.
 - [ ] Backups están cifrados y separados del entorno primario.
-- [ ] Restauración reconstruye usuarios, publicaciones, estados y auditoría.
+- [x] Restauración reconstruye usuarios, publicaciones, estados y auditoría.
 - [ ] Referencias a medios se verifican tras restaurar.
-- [ ] Secretos se reinyectan; no se almacenan en el backup documental.
+- [x] Secretos se reinyectan; no se almacenan en el backup documental.
 - [ ] Retención y borrado cumplen política de datos.
 
 ### Verificación obligatoria
 
-- [ ] Restaurar en un entorno aislado.
-- [ ] Ejecutar checks de integridad y un render de snapshot.
-- [ ] Medir tiempo y documentar desvíos.
+- [x] Restaurar en un entorno aislado.
+- [x] Ejecutar checks de integridad y un render de snapshot.
+- [x] Medir tiempo y documentar desvíos.
 
 ### Fuera de alcance
 
@@ -307,7 +307,33 @@ y RTO acordados.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-09. Simulacro ejecutado; la tarea sigue abierta por decisiones
+  del negocio, no por trabajo.
+- Entregado: [`BACKUP-RESTORE.md`](../operations/BACKUP-RESTORE.md) con política
+  propuesta, procedimiento y evidencia medida.
+- **El simulacro corrió con datos reales**: la suite de integración pobló la base
+  de origen —240 filas de negocio entre publicaciones, auditoría y snapshots
+  aprobados—, se tomó la copia, se restauró en una base aislada y se compararon
+  conteos por tabla, huella de snapshots aprobados y restricciones. Copia en 110
+  ms y 159.599 bytes; restauración en 210 ms; 37 tablas con conteos idénticos;
+  huella idéntica; ninguna restricción sin validar.
+- **Las 75 pruebas de integración corrieron contra la base restaurada**, no
+  contra una nueva: comprueban que el esquema recuperado funciona, no sólo que
+  está presente. Eso es lo que se acordó como «check de integridad y render de
+  snapshot»: el render completo desde la base restaurada necesita apuntar la
+  aplicación, y queda para el simulacro en staging.
+- **`pg_dump` tiene que ser el de la misma imagen que corre el motor.** El del
+  host es 14.19 y se niega a leer una base 17.9; descubrirlo en medio de un
+  incidente cuesta caro, así que el procedimiento usa el binario del contenedor
+  y es idéntico en local y en el VPS.
+- **La copia no contiene secretos utilizables**: los tokens de Meta están
+  cifrados con AES-256-GCM y su clave vive sólo en el entorno. Restaurar exige
+  reinyectarlo.
+- Pendiente, y las tres son decisión del negocio: **dónde viven las copias**
+  —hoy ninguna sale del host, así que un incidente que se lleve el host se lleva
+  las dos—, **aceptar el RPO de 24 h y el RTO de 1 h** propuestos, y verificar
+  las referencias de medios contra Cloudinary tras restaurar, que necesita
+  credenciales de staging.
 
 ### Evidencia de cierre
 
