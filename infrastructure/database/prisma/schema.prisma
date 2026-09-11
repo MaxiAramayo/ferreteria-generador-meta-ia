@@ -39,6 +39,8 @@ enum AuthenticationEventType {
   sessions_revoked         @map("sessions_revoked")
   membership_roles_changed @map("membership_roles_changed")
   membership_revoked       @map("membership_revoked")
+  password_changed         @map("password_changed")
+  password_change_failed   @map("password_change_failed")
 
   @@map("authentication_event_type")
 }

@@ -8,6 +8,8 @@ import type {
   BeginMediaDeletionInput,
   BeginMediaDeletionResult,
   ChangeMembershipRolesInput,
+  ChangePasswordInput,
+  ChangePasswordResult,
   CompleteMediaDeletionInput,
   CompleteMediaUploadInput,
   CreateAuthenticationSessionInput,
@@ -20,6 +22,7 @@ import type {
   MediaStateMutationResult,
   MediaUploadReservation,
   OrganizationScope,
+  PasswordCredentialRecord,
   PublicationListFilter,
   PublicationRecord,
   PublicationRepository,
@@ -422,11 +425,40 @@ export class PrismaIdentityRepository implements IdentityRepository {
     return identity === null ? null : mapLoginIdentity(identity);
   }
 
+  async findPasswordCredential(
+    userId: string,
+  ): Promise<PasswordCredentialRecord | null> {
+    const user = await this.#database.user.findUnique({
+      select: {
+        email: true,
+        passwordHash: true,
+        passwordHashVersion: true,
+        status: true,
+      },
+      where: { id: userId },
+    });
+    if (user === null) {
+      return null;
+    }
+    return Object.freeze({
+      email: user.email,
+      ...(user.passwordHash === null
+        ? {}
+        : { passwordHash: user.passwordHash }),
+      ...(user.passwordHashVersion === null
+        ? {}
+        : { passwordHashVersion: user.passwordHashVersion }),
+      status: user.status,
+    });
+  }
+
   async countRecentLoginFailures(filter: LoginFailureFilter): Promise<number> {
     return this.#database.authenticationEvent.count({
       where: {
         clientFingerprintHash: filter.clientFingerprintHash,
-        eventType: "login_failed",
+        // Un cambio de contraseña con la actual equivocada también es un intento
+        // fallido: una sesión robada no puede usarse para adivinarla.
+        eventType: { in: ["login_failed", "password_change_failed"] },
         occurredAt: {
           gte: new Date(filter.since),
         },
@@ -569,6 +601,45 @@ export class PrismaIdentityRepository implements IdentityRepository {
       });
 
       return revoked.count;
+    });
+  }
+
+  /**
+   * Reemplaza la contraseña y revoca todas las sesiones del usuario en una
+   * misma transacción. `passwordChangedAt` además invalida cualquier sesión
+   * creada antes, aunque no haya llegado a figurar revocada.
+   */
+  async changePassword(
+    input: ChangePasswordInput,
+  ): Promise<ChangePasswordResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const changedAt = new Date(input.changedAt);
+      const updated = await transaction.user.updateMany({
+        data: {
+          passwordChangedAt: changedAt,
+          passwordHash: input.passwordHash,
+          passwordHashVersion: input.passwordHashVersion,
+        },
+        where: { id: input.userId, status: "active" },
+      });
+      if (updated.count === 0) {
+        return Object.freeze({ status: "not-found" as const });
+      }
+
+      const revoked = await transaction.authenticationSession.updateMany({
+        data: { revokeReason: "password_changed", revokedAt: changedAt },
+        where: { revokedAt: null, userId: input.userId },
+      });
+      await transaction.authenticationEvent.create({
+        data: authenticationEventData({
+          ...input.event,
+          metadata: { ...input.event.metadata, revokedCount: revoked.count },
+        }),
+      });
+      return Object.freeze({
+        revokedSessions: revoked.count,
+        status: "changed" as const,
+      });
     });
   }
 

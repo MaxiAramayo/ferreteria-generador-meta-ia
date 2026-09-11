@@ -105,7 +105,9 @@ export type AuthenticationEventType =
   | "session_revoked"
   | "sessions_revoked"
   | "membership_roles_changed"
-  | "membership_revoked";
+  | "membership_revoked"
+  | "password_changed"
+  | "password_change_failed";
 
 export interface AuthenticationEventInput {
   readonly actorMembershipId?: string;
@@ -169,6 +171,25 @@ export interface RevokeMembershipInput {
   readonly targetMembershipId: string;
 }
 
+export interface PasswordCredentialRecord {
+  readonly email: string;
+  readonly passwordHash?: string;
+  readonly passwordHashVersion?: number;
+  readonly status: "active" | "disabled";
+}
+
+export interface ChangePasswordInput {
+  readonly changedAt: string;
+  readonly event: AuthenticationEventInput;
+  readonly passwordHash: string;
+  readonly passwordHashVersion: number;
+  readonly userId: string;
+}
+
+export type ChangePasswordResult =
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{ revokedSessions: number; status: "changed" }>;
+
 export type ScopedMutationResult =
   Readonly<{ status: "not-found" }> | Readonly<{ status: "updated" }>;
 
@@ -176,11 +197,15 @@ export interface IdentityRepository {
   changeMembershipRoles(
     input: ChangeMembershipRolesInput,
   ): Promise<ScopedMutationResult>;
+  changePassword(input: ChangePasswordInput): Promise<ChangePasswordResult>;
   countRecentLoginFailures(filter: LoginFailureFilter): Promise<number>;
   createSession(
     input: CreateAuthenticationSessionInput,
   ): Promise<AuthenticatedSessionRecord>;
   findLoginIdentity(email: string): Promise<LoginIdentityRecord | null>;
+  findPasswordCredential(
+    userId: string,
+  ): Promise<PasswordCredentialRecord | null>;
   findSessionByTokenHash(
     tokenHash: string,
     at: string,

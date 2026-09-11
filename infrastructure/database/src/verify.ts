@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260909120000_observability_correlation";
+const latestMigrationName = "20260911150000_password_change_events";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -184,6 +184,7 @@ async function verifyDatabase(): Promise<void> {
         meta_oauth_table: string | null;
         outbox_correlation_exists: boolean;
         outbox_table: string | null;
+        password_change_event_exists: boolean;
         publication_attempt_state_type: string | null;
         publication_transition_unschedule_exists: boolean;
         publication_order_targets_table: string | null;
@@ -279,6 +280,14 @@ async function verifyDatabase(): Promise<void> {
               WHERE "type"."typname" = 'publication_transition_command_type'
                 AND "enum"."enumlabel" = 'unschedule'
             ) AS "publication_transition_unschedule_exists",
+            EXISTS (
+              SELECT 1
+              FROM pg_enum AS "enum"
+              INNER JOIN pg_type AS "type"
+                ON "type"."oid" = "enum"."enumtypid"
+              WHERE "type"."typname" = 'authentication_event_type'
+                AND "enum"."enumlabel" IN ('password_changed', 'password_change_failed')
+            ) AS "password_change_event_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -390,9 +399,9 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.audit_table, "audit_events");
       assert.equal(rollbackEvidence.idempotency_table, "idempotency_records");
       assert.equal(rollbackEvidence.outbox_table, "outbox_messages");
-      // Esta reversión sólo quita la bandeja operativa. El comando de
-      // cancelación, calendario y materialización recurrente pertenecen a
-      // migraciones anteriores y siguen disponibles.
+      // Esta reversión sólo quita los eventos de cambio de contraseña. El
+      // comando de cancelación, calendario y materialización recurrente
+      // pertenecen a migraciones anteriores y siguen disponibles.
       assert.equal(
         rollbackEvidence.recurring_story_rules_table,
         "recurring_story_rules",
@@ -426,10 +435,12 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
-      // Revertir la correlación no puede llevarse por delante la bandeja
-      // operativa, que es de una migración anterior.
-      assert.equal(rollbackEvidence.audit_correlation_exists, false);
-      assert.equal(rollbackEvidence.outbox_correlation_exists, false);
+      // Revertir los eventos de cambio de contraseña reetiqueta los que hubo y
+      // quita los valores del enum, sin tocar la correlación ni la bandeja
+      // operativa, que son de migraciones anteriores.
+      assert.equal(rollbackEvidence.password_change_event_exists, false);
+      assert.equal(rollbackEvidence.audit_correlation_exists, true);
+      assert.equal(rollbackEvidence.outbox_correlation_exists, true);
       assert.equal(
         rollbackEvidence.publication_operational_alerts_table,
         "publication_operational_alerts",

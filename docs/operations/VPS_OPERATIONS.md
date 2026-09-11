@@ -57,7 +57,8 @@ La base recibió el seed canónico y un administrador staging. La contraseña no
 se escribió en el VPS ni en Git: el servidor conserva únicamente su hash
 Argon2id y la credencial operativa vive en el Llavero local con servicio
 `Aramayo-Content-Staging-Admin`. Un smoke autenticó y cerró la sesión
-correctamente. El grupo Meta está completo y el Dashboard de la app staging
+correctamente. Desde el 2026-09-11 la contraseña se cambia desde el panel, en
+`/cuenta`; quien la cambia actualiza también ese ítem del Llavero. El grupo Meta está completo y el Dashboard de la app staging
 conserva el redirect OAuth exacto. Las tres rutas legales respondieron `200` y
 los callbacks de eliminación y desautorización rechazaron una firma inválida
 con `400`.

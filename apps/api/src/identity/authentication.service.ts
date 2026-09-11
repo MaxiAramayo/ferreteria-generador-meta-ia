@@ -8,6 +8,7 @@ import type {
   LoginMembershipRecord,
 } from "@aramayo/domain";
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Inject,
@@ -20,6 +21,7 @@ import { IDENTITY_REPOSITORY } from "../database/database.tokens.ts";
 import { PASSWORD_HASHER } from "./identity.tokens.ts";
 import type { PasswordHasher } from "./password-hasher.ts";
 
+const currentPasswordHashVersion = 1;
 const loginFailureLimit = 5;
 const loginFailureWindowMilliseconds = 15 * 60 * 1_000;
 const dummyPasswordHash =
@@ -37,6 +39,12 @@ export interface LoginResult {
   readonly csrfToken: string;
   readonly expiresAt: string;
   readonly sessionToken: string;
+}
+
+export interface ChangePasswordCommand {
+  readonly clientFingerprintHash: string;
+  readonly currentPassword: string;
+  readonly newPassword: string;
 }
 
 function sha256(text: string): string {
@@ -262,5 +270,97 @@ export class AuthenticationService {
       revokedAt,
       userId: session.actor.userId,
     });
+  }
+
+  /**
+   * Cambia la contraseña de quien tiene la sesión. Exige la actual con el mismo
+   * límite de intentos que el login —una sesión robada no sirve para
+   * adivinarla— y cierra todas las sesiones, incluida ésta: se vuelve a entrar
+   * con la nueva.
+   */
+  async changePassword(
+    session: AuthenticatedSessionRecord,
+    command: ChangePasswordCommand,
+  ): Promise<number> {
+    const credential = await this.#repository.findPasswordCredential(
+      session.actor.userId,
+    );
+    if (
+      credential === null ||
+      credential.status !== "active" ||
+      credential.passwordHash === undefined
+    ) {
+      throw new UnauthorizedException("La sesión no es válida.");
+    }
+
+    const subjectHash = sha256(normalizeEmail(credential.email));
+    const now = new Date();
+    const occurredAt = now.toISOString();
+    const actorEvent = {
+      actorMembershipId: session.actor.membershipId,
+      clientFingerprintHash: command.clientFingerprintHash,
+      occurredAt,
+      organizationId: session.actor.organizationId,
+      subjectHash,
+      userId: session.actor.userId,
+    };
+    const recentFailures = await this.#repository.countRecentLoginFailures({
+      clientFingerprintHash: command.clientFingerprintHash,
+      since: new Date(
+        now.getTime() - loginFailureWindowMilliseconds,
+      ).toISOString(),
+      subjectHash,
+    });
+    if (recentFailures >= loginFailureLimit) {
+      await this.#repository.recordAuthenticationEvent({
+        ...actorEvent,
+        eventType: "login_rate_limited",
+        metadata: {
+          operation: "password_change",
+          windowSeconds: loginFailureWindowMilliseconds / 1_000,
+        },
+        succeeded: false,
+      });
+      throw new HttpException(
+        "Demasiados intentos. Esperá unos minutos antes de volver a intentar.",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const currentMatches = await this.#passwordHasher.verify(
+      credential.passwordHash,
+      command.currentPassword,
+    );
+    if (!currentMatches) {
+      await this.#repository.recordAuthenticationEvent({
+        ...actorEvent,
+        eventType: "password_change_failed",
+        metadata: { reason: "current_password_rejected" },
+        succeeded: false,
+      });
+      throw new BadRequestException("La contraseña actual no es correcta.");
+    }
+    if (command.newPassword === command.currentPassword) {
+      throw new BadRequestException(
+        "La contraseña nueva tiene que ser distinta de la actual.",
+      );
+    }
+
+    const result = await this.#repository.changePassword({
+      changedAt: occurredAt,
+      event: {
+        ...actorEvent,
+        eventType: "password_changed",
+        metadata: { passwordHashVersion: currentPasswordHashVersion },
+        succeeded: true,
+      },
+      passwordHash: await this.#passwordHasher.hash(command.newPassword),
+      passwordHashVersion: currentPasswordHashVersion,
+      userId: session.actor.userId,
+    });
+    if (result.status === "not-found") {
+      throw new UnauthorizedException("La sesión no es válida.");
+    }
+    return result.revokedSessions;
   }
 }

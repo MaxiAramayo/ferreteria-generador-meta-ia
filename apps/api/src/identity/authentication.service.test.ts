@@ -6,12 +6,19 @@ import { parseApiEnvironment } from "@aramayo/configuration/api";
 import type {
   AuthenticatedSessionRecord,
   AuthenticationEventInput,
+  ChangePasswordInput,
+  ChangePasswordResult,
   CreateAuthenticationSessionInput,
   IdentityRepository,
   LoginIdentityRecord,
+  PasswordCredentialRecord,
   ScopedMutationResult,
 } from "@aramayo/domain";
-import { HttpException, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  UnauthorizedException,
+} from "@nestjs/common";
 
 import { AuthenticationService } from "./authentication.service.ts";
 import type { PasswordHasher } from "./password-hasher.ts";
@@ -69,9 +76,26 @@ class FakeIdentityRepository implements IdentityRepository {
   identity: LoginIdentityRecord | null = activeIdentity;
   recentFailures = 0;
   replaceCsrfResult = true;
+  changedPassword: ChangePasswordInput | undefined;
+  credential: PasswordCredentialRecord | null = {
+    email: "editora@aramayo.invalid",
+    passwordHash: "hashed:correct-password",
+    passwordHashVersion: 1,
+    status: "active",
+  };
 
   changeMembershipRoles(): Promise<ScopedMutationResult> {
     return Promise.resolve({ status: "updated" });
+  }
+
+  changePassword(input: ChangePasswordInput): Promise<ChangePasswordResult> {
+    this.changedPassword = input;
+    this.events.push(input.event);
+    return Promise.resolve({ revokedSessions: 2, status: "changed" });
+  }
+
+  findPasswordCredential(): Promise<PasswordCredentialRecord | null> {
+    return Promise.resolve(this.credential);
   }
 
   countRecentLoginFailures(): Promise<number> {
@@ -131,6 +155,139 @@ class FakeIdentityRepository implements IdentityRepository {
     return Promise.resolve(true);
   }
 }
+
+const editorSession: AuthenticatedSessionRecord = {
+  actor: {
+    displayName: "Editora Aramayo",
+    email: "editora@aramayo.invalid",
+    membershipId: "membership-1",
+    organizationId: "organization-1",
+    roles: ["editor"],
+    sessionId: "session-1",
+    userId: "user-1",
+  },
+  csrfTokenHash: "a".repeat(64),
+  expiresAt: "2026-09-11T20:00:00.000Z",
+};
+
+function passwordService(
+  repository: FakeIdentityRepository,
+): AuthenticationService {
+  return new AuthenticationService(
+    repository,
+    new FakePasswordHasher(),
+    configuration,
+  );
+}
+
+test("cambiar la contraseña exige la actual, guarda sólo el hash nuevo y cierra las sesiones", async () => {
+  const repository = new FakeIdentityRepository();
+
+  const revoked = await passwordService(repository).changePassword(
+    editorSession,
+    {
+      clientFingerprintHash: "fingerprint",
+      currentPassword: "correct-password",
+      newPassword: "una-frase-nueva-y-larga",
+    },
+  );
+
+  assert.equal(revoked, 2);
+  const changed = repository.changedPassword;
+  assert.ok(changed !== undefined);
+  assert.equal(changed.passwordHash, "hashed:una-frase-nueva-y-larga");
+  assert.equal(changed.passwordHashVersion, 1);
+  assert.equal(changed.userId, "user-1");
+  const event = repository.events.at(-1);
+  assert.ok(event !== undefined);
+  assert.equal(event.eventType, "password_changed");
+  assert.equal(event.succeeded, true);
+  assert.equal(
+    event.subjectHash,
+    createHash("sha256").update("editora@aramayo.invalid").digest("hex"),
+  );
+  assert.doesNotMatch(
+    JSON.stringify(repository.events),
+    /correct-password|una-frase-nueva/u,
+  );
+});
+
+test("una contraseña actual equivocada no cambia nada y cuenta como intento fallido", async () => {
+  const repository = new FakeIdentityRepository();
+
+  await assert.rejects(
+    passwordService(repository).changePassword(editorSession, {
+      clientFingerprintHash: "fingerprint",
+      currentPassword: "incorrect-password",
+      newPassword: "una-frase-nueva-y-larga",
+    }),
+    BadRequestException,
+  );
+
+  assert.equal(repository.changedPassword, undefined);
+  assert.equal(repository.events.at(-1)?.eventType, "password_change_failed");
+  assert.equal(repository.events.at(-1)?.succeeded, false);
+});
+
+test("la contraseña nueva tiene que ser distinta de la actual", async () => {
+  const repository = new FakeIdentityRepository();
+
+  await assert.rejects(
+    passwordService(repository).changePassword(editorSession, {
+      clientFingerprintHash: "fingerprint",
+      currentPassword: "correct-password",
+      newPassword: "correct-password",
+    }),
+    /distinta de la actual/u,
+  );
+  assert.equal(repository.changedPassword, undefined);
+});
+
+test("el límite de intentos del login también frena el cambio de contraseña", async () => {
+  const repository = new FakeIdentityRepository();
+  repository.recentFailures = 5;
+
+  await assert.rejects(
+    passwordService(repository).changePassword(editorSession, {
+      clientFingerprintHash: "fingerprint",
+      currentPassword: "correct-password",
+      newPassword: "una-frase-nueva-y-larga",
+    }),
+    (error: unknown) =>
+      error instanceof HttpException && error.getStatus() === 429,
+  );
+  assert.equal(repository.changedPassword, undefined);
+  assert.equal(repository.events.at(-1)?.eventType, "login_rate_limited");
+  assert.equal(
+    repository.events.at(-1)?.metadata["operation"],
+    "password_change",
+  );
+});
+
+test("una sesión sin credencial activa no puede cambiar la contraseña", async () => {
+  for (const credential of [
+    null,
+    {
+      email: "editora@aramayo.invalid",
+      passwordHash: "hashed:correct-password",
+      passwordHashVersion: 1,
+      status: "disabled" as const,
+    },
+  ]) {
+    const repository = new FakeIdentityRepository();
+    repository.credential = credential;
+
+    await assert.rejects(
+      passwordService(repository).changePassword(editorSession, {
+        clientFingerprintHash: "fingerprint",
+        currentPassword: "correct-password",
+        newPassword: "una-frase-nueva-y-larga",
+      }),
+      UnauthorizedException,
+    );
+    assert.equal(repository.changedPassword, undefined);
+  }
+});
 
 test("login normaliza identidad y persiste sólo hashes de tokens", async () => {
   const repository = new FakeIdentityRepository();
