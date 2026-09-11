@@ -228,6 +228,14 @@ guarda en `mensuales` la más reciente cuando el mes todavía no tiene ninguna, 
 la primera subida llevó dos copias juntas. En la marcha diaria es la primera del
 mes.
 
+### 2026-09-11: primera corrida desatendida
+
+El timer disparó `aramayo-backup@staging.service` a las 06:38 UTC, dentro de su
+margen aleatorio, y terminó con `Result=success` en 43 s: copia
+`aramayo-staging-20260911T063812Z` restaurada en el VPS antes de contar, con 37
+tablas, y `rclone check` sin diferencias en 10 archivos. Drive guarda cinco
+copias diarias y el VPS las mismas cinco, dentro de la retención de siete.
+
 ## Lo que falta
 
 1. **Guardar la segunda copia de la llave privada** en el gestor de contraseñas

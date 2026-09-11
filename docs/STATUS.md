@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-10
+Actualizado: 2026-09-11
 
 ## Fase activa
 
@@ -175,7 +175,8 @@ Drive el 2026-09-10 y la misma unidad del timer corrió completa. **Una copia
 descargada de Drive**, sin pasar por el servidor, se restauró con 37 tablas y
 111 filas iguales al manifiesto, la huella idéntica y los tres medios
 respondiendo, en 12 s. La retención se comprobó borrando en Drive un archivo de
-prueba de 40 días. Está en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
+prueba de 40 días, y la unidad diaria corrió sola por primera vez el 2026-09-11.
+Está en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
 
 **Lo que falta ya no es código: son pasos de personas.** Lo que destraba cada
 tarea:
@@ -183,13 +184,16 @@ tarea:
 - `P7-T04`: confirmar que la llave privada de las copias está guardada también
   en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
   máquina es perder todas las copias;
-- `P7-T03`: una sesión en el panel para trazar un flujo completo; las
-  credenciales de OpenAI y Cloudinary ya están cargadas y el worker llega a sus
-  proveedores;
+- `P7-T03`: una sesión en el panel para trazar un flujo completo. Sin el sistema
+  comercial, el trazado posible es un borrador creado a mano, su render y su
+  subida a Cloudinary;
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
-  destinos y horario— la publicación real que ya está redactada.
+  destinos y horario— la publicación real que ya está redactada. Antes, staging
+  necesita las credenciales del sistema comercial —sin catálogo el worker
+  rechaza todo brief, y sin brief no hay pieza generada—, los documentos de
+  conocimiento aprobados y la generación habilitada en `/configuracion`.
 
 `P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
 

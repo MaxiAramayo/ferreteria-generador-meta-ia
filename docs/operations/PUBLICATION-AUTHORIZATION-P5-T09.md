@@ -60,15 +60,32 @@ confirmar se reconcilia primero, según
 
 ## Precondiciones técnicas
 
-Antes de pedir la corrida hay que comprobar, en este orden:
+Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
+2026-09-11 contra la base y los servicios de staging:
 
-1. Staging desplegado con el SHA que se va a verificar. Hoy el VPS tiene la
-   release seleccionada pero **sin servicios iniciados**.
-2. Conexión Meta publicable: el panel de configuración debe mostrarla vigente,
-   no degradada.
-3. Presupuesto de IA disponible si la pieza se genera, visible en el tablero de
+1. **Staging desplegado con el SHA que se va a verificar.** Cumplida: corre
+   `b0f0cac` con todos los servicios, y el worker llega a OpenAI y Cloudinary.
+2. **Conexión Meta publicable.** La base la registra `healthy`, con la Page y
+   `@ferreteria_aramayo` activos y los permisos `instagram_content_publish` y
+   `pages_manage_posts`. Su última verificación es del 2026-09-01: el panel de
+   configuración tiene que confirmarla vigente antes de la corrida.
+3. **Catálogo comercial en staging.** Falta, y bloquea: sin las credenciales del
+   sistema comercial el worker rechaza todo brief con `commercial-unavailable`,
+   y sin brief no hay generación ni pieza que cumpla el primer criterio. Se
+   cargan con `load-provider-credentials.sh`, que exige el grupo
+   `ODOO_CONTENT_API_*` completo.
+4. **Documentos de conocimiento en staging.** No hay ninguno. El brief corre
+   igual, pero sin evidencia documental y marcado como información faltante;
+   para un brief con evidencia vigente hay que cargar en staging los documentos
+   aprobados.
+5. **Generación habilitada y con presupuesto.** La política de staging está
+   deshabilitada. La habilita quien administra la organización desde
+   `/configuracion`; los límites por omisión son 20 intentos diarios por
+   organización, 8 por persona y USD 20 por mes, y el consumo se ve en
    `/operacion`.
-4. Backup de PostgreSQL previo, como en la corrida de agosto.
+6. **Copia de PostgreSQL previa.** Automática: la unidad diaria sube una copia
+   verificada a Drive, y antes de la corrida se toma otra con
+   `sudo aramayo-backup run staging`.
 
 ## Qué se verificará después
 
