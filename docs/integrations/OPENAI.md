@@ -406,6 +406,27 @@ Una interrupción conserva el archivo y estado remoto en la versión local. La
 reconciliación consulta OpenAI, continúa la indexación o completa un retiro sin
 duplicar el documento lógico. Un fallo parcial nunca se presenta como activo.
 
+### Cargar el corpus aprobado
+
+El corpus que puede activarse vive en
+[`packages/brand-knowledge/corpus`](../../packages/brand-knowledge/corpus/): un
+manifiesto con los metadatos de aprobación y vigencia, y un Markdown por
+fuente. `knowledge:corpus` lo carga en la base y el vector store del ambiente, y
+valida cada documento con la regla de la ingestión antes de escribir. Repetirlo
+no duplica: cada versión se reconoce por su hash.
+
+Dentro del worker de un ambiente:
+
+```bash
+node dist/knowledge/knowledge-corpus-cli.js --corpus node_modules/@aramayo/brand-knowledge/corpus --comprobar
+node dist/knowledge/knowledge-corpus-cli.js --corpus node_modules/@aramayo/brand-knowledge/corpus
+node dist/knowledge/knowledge-corpus-cli.js --corpus node_modules/@aramayo/brand-knowledge/corpus --consultar "¿El lubricentro atiende camiones?"
+```
+
+Cada ambiente usa su propio vector store: `--crear-vector-store <nombre>` crea
+uno y muestra su ID, que se configura como `OPENAI_VECTOR_STORE_ID`. La salida
+nunca incluye el contenido de un documento ni los fragmentos recuperados.
+
 ## Recuperación con citas
 
 `P3-T04` aplica elegibilidad local antes de consultar File Search. PostgreSQL
