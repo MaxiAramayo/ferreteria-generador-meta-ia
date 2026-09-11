@@ -2414,6 +2414,146 @@ test("identidad persiste sesiones revocables, roles vivos y auditoría aislada",
   );
 });
 
+test("cambiar la contraseña revoca sesiones y cuenta el intento fallido", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const subjectHash = randomHash();
+  const clientFingerprintHash = randomHash();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1_000);
+
+  await database.organization.create({
+    data: {
+      displayName: "Organización contraseña",
+      id: organizationId,
+      legalName: "Organización contraseña",
+      slug: `password-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Identidad contraseña",
+      email: `${userId}@example.invalid`,
+      id: userId,
+      passwordChangedAt: new Date(now.getTime() - 60 * 1_000),
+      passwordHash: `$argon2id$${"c".repeat(64)}`,
+      passwordHashVersion: 1,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["editor"],
+      userId,
+    },
+  });
+
+  const repository = new PrismaIdentityRepository(database);
+  const tokenHashes = [randomHash(), randomHash()];
+  for (const tokenHash of tokenHashes) {
+    await repository.createSession({
+      clientFingerprintHash,
+      csrfTokenHash: randomHash(),
+      event: {
+        clientFingerprintHash,
+        eventType: "login_succeeded",
+        metadata: { passwordHashVersion: 1 },
+        occurredAt: now.toISOString(),
+        organizationId,
+        subjectHash,
+        succeeded: true,
+        userId,
+      },
+      expiresAt: expiresAt.toISOString(),
+      membershipId,
+      organizationId,
+      tokenHash,
+      userId,
+    });
+  }
+
+  const credential = await repository.findPasswordCredential(userId);
+  assert.ok(credential !== null);
+  assert.equal(credential.email, `${userId}@example.invalid`);
+  assert.equal(credential.status, "active");
+
+  await repository.recordAuthenticationEvent({
+    clientFingerprintHash,
+    eventType: "password_change_failed",
+    metadata: { reason: "current_password_rejected" },
+    occurredAt: now.toISOString(),
+    organizationId,
+    subjectHash,
+    succeeded: false,
+    userId,
+  });
+  assert.equal(
+    await repository.countRecentLoginFailures({
+      clientFingerprintHash,
+      since: new Date(now.getTime() - 1_000).toISOString(),
+      subjectHash,
+    }),
+    1,
+    "un cambio fallido cuenta para el límite de intentos",
+  );
+
+  const changedAt = new Date(now.getTime() + 1_000);
+  const changeInput = {
+    changedAt: changedAt.toISOString(),
+    event: {
+      actorMembershipId: membershipId,
+      clientFingerprintHash,
+      eventType: "password_changed" as const,
+      metadata: { passwordHashVersion: 1 },
+      occurredAt: changedAt.toISOString(),
+      organizationId,
+      subjectHash,
+      succeeded: true,
+      userId,
+    },
+    passwordHash: `$argon2id$${"d".repeat(64)}`,
+    passwordHashVersion: 1,
+    userId,
+  };
+  assert.deepEqual(await repository.changePassword(changeInput), {
+    revokedSessions: 2,
+    status: "changed",
+  });
+
+  const user = await database.user.findUniqueOrThrow({
+    where: { id: userId },
+  });
+  assert.equal(user.passwordHash, `$argon2id$${"d".repeat(64)}`);
+  assert.equal(user.passwordChangedAt?.toISOString(), changedAt.toISOString());
+  for (const tokenHash of tokenHashes) {
+    assert.equal(
+      await repository.findSessionByTokenHash(tokenHash, now.toISOString()),
+      null,
+      "ninguna sesión anterior sobrevive al cambio",
+    );
+  }
+  assert.equal(
+    await database.authenticationSession.count({
+      where: { revokeReason: "password_changed", userId },
+    }),
+    2,
+  );
+  const event = await database.authenticationEvent.findFirstOrThrow({
+    where: { eventType: "password_changed", userId },
+  });
+  assert.deepEqual(event.metadata, { passwordHashVersion: 1, revokedCount: 2 });
+
+  await database.user.update({
+    data: { status: "disabled" },
+    where: { id: userId },
+  });
+  assert.deepEqual(await repository.changePassword(changeInput), {
+    status: "not-found",
+  });
+});
+
 test("repositorios y constraints aíslan organizaciones y preservan snapshots", async () => {
   const organizationA = randomUUID();
   const organizationB = randomUUID();

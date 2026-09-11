@@ -835,7 +835,11 @@ function ReadyView({
             registrado con su autor.
           </p>
         </div>
-        <Link href="/">Volver al panel</Link>
+        <p>
+          <Link href="/cuenta">Cambiar contraseña</Link>
+          {" · "}
+          <Link href="/">Volver al panel</Link>
+        </p>
       </header>
       {!state.canEdit ? (
         <p className="configuration-permission">

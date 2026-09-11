@@ -34,7 +34,10 @@ nombre de campo y por forma —`EAA…` tiene su propio patrón— y la bandeja
 operativa persiste sólo identificadores internos y códigos.
 
 La sesión propia vive en cookie `HttpOnly` y `SameSite`, con `__Host-` fuera de
-desarrollo. Cerrar sesión revoca; `logout-all` revoca todas.
+desarrollo. Cerrar sesión revoca; `logout-all` revoca todas. Cambiar la
+contraseña en `/cuenta` exige la actual con el mismo límite de intentos que el
+login —un cambio fallido cuenta como intento, así que una sesión robada no sirve
+para adivinarla— y revoca todas las sesiones, incluida la que hizo el cambio.
 
 ### SSRF
 

@@ -19,7 +19,12 @@ import {
 } from "./identity.decorators.ts";
 import { clientFingerprintHash } from "./identity-http.ts";
 import { sessionCookieName } from "./identity.guards.ts";
+import { ChangePasswordDto } from "./dto/change-password.dto.ts";
 import { LoginDto } from "./dto/login.dto.ts";
+
+interface ChangePasswordResponse {
+  readonly revokedSessions: number;
+}
 
 interface SessionResponse {
   readonly actor: AuthenticatedActor;
@@ -132,6 +137,23 @@ export class AuthenticationController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<LogoutAllResponse> {
     const revokedSessions = await this.#authentication.logoutAll(session);
+    this.#clearSessionCookie(response);
+    return Object.freeze({ revokedSessions });
+  }
+
+  @AuthenticatedRoute()
+  @Post("password")
+  async changePassword(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Body() input: ChangePasswordDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<ChangePasswordResponse> {
+    const revokedSessions = await this.#authentication.changePassword(session, {
+      clientFingerprintHash: clientFingerprintHash(request),
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    });
     this.#clearSessionCookie(response);
     return Object.freeze({ revokedSessions });
   }

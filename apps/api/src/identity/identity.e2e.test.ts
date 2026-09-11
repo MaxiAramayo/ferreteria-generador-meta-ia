@@ -5,6 +5,8 @@ import { parseApiEnvironment } from "@aramayo/configuration/api";
 import type {
   AuthenticatedSessionRecord,
   AuthenticationEventInput,
+  ChangePasswordInput,
+  ChangePasswordResult,
   ConfigurationMutationResult,
   CreateAuthenticationSessionInput,
   IdentityRepository,
@@ -14,6 +16,7 @@ import type {
   OrganizationConfiguration,
   OrganizationConfigurationRepository,
   OrganizationRole,
+  PasswordCredentialRecord,
   PersistBrandConfigurationInput,
   RevokeAllSessionsInput,
   RevokeSessionInput,
@@ -91,6 +94,23 @@ class InMemoryIdentityRepository implements IdentityRepository {
     return Promise.resolve({ status: "updated" });
   }
 
+  changePassword(input: ChangePasswordInput): Promise<ChangePasswordResult> {
+    this.identity = {
+      ...this.identity,
+      passwordHash: input.passwordHash,
+      passwordHashVersion: input.passwordHashVersion,
+    };
+    let revoked = 0;
+    for (const [tokenHash, session] of this.sessions) {
+      if (session.actor.userId === input.userId) {
+        this.sessions.delete(tokenHash);
+        revoked += 1;
+      }
+    }
+    this.events.push(input.event);
+    return Promise.resolve({ revokedSessions: revoked, status: "changed" });
+  }
+
   countRecentLoginFailures(): Promise<number> {
     return Promise.resolve(this.recentFailures);
   }
@@ -124,6 +144,24 @@ class InMemoryIdentityRepository implements IdentityRepository {
     return Promise.resolve(
       email === this.identity.email ? this.identity : null,
     );
+  }
+
+  findPasswordCredential(
+    userId: string,
+  ): Promise<PasswordCredentialRecord | null> {
+    if (userId !== this.identity.id) {
+      return Promise.resolve(null);
+    }
+    return Promise.resolve({
+      email: this.identity.email,
+      ...(this.identity.passwordHash === undefined
+        ? {}
+        : { passwordHash: this.identity.passwordHash }),
+      ...(this.identity.passwordHashVersion === undefined
+        ? {}
+        : { passwordHashVersion: this.identity.passwordHashVersion }),
+      status: this.identity.status,
+    });
   }
 
   findSessionByTokenHash(
@@ -510,6 +548,71 @@ test("el flujo HTTP aplica sesión, CSRF, permisos, validación y revocación", 
     .get("/auth/session")
     .set("Cookie", sessionCookie);
   assert.equal(revokedSession.status, 401);
+});
+
+test("cambiar la contraseña exige CSRF y la actual, y cierra todas las sesiones", async () => {
+  const login = await supertest(baseUrl)
+    .post("/auth/login")
+    .set("Origin", configuration.webOrigin)
+    .send({ email: "editora@aramayo.invalid", password: "correct-password" });
+  assert.equal(login.status, 201);
+  const setCookie = login.get("Set-Cookie") ?? [];
+  const sessionCookie = (Array.isArray(setCookie) ? setCookie : [setCookie])
+    .find((cookie) => cookie.startsWith("aramayo_session="))
+    ?.split(";", 1)[0];
+  if (sessionCookie === undefined) {
+    throw new Error("Login did not return a session cookie.");
+  }
+  const csrfToken = requiredString(readJsonObject(login.text), "csrfToken");
+  const cookie: string = sessionCookie;
+  async function change(
+    currentPassword: string,
+    withCsrf = true,
+  ): Promise<supertest.Response> {
+    return supertest(baseUrl)
+      .post("/auth/password")
+      .set("Origin", configuration.webOrigin)
+      .set("Cookie", cookie)
+      .set(withCsrf ? { "x-csrf-token": csrfToken } : {})
+      .send({ currentPassword, newPassword: "una-frase-nueva-y-larga" });
+  }
+
+  try {
+    assert.equal((await change("correct-password", false)).status, 403);
+    assert.equal((await change("incorrect-password")).status, 400);
+
+    const changed = await change("correct-password");
+    assert.equal(changed.status, 201);
+    assert.equal(readJsonObject(changed.text)["revokedSessions"], 1);
+    assert.match(String(changed.get("Set-Cookie")), /Max-Age=0/u);
+    assert.doesNotMatch(changed.text, /una-frase-nueva/u);
+
+    const oldSession = await supertest(baseUrl)
+      .get("/auth/session")
+      .set("Cookie", sessionCookie);
+    assert.equal(oldSession.status, 401);
+
+    const oldPassword = await supertest(baseUrl)
+      .post("/auth/login")
+      .set("Origin", configuration.webOrigin)
+      .send({ email: "editora@aramayo.invalid", password: "correct-password" });
+    assert.equal(oldPassword.status, 401);
+
+    const newPassword = await supertest(baseUrl)
+      .post("/auth/login")
+      .set("Origin", configuration.webOrigin)
+      .send({
+        email: "editora@aramayo.invalid",
+        password: "una-frase-nueva-y-larga",
+      });
+    assert.equal(newPassword.status, 201);
+  } finally {
+    repository.identity = {
+      ...repository.identity,
+      passwordHash: "hashed:correct-password",
+    };
+    repository.sessions.clear();
+  }
 });
 
 test("un usuario deshabilitado no puede iniciar sesión", async () => {
