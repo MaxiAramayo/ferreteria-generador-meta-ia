@@ -413,6 +413,11 @@ extremo.
   conocimiento en staging, y la política de generación está deshabilitada. El
   detalle está en las precondiciones de
   [`PUBLICATION-AUTHORIZATION-P5-T09.md`](../operations/PUBLICATION-AUTHORIZATION-P5-T09.md).
+- 2026-09-11, más tarde: con el catálogo de Odoo cargado, el trazado también
+  puede empezar por un brief. El smoke del brief dejó en el log las
+  observaciones `dependency.call` de cada consulta al sistema comercial y de la
+  llamada a OpenAI, con su latencia; generar la pieza sigue necesitando la
+  política de generación habilitada.
 
 ### Evidencia de cierre
 

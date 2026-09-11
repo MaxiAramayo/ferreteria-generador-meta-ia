@@ -69,11 +69,12 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
    `@ferreteria_aramayo` activos y los permisos `instagram_content_publish` y
    `pages_manage_posts`. Su última verificación es del 2026-09-01: el panel de
    configuración tiene que confirmarla vigente antes de la corrida.
-3. **Catálogo comercial en staging.** Falta, y bloquea: sin las credenciales del
-   sistema comercial el worker rechaza todo brief con `commercial-unavailable`,
-   y sin brief no hay generación ni pieza que cumpla el primer criterio. Se
-   cargan con `load-odoo-credentials.sh`, que toma el token del `.env`
-   productivo de Odoo sin imprimirlo.
+3. **Catálogo comercial en staging.** Cumplida el 2026-09-11: sin él, el worker
+   rechaza todo brief con `commercial-unavailable`. Las credenciales se
+   cargaron con `load-odoo-credentials.sh`, que toma el token del `.env`
+   productivo de Odoo sin imprimirlo. Desde el worker, el smoke comercial
+   devolvió precio `priced` y stock `known`, y un brief de prueba salió
+   `generated` con evidencia del catálogo real.
 4. **Documentos de conocimiento en staging.** No hay ninguno. El brief corre
    igual, pero sin evidencia documental y marcado como información faltante;
    para un brief con evidencia vigente hay que cargar en staging los documentos

@@ -1277,6 +1277,22 @@ destino previsto y que el sistema conserva evidencia completa.
   deshabilitada hasta que alguien la habilite desde `/configuracion`. El estado
   completo está en
   [`PUBLICATION-AUTHORIZATION-P5-T09.md`](../operations/PUBLICATION-AUTHORIZATION-P5-T09.md).
+- Fecha: 2026-09-11, 13:05 UTC. El catálogo comercial ya está en staging y el
+  brief funciona con datos reales.
+- Las credenciales de la API de Odoo se cargaron con
+  `load-odoo-credentials.sh`. Desde el worker de staging, el smoke comercial
+  recorrió búsqueda, producto, precio y stock con resultado `priced` y `known`
+  y cuatro auditorías, y el smoke del brief salió `generated` con
+  `gpt-5.6-terra`: 8 evidencias, 2 hechos verificados y aprobación humana
+  requerida, por USD 0,023.
+- Observación: 3 de las 4 consultas de stock del brief fallaron. El smoke
+  comercial, con el mismo ejecutor, obtuvo stock `known`, así que la
+  integración responde y la falla está en esas llamadas puntuales —argumentos
+  del modelo o productos concretos—. El brief las registró como información
+  faltante en vez de inventar stock. El smoke no persiste los códigos de esas
+  fallas; un brief real desde el panel los deja en su auditoría.
+- Faltan para la corrida: documentos de conocimiento en staging, la política de
+  generación habilitada y las cinco decisiones del negocio.
 
 ### Evidencia de cierre
 

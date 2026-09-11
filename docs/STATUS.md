@@ -184,16 +184,15 @@ tarea:
 - `P7-T04`: confirmar que la llave privada de las copias está guardada también
   en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
   máquina es perder todas las copias;
-- `P7-T03`: una sesión en el panel para trazar un flujo completo. Sin el sistema
-  comercial, el trazado posible es un borrador creado a mano, su render y su
-  subida a Cloudinary;
+- `P7-T03`: una sesión en el panel para trazar un flujo completo; el catálogo de
+  Odoo ya está en staging, así que puede empezar por un brief;
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
-  destinos y horario— la publicación real que ya está redactada. Antes, staging
-  necesita las credenciales del sistema comercial —sin catálogo el worker
-  rechaza todo brief, y sin brief no hay pieza generada—, los documentos de
-  conocimiento aprobados y la generación habilitada en `/configuracion`.
+  destinos y horario— la publicación real que ya está redactada. El catálogo de
+  Odoo ya está en staging y el brief sale con datos reales; faltan los
+  documentos de conocimiento aprobados y la generación habilitada en
+  `/configuracion`.
 
 `P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
 
