@@ -1264,6 +1264,19 @@ destino previsto y que el sistema conserva evidencia completa.
   ventana—, lo que la plataforma ya determina, el efecto público e irreversible,
   las precondiciones técnicas y qué se verificará después. Es un pedido, no una
   autorización: la tarea sigue sin poder empezar.
+- Fecha: 2026-09-11. Precondiciones técnicas verificadas contra staging: además
+  de la autorización, faltan dos cosas que el pedido no nombraba.
+- **Sin catálogo comercial no hay brief.** Staging no tiene las credenciales del
+  sistema comercial y el worker rechaza todo brief con `commercial-unavailable`;
+  sin brief no hay generación, así que ninguna pieza puede cumplir el primer
+  criterio. Hacen falta las credenciales `ODOO_CONTENT_API_*` de staging.
+- **Staging no tiene documentos de conocimiento**: el brief correría sin
+  evidencia documental.
+- La conexión Meta figura `healthy` con los dos activos, staging corre `b0f0cac`
+  con el worker y sus proveedores, y la política de generación está
+  deshabilitada hasta que alguien la habilite desde `/configuracion`. El estado
+  completo está en
+  [`PUBLICATION-AUTHORIZATION-P5-T09.md`](../operations/PUBLICATION-AUTHORIZATION-P5-T09.md).
 
 ### Evidencia de cierre
 

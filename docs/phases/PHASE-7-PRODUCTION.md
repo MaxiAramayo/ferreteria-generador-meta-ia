@@ -405,6 +405,14 @@ extremo.
   los tres proveedores habilitados y ningún error.
 - Pendiente, y sólo eso: una sesión en el panel para disparar una intención y
   seguir su correlación hasta el render y la auditoría.
+- Fecha: 2026-09-11. Qué puede recorrer ese trazado hoy: **un borrador creado a
+  mano, su render y su subida a Cloudinary**, que pasan por la API, el worker y
+  el proveedor sin generación de IA. La generación no: exige un brief, y el
+  worker rechaza todo brief con `commercial-unavailable` mientras staging no
+  tenga las credenciales del sistema comercial. Tampoco hay documentos de
+  conocimiento en staging, y la política de generación está deshabilitada. El
+  detalle está en las precondiciones de
+  [`PUBLICATION-AUTHORIZATION-P5-T09.md`](../operations/PUBLICATION-AUTHORIZATION-P5-T09.md).
 
 ### Evidencia de cierre
 
@@ -535,6 +543,9 @@ y RTO acordados.
   ninguna copia se restaura. Con esa confirmación la tarea cierra, con `P7-T01`
   abierta como desviación registrada, igual que `P7-T02`.
 - El timer de producción queda para `P7-T07`.
+- 2026-09-11: **primera corrida desatendida del timer**, a las 06:38 UTC:
+  `Result=success` en 43 s, copia verificada con restauración y subida sin
+  diferencias. Sigue pendiente sólo la segunda copia de la llave.
 
 ### Evidencia de cierre
 
