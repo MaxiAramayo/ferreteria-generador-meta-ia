@@ -1,6 +1,6 @@
 # Catálogo y política de fuentes de conocimiento
 
-- Estado: POLÍTICA APROBADA; `KN-002` Y `KN-004` ACTIVABLES EN STAGING
+- Estado: POLÍTICA APROBADA; `KN-002` Y `KN-004` ACTIVAS EN STAGING
 - Inventario técnico: 2026-07-29
 - Datos de negocio incorporados: 2026-07-29
 - Aprobación de negocio: 2026-07-29
@@ -285,6 +285,9 @@ Quedan afuera:
 
 Una fuente vencida deja de citarse. Renovarla es una versión nueva del
 documento o de su vigencia en el manifiesto, cargada con `knowledge:corpus`.
+
+Cargadas en staging el 2026-09-11: versión 1 de cada una, en el vector store
+propio del ambiente, con recuperación verificada.
 
 ## Aprobación de negocio
 

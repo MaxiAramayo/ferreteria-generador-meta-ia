@@ -792,6 +792,11 @@ rollback de aplicación y migraciones compatibles.
   credenciales. **Condición para desplegar producción**: que la API de Odoo
   acepte un token por consumidor y cada ambiente tenga el suyo. El worker de
   staging llega a la API —responde 401 sin token— desde la red `egress`.
+- 2026-09-11: **staging quedó en `9b41275`**, con el cargador de conocimiento.
+  La copia previa, `aramayo-staging-20260911T134543Z`, se verificó con
+  restauración y se subió a Drive; redes, proveedores, Chromium, health y panel
+  pasaron las mismas comprobaciones que con `b0f0cac`, que se conserva para
+  rollback. Después, staging pasó a usar su propio vector store de OpenAI.
 
 ### Evidencia de cierre
 

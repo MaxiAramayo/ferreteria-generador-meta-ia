@@ -189,10 +189,9 @@ tarea:
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
-  destinos y horario— la publicación real que ya está redactada. El catálogo de
-  Odoo ya está en staging y el brief sale con datos reales; faltan los
-  documentos de conocimiento aprobados y la generación habilitada en
-  `/configuracion`.
+  destinos y horario— la publicación real que ya está redactada. Staging ya
+  tiene el catálogo de Odoo y el conocimiento aprobado cargado; falta habilitar
+  la generación en `/configuracion`.
 
 `P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
 
