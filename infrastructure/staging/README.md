@@ -125,6 +125,12 @@ sudo docker compose \
   up --detach --wait --no-deps worker
 ```
 
+Staging tiene su propio vector store de OpenAI, creado el 2026-09-11 con
+`knowledge:corpus --crear-vector-store`. Su ID es `OPENAI_VECTOR_STORE_ID` en el
+entorno y queda también en `/etc/aramayo-content/staging-vector-store.id`. El
+corpus aprobado se carga como indica
+[`OPENAI.md`](../../docs/integrations/OPENAI.md).
+
 ## Detención recuperable
 
 ```bash

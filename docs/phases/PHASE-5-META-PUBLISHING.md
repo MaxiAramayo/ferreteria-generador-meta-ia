@@ -1299,6 +1299,15 @@ destino previsto y que el sistema conserva evidencia completa.
   valida cada documento con la regla de la ingestión antes de escribir. La
   activación quedó registrada en el catálogo de fuentes; `KN-001` y `KN-005`
   esperan una decisión del negocio.
+- Fecha: 2026-09-11, 13:50 UTC. El corpus quedó cargado en staging.
+- Con `9b41275` desplegado, `knowledge:corpus` validó el corpus dentro de la
+  imagen, creó el vector store propio de staging, lo configuró y activó la
+  versión 1 de `KN-004` y de `KN-002`. Tres consultas salieron `grounded` con la
+  fuente esperada: si el lubricentro atiende camiones y si se venden materiales
+  de corralón, desde `KN-004` con 0,96 y 0,80; cómo se toman los turnos, desde
+  `KN-002` con 0,80.
+- Faltan para la corrida: la política de generación habilitada, confirmar en el
+  panel que la conexión Meta sigue vigente y las cinco decisiones del negocio.
 
 ### Evidencia de cierre
 

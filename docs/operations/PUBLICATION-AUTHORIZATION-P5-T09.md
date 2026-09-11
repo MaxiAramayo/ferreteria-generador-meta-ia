@@ -75,10 +75,11 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
    productivo de Odoo sin imprimirlo. Desde el worker, el smoke comercial
    devolvió precio `priced` y stock `known`, y un brief de prueba salió
    `generated` con evidencia del catálogo real.
-4. **Documentos de conocimiento en staging.** No hay ninguno. El brief corre
-   igual, pero sin evidencia documental y marcado como información faltante;
-   para un brief con evidencia vigente hay que cargar en staging los documentos
-   aprobados.
+4. **Documentos de conocimiento en staging.** Cumplida el 2026-09-11 para
+   `KN-002` y `KN-004`, en un vector store propio de staging: se cargaron con
+   `knowledge:corpus` y una consulta sobre el lubricentro recuperó `KN-004` con
+   puntaje 0,96. `KN-001` y `KN-005` siguen afuera hasta una decisión del
+   negocio.
 5. **Generación habilitada y con presupuesto.** La política de staging está
    deshabilitada. La habilita quien administra la organización desde
    `/configuracion`; los límites por omisión son 20 intentos diarios por
