@@ -153,8 +153,8 @@ veía porque construía para la máquina local; ahora construye y prueba
 revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
 en [`TESTING.md`](operations/TESTING.md).
 
-**Staging quedó en `b0f0cac`, con el worker y sus proveedores**, por
-autorización explícita del usuario del 2026-09-10. Staging destapó tres
+**Staging corre `dd6647d`, con el worker y sus proveedores**, por autorización
+explícita del usuario del 2026-09-10. Staging destapó tres
 defectos más, los tres corregidos y verificados en el host real: el worker **no
 podía abrir Chromium** porque su sistema de archivos es de sólo lectura y
 Chromium x64 necesita un `HOME` escribible —el Compose le fija `/tmp`—; un
@@ -165,6 +165,12 @@ interna y no habría podido llamar a OpenAI, Cloudinary ni Meta. Ahora sale por
 una red propia que ningún otro servicio comparte, y desde él OpenAI y Cloudinary
 responden 200. Health, readiness y el panel responden 200, y la correlación
 llega a la respuesta pública.
+
+**El panel ya permite cambiar la contraseña**, en `/cuenta`. No existía esa
+opción: la del administrador de staging se había creado a mano en el servidor,
+que sólo guarda su huella. Ahora pide la actual con el mismo límite de intentos
+que el login —un cambio fallido cuenta como intento—, no deja repetirla y cierra
+todas las sesiones, incluida la que hizo el cambio.
 
 **`P7-T04` cumple sus seis criterios.** Las copias van a Google Drive, y el RPO
 de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
