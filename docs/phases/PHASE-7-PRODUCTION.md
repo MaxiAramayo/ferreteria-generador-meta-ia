@@ -780,6 +780,13 @@ rollback de aplicación y migraciones compatibles.
   Meta Graph resolvió; Chromium 151 abrió y capturó. `/health`, `/ready` y el
   panel en 200, sin errores en el log del worker. `a6fbcf9` se conserva para
   rollback.
+- 2026-09-11: **staging usa el token de la API de Odoo que usará producción.**
+  `ferreteria_content_api` acepta un solo token y sin catálogo no hay brief en
+  staging. El acceso es de sólo lectura y no expone costo, margen, proveedor ni
+  datos personales, pero contradice que staging y producción no compartan
+  credenciales. **Condición para desplegar producción**: que la API de Odoo
+  acepte un token por consumidor y cada ambiente tenga el suyo. El worker de
+  staging llega a la API —responde 401 sin token— desde la red `egress`.
 
 ### Evidencia de cierre
 
