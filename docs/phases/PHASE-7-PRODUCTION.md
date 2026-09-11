@@ -797,6 +797,16 @@ rollback de aplicación y migraciones compatibles.
   restauración y se subió a Drive; redes, proveedores, Chromium, health y panel
   pasaron las mismas comprobaciones que con `b0f0cac`, que se conserva para
   rollback. Después, staging pasó a usar su propio vector store de OpenAI.
+- 2026-09-11: **staging quedó en `dd6647d`**, con el cambio de contraseña desde
+  el panel. La copia previa, `aramayo-staging-20260911T193404Z`, quedó
+  verificada y con sus dos archivos en Drive; la migración de los eventos de
+  contraseña se aplicó sola y el enum los tiene. `/health`, `/ready`, el panel y
+  `/cuenta` responden 200, y `POST /auth/password` sin sesión responde 401.
+  **El SSH se cortó durante la copia y el despliegue terminó igual en el
+  servidor**: el proceso remoto siguió sin su cliente, y la comprobación
+  posterior encontró la release activa, la migración aplicada y ninguna base de
+  verificación ni carpeta de trabajo sobrante. `9b41275` se conserva para
+  rollback.
 
 ### Evidencia de cierre
 
