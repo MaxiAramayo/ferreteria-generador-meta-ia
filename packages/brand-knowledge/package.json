@@ -10,7 +10,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "corpus"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.build.json",

@@ -1293,6 +1293,12 @@ destino previsto y que el sistema conserva evidencia completa.
   fallas; un brief real desde el panel los deja en su auditoría.
 - Faltan para la corrida: documentos de conocimiento en staging, la política de
   generación habilitada y las cinco decisiones del negocio.
+- Fecha: 2026-09-11. El usuario eligió cargar el conocimiento en staging con un
+  vector store propio. Se construyó `knowledge:corpus`, que carga el corpus
+  aprobado de `packages/brand-knowledge/corpus` —hoy `KN-002` y `KN-004`— y
+  valida cada documento con la regla de la ingestión antes de escribir. La
+  activación quedó registrada en el catálogo de fuentes; `KN-001` y `KN-005`
+  esperan una decisión del negocio.
 
 ### Evidencia de cierre
 

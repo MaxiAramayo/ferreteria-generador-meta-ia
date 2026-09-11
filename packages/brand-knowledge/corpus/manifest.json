@@ -1,0 +1,31 @@
+{
+  "organizationId": "10000000-0000-4000-8000-000000000001",
+  "brand": "Ferretería y Lubricentro Aramayo",
+  "sourceOwner": "Responsable de negocio",
+  "documents": [
+    {
+      "sourceKey": "kn-004.rubros-y-servicios",
+      "file": "kn-004-rubros-y-servicios.md",
+      "title": "Rubros y servicios de Aramayo",
+      "documentType": "services_catalog",
+      "sensitivity": "public",
+      "approvalReference": "KNOWLEDGE-SOURCE-CATALOG KN-004: extracto publicable de KN-006 aprobado el 2026-07-29; activación autorizada el 2026-09-11",
+      "approvedAt": "2026-07-29T00:00:00.000Z",
+      "effectiveFrom": "2026-09-11T00:00:00.000Z",
+      "effectiveUntil": "2026-10-27T00:00:00.000Z",
+      "locationIds": []
+    },
+    {
+      "sourceKey": "kn-002.politica-editorial",
+      "file": "kn-002-politica-editorial.md",
+      "title": "Política editorial de Aramayo",
+      "documentType": "editorial_policy",
+      "sensitivity": "internal",
+      "approvalReference": "KNOWLEDGE-SOURCE-CATALOG KN-002: política editorial aprobada el 2026-07-29; activación autorizada el 2026-09-11",
+      "approvedAt": "2026-07-29T00:00:00.000Z",
+      "effectiveFrom": "2026-09-11T00:00:00.000Z",
+      "effectiveUntil": "2027-01-25T00:00:00.000Z",
+      "locationIds": []
+    }
+  ]
+}

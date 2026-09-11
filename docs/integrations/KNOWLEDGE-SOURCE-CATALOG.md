@@ -1,11 +1,12 @@
 # Catálogo y política de fuentes de conocimiento
 
-- Estado: POLÍTICA APROBADA; FUENTES AÚN NO ACTIVADAS
+- Estado: POLÍTICA APROBADA; `KN-002` Y `KN-004` ACTIVABLES EN STAGING
 - Inventario técnico: 2026-07-29
 - Datos de negocio incorporados: 2026-07-29
 - Aprobación de negocio: 2026-07-29
 - Responsable de aprobación: función `Responsable de negocio`
-- Activación para IA: NO AUTORIZADA
+- Activación para IA: autorizada el 2026-09-11 para `KN-002` y `KN-004` en
+  staging; ver [Activación](#activación)
 
 ## Propósito y límite
 
@@ -258,6 +259,32 @@ ausente.
   eliminación o desactivación. Esta operación pertenece a `P3-T03`.
 - Una ejecución conserva ID de fuente, versión, hash, ámbito y timestamp. El
   contenido completo sólo se retiene según su clasificación.
+
+## Activación
+
+El 2026-09-11 el usuario autorizó cargar en staging las fuentes aprobadas que
+tienen versión documental en el repositorio, en un vector store propio de ese
+ambiente. El corpus vive en
+[`packages/brand-knowledge/corpus`](../../packages/brand-knowledge/corpus/) y
+su manifiesto declara aprobación, sensibilidad y vigencia de cada documento.
+
+| Fuente | Documento | Sensibilidad | Vigencia |
+|---|---|---|---|
+| `KN-004` | rubros y servicios, del extracto publicable de `KN-006` | `public` | del 2026-09-11 al 2026-10-27, la revisión de 90 días |
+| `KN-002` | política editorial del catálogo de piezas y las reglas de copy | `internal` | del 2026-09-11 al 2027-01-25, la revisión de 180 días |
+
+Quedan afuera:
+
+- `KN-001`: el perfil heredado no es fuente para IA hasta que el negocio lo
+  revise, y su handle, `@LubricentroAramayo`, no coincide con la cuenta de
+  Instagram conectada, `@ferreteria_aramayo`;
+- `KN-005`: cada versión debe declarar inicio y fin, y el repositorio no tiene
+  la lista de medios de pago;
+- `KN-003`: es estructurada; se lee de la configuración de organización y
+  sucursal, no de un documento.
+
+Una fuente vencida deja de citarse. Renovarla es una versión nueva del
+documento o de su vigencia en el manifiesto, cargada con `knowledge:corpus`.
 
 ## Aprobación de negocio
 
