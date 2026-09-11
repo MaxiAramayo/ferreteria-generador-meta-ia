@@ -72,8 +72,8 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
 3. **Catálogo comercial en staging.** Falta, y bloquea: sin las credenciales del
    sistema comercial el worker rechaza todo brief con `commercial-unavailable`,
    y sin brief no hay generación ni pieza que cumpla el primer criterio. Se
-   cargan con `load-provider-credentials.sh`, que exige el grupo
-   `ODOO_CONTENT_API_*` completo.
+   cargan con `load-odoo-credentials.sh`, que toma el token del `.env`
+   productivo de Odoo sin imprimirlo.
 4. **Documentos de conocimiento en staging.** No hay ninguno. El brief corre
    igual, pero sin evidencia documental y marcado como información faltante;
    para un brief con evidencia vigente hay que cargar en staging los documentos

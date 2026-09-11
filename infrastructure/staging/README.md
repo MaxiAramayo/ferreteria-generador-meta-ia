@@ -102,6 +102,20 @@ VPS como `/usr/local/sbin/aramayo-staging-credentials`—, que acepta sólo los
 nombres de su lista, valida el Compose resultante y deja junto al entorno una
 copia del anterior. Ninguno de los dos imprime un valor.
 
+Odoo tiene su propio script, porque su token no vive en esta máquina sino en el
+`.env` productivo de Odoo:
+
+```bash
+bash infrastructure/staging/load-odoo-credentials.sh --comprobar
+bash infrastructure/staging/load-odoo-credentials.sh
+```
+
+El primero verifica sin mandar nada. El segundo lee el token por SSH, sin
+imprimirlo ni guardarlo acá, y lo carga con la URL, la organización y el mapa de
+sucursales de staging. La API de Odoo acepta un solo token, así que staging usa
+el mismo que tendrá producción: separarlos exige que Odoo acepte un token por
+consumidor, y es condición de `P7-T07`.
+
 Sólo el worker usa esas credenciales, y las toma al recrearse:
 
 ```bash
