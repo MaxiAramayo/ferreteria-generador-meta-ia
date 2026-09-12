@@ -153,7 +153,7 @@ veía porque construía para la máquina local; ahora construye y prueba
 revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
 en [`TESTING.md`](operations/TESTING.md).
 
-**Staging corre `dd6647d`, con el worker y sus proveedores**, por autorización
+**Staging corre `9bad567`, con el worker y sus proveedores**, por autorización
 explícita del usuario del 2026-09-10. Staging destapó cuatro
 defectos más, los cuatro corregidos y verificados en el host real: el worker **no
 podía abrir Chromium** porque su sistema de archivos es de sólo lectura y

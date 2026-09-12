@@ -832,6 +832,28 @@ rollback de aplicación y migraciones compatibles.
   posterior encontró la release activa, la migración aplicada y ninguna base de
   verificación ni carpeta de trabajo sobrante. `9b41275` se conserva para
   rollback.
+- 2026-09-12: **el pie de una pieza afirma una sucursal que la pieza no
+  declara.** En el trazado de `P7-T03` la historia salió con
+  «Sucursal · Rivadavia 673» mientras el copy hablaba de casa central. La
+  publicación no tenía sucursal asignada y nada conecta `locationId` con el pie:
+  `content.branch` es un campo opcional que la API recibe del cliente y, cuando
+  falta, `footerBranch` decide por tema —`lubricentro` muestra casa central y
+  cualquier otro, la sucursal de la marca—. Con el tema `taller` eso afirmó una
+  dirección que nadie había elegido. No es un desvío del render: las 23 líneas
+  base visuales muestran ese pie por omisión, 21 con Rivadavia y 2 con casa
+  central. Queda registrado sin corregir porque falta una decisión de marca:
+  derivar la sucursal de la publicación es claro, pero qué mostrar cuando la
+  pieza no tiene ninguna —omitir el pie o fijar casa central— no lo decide el
+  código.
+- 2026-09-12: **staging quedó en `9bad567`**, con el buzón sin tópicos huérfanos
+  ([PR #50](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/50)).
+  La copia previa, `aramayo-staging-20260912T150137Z`, quedó verificada con
+  restauración —37 tablas— y subida a Drive; la release no trae migraciones. El
+  worker sigue en `backend` y `egress`, los almacenes no resuelven nombres de
+  afuera, y desde el worker OpenAI —modelos y vector store—, Cloudinary y Meta
+  responden; Chromium 151 captura con `HOME=/tmp`. El latido informa los tres
+  proveedores habilitados y cero errores desde el arranque; `/health`, `/ready`
+  y el panel responden 200. `dd6647d` se conserva para rollback.
 
 ### Evidencia de cierre
 
