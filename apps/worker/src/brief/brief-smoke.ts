@@ -214,7 +214,11 @@ async function runBriefSmoke(): Promise<void> {
     );
 
     const runId = randomUUID();
+    // El pedido se puede pasar por argumento para reproducir un caso concreto
+    // —por ejemplo una frase larga con medidas, que el catálogo no encuentra—
+    // sin depender de una sesión del panel.
     const requestText =
+      process.argv[2] ??
       "Quiero una pieza para difundir una amoladora angular que tengamos disponible hoy.";
     const requestedAt = new Date().toISOString();
     await runs.reserve({
