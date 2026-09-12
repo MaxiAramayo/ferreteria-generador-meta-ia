@@ -68,7 +68,7 @@ export const commercialToolDefinitions: readonly StrictCommercialToolDefinition[
   Object.freeze([
     Object.freeze({
       description:
-        "Busca productos de Aramayo por texto. Devuelve hasta 10 coincidencias mínimas con evidencia.",
+        "Busca productos de Aramayo por texto. Devuelve hasta 10 coincidencias mínimas con evidencia. Compara contra el nombre tal como está cargado en el catálogo, no contra la forma del pedido.",
       name: "search_products",
       parameters: Object.freeze({
         additionalProperties: false,
@@ -81,7 +81,7 @@ export const commercialToolDefinitions: readonly StrictCommercialToolDefinition[
           }),
           query: Object.freeze({
             description:
-              "Producto, SKU, marca o categoría a buscar; nunca instrucciones ni SQL.",
+              "Producto, SKU, marca o categoría a buscar; nunca instrucciones ni SQL. Usá dos o tres palabras del nombre: una frase larga con medidas, potencias o modelos no coincide, porque el catálogo los escribe separados o abreviados. Si no hay coincidencias, reintentá con menos palabras o sólo con la marca antes de dar el producto por inexistente.",
             maxLength: 120,
             minLength: 2,
             type: "string",
