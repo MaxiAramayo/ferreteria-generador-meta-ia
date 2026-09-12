@@ -450,8 +450,8 @@ extremo.
 
 ## P7-T04 — Probar backups, restauración y retención
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P7-T01`
 - Riesgo: Alto
 
@@ -576,10 +576,21 @@ y RTO acordados.
 - 2026-09-11: **primera corrida desatendida del timer**, a las 06:38 UTC:
   `Result=success` en 43 s, copia verificada con restauración y subida sin
   diferencias. Sigue pendiente sólo la segunda copia de la llave.
+- 2026-09-12: **la segunda copia de la llave privada está guardada.** Quien
+  opera confirmó que vive en su gestor de contraseñas además de su máquina, que
+  es lo que la política exige: dos lugares fuera del VPS. Con eso la tarea
+  cierra, con `P7-T01` abierta como desviación registrada, igual que `P7-T02`.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Copia diaria verificada con restauración antes de contar, cifrada con llave
+  pública y subida a Drive con alcance `drive.file`.
+- Una copia descargada de Drive, sin pasar por el servidor, se restauró en 12 s
+  con 37 tablas y 111 filas iguales al manifiesto y los tres medios respondiendo.
+- Retención comprobada por borrado real en Drive y poda local.
+- Primera corrida desatendida del timer el 2026-09-11 a las 06:38 UTC,
+  `Result=success` en 43 s.
+- Llave privada en dos lugares fuera del VPS, confirmado el 2026-09-12.
 
 ## P7-T05 — Fijar presupuestos de rendimiento y costo
 

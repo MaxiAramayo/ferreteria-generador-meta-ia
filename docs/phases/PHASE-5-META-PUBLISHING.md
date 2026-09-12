@@ -1325,10 +1325,20 @@ destino previsto y que el sistema conserva evidencia completa.
   del panel sigue siendo un marcador sin formulario. Mientras la búsqueda no
   tolere la forma del pedido, ninguna pieza puede cumplir el primer criterio,
   que exige que provenga de un brief.
-- Faltan para la corrida: que la búsqueda comercial tolere la forma del pedido,
-  confirmar en el panel que la conexión Meta sigue vigente y las cuatro
-  decisiones del negocio que siguen sin respuesta —copy, medios, destinos y
-  ventana horaria—.
+- Fecha: 2026-09-12, más tarde. **La búsqueda comercial ya tolera la forma del
+  pedido y el negocio respondió lo que faltaba.** La descripción de
+  `search_products` pasó a decir que la comparación es contra el nombre del
+  catálogo y que conviene reintentar con menos palabras; con `6949911`
+  desplegado, el mismo pedido encadenó `search_products`, un segundo
+  `search_products` con menos términos, `get_product` y `get_stock_by_location`,
+  los cuatro con éxito, y dejó cuatro evidencias y dos hechos verificados donde
+  antes había dos evidencias documentales y ningún dato comercial.
+- Decisiones respondidas el 2026-09-12: imagen **generada con IA**, destinos
+  **`instagram_feed` y `facebook_page`**, y **sale apenas el negocio apruebe la
+  pieza**. El producto ya estaba elegido.
+- Falta para la corrida: el copy aprobado sobre una pieza concreta —que es la
+  única de las cinco decisiones que no se toma en abstracto— y confirmar en el
+  panel que la conexión Meta sigue vigente.
 
 ### Evidencia de cierre
 

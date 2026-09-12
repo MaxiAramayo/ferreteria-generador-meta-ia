@@ -275,9 +275,11 @@ su manifiesto declara aprobación, sensibilidad y vigencia de cada documento.
 
 Quedan afuera:
 
-- `KN-001`: el perfil heredado no es fuente para IA hasta que el negocio lo
-  revise, y su handle, `@LubricentroAramayo`, no coincide con la cuenta de
-  Instagram conectada, `@ferreteria_aramayo`;
+- `KN-001`: el perfil heredado no es fuente para IA hasta que el negocio revise
+  el resto de sus campos —nombre, nombre corto y claim—. El desacuerdo de handle
+  quedó resuelto el 2026-09-12: el negocio confirmó que la cuenta real es
+  `@ferreteria_aramayo`, la misma que la plataforma tiene conectada, y el perfil
+  se corrigió;
 - `KN-005`: cada versión debe declarar inicio y fin, y el repositorio no tiene
   la lista de medios de pago;
 - `KN-003`: es estructurada; se lee de la configuración de organización y

@@ -29,7 +29,7 @@ export const ARAMAYO_BRAND_PROFILE: BrandProfile = Object.freeze({
   central: "República de Siria 365",
   city: "Frías, Santiago del Estero",
   claim: "Ferretería, hogar y automotor liviano",
-  handle: "@LubricentroAramayo",
+  handle: "@ferreteria_aramayo",
   name: "Ferretería y Lubricentro Aramayo",
   opening: "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
   phone: "3854 403534",
