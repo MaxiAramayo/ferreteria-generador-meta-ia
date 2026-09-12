@@ -325,6 +325,35 @@ humano. El contrato, la rúbrica y el comando están en
 - Registrar cada intento con modelo, tamaño, calidad, request ID y tokens de
   entrada de texto, entrada de imagen, salida y total.
 
+### Alcances que la clave necesita
+
+Permitir generación no alcanza. El worker modera antes y después de generar y esa
+revisión es fail-closed: si la moderación no responde, la ejecución se descarta
+sin intentar y la reserva se libera.
+
+El 2026-09-12 la clave de staging devolvió `401 missing_scope` —«Missing scopes:
+model.request»— contra `/v1/moderations`, mientras `/v1/images/generations`
+autenticaba sin problema. La misma clave podía generar pero no moderar, así que
+ninguna imagen llegó a generarse. En el panel el síntoma es una ejecución
+`failed` con sus variantes en `discarded`, cero intentos y
+`resolution_detail = «La revisión de seguridad del prompt no estuvo
+disponible.»`.
+
+Conviene comprobar el alcance antes de habilitar la generación en un ambiente
+nuevo:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://api.openai.com/v1/moderations \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"input":"prueba","model":"omni-moderation-latest"}'
+```
+
+Un 200 confirma el alcance; un 401 con `missing_scope` lo niega. El gateway de
+moderación convierte cualquier error en `ContentModerationError` y pierde la
+causa, así que el log no decía cuál era: ahora observa su llamada como el resto
+de los adaptadores y el fallo queda con su código.
+
 ### Pricing fijado
 
 `openai-gpt-image-2-standard-2026-08-05` fija `gpt-image-2`, calidad `medium`.

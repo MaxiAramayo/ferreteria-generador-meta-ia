@@ -126,6 +126,16 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
    por omisión —20 intentos diarios por organización, 8 por persona y USD 20 por
    mes—, y el consumo se ve en `/operacion`. El brief del 2026-09-12 gastó
    US$ 0,0165 en 5631 tokens.
+
+   **Generar imágenes sigue bloqueado por un permiso de la clave.** El
+   2026-09-12 la clave de OpenAI de staging devolvió `401 missing_scope` en
+   `/v1/moderations` mientras autenticaba sin problema en
+   `/v1/images/generations`: puede generar, no puede moderar. Como la moderación
+   previa es fail-closed, la ejecución quedó `failed` con sus dos variantes en
+   `discarded`, cero intentos y la reserva de USD 0,402 liberada sin gasto. Lo
+   destraba quien administra la cuenta de OpenAI habilitando el alcance de
+   modelos a esa clave; el detalle está en
+   [`OPENAI.md`](../integrations/OPENAI.md).
 6. **Copia de PostgreSQL previa.** Automática: la unidad diaria sube una copia
    verificada a Drive, y antes de la corrida se toma otra con
    `sudo aramayo-backup run staging`.

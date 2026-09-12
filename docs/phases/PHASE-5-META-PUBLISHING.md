@@ -1336,9 +1336,23 @@ destino previsto y que el sistema conserva evidencia completa.
 - Decisiones respondidas el 2026-09-12: imagen **generada con IA**, destinos
   **`instagram_feed` y `facebook_page`**, y **sale apenas el negocio apruebe la
   pieza**. El producto ya estaba elegido.
-- Falta para la corrida: el copy aprobado sobre una pieza concreta —que es la
-  única de las cinco decisiones que no se toma en abstracto— y confirmar en el
-  panel que la conexión Meta sigue vigente.
+- 2026-09-12, más tarde: **la pieza candidata llegó hasta la imagen.** Con
+  `fee6366` desplegado, el brief salió `generated` desde el panel con el
+  producto elegido: tres hechos verificados —producto, precio vigente y servicio
+  con fosa— y siete evidencias, cinco del catálogo real con hora de lectura. El
+  negocio pidió sacar el dato de stock del texto y el brief se rehízo sin él.
+- La conexión Meta quedó verificada el mismo día desde el panel: control del
+  día, `healthy`, con la Page y `@ferreteria_aramayo` activos y seis permisos
+  concedidos.
+- **Y ahí frenó, por un permiso de la clave de OpenAI.** La generación de la
+  imagen terminó `failed` con sus variantes en `discarded`, cero intentos y la
+  reserva liberada: `/v1/moderations` devuelve `401 missing_scope` mientras
+  `/v1/images/generations` autentica bien. La moderación previa es fail-closed,
+  así que el sistema prefirió no generar antes que generar sin revisar. No es un
+  defecto: es un alcance que falta habilitar en esa clave.
+- Falta para la corrida: el alcance de moderación en la clave de OpenAI de
+  staging, y el copy aprobado sobre la pieza terminada —la única de las cinco
+  decisiones que no se toma en abstracto—.
 
 ### Evidencia de cierre
 

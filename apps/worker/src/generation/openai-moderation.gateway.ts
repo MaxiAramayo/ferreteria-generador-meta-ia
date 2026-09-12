@@ -5,7 +5,10 @@ import {
   type ContentModerationPort,
   type ContentModerationResult,
 } from "@aramayo/domain";
+import { observeDependency } from "@aramayo/observability";
 import OpenAI from "openai";
+
+import { workerLog } from "../observability/worker-log.ts";
 
 export class OpenAIContentModerationGateway implements ContentModerationPort {
   readonly #client: OpenAI;
@@ -69,7 +72,14 @@ export class OpenAIContentModerationGateway implements ContentModerationPort {
               ),
               model: generationModerationModel,
             });
-      const { data, request_id: requestId } = await request.withResponse();
+      // La observación va acá y no afuera del try: el catch convierte cualquier
+      // error en `ContentModerationError` y pierde la causa, así que sin esto el
+      // log no dice si la moderación falló por red, por límite o por permiso.
+      const { data, request_id: requestId } = await observeDependency(
+        workerLog,
+        { dependency: "openai", operation: "moderations.create" },
+        () => request.withResponse(),
+      );
       const result = data.results[0];
       if (result === undefined) throw new ContentModerationError();
       const categories = Object.entries(result.categories)
