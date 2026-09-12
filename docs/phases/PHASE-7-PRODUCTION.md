@@ -872,6 +872,31 @@ rollback de aplicación y migraciones compatibles.
   responden; Chromium 151 captura con `HOME=/tmp`. El latido informa los tres
   proveedores habilitados y cero errores desde el arranque; `/health`, `/ready`
   y el panel responden 200. `dd6647d` se conserva para rollback.
+- 2026-09-12, más tarde: **el disco del VPS se llenó a mitad de un despliegue.**
+  Cada release deja cuatro imágenes por SHA —unos 8,3 GB— y nada las poda, así
+  que varios despliegues en el mismo día agotaron los 72 GB. El `pull` falló con
+  «no space left on device» **después** de que el script ya hubiera apuntado
+  `current` e `IMAGE_TAG` a la release nueva: los contenedores siguieron
+  sirviendo la anterior, sanos, pero el estado declarado y el real dejaron de
+  coincidir, y el reinicio de cualquiera de ellos no habría encontrado su imagen.
+- Se recuperó sin tocar datos: la caché de construcción liberó 3,6 GB y las
+  catorce releases más viejas se borraron por su SHA exacto, conservando las
+  cuatro más nuevas. De 444 MB libres a 47 GB. No se pierde nada al borrarlas
+  —cada imagen vive en GHCR y el host es sólo una caché— y la retención quedó
+  como paso 13 del despliegue en
+  [`VPS_OPERATIONS.md`](../operations/VPS_OPERATIONS.md), que antes sólo hablaba
+  de podar directorios de release y no sus imágenes.
+- 2026-09-12: **staging quedó en `fee6366`**, ya con espacio, y el estado
+  declarado volvió a coincidir con el real. Lleva el pie mostrando la dirección
+  sola, el compositor de IA eligiendo sucursal y la búsqueda comercial tolerante
+  a la forma del pedido
+  ([PR #54](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/54),
+  [#57](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/57) y
+  [#58](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/58)).
+  Copia previa `aramayo-staging-20260912T222938Z`, verificada con restauración y
+  subida a Drive. Cero errores del worker desde el arranque; `/health`, `/ready`
+  y el panel responden 200. `f4a8c91` se conserva para rollback y el disco quedó
+  al 40 %.
 
 ### Evidencia de cierre
 
