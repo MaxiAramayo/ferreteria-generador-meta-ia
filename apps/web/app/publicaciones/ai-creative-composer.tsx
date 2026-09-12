@@ -1,6 +1,9 @@
 "use client";
 
-import type { ContentBriefRunResponse } from "@aramayo/contracts";
+import type {
+  ContentBriefRunResponse,
+  LocationConfigurationResponse,
+} from "@aramayo/contracts";
 import {
   startTransition,
   useCallback,
@@ -17,6 +20,7 @@ import {
   loadContentBriefRun,
   requestContentBrief,
 } from "../../lib/content-brief-api";
+import { loadConfiguration } from "../../lib/organization-configuration-api";
 import {
   contentBriefDisplay,
   contentBriefUsageDisplay,
@@ -42,12 +46,18 @@ type ComposerNotice = Readonly<{
 function RequestForm({
   busy,
   canEdit,
+  locationId,
+  locations,
+  onLocationChange,
   onRequest,
   onTextChange,
   text,
 }: {
   readonly busy: boolean;
   readonly canEdit: boolean;
+  readonly locationId: string;
+  readonly locations: readonly LocationConfigurationResponse[];
+  readonly onLocationChange: (value: string) => void;
   readonly onRequest: () => void;
   readonly onTextChange: (value: string) => void;
   readonly text: string;
@@ -86,6 +96,27 @@ function RequestForm({
           value={text}
         />
       </label>
+      {locations.length === 0 ? null : (
+        <label>
+          Sucursal
+          <select
+            disabled={!canEdit || busy}
+            onChange={(event) => {
+              onLocationChange(event.currentTarget.value);
+            }}
+            value={locationId}
+          >
+            {locations.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+          <small>
+            El precio y el stock que cite la pieza son los de esta sucursal.
+          </small>
+        </label>
+      )}
       <div className="composer-form-actions">
         <span>
           {text.trim().length} de {requestMaximum} caracteres.
@@ -303,6 +334,28 @@ export function AICreativeComposer({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<ComposerNotice | null>(null);
   const idempotencyKey = useRef<string | null>(null);
+  const [locations, setLocations] = useState<
+    readonly LocationConfigurationResponse[]
+  >([]);
+  const [locationId, setLocationId] = useState("");
+
+  // El precio y el stock son de una sucursal concreta, así que el pedido viaja
+  // con la suya. Sin ella el worker rechaza toda consulta comercial por alcance
+  // inválido y la pieza se queda sin dato que citar, aunque el producto exista.
+  useEffect(() => {
+    void loadConfiguration(apiBaseUrl).then((result) => {
+      if (result.kind !== "ready") {
+        return;
+      }
+      const activas = result.configuration.locations.filter(
+        (location) => location.isActive,
+      );
+      startTransition(() => {
+        setLocations(activas);
+        setLocationId((current) => current || (activas[0]?.id ?? ""));
+      });
+    });
+  }, [apiBaseUrl]);
 
   const refreshHistory = useCallback(() => {
     void loadContentBriefHistory(apiBaseUrl, {
@@ -374,6 +427,7 @@ export function AICreativeComposer({
       setNotice({ text: "Pedido enviado. Esperando al worker…", tone: "info" });
       void requestContentBrief(apiBaseUrl, {
         idempotencyKey: idempotencyKey.current,
+        ...(locationId === "" ? {} : { locationId }),
         request: trimmed,
       }).then((result) => {
         startTransition(() => {
@@ -404,7 +458,7 @@ export function AICreativeComposer({
         });
       });
     },
-    [apiBaseUrl, refreshHistory],
+    [apiBaseUrl, locationId, refreshHistory],
   );
 
   const cancel = useCallback(() => {
@@ -506,6 +560,9 @@ export function AICreativeComposer({
         <RequestForm
           busy={busy || (display?.canCancel ?? false)}
           canEdit={canEdit}
+          locationId={locationId}
+          locations={locations}
+          onLocationChange={setLocationId}
           onRequest={() => {
             startRun(text);
           }}
