@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-11
+Actualizado: 2026-09-12
 
 ## Fase activa
 
@@ -120,6 +120,10 @@ de publicación, no superficie de ataque nueva. Cinco de sus seis criterios est�
 cubiertos y falta sólo la revisión manual independiente del checklist, que no
 puede hacerse desde adentro de la sesión que escribió el código.
 
+Con `P7-T03` y `P7-T04` cerradas, **`P7-T05` —presupuestos de rendimiento y
+costo— es la única tarea de la fase sin bloqueo externo**: depende de `P7-T02` y
+`P7-T03`, ambas completas.
+
 El [threat model](operations/THREAT-MODEL.md) dejó cuatro hallazgos, todos
 resueltos: dos avisos críticos de ejecución remota en Next.js —uno en
 optimización de imágenes—, las vulnerabilidades de libvips y libheif en sharp
@@ -175,7 +179,7 @@ que sólo guarda su huella. Ahora pide la actual con el mismo límite de intento
 que el login —un cambio fallido cuenta como intento—, no deja repetirla y cierra
 todas las sesiones, incluida la que hizo el cambio.
 
-**`P7-T04` cumple sus seis criterios.** Las copias van a Google Drive, y el RPO
+**`P7-T04` quedó cerrada.** Las copias van a Google Drive, y el RPO
 de 24 h y el RTO de 1 h quedaron aceptados con la autorización del usuario.
 `aramayo-backup` corre en el VPS todos los días a las 03:30 de Córdoba: cada
 copia se restaura antes de contar, se cifra con una llave pública —la privada
@@ -185,14 +189,14 @@ descargada de Drive**, sin pasar por el servidor, se restauró con 37 tablas y
 111 filas iguales al manifiesto, la huella idéntica y los tres medios
 respondiendo, en 12 s. La retención se comprobó borrando en Drive un archivo de
 prueba de 40 días, y la unidad diaria corrió sola por primera vez el 2026-09-11.
-Está en [`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
+El 2026-09-12 quien opera confirmó la segunda copia de la llave privada en su
+gestor de contraseñas —la política exige dos lugares fuera del VPS— y con eso
+cerró el último criterio. Está en
+[`BACKUP-RESTORE.md`](operations/BACKUP-RESTORE.md).
 
 **Lo que falta ya no es código: son pasos de personas.** Lo que destraba cada
 tarea:
 
-- `P7-T04`: confirmar que la llave privada de las copias está guardada también
-  en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
-  máquina es perder todas las copias;
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
@@ -204,7 +208,7 @@ tarea:
   compositor «Promoción de producto» todavía es un marcador sin formulario.
 
 `P7-T03` quedó cerrada, así que `P7-T05` ya no espera a nadie; el resto de la
-Fase 7 espera a esas tres.
+Fase 7 espera a esas dos.
 
 `P7-T03` — observabilidad y health operacional, **completa**. Sus seis criterios
 quedaron cubiertos en tres tramos y la última verificación —trazar un flujo

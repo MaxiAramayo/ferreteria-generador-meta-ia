@@ -1,6 +1,7 @@
 # Solicitud de autorización para la publicación real de `P5-T09`
 
-Estado: **pendiente de decisión del negocio**. Este documento no autoriza nada;
+Estado: **cuatro de las cinco decisiones respondidas el 2026-09-12; falta el
+copy, que se aprueba sobre la pieza concreta**. Este documento no autoriza nada;
 existe para que la autorización que exige
 [`ADR-019`](../architecture/decisions/ADR-019-EXISTING-META-ASSETS-VALIDATION.md)
 pueda darse sobre algo concreto en vez de sobre una intención.
@@ -29,16 +30,21 @@ Sin estas cinco respuestas la corrida no puede prepararse.
    datos comerciales se consultan y qué evidencia debe estar vigente.
    Respondida el 2026-09-12 para preparar la pieza candidata: **aceite sintético
    5W40 x 4 litros PITTS** (`odoo-product-11483`), con precio $76.500 y stock 7
-   en casa central verificados ese día contra la API comercial. Las otras cuatro
-   decisiones siguen sin respuesta.
+   en casa central verificados ese día contra la API comercial.
 2. **Copy aprobado.** El texto exacto que saldría publicado. Se aprueba en el
-   panel; nada se publica sin esa aprobación humana.
+   panel; nada se publica sin esa aprobación humana. **Es la única de las cinco
+   que sigue abierta**, y no se decide en abstracto: sale del brief y se aprueba
+   sobre la pieza concreta.
 3. **Medios.** Si la pieza usa una fotografía propia autorizada o una imagen
    generada. Si es generada, la corrida consume presupuesto de IA real.
+   Respondida el 2026-09-12: **imagen generada con IA**, asumiendo ese gasto.
 4. **Destinos.** Se propone `instagram_feed` y `facebook_page`, los mismos de
-   agosto. Historias quedan fuera salvo indicación contraria.
+   agosto. Historias quedan fuera salvo indicación contraria. Respondida el
+   2026-09-12: **los dos destinos**, que además permiten ejercitar el fallo
+   inducido en uno sin tocar el que sí salió.
 5. **Ventana horaria.** Cuándo puede salir. La publicación es visible para el
-   público de inmediato.
+   público de inmediato. Respondida el 2026-09-12: **sale apenas el negocio
+   apruebe la pieza**, sin ventana diferida.
 
 ## Lo que la plataforma ya determina
 
@@ -68,7 +74,7 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
 2026-09-12 contra la base y los servicios de staging:
 
 1. **Staging desplegado con el SHA que se va a verificar.** Cumplida el
-   2026-09-12: corre `9bad567` con todos los servicios, y el worker llega a
+   2026-09-12: corre `6949911` con todos los servicios, y el worker llega a
    OpenAI y Cloudinary.
 2. **Conexión Meta publicable.** La base la registra `healthy`, con la Page y
    `@ferreteria_aramayo` activos y los permisos `instagram_content_publish` y
@@ -99,11 +105,21 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
    del panel sigue siendo un marcador sin formulario —«no se simula una acción
    que todavía no está conectada al dominio»—, así que una pieza de producto sólo
    puede nacer de «Creatividad IA».
+
+   **Corregido y verificado el 2026-09-12.** La descripción de `search_products`
+   ahora dice que compara contra el nombre del catálogo y que conviene reintentar
+   con menos palabras. Con `6949911` desplegado, el mismo pedido —la frase larga
+   con medidas y marca— encadenó `search_products`, un segundo `search_products`
+   con menos términos, `get_product` y `get_stock_by_location`, los cuatro con
+   éxito: cuatro evidencias y dos hechos verificados, donde antes había dos
+   evidencias documentales y ningún dato comercial.
 4. **Documentos de conocimiento en staging.** Cumplida el 2026-09-11 para
    `KN-002` y `KN-004`, en un vector store propio de staging: se cargaron con
    `knowledge:corpus` y una consulta sobre el lubricentro recuperó `KN-004` con
-   puntaje 0,96. `KN-001` y `KN-005` siguen afuera hasta una decisión del
-   negocio.
+   puntaje 0,96. `KN-005` queda afuera por decisión del negocio del 2026-09-12:
+   el repositorio no tiene la lista de medios de pago y cada versión debe
+   declarar desde y hasta cuándo rige. `KN-001` sigue afuera hasta que el negocio
+   revise el resto del perfil; su desacuerdo de handle ya se resolvió.
 5. **Generación habilitada y con presupuesto.** Cumplida el 2026-09-12: la
    política de staging quedó habilitada desde `/configuracion`, con los límites
    por omisión —20 intentos diarios por organización, 8 por persona y USD 20 por
