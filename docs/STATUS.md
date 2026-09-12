@@ -196,9 +196,12 @@ tarea:
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
-  destinos y horario— la publicación real que ya está redactada. Staging ya
-  tiene el catálogo de Odoo, el conocimiento aprobado y la generación
-  habilitada: del lado técnico no falta nada.
+  destinos y horario— la publicación real. El producto ya está elegido —aceite
+  sintético 5W40 x 4 litros PITTS— y staging tiene catálogo, conocimiento y
+  generación habilitada, pero **del lado técnico sí falta algo**: el brief no
+  logra atar evidencia comercial a un pedido de producto, porque le pasa al
+  catálogo la frase completa del pedido y Odoo busca por nombre literal. El
+  compositor «Promoción de producto» todavía es un marcador sin formulario.
 
 `P7-T03` quedó cerrada, así que `P7-T05` ya no espera a nadie; el resto de la
 Fase 7 espera a esas tres.
