@@ -546,14 +546,20 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
   }
 
   #requiredExternalLocation(): CommercialExternalLocationId {
-    const externalLocation =
-      this.#scope.locationId === null
-        ? undefined
-        : this.#locationMappings.get(this.#scope.locationId);
+    // Son dos causas distintas y confundirlas manda a buscar donde no es: un
+    // pedido sin sucursal se arregla eligiendo una en el panel; una sucursal sin
+    // mapping, cargando el mapa del ambiente. El mensaje dice cuál de las dos.
+    if (this.#scope.locationId === null) {
+      throw new CommercialToolExecutionError(
+        "invalid-scope",
+        "El pedido no declara sucursal, y el precio y el stock son de una sucursal concreta.",
+      );
+    }
+    const externalLocation = this.#locationMappings.get(this.#scope.locationId);
     if (externalLocation === undefined) {
       throw new CommercialToolExecutionError(
         "invalid-scope",
-        "La sucursal autenticada no tiene mapping comercial.",
+        "La sucursal del pedido no tiene mapping comercial.",
       );
     }
     return externalLocation;
