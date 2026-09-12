@@ -97,7 +97,7 @@ export function ProductoDestacado(props: LayoutProps): ReactElement {
           >
             <Cta theme={theme}>{content.callToAction ?? "Escribinos"}</Cta>
             <Footer
-              branch={footerBranch(content, context, theme)}
+              branch={footerBranch(content, context)}
               context={context}
               theme={theme}
             />
@@ -218,7 +218,7 @@ export function ProductoMosaico(props: LayoutProps): ReactElement {
         </div>
         <div style={{ marginTop: SPACING.md }}>
           <Footer
-            branch={footerBranch(content, context, theme)}
+            branch={footerBranch(content, context)}
             context={context}
             theme={theme}
           />
@@ -399,7 +399,7 @@ export function LubricentroServicio(props: LayoutProps): ReactElement {
         </div>
       </div>
       <Footer
-        branch={footerBranch(content, context, theme)}
+        branch={footerBranch(content, context)}
         context={context}
         theme={theme}
       />
@@ -470,7 +470,7 @@ export function TipOficio(props: LayoutProps): ReactElement {
           {content.callToAction ?? "Guardalo para la próxima compra"}
         </Cta>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />
@@ -596,7 +596,7 @@ export function EppSeguridad(props: LayoutProps): ReactElement {
           {content.callToAction ?? "Consultá modelos y talles"}
         </Cta>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />
@@ -705,7 +705,7 @@ export function PresentacionMarca(props: LayoutProps): ReactElement {
       >
         <Cta theme={theme}>{content.callToAction ?? "Escribinos"}</Cta>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />

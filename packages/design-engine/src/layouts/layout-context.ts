@@ -45,19 +45,22 @@ export function mediaAt(
 }
 
 /**
- * Sucursal a mostrar al pie: la declarada en la pieza o la que corresponde a la
- * rama de marca del tema.
+ * Sucursal a mostrar al pie: la declarada en la pieza o, si no declara ninguna,
+ * la casa central.
+ *
+ * Antes lo decidía el tema, así que una pieza sin sucursal declarada afirmaba
+ * «Sucursal · Rivadavia 673» aunque su copy hablara de casa central: el render
+ * elegía una dirección que nadie había pedido. Cuando la pieza no dice de qué
+ * sucursal habla, la casa central es la única respuesta que el negocio dio por
+ * omisión.
  */
 export function footerBranch(
   content: DesignContent,
   context: LayoutContext,
-  theme: Theme,
 ): string {
   if (content.branch !== undefined) {
     return content.branch;
   }
 
-  return theme.brand === "lubricentro"
-    ? `Casa Central · ${context.brand.central}`
-    : `Sucursal · ${context.brand.branch}`;
+  return `Casa Central · ${context.brand.central}`;
 }

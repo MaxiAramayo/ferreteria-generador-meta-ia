@@ -38,11 +38,11 @@
     "      @610,790 398×272 div[data-price][data-role=precio]",
     "        @610,790 398×240 div «$ 24.500» 2 líneas · color rgb(230, 59, 30) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 150px · font-weight 900 · line-height 120px · text-transform uppercase",
     "        @610,1034 398×28 div «Válido hasta el sábado» 1 línea · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600",
-    "    @72,1144 936×134 div",
-    "      @72,1180 353×98 div",
-    "        @72,1180 353×98 div[data-cta][data-role=cta] «Consultá stock» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 42px · font-weight 800 · line-height 42px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px",
-    "      @524,1249 484×29 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
-    "        @524,1249 293×29 span «Sucursal · Rivadavia 673» 1 línea · line-height 28.6px",
-    "        @853,1250 155×28 span «3854 403534» 1 línea"
+    "    @72,1102 936×176 div",
+    "      @72,1138 323×140 div",
+    "        @72,1138 323×140 div[data-cta][data-role=cta] «Consultá stock» 2 líneas · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 42px · font-weight 800 · line-height 42px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px",
+    "      @431,1217 577×61 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
+    "        @431,1217 438×29 span «Casa Central · República de Siria 365» 1 línea · line-height 28.6px",
+    "        @431,1250 155×28 span «3854 403534» 1 línea"
   ]
 }

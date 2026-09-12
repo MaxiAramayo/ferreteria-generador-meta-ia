@@ -123,7 +123,7 @@ export function ProductoPrecio(props: LayoutProps): ReactElement {
           )}
         </div>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />
@@ -245,7 +245,7 @@ export function ComboKit(props: LayoutProps): ReactElement {
           </div>
         </div>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />
@@ -376,7 +376,7 @@ export function ProblemaSolucion(props: LayoutProps): ReactElement {
       </div>
       <div style={{ marginTop: SPACING.md }}>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />
@@ -638,7 +638,7 @@ export function HistoriaTip(props: LayoutProps): ReactElement {
         <Cta theme={theme}>{content.callToAction ?? "Guardá el tip"}</Cta>
         <div style={{ marginTop: SPACING.md }}>
           <Footer
-            branch={footerBranch(content, context, theme)}
+            branch={footerBranch(content, context)}
             context={context}
             theme={theme}
           />

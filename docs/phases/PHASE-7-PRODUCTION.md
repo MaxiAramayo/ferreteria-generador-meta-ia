@@ -841,10 +841,17 @@ rollback de aplicación y migraciones compatibles.
   cualquier otro, la sucursal de la marca—. Con el tema `taller` eso afirmó una
   dirección que nadie había elegido. No es un desvío del render: las 23 líneas
   base visuales muestran ese pie por omisión, 21 con Rivadavia y 2 con casa
-  central. Queda registrado sin corregir porque falta una decisión de marca:
-  derivar la sucursal de la publicación es claro, pero qué mostrar cuando la
-  pieza no tiene ninguna —omitir el pie o fijar casa central— no lo decide el
-  código.
+  central. **Corregido el mismo día**: el negocio decidió fijar la casa central
+  cuando la pieza no declara sucursal, así que `footerBranch` dejó de
+  preguntarle al tema y las diecisiete líneas base que mostraban ese pie por
+  omisión se regeneraron. El pie ahora ocupa dos filas —dirección y teléfono— y
+  el botón parte en dos líneas: se revisaron las piezas renderizadas antes de
+  aceptar la línea base.
+- Lo que sigue pendiente del pie: **derivar la sucursal de la publicación**. El
+  render no recibe `locationId` por ninguna capa —`renderContextFor` sólo toma
+  el perfil de marca— y el panel todavía no ofrece elegir sucursal, así que hoy
+  toda pieza sin sucursal declarada cae en la casa central, que es justamente lo
+  que se decidió.
 - 2026-09-12: **staging quedó en `9bad567`**, con el buzón sin tópicos huérfanos
   ([PR #50](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/50)).
   La copia previa, `aramayo-staging-20260912T150137Z`, quedó verificada con

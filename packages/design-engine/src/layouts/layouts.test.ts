@@ -332,5 +332,15 @@ test("el pie usa el perfil comercial recibido y no valores incrustados", () => {
   const html = markupFor("producto-destacado");
 
   assert.ok(html.includes(context.brand.phone));
-  assert.ok(html.includes(context.brand.branch));
+});
+
+test("una pieza que no declara sucursal muestra la casa central", () => {
+  // Antes lo decidía el tema: esta misma pieza, con tema «taller», afirmaba la
+  // sucursal de Rivadavia aunque nadie la hubiera elegido, y podía contradecir
+  // al copy. Sin sucursal declarada, la casa central es la única respuesta que
+  // el negocio dio por omisión.
+  const html = markupFor("producto-destacado");
+
+  assert.ok(html.includes(context.brand.central));
+  assert.ok(!html.includes(`Sucursal · ${context.brand.branch}`));
 });

@@ -269,7 +269,7 @@ function TechnicalFooter({
       </div>
       <div style={{ marginTop: SPACING.sm }}>
         <Footer
-          branch={footerBranch(content, context, theme)}
+          branch={footerBranch(content, context)}
           context={context}
           theme={theme}
         />

@@ -56,7 +56,7 @@ function StoryFooter(props: LayoutProps): ReactElement {
   return (
     <div style={{ marginTop: SPACING.md }}>
       <Footer
-        branch={footerBranch(content, context, theme)}
+        branch={footerBranch(content, context)}
         context={context}
         theme={theme}
       />
