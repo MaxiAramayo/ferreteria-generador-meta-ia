@@ -42,14 +42,14 @@
     "          @724,394 267×300 img imagen assets/stock-herramientas-electricas.jpg 1400×2100 · object-fit cover · overflow-x clip · overflow-y clip",
     "        @724,710 267×66 span «Maletín de transporte» 2 líneas · font-size 30px · font-weight 700 · line-height 33px",
     "    @72,894 936×384 div",
-    "      @72,930 398×348 div",
-    "        @72,930 398×272 div[data-price][data-role=precio]",
-    "          @72,930 398×240 div «$ 24.500» 2 líneas · color rgb(230, 59, 30) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 150px · font-weight 900 · line-height 120px · text-transform uppercase",
-    "          @72,1174 398×28 div «Válido hasta el sábado» 1 línea · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600",
-    "        @72,1218 398×60 div",
+    "      @72,930 464×348 div",
+    "        @72,930 464×272 div[data-price][data-role=precio]",
+    "          @72,930 464×240 div «$ 24.500» 2 líneas · color rgb(230, 59, 30) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 150px · font-weight 900 · line-height 120px · text-transform uppercase",
+    "          @72,1174 464×28 div «Válido hasta el sábado» 1 línea · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600",
+    "        @72,1218 464×60 div",
     "          @72,1218 235×60 div[data-cta][data-role=cta] «Consultá stock» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px",
-    "      @506,1217 502×61 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
-    "        @506,1217 438×29 span «Casa Central · República de Siria 365» 1 línea · line-height 28.6px",
-    "        @506,1250 155×28 span «3854 403534» 1 línea"
+    "      @572,1217 436×61 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
+    "        @572,1217 266×29 span «República de Siria 365» 1 línea · line-height 28.6px",
+    "        @572,1250 155×28 span «3854 403534» 1 línea"
   ]
 }

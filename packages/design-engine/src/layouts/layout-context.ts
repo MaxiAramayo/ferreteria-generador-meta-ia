@@ -46,13 +46,13 @@ export function mediaAt(
 
 /**
  * Sucursal a mostrar al pie: la declarada en la pieza o, si no declara ninguna,
- * la casa central.
+ * la dirección de la casa central.
  *
  * Antes lo decidía el tema, así que una pieza sin sucursal declarada afirmaba
- * «Sucursal · Rivadavia 673» aunque su copy hablara de casa central: el render
- * elegía una dirección que nadie había pedido. Cuando la pieza no dice de qué
- * sucursal habla, la casa central es la única respuesta que el negocio dio por
- * omisión.
+ * «Sucursal · Rivadavia 673» aunque su copy hablara de otra: el render elegía
+ * una dirección que nadie había pedido. Va la dirección sola, sin rótulo: el
+ * negocio nombra sus puntos de atención por su calle, que es como los conoce
+ * quien los busca.
  */
 export function footerBranch(
   content: DesignContent,
@@ -62,5 +62,5 @@ export function footerBranch(
     return content.branch;
   }
 
-  return `Casa Central · ${context.brand.central}`;
+  return context.brand.central;
 }

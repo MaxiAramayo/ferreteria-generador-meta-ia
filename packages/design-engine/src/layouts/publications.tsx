@@ -394,7 +394,7 @@ export function LubricentroServicio(props: LayoutProps): ReactElement {
               padding: SPACING.xl,
             }}
           >
-            Casa Central · {context.brand.central}
+            {context.brand.central}
           </div>
         </div>
       </div>

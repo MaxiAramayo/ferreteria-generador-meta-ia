@@ -48,10 +48,10 @@
     "              @113,796 20×20 path forma 995a3aa0",
     "              @118,801 1×1 circle forma febd83bc · fill rgb(255, 255, 255)",
     "          @165,788 343×37 span «Maletín de transporte» 1 línea · font-size 34px · font-weight 700 · line-height 37.4px",
-    "    @72,868 936×140 div",
-    "      @72,868 329×140 div[data-cta][data-role=cta] «Consultá stock» 2 líneas · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 42px · font-weight 800 · line-height 42px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px",
-    "      @437,947 571×61 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
-    "        @437,947 438×29 span «Casa Central · República de Siria 365» 1 línea · line-height 28.6px",
-    "        @437,980 155×28 span «3854 403534» 1 línea"
+    "    @72,910 936×98 div",
+    "      @72,910 353×98 div[data-cta][data-role=cta] «Consultá stock» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 42px · font-weight 800 · line-height 42px · text-align center · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 9999px",
+    "      @552,979 456×29 div · color rgba(246, 241, 234, 0.72) · font-size 26px · font-weight 600 · z-index 10",
+    "        @552,979 266×29 span «República de Siria 365» 1 línea · line-height 28.6px",
+    "        @853,980 155×28 span «3854 403534» 1 línea"
   ]
 }

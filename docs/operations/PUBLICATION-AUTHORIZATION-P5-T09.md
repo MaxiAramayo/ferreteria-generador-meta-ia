@@ -76,10 +76,11 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
 1. **Staging desplegado con el SHA que se va a verificar.** Cumplida el
    2026-09-12: corre `6949911` con todos los servicios, y el worker llega a
    OpenAI y Cloudinary.
-2. **Conexión Meta publicable.** La base la registra `healthy`, con la Page y
-   `@ferreteria_aramayo` activos y los permisos `instagram_content_publish` y
-   `pages_manage_posts`. Su última verificación es del 2026-09-01: el panel de
-   configuración tiene que confirmarla vigente antes de la corrida.
+2. **Conexión Meta publicable.** Cumplida el 2026-09-12: se corrió «Verificar
+   salud» desde el panel y la conexión quedó con control del día, `healthy` y
+   lista para publicar, con la Page y `@ferreteria_aramayo` activos y seis
+   permisos concedidos, ninguno faltante. La verificación anterior era del
+   2026-09-01.
 3. **Catálogo comercial en staging.** Cumplida el 2026-09-11: sin él, el worker
    rechaza todo brief con `commercial-unavailable`. Las credenciales se
    cargaron con `load-odoo-credentials.sh`, que toma el token del `.env`
