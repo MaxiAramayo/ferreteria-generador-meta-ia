@@ -1306,8 +1306,29 @@ destino previsto y que el sistema conserva evidencia completa.
   fuente esperada: si el lubricentro atiende camiones y si se venden materiales
   de corralón, desde `KN-004` con 0,96 y 0,80; cómo se toman los turnos, desde
   `KN-002` con 0,80.
-- Faltan para la corrida: la política de generación habilitada, confirmar en el
-  panel que la conexión Meta sigue vigente y las cinco decisiones del negocio.
+- Fecha: 2026-09-12. La política de generación quedó habilitada y el negocio
+  respondió la primera decisión: **aceite sintético 5W40 x 4 litros PITTS**
+  (`odoo-product-11483`), con precio $76.500 y stock 7 en casa central,
+  verificados ese día contra la API comercial.
+- **Y ahí apareció un bloqueo técnico que el pedido no nombraba: el brief no
+  puede atar evidencia comercial a un pedido de producto.** Le pasa al catálogo
+  la frase del pedido tal cual y Odoo busca por coincidencia literal de nombre,
+  así que «aceite sintético 5W40 x 4 litros de PITTS» produjo una búsqueda de 36
+  caracteres con cero resultados. El brief declaró faltantes de atributo y de
+  stock —como debe— y el texto terminó hablando sólo del servicio, sin el
+  producto. Contra la misma API, «aceite sintetico» devuelve cuatro resultados
+  con el producto incluido y «PITTS» devuelve dos, porque el catálogo lo escribe
+  «ACEITE SINTETICO 5 W 40 X 4 LTS - PITTS». La auditoría de la corrida lo
+  confirma: una sola invocación, `search_products` con éxito, y evidencia
+  compuesta apenas por los dos documentos de conocimiento.
+- Y ése es el único camino posible hoy: el compositor «Promoción de producto»
+  del panel sigue siendo un marcador sin formulario. Mientras la búsqueda no
+  tolere la forma del pedido, ninguna pieza puede cumplir el primer criterio,
+  que exige que provenga de un brief.
+- Faltan para la corrida: que la búsqueda comercial tolere la forma del pedido,
+  confirmar en el panel que la conexión Meta sigue vigente y las cuatro
+  decisiones del negocio que siguen sin respuesta —copy, medios, destinos y
+  ventana horaria—.
 
 ### Evidencia de cierre
 

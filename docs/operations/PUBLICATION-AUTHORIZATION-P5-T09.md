@@ -27,6 +27,10 @@ Sin estas cinco respuestas la corrida no puede prepararse.
 
 1. **Producto o mensaje.** Qué se comunica. Determina el brief y, con él, qué
    datos comerciales se consultan y qué evidencia debe estar vigente.
+   Respondida el 2026-09-12 para preparar la pieza candidata: **aceite sintético
+   5W40 x 4 litros PITTS** (`odoo-product-11483`), con precio $76.500 y stock 7
+   en casa central verificados ese día contra la API comercial. Las otras cuatro
+   decisiones siguen sin respuesta.
 2. **Copy aprobado.** El texto exacto que saldría publicado. Se aprueba en el
    panel; nada se publica sin esa aprobación humana.
 3. **Medios.** Si la pieza usa una fotografía propia autorizada o una imagen
@@ -61,10 +65,11 @@ confirmar se reconcilia primero, según
 ## Precondiciones técnicas
 
 Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
-2026-09-11 contra la base y los servicios de staging:
+2026-09-12 contra la base y los servicios de staging:
 
-1. **Staging desplegado con el SHA que se va a verificar.** Cumplida: corre
-   `b0f0cac` con todos los servicios, y el worker llega a OpenAI y Cloudinary.
+1. **Staging desplegado con el SHA que se va a verificar.** Cumplida el
+   2026-09-12: corre `9bad567` con todos los servicios, y el worker llega a
+   OpenAI y Cloudinary.
 2. **Conexión Meta publicable.** La base la registra `healthy`, con la Page y
    `@ferreteria_aramayo` activos y los permisos `instagram_content_publish` y
    `pages_manage_posts`. Su última verificación es del 2026-09-01: el panel de
@@ -75,16 +80,35 @@ Antes de pedir la corrida hay que comprobar, en este orden. Estado verificado el
    productivo de Odoo sin imprimirlo. Desde el worker, el smoke comercial
    devolvió precio `priced` y stock `known`, y un brief de prueba salió
    `generated` con evidencia del catálogo real.
+
+   **El 2026-09-12 apareció un límite que bloquea la pieza de producto.** El
+   brief le pasa al catálogo la frase del pedido tal cual, y Odoo busca por
+   coincidencia literal de nombre. Un pedido sobre «aceite sintético 5W40 x 4
+   litros de PITTS» produjo una búsqueda de 36 caracteres con **cero
+   resultados**: el brief declaró faltantes de atributo y de stock —como debe— y
+   el texto terminó hablando sólo del servicio, sin el producto. Contra la misma
+   API, «aceite sintetico» (16 caracteres) devuelve cuatro resultados con el
+   producto incluido y «PITTS» (5) devuelve dos, porque el catálogo lo escribe
+   «ACEITE SINTETICO 5 W 40 X 4 LTS - PITTS». La auditoría lo confirma: una sola
+   invocación, `search_products` con éxito, y evidencia compuesta apenas por los
+   dos documentos de conocimiento. Mientras la búsqueda no tolere la forma del
+   pedido, la cadena «brief con evidencia vigente → pieza generada» no se puede
+   recorrer para un producto.
+
+   Y el único camino posible hoy es ése: el compositor «Promoción de producto»
+   del panel sigue siendo un marcador sin formulario —«no se simula una acción
+   que todavía no está conectada al dominio»—, así que una pieza de producto sólo
+   puede nacer de «Creatividad IA».
 4. **Documentos de conocimiento en staging.** Cumplida el 2026-09-11 para
    `KN-002` y `KN-004`, en un vector store propio de staging: se cargaron con
    `knowledge:corpus` y una consulta sobre el lubricentro recuperó `KN-004` con
    puntaje 0,96. `KN-001` y `KN-005` siguen afuera hasta una decisión del
    negocio.
-5. **Generación habilitada y con presupuesto.** La política de staging está
-   deshabilitada. La habilita quien administra la organización desde
-   `/configuracion`; los límites por omisión son 20 intentos diarios por
-   organización, 8 por persona y USD 20 por mes, y el consumo se ve en
-   `/operacion`.
+5. **Generación habilitada y con presupuesto.** Cumplida el 2026-09-12: la
+   política de staging quedó habilitada desde `/configuracion`, con los límites
+   por omisión —20 intentos diarios por organización, 8 por persona y USD 20 por
+   mes—, y el consumo se ve en `/operacion`. El brief del 2026-09-12 gastó
+   US$ 0,0165 en 5631 tokens.
 6. **Copia de PostgreSQL previa.** Automática: la unidad diaria sube una copia
    verificada a Drive, y antes de la corrida se toma otra con
    `sudo aramayo-backup run staging`.
