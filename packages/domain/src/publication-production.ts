@@ -1,6 +1,6 @@
 import type { ReliableMutationContext } from "./reliable-operations.ts";
 
-export const publicationRenderTopic = "content.publication.render-requested";
+export { publicationRenderTopic } from "./reliable-operations.ts";
 
 export interface PublicationRenderRequestInput {
   readonly actorMembershipId: string;

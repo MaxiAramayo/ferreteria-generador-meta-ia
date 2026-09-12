@@ -235,7 +235,7 @@ export function pendingPublicationTargets(
   );
 }
 
-export const publicationOrderTopic = "content.publication.publish-requested";
+export { publicationOrderTopic } from "./reliable-operations.ts";
 
 export interface RequestPublicationOrderInput {
   readonly actorMembershipId: string;

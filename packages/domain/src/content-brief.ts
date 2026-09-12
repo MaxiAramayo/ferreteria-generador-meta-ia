@@ -736,7 +736,7 @@ export interface ContentBriefRunRejection {
  * generar —la IA vive en el worker— y el editor necesita ver el pedido
  * aceptado antes de que el modelo empiece a trabajar.
  */
-export const contentBriefGenerationTopic = "content.brief.generation-requested";
+export { contentBriefGenerationTopic } from "./reliable-operations.ts";
 
 /**
  * Lo que se conoce al pedir el brief, antes de ejecutarlo.

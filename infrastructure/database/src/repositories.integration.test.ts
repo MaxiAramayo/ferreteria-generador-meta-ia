@@ -1437,11 +1437,13 @@ test("borradores versionan con ownership, concurrencia, rollback e historial inm
     }),
     1,
   );
+  // Guardar un borrador no encola trabajo. El aviso que se emitía acá no tenía
+  // consumidor: reintentaba doce veces y moría.
   assert.equal(
     await database.outboxMessage.count({
       where: { id: baseInput.reliableOperation.outboxEventId },
     }),
-    1,
+    0,
   );
 
   const replayed = await repository.create({
@@ -1755,7 +1757,7 @@ test("idempotencia, auditoría y outbox conservan atomicidad y recuperan leases"
         eventId: outboxEventId,
         organizationId,
         payload: { publicationId: "publication-1", revisionNumber: 1 },
-        topic: "content.publication.created:v1",
+        topic: "content.publication.render-requested",
       },
     ],
   });
@@ -1815,7 +1817,7 @@ test("idempotencia, auditoría y outbox conservan atomicidad y recuperan leases"
           eventId: duplicatedEventId,
           organizationId,
           payload: { sequence: 1 },
-          topic: "content.publication.created:v1",
+          topic: "content.publication.render-requested",
         },
         {
           aggregateId: "publication-rollback",
@@ -1824,7 +1826,7 @@ test("idempotencia, auditoría y outbox conservan atomicidad y recuperan leases"
           eventId: duplicatedEventId,
           organizationId,
           payload: { sequence: 2 },
-          topic: "content.publication.created:v1",
+          topic: "content.publication.render-requested",
         },
       ],
     }),
@@ -9198,7 +9200,7 @@ test("la correlación vigente se estampa sola en auditoría y outbox y llega al 
             eventId: outboxEventId,
             organizationId,
             payload: { publicationId: "publication-correlation" },
-            topic: "content.publication.created:v1",
+            topic: "content.publication.render-requested",
           },
         ],
       }),

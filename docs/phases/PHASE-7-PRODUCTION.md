@@ -255,8 +255,8 @@ pruebas proporcionales a su riesgo y gates estables.
 
 ## P7-T03 — Implementar observabilidad y health operacional
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETA
 - Dependencias: `P6-T07`
 - Riesgo: Alto
 
@@ -282,7 +282,7 @@ extremo.
 
 ### Verificación obligatoria
 
-- [ ] Trazar un flujo completo en staging.
+- [x] Trazar un flujo completo en staging.
 - [x] Interrumpir cada dependencia y observar health/alerta.
 - [x] Revisar muestras de logs por filtración.
 
@@ -418,10 +418,35 @@ extremo.
   observaciones `dependency.call` de cada consulta al sistema comercial y de la
   llamada a OpenAI, con su latencia; generar la pieza sigue necesitando la
   política de generación habilitada.
+- Fecha: 2026-09-12. **Trazado completo en staging; la tarea cierra.** Con la
+  generación habilitada, una intención del panel se siguió de punta a punta:
+  borrador creado, pieza generada, render subido a Cloudinary y publicación en
+  `listo_para_revision`, cada paso con la correlación de la solicitud que lo
+  originó.
+- La pata que falta no es de esta tarea: publicar en Meta exige la autorización
+  concreta de `P5-T09`, que staging no tiene.
+- **Y el trazado encontró un defecto que ninguna prueba podía encontrar.** Cada
+  borrador guardado encolaba un aviso `content.publication.created:v1` que
+  ningún consumidor escuchaba. El tópico se armaba por plantilla
+  —`content.publication.<accion>:v1`— y el tipo de escritura aceptaba cualquier
+  cadena, así que el nombre no existía en ningún lugar donde buscarlo: el
+  mensaje reintentaba doce veces hasta morir y el tablero recién se enteraba al
+  final, con la carta muerta. Se dejó de emitir —la auditoría de la misma
+  transacción ya guarda acción, revisión y versión— y el vocabulario del buzón
+  pasó a un registro único que el tipo exige.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Trazado del 2026-09-12 en staging (`dd6647d`): publicación
+  `75b7ba4f-1625-4f53-80c8-583f628a1669` en `listo_para_revision`, revisión
+  `b4a8da64` renderizada a las 14:29:28 y medio
+  `07de7913-5a68-5abc-92b7-29dd58904894` disponible en Cloudinary; auditorías
+  `content.publication:create` con correlación `f9bae956…` y
+  `organization.generation-policy:update` con `97980e6b…`.
+- Corte de cada dependencia observado con su propio doble, y muestras de log
+  revisadas por filtración: en las notas de progreso de esta tarea.
+- Defecto hallado por el trazado y corregido en el mismo día: el aviso de
+  borrador guardado no tenía consumidor y moría reintentando.
 
 ## P7-T04 — Probar backups, restauración y retención
 

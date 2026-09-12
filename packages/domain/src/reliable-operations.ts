@@ -14,6 +14,37 @@ export const reliableOperationLimits = Object.freeze({
   topicNameMaximum: 160,
 });
 
+/**
+ * Vocabulario completo del buzón: un tópico existe si está declarado acá.
+ *
+ * Antes cada módulo declaraba el suyo y el tipo de escritura aceptaba cualquier
+ * cadena. Con eso una plantilla —`content.publication.${accion}:v1`— podía
+ * inventar un tópico que ningún consumidor escuchaba: el mensaje reintentaba
+ * doce veces y moría sin que nadie lo hubiera pedido, y el tablero recién se
+ * enteraba al final. Declararlos juntos obliga a decidir quién lo consume antes
+ * de poder emitirlo.
+ */
+export const contentBriefGenerationTopic = "content.brief.generation-requested";
+export const generationRunTopic = "content.generation.requested";
+export const publicationOccurrenceDispatchTopic =
+  "scheduling.occurrence.dispatch:v1";
+export const publicationOrderTopic = "content.publication.publish-requested";
+export const publicationRenderTopic = "content.publication.render-requested";
+
+export const outboxTopics = Object.freeze([
+  contentBriefGenerationTopic,
+  generationRunTopic,
+  publicationOccurrenceDispatchTopic,
+  publicationOrderTopic,
+  publicationRenderTopic,
+] as const);
+
+export type OutboxTopic = (typeof outboxTopics)[number];
+
+export function isOutboxTopic(topic: string): topic is OutboxTopic {
+  return outboxTopics.some((declared) => declared === topic);
+}
+
 export type SafeJsonPrimitive = boolean | number | string | null;
 export type SafeJsonValue =
   | SafeJsonPrimitive
@@ -118,7 +149,8 @@ export type ReliableOperationValidationErrorCode =
   | "payload-invalid"
   | "payload-too-deep"
   | "payload-too-large"
-  | "sensitive-field";
+  | "sensitive-field"
+  | "topic-unknown";
 
 export class ReliableOperationValidationError extends Error {
   readonly code: ReliableOperationValidationErrorCode;
@@ -212,8 +244,17 @@ export function validateReliableOperationName(operation: string): string {
   return operation;
 }
 
-export function validateOutboxTopic(topic: string): string {
+export function validateOutboxTopic(topic: string): OutboxTopic {
   assertBoundedName(topic, "topic", reliableOperationLimits.topicNameMaximum);
+  // El formato no alcanza: `content.publication.created:v1` lo cumplía y aun
+  // así no tenía consumidor. Lo que decide es el registro.
+  if (!isOutboxTopic(topic)) {
+    throw new ReliableOperationValidationError(
+      "topic-unknown",
+      "topic",
+      "El tópico outbox no está declarado.",
+    );
+  }
   return topic;
 }
 
@@ -263,7 +304,7 @@ export interface EnqueueOutboxMessageInput extends OrganizationScope {
   readonly availableAt: string;
   readonly eventId: string;
   readonly payload: SafeJsonObject;
-  readonly topic: string;
+  readonly topic: OutboxTopic;
 }
 
 export interface ReliableOperationCommitInput {

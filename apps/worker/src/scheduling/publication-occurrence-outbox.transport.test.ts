@@ -61,7 +61,9 @@ test("rechaza un tópico ajeno o una identidad de evento divergente", async () =
     new RecordingQueue(),
   );
   await assert.rejects(
-    transport.deliver(message({ topic: "content.publication.created:v1" })),
+    transport.deliver(
+      message({ topic: "content.publication.render-requested" }),
+    ),
     /no corresponde/u,
   );
   await assert.rejects(
