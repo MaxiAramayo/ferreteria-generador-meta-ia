@@ -305,7 +305,8 @@ staging, backup y rollback:
 9. iniciar la topología;
 10. esperar migración exitosa y healthchecks;
 11. comprobar HTTPS, `/health`, `/ready`, login y worker;
-12. conservar la release anterior para rollback.
+12. conservar la release anterior para rollback;
+13. podar las imágenes de las releases que dejaron de ser rollback elegible.
 
 Los comandos de promoción, una vez autorizada, son:
 
@@ -324,6 +325,28 @@ sudo docker compose \
 `api` y `worker` no arrancan si la migración falla. Caddy no arranca si web o
 API no están saludables. Un fallo se investiga; no se fuerza con flags que
 omitan dependencias.
+
+### Retención de imágenes
+
+Cada release deja en el host cuatro imágenes por SHA —worker, migración, web y
+API— que suman unos 8,3 GB, y nada las poda solo. Varios despliegues seguidos
+llenan el disco: el 2026-09-12 staging se quedó sin espacio en mitad de un
+`pull`, con el symlink y `IMAGE_TAG` ya apuntando a la release nueva y los
+contenedores todavía en la anterior. El sitio seguía en pie, pero el estado
+declarado y el real no coincidían, y un reinicio de cualquier contenedor no
+habría encontrado su imagen.
+
+Por eso el despliegue termina podando, por SHA exacto y nunca en bloque:
+
+```bash
+for REPO in api web worker migration; do
+  sudo docker image rm "ghcr.io/maxiaramayo/aramayo-content-$REPO:<sha-retirado>"
+done
+```
+
+Borrar esas imágenes no pierde nada: cada una vive en GHCR y el host es sólo una
+caché. `docker builder prune` libera además la caché de construcción, que no
+contiene datos ni volúmenes.
 
 ## Rollback
 
