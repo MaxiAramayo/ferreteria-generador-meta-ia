@@ -16,10 +16,22 @@ test("acepta identificadores estables y hashes SHA-256", () => {
     "content.publication-draft:create",
   );
   assert.equal(
-    validateOutboxTopic("content.publication.created:v1"),
-    "content.publication.created:v1",
+    validateOutboxTopic("content.publication.render-requested"),
+    "content.publication.render-requested",
   );
   assert.equal(validateSha256("a".repeat(64), "requestHash"), "a".repeat(64));
+});
+
+test("rechaza un tópico que ningún consumidor declara", () => {
+  // Cumple el formato y aun así nadie lo escucha: así nació el mensaje que
+  // reintentaba para siempre en staging.
+  assert.throws(
+    () => validateOutboxTopic("content.publication.created:v1"),
+    (cause: unknown) =>
+      cause instanceof ReliableOperationValidationError &&
+      cause.code === "topic-unknown" &&
+      cause.field === "topic",
+  );
 });
 
 test("la auditoría rechaza campos sensibles a cualquier profundidad", () => {

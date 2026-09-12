@@ -20,7 +20,7 @@ const message: OutboxMessageRecord = Object.freeze({
   organizationId: "10000000-0000-4000-8000-000000000002",
   payload: Object.freeze({ publicationId: "publication-1" }),
   status: "processing",
-  topic: "content.publication.created:v1",
+  topic: "content.publication.render-requested",
 });
 
 class FakeOutboxRepository implements OutboxRepository {

@@ -121,7 +121,7 @@ test("completa auditoría, respuesta y outbox sin copiar la clave original", asy
           aggregateId: "publication-1",
           aggregateType: "publication",
           payload: { publicationId: "publication-1" },
-          topic: "content.publication.created:v1",
+          topic: "content.publication.render-requested",
         },
       ],
       responseBody: { publicationId: "publication-1", version: 1 },

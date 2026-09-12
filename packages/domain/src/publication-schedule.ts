@@ -619,8 +619,7 @@ export interface PublicationOccurrenceRecord {
 }
 
 /** Tópico transaccional que solicita transportar una ocurrencia a Redis. */
-export const publicationOccurrenceDispatchTopic =
-  "scheduling.occurrence.dispatch:v1" as const;
+export { publicationOccurrenceDispatchTopic } from "./reliable-operations.ts";
 
 /** Cola BullMQ que transporta ocurrencias listas para `P6-T03`. */
 export const publicationOccurrenceQueueName = "scheduled-publications" as const;

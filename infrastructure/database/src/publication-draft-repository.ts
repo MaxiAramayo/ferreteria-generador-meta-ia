@@ -584,23 +584,12 @@ async function completeDraftMutation(
       responseBody: detailResponseBody(detail),
       responseStatus: action === "created" ? 201 : 200,
     },
-    outbox: [
-      {
-        aggregateId: input.publicationId,
-        aggregateType: "publication",
-        availableAt: input.reliableOperation.occurredAt,
-        eventId: input.reliableOperation.outboxEventId,
-        organizationId: input.organizationId,
-        payload: Object.freeze({
-          action,
-          publicationId: input.publicationId,
-          revisionId: revision.id,
-          revisionNumber: revision.revisionNumber,
-          version: detail.publication.version,
-        }),
-        topic: `content.publication.${action}:v1`,
-      },
-    ],
+    // Guardar un borrador no encola trabajo: nada tiene que ocurrir después.
+    // El evento de auditoría de esta misma transacción ya deja la acción, la
+    // revisión y la versión, así que el aviso que se emitía acá no informaba a
+    // nadie —ningún consumidor lo escuchaba— y sólo reintentaba hasta morir.
+    // El render se pide por su propio tópico cuando alguien lo pide.
+    outbox: [],
   });
   if (!completed) {
     throw new Error(

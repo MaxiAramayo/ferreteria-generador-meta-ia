@@ -387,6 +387,8 @@ export {
   type PublicationRevisionStatus,
 } from "./publication-draft.ts";
 export {
+  isOutboxTopic,
+  outboxTopics,
   reliableOperationLimits,
   ReliableOperationValidationError,
   validateAuditMetadata,
@@ -406,6 +408,7 @@ export {
   type OutboxMessageRecord,
   type OutboxMessageStatus,
   type OutboxRepository,
+  type OutboxTopic,
   type OutboxTransport,
   type ReliableOperationCommitInput,
   type ReliableOperationRepository,

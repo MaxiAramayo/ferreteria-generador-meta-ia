@@ -498,7 +498,7 @@ export type GenerationRunRequestResult =
  * —el proveedor de imágenes vive en el worker— y quien pide necesita ver el
  * lote aceptado antes de que empiece a gastar.
  */
-export const generationRunTopic = "content.generation.requested";
+export { generationRunTopic } from "./reliable-operations.ts";
 
 /**
  * Puerto de pedido, exclusivo de la API.

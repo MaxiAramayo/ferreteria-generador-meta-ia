@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type {
   AuthenticatedActor,
   IdempotencyClaimResult,
+  OutboxTopic,
   ReliableMutationContext,
   ReliableOperationRepository,
   SafeJsonObject,
@@ -47,7 +48,7 @@ export interface CompleteReliableOperationInput {
     aggregateId: string;
     aggregateType: string;
     payload: SafeJsonObject;
-    topic: string;
+    topic: OutboxTopic;
   }>[];
   readonly responseBody: SafeJsonObject;
   readonly responseStatus: number;

@@ -154,8 +154,8 @@ revisión humana, y ninguna de las dos cambia lo que este suite verifica. Está
 en [`TESTING.md`](operations/TESTING.md).
 
 **Staging corre `dd6647d`, con el worker y sus proveedores**, por autorización
-explícita del usuario del 2026-09-10. Staging destapó tres
-defectos más, los tres corregidos y verificados en el host real: el worker **no
+explícita del usuario del 2026-09-10. Staging destapó cuatro
+defectos más, los cuatro corregidos y verificados en el host real: el worker **no
 podía abrir Chromium** porque su sistema de archivos es de sólo lectura y
 Chromium x64 necesita un `HOME` escribible —el Compose le fija `/tmp`—; un
 **bitmap aprobado de App Review había dejado de servirse** desde que un cambio
@@ -163,8 +163,11 @@ lo retiró del panel —se restauró con el mismo `checksum_sha256` que registra
 base—, y **el worker no tenía salida a internet**: estaba sólo en la red
 interna y no habría podido llamar a OpenAI, Cloudinary ni Meta. Ahora sale por
 una red propia que ningún otro servicio comparte, y desde él OpenAI y Cloudinary
-responden 200. Health, readiness y el panel responden 200, y la correlación
-llega a la respuesta pública.
+responden 200. El cuarto lo destapó el trazado de punta a punta: **cada borrador
+guardado encolaba un aviso que ningún consumidor escuchaba**, con el tópico
+armado por plantilla y un tipo de escritura que aceptaba cualquier cadena; el
+mensaje reintentaba doce veces hasta morir. Health, readiness y el panel
+responden 200, y la correlación llega a la respuesta pública.
 
 **El panel ya permite cambiar la contraseña**, en `/cuenta`. No existía esa
 opción: la del administrador de staging se había creado a mano en el servidor,
@@ -190,21 +193,19 @@ tarea:
 - `P7-T04`: confirmar que la llave privada de las copias está guardada también
   en el gestor de contraseñas de quien opera; sin esa segunda copia, perder la
   máquina es perder todas las copias;
-- `P7-T03`: una sesión en el panel para trazar un flujo completo; el catálogo de
-  Odoo ya está en staging, así que puede empezar por un brief;
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
   destinos y horario— la publicación real que ya está redactada. Staging ya
-  tiene el catálogo de Odoo y el conocimiento aprobado cargado; falta habilitar
-  la generación en `/configuracion`.
+  tiene el catálogo de Odoo, el conocimiento aprobado y la generación
+  habilitada: del lado técnico no falta nada.
 
-`P7-T05` sólo espera a `P7-T03`; el resto de la Fase 7 espera a esas cuatro.
+`P7-T03` quedó cerrada, así que `P7-T05` ya no espera a nadie; el resto de la
+Fase 7 espera a esas tres.
 
-`P7-T03` — observabilidad y health operacional, **en progreso**. Se eligió
-porque es la única tarea habilitada sin bloqueo externo: depende sólo de
-`P6-T07`, que está completa. Sus seis criterios de aceptación quedaron cubiertos
-en tres tramos; lo que falta es verificación en un entorno remoto.
+`P7-T03` — observabilidad y health operacional, **completa**. Sus seis criterios
+quedaron cubiertos en tres tramos y la última verificación —trazar un flujo
+completo en staging— corrió el 2026-09-12.
 
 `P6-T09` —validar la programación de punta a punta— **no puede empezar**:
 necesita publicar de verdad en los activos de Meta y eso exige la misma
@@ -218,8 +219,8 @@ ventana horaria—, el efecto público e irreversible, las precondiciones técni
 y qué se verificará después. Responderla desbloquea `P5-T09`, después `P6-T09` y
 con ellas toda la Fase 7, cuyas ocho tareas restantes dependen de `P7-T01`.
 
-**`P7-T03` lleva tres tramos entregados.** Una intención se sigue de punta a
-punta con una correlación de 32 hexadecimales que vive en un
+**`P7-T03` entregó tres tramos y quedó verificada en staging.** Una intención se
+sigue de punta a punta con una correlación de 32 hexadecimales que vive en un
 `AsyncLocalStorage` y se estampa sola en auditoría y outbox: ningún repositorio
 la recibe por argumento, porque hay más de treinta lugares que escriben
 auditoría y alcanza con que uno la olvide para cortar la cadena. Cada línea de
@@ -238,11 +239,20 @@ Cortar cada dependencia ya está verificado: PostgreSQL y Redis dejan `/ready` e
 503 y su observación en el smoke; Meta, Cloudinary, el sistema comercial y
 OpenAI dejan observación con causa cuando se los interrumpe con su propio doble.
 
-**Queda una sola verificación: trazar un flujo completo en staging.** Necesita
-desplegar en el VPS, que hoy tiene la release seleccionada pero sin servicios
-iniciados y con OpenAI, Cloudinary y Meta deshabilitados. El trazado local ya
-existe: el E2E con Chrome comprueba que la correlación que devuelve la API llega
-a la auditoría y al trabajo que la ejecuta.
+**El trazado en staging corrió el 2026-09-12 y cerró la tarea.** Una intención
+del panel se siguió de punta a punta: borrador, generación, render subido a
+Cloudinary y publicación en `listo_para_revision`, con la correlación de la
+solicitud en cada auditoría. Publicar en Meta no era parte del trazado: eso
+exige la autorización concreta de `P5-T09`.
+
+**Y encontró lo que ninguna prueba veía.** Cada borrador guardado encolaba un
+aviso `content.publication.created:v1` que ningún consumidor escuchaba. El
+tópico se armaba por plantilla y el tipo de escritura aceptaba cualquier cadena,
+así que el nombre no existía en ningún lugar donde buscarlo; el mensaje
+reintentaba doce veces hasta morir y el tablero recién se enteraba al final. Se
+dejó de emitir —la auditoría de la misma transacción ya guarda acción, revisión
+y versión— y el vocabulario del buzón pasó a un registro único que el tipo
+exige.
 
 **`P6-T08` quedó cerrada.** Un feriado, un horario reducido o un cierre
 inesperado dejaron de depender de que alguien se acuerde de pausar la regla: la
