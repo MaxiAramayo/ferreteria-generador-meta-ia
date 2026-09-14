@@ -130,10 +130,15 @@ export function normalizeGenerationPolicyUpdate(
 }
 
 export const generationAdmissionReasons = [
+  // Los tres motivos siguientes son bloqueos: la política impidió el intento.
   "generation-disabled",
   "monthly-budget-exceeded",
   "organization-daily-limit",
   "user-daily-limit",
+  // Éste no es un bloqueo: una edición de marco y textos (`ADR-029`) nunca
+  // pide una llamada al proveedor, así que no tiene sentido evaluarla contra
+  // el presupuesto ni contra ningún límite diario.
+  "composition-edit",
 ] as const;
 
 export type GenerationAdmissionReason =

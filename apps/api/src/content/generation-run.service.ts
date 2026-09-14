@@ -22,22 +22,28 @@ import type {
 } from "@aramayo/contracts";
 import {
   authorizeActor,
+  frameLayoutIds,
   generationEditKinds,
   generationEditNeedsFactualRevalidation,
   generationRunLimits,
   generationRunProgress,
   generationImageModel,
   imageSizeForFormat,
+  validateGenerationCompositionEditCopy,
   visualFormatIds,
   visualSubjectKinds,
+  GenerationCompositionEditValidationError,
   type AuthenticatedActor,
+  type ComposedCopyOverride,
   type ContentBriefRunRepository,
   type ContentBriefRunRecord,
+  type FrameLayoutId,
   type GenerationRunRecord,
   type GenerationRunEditorialRepository,
   type GenerationRunRepository,
   type GenerationPolicyRepository,
   type GenerationRunRequestRepository,
+  type GenerationRunRequestResult,
   type GenerationEditKind,
   type MediaAssetRepository,
   type VisualFormatId,
@@ -80,10 +86,21 @@ export interface RequestGenerationRunCommand {
 }
 
 export interface RequestGenerationEditCommand {
+  /** Sólo para `kind: "composition"`. */
+  readonly badge?: string | null;
+  /** Sólo para `kind: "composition"`. */
+  readonly callToAction?: string;
   readonly contentBriefRunId?: string;
-  readonly instruction: string;
+  /** Requerida salvo para `kind: "composition"`, que no le pide nada a un modelo. */
+  readonly instruction?: string;
   readonly kind: string;
+  /** Sólo para `kind: "composition"`: el marco elegido. */
+  readonly layout?: string;
   readonly parentVariantId: string;
+  /** Sólo para `kind: "composition"`. */
+  readonly subtitle?: string | null;
+  /** Sólo para `kind: "composition"`. */
+  readonly title?: string;
   readonly variants?: number;
 }
 
@@ -326,23 +343,6 @@ export class GenerationRunService {
   ): Promise<GenerationRunAcceptedResponse> {
     this.#require(actor, "content:edit");
     const kind = this.#editKind(command.kind);
-    const instruction = command.instruction.replaceAll(/\s+/gu, " ").trim();
-    if (
-      instruction.length < generationRunLimits.editInstructionMinimum ||
-      instruction.length > generationRunLimits.editInstructionMaximum
-    ) {
-      throw new BadRequestException(
-        `La instrucción debe tener entre ${String(generationRunLimits.editInstructionMinimum)} y ${String(generationRunLimits.editInstructionMaximum)} caracteres.`,
-      );
-    }
-    if (
-      kind === "visual" &&
-      generationEditNeedsFactualRevalidation(instruction)
-    ) {
-      throw new ConflictException(
-        "Ese cambio afecta hechos comerciales. Revalidá el brief antes de generar otra pieza.",
-      );
-    }
 
     const parent = await this.#runs.findById({
       id: parentRunId,
@@ -360,6 +360,36 @@ export class GenerationRunService {
     ) {
       throw new ConflictException(
         "Sólo se puede editar una variante terminada y disponible.",
+      );
+    }
+
+    if (kind === "composition") {
+      return this.#requestCompositionEdit(
+        actor,
+        parentRunId,
+        parent,
+        command,
+        idempotencyKey,
+      );
+    }
+
+    const instruction = (command.instruction ?? "")
+      .replaceAll(/\s+/gu, " ")
+      .trim();
+    if (
+      instruction.length < generationRunLimits.editInstructionMinimum ||
+      instruction.length > generationRunLimits.editInstructionMaximum
+    ) {
+      throw new BadRequestException(
+        `La instrucción debe tener entre ${String(generationRunLimits.editInstructionMinimum)} y ${String(generationRunLimits.editInstructionMaximum)} caracteres.`,
+      );
+    }
+    if (
+      kind === "visual" &&
+      generationEditNeedsFactualRevalidation(instruction)
+    ) {
+      throw new ConflictException(
+        "Ese cambio afecta hechos comerciales. Revalidá el brief antes de generar otra pieza.",
       );
     }
     if (
@@ -434,6 +464,98 @@ export class GenerationRunService {
       subjectKind: parent.subjectKind,
       variantIds: Array.from({ length: variants }, () => randomUUID()),
     });
+    return this.#toAcceptedResponse(result);
+  }
+
+  /**
+   * Cambiar de marco y editar los textos (`ADR-029`).
+   *
+   * No pide nada a un modelo: conserva el brief original, valida el copy
+   * contra su evidencia y su capacidad de marco, y siempre produce una sola
+   * variante, porque recomponer la misma base con el mismo marco y copy no
+   * tendría sentido pedirlo dos veces.
+   */
+  async #requestCompositionEdit(
+    actor: AuthenticatedActor,
+    parentRunId: string,
+    parent: GenerationRunRecord,
+    command: RequestGenerationEditCommand,
+    idempotencyKey: string | undefined,
+  ): Promise<GenerationRunAcceptedResponse> {
+    if (command.contentBriefRunId !== undefined) {
+      throw new BadRequestException(
+        "Cambiar de marco y textos conserva el brief original y no acepta otro brief.",
+      );
+    }
+    const layout = this.#frameLayout(command.layout);
+    const briefRun = await this.#requireBrief(actor, parent.contentBriefRunId);
+    if (briefRun.brief === null) {
+      throw new ConflictException(
+        "El brief original ya no está disponible para recomponer la pieza.",
+      );
+    }
+
+    let copy: ComposedCopyOverride;
+    try {
+      copy = validateGenerationCompositionEditCopy(
+        {
+          badge: command.badge ?? null,
+          callToAction: command.callToAction ?? "",
+          layout,
+          subtitle: command.subtitle ?? null,
+          title: command.title ?? "",
+        },
+        briefRun.brief,
+      );
+    } catch (cause: unknown) {
+      if (cause instanceof GenerationCompositionEditValidationError) {
+        throw new BadRequestException(cause.message);
+      }
+      throw cause;
+    }
+
+    const requestedAt = new Date();
+    const runId = randomUUID();
+    const reliableOperation = this.#prepare(
+      actor,
+      "content.generation:edit",
+      idempotencyKey,
+      {
+        copy,
+        kind: "composition",
+        layout,
+        parentRunId,
+        parentVariantId: command.parentVariantId,
+      },
+      requestedAt,
+    );
+    const result = await this.#editorial.requestEdit({
+      actorMembershipId: actor.membershipId,
+      contentBriefRunId: parent.contentBriefRunId,
+      edit: {
+        copy,
+        kind: "composition",
+        layout,
+        parentRunId,
+        parentVariantId: command.parentVariantId,
+      },
+      format: parent.format,
+      id: runId,
+      organizationId: actor.organizationId,
+      reliableOperation,
+      requestedAt: requestedAt.toISOString(),
+      subjectKind: parent.subjectKind,
+      variantIds: Array.from(
+        { length: generationRunLimits.compositionEditVariants },
+        () => randomUUID(),
+      ),
+    });
+    return this.#toAcceptedResponse(result);
+  }
+
+  #toAcceptedResponse(
+    result: GenerationRunRequestResult,
+  ): GenerationRunAcceptedResponse {
     switch (result.status) {
       case "accepted":
         return {
@@ -631,6 +753,17 @@ export class GenerationRunService {
       throw new BadRequestException("El formato pedido no está aprobado.");
     }
     return format;
+  }
+
+  #frameLayout(value: string | undefined): FrameLayoutId {
+    if (value === undefined) {
+      throw new BadRequestException("Falta el marco elegido.");
+    }
+    const layout = frameLayoutIds.find((candidate) => candidate === value);
+    if (layout === undefined) {
+      throw new BadRequestException("El marco elegido no es válido.");
+    }
+    return layout;
   }
 
   #variants(value: number | undefined): number {

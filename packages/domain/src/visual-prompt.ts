@@ -248,12 +248,15 @@ export interface VisualPromptSubject {
  *
  * `brief-requested-template` es la decisión editorial del brief;
  * `generation-disabled` es la palanca de operación; `no-approved-reference` es
- * la consecuencia de un perfil que necesita una foto aprobada y no la tiene.
- * Los tres terminan en el mismo lugar —render completamente determinista— pero
- * quien audita necesita distinguirlos.
+ * la consecuencia de un perfil que necesita una foto aprobada y no la tiene;
+ * `composition-edit` es un cambio de marco y textos (`ADR-029`), que
+ * recompone la base que ya existe y nunca pide una imagen nueva. Todos
+ * terminan en el mismo lugar —render completamente determinista— pero quien
+ * audita necesita distinguirlos.
  */
 export const deterministicVisualReasons = [
   "brief-requested-template",
+  "composition-edit",
   "generation-disabled",
   "monthly-budget-exceeded",
   "no-approved-reference",

@@ -42,11 +42,14 @@ test("las variantes fallidas no exponen acciones que no pueden completar", () =>
   assert.equal(availableGenerationVariantActions(variant("pending")).size, 0);
 });
 
-test("una pieza determinista se compara y selecciona, pero no edita píxeles", () => {
+test("una pieza determinista se compara, recompone y selecciona, pero no edita píxeles", () => {
   const actions = availableGenerationVariantActions(
     variant("succeeded", "deterministic"),
   );
-  assert.deepEqual([...actions], ["compare", "edit-factual", "select"]);
+  assert.deepEqual(
+    [...actions],
+    ["compare", "edit-composition", "edit-factual", "select"],
+  );
 });
 
 test("una base generada habilita la edición visual controlada", () => {

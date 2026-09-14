@@ -12,10 +12,13 @@ import {
   generationPricingVersion,
   generationRunTopic,
   imageSizeForFormat,
+  type ComposedCopyOverride,
   type DeterministicVisualReason,
+  type FrameLayoutId,
   type GenerationRunCancellationOutcome,
   type GenerationAdmission,
   type GenerationRunCompletion,
+  type GenerationRunEdit,
   type GenerationRunEditorialRepository,
   type GenerationRunListFilter,
   type GenerationRunRecord,
@@ -93,8 +96,10 @@ const runSelection = {
   estimatedCostUsd: true,
   format: true,
   id: true,
+  editCopy: true,
   editInstruction: true,
   editKind: true,
+  editLayout: true,
   lineageRootId: true,
   organizationId: true,
   profileId: true,
@@ -181,6 +186,74 @@ function toVariant(row: GenerationRunVariantRow): GenerationVariantRecord {
   };
 }
 
+/**
+ * El copy de una edición de composición se guarda como JSON y vuelve como
+ * `Prisma.JsonValue`, que no promete ninguna forma. Esta fila la escribió
+ * `requestEdit` con el mismo objeto que ya validó `validateGenerationCompositionEditCopy`,
+ * pero eso no exime de comprobar la forma al leerla: un cambio de esquema sin
+ * migrar los datos existentes tiene que fallar acá, con nombre, y no producir
+ * una edición con campos indefinidos.
+ */
+function isComposedCopyOverride(
+  value: Prisma.JsonValue,
+): value is Prisma.JsonObject & ComposedCopyOverride {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record["title"] === "string" &&
+    typeof record["callToAction"] === "string" &&
+    (record["subtitle"] === null || typeof record["subtitle"] === "string") &&
+    (record["badge"] === null || typeof record["badge"] === "string")
+  );
+}
+
+function editFromRow(
+  row: Pick<
+    GenerationRunRow,
+    | "editCopy"
+    | "editInstruction"
+    | "editKind"
+    | "editLayout"
+    | "parentRunId"
+    | "parentVariantId"
+  >,
+): GenerationRunEdit | null {
+  if (
+    row.editKind === null ||
+    row.parentRunId === null ||
+    row.parentVariantId === null
+  ) {
+    return null;
+  }
+  if (row.editKind === "composition") {
+    if (row.editLayout === null || !isComposedCopyOverride(row.editCopy)) {
+      throw new TypeError(
+        "Una edición de composición sin marco o copy válidos no es representable.",
+      );
+    }
+    return {
+      copy: row.editCopy,
+      kind: "composition",
+      layout: row.editLayout as FrameLayoutId,
+      parentRunId: row.parentRunId,
+      parentVariantId: row.parentVariantId,
+    };
+  }
+  if (row.editInstruction === null) {
+    throw new TypeError(
+      "Una edición visual o factual sin instrucción no es representable.",
+    );
+  }
+  return {
+    instruction: row.editInstruction,
+    kind: row.editKind as "factual" | "visual",
+    parentRunId: row.parentRunId,
+    parentVariantId: row.parentVariantId,
+  };
+}
+
 function toRecord(row: GenerationRunRow): GenerationRunRecord {
   let reservedMicrousd = 0;
   let settledMicrousd = 0;
@@ -235,18 +308,7 @@ function toRecord(row: GenerationRunRow): GenerationRunRecord {
           : (settledMicrousd + unconfirmedMicrousd) / 1_000_000,
     format: row.format as VisualFormatId,
     id: row.id,
-    edit:
-      row.editKind === null ||
-      row.editInstruction === null ||
-      row.parentRunId === null ||
-      row.parentVariantId === null
-        ? null
-        : {
-            instruction: row.editInstruction,
-            kind: row.editKind as "visual" | "factual",
-            parentRunId: row.parentRunId,
-            parentVariantId: row.parentVariantId,
-          },
+    edit: editFromRow(row),
     lineageRootId: row.lineageRootId,
     organizationId: row.organizationId,
     // El plan es indivisible y la base lo garantiza: o están los cuatro campos
@@ -413,8 +475,10 @@ export class PrismaGenerationRunRequestRepository implements GenerationRunReques
           contentBriefRunId: input.contentBriefRunId,
           format: input.format,
           id: input.id,
+          editCopy: Prisma.DbNull,
           editInstruction: null,
           editKind: null,
+          editLayout: null,
           lineageRootId: input.id,
           organizationId: input.organizationId,
           requestedAt: new Date(input.requestedAt),
@@ -592,12 +656,18 @@ export class PrismaGenerationRunEditorialRepository implements GenerationRunEdit
         return { status: "idempotency-conflict" as const };
       }
 
+      const isComposition = input.edit.kind === "composition";
+
       await transaction.generationRun.create({
         data: {
           actorMembershipId: input.actorMembershipId,
           contentBriefRunId: input.contentBriefRunId,
-          editInstruction: input.edit.instruction,
+          editCopy: isComposition
+            ? (input.edit.copy as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
+          editInstruction: isComposition ? null : input.edit.instruction,
           editKind: input.edit.kind,
+          editLayout: isComposition ? input.edit.layout : null,
           format: input.format,
           id: input.id,
           lineageRootId: parent.lineageRootId,
@@ -622,15 +692,21 @@ export class PrismaGenerationRunEditorialRepository implements GenerationRunEdit
         },
       });
 
-      const admission = await reserveInitialGenerationAttempts(transaction, {
-        actorMembershipId: input.actorMembershipId,
-        at: new Date(input.requestedAt),
-        organizationId: input.organizationId,
-        quality: "medium",
-        runId: input.id,
-        size: imageSizeForFormat(input.format),
-        variantIds: input.variantIds,
-      });
+      // Cambiar de marco y textos nunca pide una llamada al proveedor: no
+      // tiene sentido evaluarlo contra el presupuesto ni contra ningún límite
+      // diario, así que la admisión se decide acá mismo y no en la reserva
+      // compartida con el resto de los pedidos.
+      const admission: GenerationAdmission = isComposition
+        ? { mode: "deterministic", reason: "composition-edit" }
+        : await reserveInitialGenerationAttempts(transaction, {
+            actorMembershipId: input.actorMembershipId,
+            at: new Date(input.requestedAt),
+            organizationId: input.organizationId,
+            quality: "medium",
+            runId: input.id,
+            size: imageSizeForFormat(input.format),
+            variantIds: input.variantIds,
+          });
       await transaction.generationRun.update({
         data:
           admission.mode === "provider"
@@ -659,10 +735,12 @@ export class PrismaGenerationRunEditorialRepository implements GenerationRunEdit
           eventId: input.reliableOperation.auditEventId,
           metadata: {
             changeKind: input.edit.kind,
-            instructionLength: input.edit.instruction.length,
             parentRunId: input.edit.parentRunId,
             parentVariantId: input.edit.parentVariantId,
             variants: input.variantIds.length,
+            ...(isComposition
+              ? { layout: input.edit.layout }
+              : { instructionLength: input.edit.instruction.length }),
           },
           occurredAt: input.reliableOperation.occurredAt,
           operation: input.reliableOperation.claim.operation,
@@ -837,8 +915,10 @@ export class PrismaGenerationRunRepository implements GenerationRunRepository {
         contentBriefRunId: reservation.contentBriefRunId,
         format: reservation.format,
         id: reservation.id,
+        editCopy: Prisma.DbNull,
         editInstruction: null,
         editKind: null,
+        editLayout: null,
         lineageRootId: reservation.id,
         organizationId: reservation.organizationId,
         requestedAt: new Date(reservation.requestedAt),

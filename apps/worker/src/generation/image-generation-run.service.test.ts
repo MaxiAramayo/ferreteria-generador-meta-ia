@@ -1186,3 +1186,229 @@ test("una ejecución hija visual lee la base y usa Images edit sin sobrescribir 
   assert.equal(child?.plan?.promptVersion, "visual-edit/2026-08-06.1");
   assert.equal(parent.variants[0]?.sha256, "1".repeat(64));
 });
+
+test("una edición de composición recompone la base del padre sin gastar", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  await reservedRun(runs);
+  const rootImages = new StubImages([
+    { sha256: "1".repeat(64) },
+    { sha256: "2".repeat(64) },
+  ]);
+  await service(runs, rootImages).execute({ organizationId, runId });
+  const parent = runs.records.find((record) => record.id === runId);
+  assert.ok(parent !== undefined);
+  const source = parent.variants[0];
+  assert.ok(source?.status === "succeeded" && source.source === "generated");
+
+  const childRunId = "44444444-4444-4444-8444-444444444498";
+  const childVariantId = "55555555-5555-4555-8555-555555555593";
+  runs.seed({
+    ...parent,
+    admission: { mode: "deterministic", reason: "composition-edit" },
+    cancelledAt: null,
+    completedAt: null,
+    edit: {
+      copy: {
+        badge: null,
+        callToAction: "Escribinos ya",
+        subtitle: null,
+        title: "Tornillos en oferta",
+      },
+      kind: "composition",
+      layout: "marco-etiqueta",
+      parentRunId: parent.id,
+      parentVariantId: source.id,
+    },
+    id: childRunId,
+    lineageRootId: parent.id,
+    plan: null,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+    resolution: null,
+    selectedAt: null,
+    selectedByMembershipId: null,
+    selectedVariantId: null,
+    selectionVersion: 0,
+    startedAt: null,
+    status: "pending",
+    totalTokens: 0,
+    variantIds: [childVariantId],
+    variants: [
+      {
+        attempts: 0,
+        completedAt: null,
+        composition: null,
+        failure: null,
+        height: null,
+        id: childVariantId,
+        index: 0,
+        latencyMilliseconds: 0,
+        mediaAssetId: null,
+        model: null,
+        requestId: null,
+        sha256: null,
+        source: "generated" as const,
+        status: "pending" as const,
+        width: null,
+      },
+    ],
+  });
+  const untouchedImages = new StubImages([]);
+
+  const result = await service(runs, untouchedImages).execute({
+    organizationId,
+    runId: childRunId,
+  });
+
+  // No pide ninguna imagen: recompone la misma base con otro marco y otro
+  // copy, y por eso se resuelve por el mismo camino que una pieza
+  // determinista.
+  assert.deepEqual(result, {
+    detail:
+      "La pieza se recompone con el marco y los textos elegidos, sin generar una imagen nueva.",
+    runId: childRunId,
+    status: "deterministic",
+  });
+  assert.equal(untouchedImages.requests.length, 0);
+  assert.equal(untouchedImages.editRequests.length, 0);
+
+  const child = runs.records.find((record) => record.id === childRunId);
+  assert.ok(child !== undefined);
+  assert.equal(child.status, "completed");
+  assert.equal(child.resolution?.deterministicReason, "composition-edit");
+  const childVariant = child.variants[0];
+  assert.ok(childVariant !== undefined);
+  assert.equal(childVariant.status, "succeeded");
+  assert.equal(childVariant.composition?.layout, "marco-etiqueta");
+  // El padre no se toca: sigue siendo la misma base, con su propio marco.
+  assert.equal(parent.variants[0]?.composition?.layout, "marco-zocalo");
+});
+
+test("una edición de composición sobre un padre determinista recompone sin base", async () => {
+  const runs = new InMemoryGenerationRunRepository();
+  const deterministicParentId = "44444444-4444-4444-8444-444444444497";
+  const deterministicVariantId = "55555555-5555-4555-8555-555555555594";
+  await runs.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: deterministicParentId,
+    organizationId,
+    requestedAt: "2026-08-03T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds: [deterministicVariantId],
+  });
+  const now = "2026-08-03T12:00:05.000Z";
+  await runs.completeDeterministicVariant(
+    {
+      composition: {
+        compositionHash: "6".repeat(64),
+        height: 1350,
+        layout: "marco-zocalo",
+        mediaAssetId: "77777777-7777-4777-8777-777777777777",
+        overlayHash: "7".repeat(64),
+        sha256: "8".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-09-14.1",
+        width: 1080,
+      },
+      organizationId,
+      runId: deterministicParentId,
+      variantId: deterministicVariantId,
+    },
+    now,
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: null,
+      id: deterministicParentId,
+      organizationId,
+      plan: null,
+      resolution: {
+        deterministicReason: "brief-requested-template",
+        detail: "La pieza se resuelve con render determinista.",
+      },
+      status: "completed",
+      totalTokens: 0,
+    },
+    now,
+  );
+  const deterministicParent = await runs.findById({
+    id: deterministicParentId,
+    organizationId,
+  });
+  assert.ok(deterministicParent !== null);
+  const deterministicSource = deterministicParent.variants[0];
+  assert.ok(
+    deterministicSource?.status === "succeeded" &&
+      deterministicSource.source === "deterministic",
+  );
+
+  const childRunId = "44444444-4444-4444-8444-444444444496";
+  const childVariantId = "55555555-5555-4555-8555-555555555595";
+  runs.seed({
+    ...deterministicParent,
+    admission: { mode: "deterministic", reason: "composition-edit" },
+    cancelledAt: null,
+    completedAt: null,
+    edit: {
+      copy: {
+        badge: null,
+        callToAction: "Consultá por WhatsApp",
+        subtitle: "Con mecha y maletín.",
+        title: "Tornillos para tu obra",
+      },
+      kind: "composition",
+      layout: "marco-velo-superior",
+      parentRunId: deterministicParent.id,
+      parentVariantId: deterministicSource.id,
+    },
+    id: childRunId,
+    lineageRootId: deterministicParent.id,
+    plan: null,
+    requestedAt: "2026-08-03T13:00:00.000Z",
+    resolution: null,
+    selectedAt: null,
+    selectedByMembershipId: null,
+    selectedVariantId: null,
+    selectionVersion: 0,
+    startedAt: null,
+    status: "pending",
+    totalTokens: 0,
+    variantIds: [childVariantId],
+    variants: [
+      {
+        attempts: 0,
+        completedAt: null,
+        composition: null,
+        failure: null,
+        height: null,
+        id: childVariantId,
+        index: 0,
+        latencyMilliseconds: 0,
+        mediaAssetId: null,
+        model: null,
+        requestId: null,
+        sha256: null,
+        source: "generated" as const,
+        status: "pending" as const,
+        width: null,
+      },
+    ],
+  });
+  const untouchedImages = new StubImages([]);
+  const untouchedMedia = new StubMedia();
+
+  const result = await service(runs, untouchedImages, untouchedMedia).execute({
+    organizationId,
+    runId: childRunId,
+  });
+
+  assert.equal(result.status, "deterministic");
+  assert.equal(untouchedImages.requests.length, 0);
+  assert.equal(untouchedImages.editRequests.length, 0);
+  // Sin base que leer: el padre no tiene bytes, y recomponer no los inventa.
+  assert.equal(untouchedMedia.uploads.length, 1);
+
+  const child = runs.records.find((record) => record.id === childRunId);
+  assert.equal(child?.variants[0]?.composition?.layout, "marco-velo-superior");
+});

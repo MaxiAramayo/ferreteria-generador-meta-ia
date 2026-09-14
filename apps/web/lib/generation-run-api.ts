@@ -207,6 +207,40 @@ export function requestGenerationEdit(
   );
 }
 
+/**
+ * Cambiar de marco y editar los textos (`ADR-029`). A diferencia de
+ * {@link requestGenerationEdit}, no le pide nada a un modelo: en vez de una
+ * instrucción, lleva el marco elegido y el copy completo.
+ */
+export function requestGenerationCompositionEdit(
+  apiBaseUrl: string,
+  input: Readonly<{
+    badge: string | null;
+    callToAction: string;
+    idempotencyKey: string;
+    layout: string;
+    parentRunId: string;
+    parentVariantId: string;
+    subtitle: string | null;
+    title: string;
+  }>,
+): Promise<GenerationMutationResult> {
+  return mutation(
+    apiBaseUrl,
+    `generation-runs/${input.parentRunId}/edits`,
+    {
+      badge: input.badge,
+      callToAction: input.callToAction,
+      kind: "composition",
+      layout: input.layout,
+      parentVariantId: input.parentVariantId,
+      subtitle: input.subtitle,
+      title: input.title,
+    },
+    input.idempotencyKey,
+  );
+}
+
 export function selectGenerationVariant(
   apiBaseUrl: string,
   input: Readonly<{

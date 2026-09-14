@@ -29,6 +29,7 @@
 import { type ContentBrief, type ContentBriefFact } from "./content-brief.ts";
 import {
   reservedRectangleFor,
+  visualReservedSpaces,
   type VisualCanvas,
   type VisualFormatId,
   type VisualReservedSpace,
@@ -158,6 +159,27 @@ export function composedLayoutFor(region: VisualReservedSpace): FrameLayoutId {
     case "left_column":
       return "marco-columna-izquierda";
   }
+}
+
+/**
+ * Región de la que un marco es el valor por defecto, o el tercio inferior si
+ * ninguna lo elige.
+ *
+ * El recorte de un marco no depende de la región reservada —cada uno define su
+ * propia zona en `composedCropForLayout`—, pero el plan igual conserva una
+ * región y entra en la huella. Cuando se recompone una variante existente con
+ * otro marco (`ADR-029`, cambio de marco), no queda ninguna región original que
+ * recuperar del historial, así que se usa ésta: no cambia el recorte, sólo
+ * identifica la pieza.
+ */
+export function defaultRegionForFrame(
+  layout: FrameLayoutId,
+): VisualReservedSpace {
+  return (
+    visualReservedSpaces.find(
+      (region) => composedLayoutFor(region) === layout,
+    ) ?? "lower_third"
+  );
 }
 
 export type VisualCompositionErrorCode =
@@ -421,12 +443,63 @@ const copyCapacity: Readonly<Record<ComposedLayoutId, CopyCapacity>> =
     }),
   });
 
+/**
+ * Cuánto texto sostiene cada pieza, para quien valida un copy editado antes de
+ * llegar acá (`ADR-029`, cambio de marco y textos).
+ *
+ * Sale de la misma tabla que decide qué se compone por defecto: un titular o
+ * una bajada que no entran en la zona de un marco no se aceptan sólo porque
+ * alguien los volvió a escribir.
+ */
+export interface ComposedCopyCapacity {
+  readonly badge: boolean;
+  readonly price: boolean;
+  readonly subtitleMaximum: number;
+}
+
+export function composedCopyCapacityFor(
+  layout: ComposedLayoutId,
+): ComposedCopyCapacity {
+  return copyCapacity[layout];
+}
+
+/**
+ * Título, bajada, etiqueta y llamado a la acción elegidos por quien revisa la
+ * variante, en lugar de los que derivaría el brief.
+ *
+ * Precio y vigencia quedan afuera a propósito: siguen componiéndose sólo desde
+ * hechos verificados, y ninguna edición de marco y textos los puede tocar
+ * (`ADR-029`, sección 7).
+ */
+export interface ComposedCopyOverride {
+  readonly badge: string | null;
+  readonly callToAction: string;
+  readonly subtitle: string | null;
+  readonly title: string;
+}
+
 export function composedCopyFor(
   brief: ContentBrief,
   layout: ComposedLayoutId,
+  override?: ComposedCopyOverride,
 ): ComposedCopy {
   const capacity = copyCapacity[layout];
   const price = capacity.price ? verifiedPriceFor(brief) : null;
+
+  if (override !== undefined) {
+    return Object.freeze({
+      badge: capacity.badge ? override.badge : null,
+      callToAction: override.callToAction,
+      price: price?.amount ?? null,
+      priceEvidenceId: price?.evidenceId ?? null,
+      // Quien llama ya validó el texto contra esta misma capacidad: acá no se
+      // recorta en silencio un valor que no debería haber llegado.
+      subtitle: override.subtitle,
+      title: override.title,
+      validity: capacity.price ? verifiedValidityFor(brief) : null,
+    });
+  }
+
   const carriesSubtitle =
     brief.subtitle !== null &&
     brief.subtitle.length <= capacity.subtitleMaximum &&
@@ -601,6 +674,11 @@ export interface PlanComposedPieceInput {
   readonly base: ComposedBaseSize;
   readonly brief: ContentBrief;
   readonly canvas: VisualCanvas;
+  /**
+   * Título, bajada, etiqueta y llamado a la acción elegidos desde la variante.
+   * Sin ella, los cuatro salen del brief como siempre.
+   */
+  readonly copyOverride?: ComposedCopyOverride | undefined;
   readonly format: VisualFormatId;
   /**
    * Pieza elegida por quien revisa la variante. Sin ella se usa el marco por
@@ -629,18 +707,19 @@ export function planComposedPiece(
   }
 
   const budget = composedTitleBudget[layout];
+  const title = input.copyOverride?.title ?? input.brief.title;
 
-  if (input.brief.title.length > budget) {
+  if (title.length > budget) {
     throw new VisualCompositionError(
       "copy-too-long",
-      "brief.title",
+      input.copyOverride === undefined ? "brief.title" : "copy.title",
       "El titular no entra en la zona de texto de la pieza.",
       `Acortá el título a ${String(budget)} caracteres o menos, o elegí un marco con más lugar para el texto.`,
     );
   }
 
   return Object.freeze({
-    copy: composedCopyFor(input.brief, layout),
+    copy: composedCopyFor(input.brief, layout, input.copyOverride),
     crop: composedCropForLayout(layout, input.base, input.canvas),
     format: input.format,
     layout,

@@ -4840,6 +4840,223 @@ test("E2E generar-editar-comparar-seleccionar conserva genealogía y auditoría"
   );
 });
 
+test("una edición de composición recompone sin admisión de proveedor ni instrucción", async () => {
+  const { briefRunId, membershipId, organizationId } =
+    await generationFixture();
+  const runs = new PrismaGenerationRunRepository(database);
+  const editorial = new PrismaGenerationRunEditorialRepository(database);
+  const parentRunId = randomUUID();
+  const parentVariantId = randomUUID();
+  await runs.reserve({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    format: "feed",
+    id: parentRunId,
+    organizationId,
+    requestedAt: "2026-09-14T12:00:00.000Z",
+    subjectKind: "generic",
+    variantIds: [parentVariantId],
+  });
+
+  const baseAssetId = randomUUID();
+  const composedAssetId = randomUUID();
+  await database.mediaAsset.createMany({
+    data: [
+      {
+        byteSize: 600_000n,
+        checksumSha256: "1".repeat(64),
+        height: 1536,
+        id: baseAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "base-composicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${baseAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${baseAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1024,
+      },
+      {
+        byteSize: 640_000n,
+        checksumSha256: "2".repeat(64),
+        height: 1350,
+        id: composedAssetId,
+        mimeType: "image/png",
+        organizationId,
+        origin: "generated",
+        originalFileName: "pieza-composicion.png",
+        ownerMembershipId: membershipId,
+        secureUrl: `https://media.invalid/${composedAssetId}.png`,
+        status: "available",
+        storageKey: `generated/${composedAssetId}`,
+        storageProvider: "cloudinary",
+        storageVersion: 1,
+        width: 1080,
+      },
+    ],
+  });
+  await runs.completeVariant(
+    {
+      attempts: 1,
+      composition: {
+        compositionHash: "3".repeat(64),
+        height: 1350,
+        layout: "marco-zocalo",
+        mediaAssetId: composedAssetId,
+        overlayHash: "4".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-09-14.1",
+        width: 1080,
+      },
+      height: 1536,
+      latencyMilliseconds: 2_000,
+      mediaAssetId: baseAssetId,
+      model: "gpt-image-2",
+      organizationId,
+      requestId: "request-parent",
+      runId: parentRunId,
+      sha256: "1".repeat(64),
+      status: "succeeded",
+      variantId: parentVariantId,
+      width: 1024,
+    },
+    "2026-09-14T12:00:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: 0.04,
+      id: parentRunId,
+      organizationId,
+      plan: {
+        format: "feed",
+        profileId: "ferreteria-producto-limpio",
+        profileVersion: "visual-profile/2026-08-03.2",
+        promptHash: "5".repeat(64),
+        promptVersion: "visual-prompt/2026-08-03.2",
+      },
+      resolution: null,
+      status: "completed",
+      totalTokens: 100,
+    },
+    "2026-09-14T12:00:06.000Z",
+  );
+
+  const childRunId = randomUUID();
+  const childVariantId = randomUUID();
+  const editOperation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.generation:edit",
+  );
+  const compositionCopy = {
+    badge: null,
+    callToAction: "Escribinos ya",
+    subtitle: null,
+    title: "Amoladora en oferta",
+  };
+  const edited = await editorial.requestEdit({
+    actorMembershipId: membershipId,
+    contentBriefRunId: briefRunId,
+    edit: {
+      copy: compositionCopy,
+      kind: "composition",
+      layout: "marco-etiqueta",
+      parentRunId,
+      parentVariantId,
+    },
+    format: "feed",
+    id: childRunId,
+    organizationId,
+    reliableOperation: editOperation,
+    requestedAt: "2026-09-14T12:10:00.000Z",
+    subjectKind: "generic",
+    variantIds: [childVariantId],
+  });
+  assert.equal(edited.status, "accepted");
+  // Nunca pide proveedor: la admisión es determinista desde el pedido mismo,
+  // no porque el presupuesto la haya bloqueado.
+  assert.deepEqual(edited.admission, {
+    mode: "deterministic",
+    reason: "composition-edit",
+  });
+
+  const child = await runs.findById({ id: childRunId, organizationId });
+  assert.ok(child);
+  assert.equal(child.lineageRootId, parentRunId);
+  assert.deepEqual(child.edit, {
+    copy: compositionCopy,
+    kind: "composition",
+    layout: "marco-etiqueta",
+    parentRunId,
+    parentVariantId,
+  });
+  assert.equal(
+    await database.generationAttempt.count({
+      where: { organizationId, runId: childRunId },
+    }),
+    0,
+  );
+
+  await runs.completeDeterministicVariant(
+    {
+      composition: {
+        compositionHash: "6".repeat(64),
+        height: 1350,
+        layout: "marco-etiqueta",
+        mediaAssetId: composedAssetId,
+        overlayHash: "7".repeat(64),
+        sha256: "2".repeat(64),
+        theme: "taller",
+        version: "visual-composition/2026-09-14.1",
+        width: 1080,
+      },
+      organizationId,
+      runId: childRunId,
+      variantId: childVariantId,
+    },
+    "2026-09-14T12:10:05.000Z",
+  );
+  await runs.complete(
+    {
+      estimatedCostUsd: null,
+      id: childRunId,
+      organizationId,
+      plan: null,
+      resolution: {
+        deterministicReason: "composition-edit",
+        detail:
+          "La pieza se recompone con el marco y los textos elegidos, sin generar una imagen nueva.",
+      },
+      status: "completed",
+      totalTokens: 0,
+    },
+    "2026-09-14T12:10:06.000Z",
+  );
+
+  const lineage = await runs.list({
+    limit: 10,
+    lineageRootId: parentRunId,
+    organizationId,
+    page: 1,
+  });
+  assert.equal(lineage.total, 2);
+  const completedChild = lineage.items.find((item) => item.id === childRunId);
+  assert.ok(completedChild);
+  assert.equal(completedChild.variants[0]?.source, "deterministic");
+  assert.equal(
+    completedChild.variants[0].composition?.layout,
+    "marco-etiqueta",
+  );
+  assert.equal(
+    completedChild.resolution?.deterministicReason,
+    "composition-edit",
+  );
+});
+
 test("la base rechaza una variante que salió sin pieza o con pieza a medias", async () => {
   const { briefRunId, membershipId, organizationId } =
     await generationFixture();
