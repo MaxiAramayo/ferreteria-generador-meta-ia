@@ -6,15 +6,21 @@ import {
   composedPanelRect,
   FORMAT_IDS,
   FORMATS,
+  FRAME_LAYOUT_IDS,
+  FRAME_TITLE_BUDGET,
+  layoutSpecFor,
   parseDesignDocument,
   type ComposedRegion,
 } from "@aramayo/design-engine";
 import {
+  composedCopyFor,
+  composedLayoutIds,
   composedTitleBudget,
-  composedLayoutFor,
+  frameLayoutIds,
+  regionLayoutIds,
+  regionLayoutRegions,
   reservedRectangleFor,
   VisualCompositionError,
-  visualReservedSpaces,
   type ContentBrief,
 } from "@aramayo/domain";
 
@@ -91,19 +97,67 @@ test("la geometría del motor y la del dominio describen el mismo rectángulo", 
   }
 });
 
+test("los marcos del dominio son los del motor", () => {
+  assert.deepEqual([...frameLayoutIds].sort(), [...FRAME_LAYOUT_IDS].sort());
+});
+
 test("los presupuestos de titular coinciden entre motor y dominio", () => {
-  for (const region of visualReservedSpaces) {
-    const layout = composedLayoutFor(region);
-
-    if (layout === null) {
-      continue;
-    }
-
+  for (const layout of regionLayoutIds) {
     assert.equal(
       composedTitleBudget[layout],
-      COMPOSED_TITLE_BUDGET[region as ComposedRegion],
-      `El presupuesto de ${region} no coincide entre motor y dominio.`,
+      COMPOSED_TITLE_BUDGET[regionLayoutRegions[layout] as ComposedRegion],
+      `El presupuesto de ${layout} no coincide entre motor y dominio.`,
     );
+  }
+
+  for (const layout of frameLayoutIds) {
+    assert.equal(
+      composedTitleBudget[layout],
+      FRAME_TITLE_BUDGET[layout],
+      `El presupuesto de ${layout} no coincide entre motor y dominio.`,
+    );
+  }
+});
+
+test("el dominio sólo compone campos que la pieza sabe ubicar", () => {
+  // Una promoción completa: precio, vigencia, etiqueta y bajada, lo máximo que
+  // una pieza puede recibir.
+  const complete: ContentBrief = Object.freeze({
+    ...brief,
+    objective: "promotion",
+    subtitle: "Con mecha y maletín.",
+    verifiedFacts: Object.freeze([
+      ...brief.verifiedFacts,
+      Object.freeze({
+        claimKind: "promotion" as const,
+        evidenceId: "C2",
+        statement: "La oferta rige hasta el sábado 9.",
+      }),
+    ]),
+  });
+
+  for (const layout of composedLayoutIds) {
+    const spec = layoutSpecFor(layout);
+    const admitted: ReadonlySet<string> = new Set([
+      ...spec.requiredFields,
+      ...spec.optionalFields,
+    ]);
+    const copy = composedCopyFor(complete, layout);
+    const composed = Object.entries({
+      badge: copy.badge,
+      callToAction: copy.callToAction,
+      price: copy.price,
+      subtitle: copy.subtitle,
+      title: copy.title,
+      validity: copy.validity,
+    }).flatMap(([field, value]) => (value === null ? [] : [field]));
+
+    for (const field of composed) {
+      assert.ok(
+        admitted.has(field),
+        `${layout} compone ${field} y el motor no sabe ubicarlo.`,
+      );
+    }
   }
 });
 
@@ -121,7 +175,9 @@ test("la pieza compuesta produce un documento que el motor acepta", () => {
   const parsed = parseDesignDocument(piece.document);
   assert.equal(parsed.ok, true);
 
-  assert.equal(piece.document.layout, "composicion-tercio-inferior");
+  // Sin marco elegido, el tercio inferior reservado sale con su marco por
+  // defecto.
+  assert.equal(piece.document.layout, "marco-zocalo");
   assert.equal(piece.document.format, "feed");
   assert.equal(piece.document.theme, "taller");
   assert.equal(piece.document.content.title, "Perforadora para tu obra");
@@ -232,6 +288,7 @@ test("la banda superior no compone precio aunque el brief lo sustente", () => {
     base,
     brief,
     format: "feed",
+    layout: "composicion-banda-superior",
     region: "upper_band",
     slug: "composicion-prueba",
   });
@@ -241,21 +298,26 @@ test("la banda superior no compone precio aunque el brief lo sustente", () => {
   assert.equal(parseDesignDocument(piece.document).ok, true);
 });
 
-test("un pedido que no se puede componer falla antes de producir nada", () => {
-  assert.throws(
-    () =>
-      composePiece({
-        base,
-        brief,
-        format: "feed",
-        region: "left_column",
-        slug: "composicion-prueba",
-      }),
-    (error: unknown) =>
-      error instanceof VisualCompositionError &&
-      error.code === "region-without-layout",
-  );
+test("el marco elegido llega al documento con sólo los campos que ubica", () => {
+  const piece = composePiece({
+    base,
+    brief,
+    format: "historia",
+    layout: "marco-firma",
+    region: "lower_third",
+    slug: "composicion-prueba",
+  });
 
+  assert.equal(piece.document.layout, "marco-firma");
+  assert.equal(piece.snapshot.layout, "marco-firma");
+  // La firma no tiene lugar para precio aunque el brief lo sustente.
+  assert.equal(piece.document.content.price, undefined);
+  assert.equal(piece.snapshot.priceEvidenceId, null);
+  assert.equal(piece.document.content.callToAction, "Reservalo por WhatsApp");
+  assert.equal(parseDesignDocument(piece.document).ok, true);
+});
+
+test("un pedido que no se puede componer falla antes de producir nada", () => {
   assert.throws(
     () =>
       composePiece({

@@ -4,10 +4,17 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  composedTitleBudget,
+  frameLayoutIds,
+  regionLayoutIds,
+} from "@aramayo/domain";
+
+import {
   backgroundBytes,
   compositionBackgrounds,
   compositionBrief,
   compositionCases,
+  longTitleFor,
   sha256Of,
 } from "./composition-snapshot-cases.ts";
 
@@ -44,23 +51,47 @@ test("el mismo fondo se fabrica igual en cada corrida", async () => {
   assert.equal(hashes.size, compositionBackgrounds.length);
 });
 
-test("el recorrido cubre las tres piezas en los tres formatos y los cuatro fondos", () => {
+test("el recorrido cubre cada pieza en los tres formatos y los cuatro fondos", () => {
   const cases = compositionCases();
   const layouts = new Set(cases.map((entry) => entry.layout));
   const formats = new Set(cases.map((entry) => entry.format));
+  const pieces = regionLayoutIds.length + frameLayoutIds.length;
 
-  assert.equal(layouts.size, 3);
+  assert.equal(layouts.size, pieces);
   assert.deepEqual([...formats].sort(), ["cuadrado", "feed", "historia"]);
-  // Tres piezas por tres formatos por cuatro fondos, más una corrida
-  // determinista por pieza.
-  assert.equal(cases.length, 3 * 3 * 4 + 3);
+  // Cada pieza por tres formatos por cuatro fondos, más una corrida
+  // determinista por pieza y formato y, en los marcos, un titular al límite
+  // por formato.
+  assert.equal(
+    cases.length,
+    pieces * 3 * 4 + pieces * 3 + frameLayoutIds.length * 3,
+  );
   assert.equal(
     cases.filter((entry) => entry.background === null).length,
-    3,
+    pieces * 3,
     "Falta el camino determinista, que sale sin imagen del modelo.",
   );
   // Ningún identificador repetido: cada caso escribe su propio PNG.
   assert.equal(new Set(cases.map((entry) => entry.id)).size, cases.length);
+});
+
+test("cada marco se prueba con un titular al límite de su presupuesto", () => {
+  const cases = compositionCases();
+
+  for (const layout of frameLayoutIds) {
+    const title = longTitleFor(layout);
+    const budget = composedTitleBudget[layout];
+
+    assert.ok(title.length <= budget, `${layout}: «${title}» pasa el tope.`);
+    // A menos de una palabra del tope: más corto no probaría el límite.
+    assert.ok(budget - title.length < 12, `${layout}: «${title}» queda corto.`);
+    assert.equal(
+      cases.filter((entry) => entry.layout === layout && entry.title === title)
+        .length,
+      3,
+      `${layout} no prueba el titular largo en los tres formatos.`,
+    );
+  }
 });
 
 test("el brief de la suite sustenta precio y vigencia con evidencia", () => {

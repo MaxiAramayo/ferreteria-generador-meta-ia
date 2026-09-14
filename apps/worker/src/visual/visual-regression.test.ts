@@ -481,7 +481,6 @@ test("cada perfil visual se renderiza en todos los formatos que su pieza compone
   for (const profileId of visualProfileIds) {
     const profile = visualProfileFor(profileId);
     const layout = composedLayoutFor(profile.reservedSpace);
-    assert.ok(layout !== null, `${profileId} no tiene pieza de composición.`);
 
     const composable = profile.formats.filter((format) =>
       layoutSpecFor(layout).formats.includes(format),

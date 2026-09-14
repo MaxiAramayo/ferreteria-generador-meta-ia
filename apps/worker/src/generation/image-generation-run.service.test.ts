@@ -493,7 +493,9 @@ test("un lote completo conserva sus variantes, su plan y su uso", async () => {
   for (const variant of run.variants) {
     const composition = variant.composition;
     assert.ok(composition !== null, "Una variante que salió no tiene pieza.");
-    assert.equal(composition.layout, "composicion-tercio-inferior");
+    // El perfil de producto reserva el tercio inferior, y el marco por defecto
+    // de esa región es el zócalo (`ADR-029`).
+    assert.equal(composition.layout, "marco-zocalo");
     assert.equal(composition.theme, "taller");
     assert.equal(composition.width, 1080);
     assert.equal(composition.height, 1350);
@@ -784,7 +786,7 @@ test("un sujeto de marca sin foto aprobada se resuelve sin gastar", async () => 
   assert.equal(first.mediaAssetId, null, "No hubo base: nadie generó nada.");
   assert.equal(first.model, null);
   assert.ok(first.composition !== null);
-  assert.equal(first.composition.layout, "composicion-tercio-inferior");
+  assert.equal(first.composition.layout, "marco-zocalo");
 
   // Las demás no se intentaron y no gastaron nada: una pieza determinista es
   // siempre la misma, así que pedir copias idénticas no tendría sentido.

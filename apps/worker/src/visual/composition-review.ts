@@ -4,9 +4,10 @@
  * Compone cada pieza sobre cada fondo, la renderiza con un navegador real y
  * comprueba tres cosas que no se pueden afirmar leyendo el código:
  *
- * 1. **Nada de la capa determinista se sale del panel.** Si un titular largo
- *    empuja el llamado a la acción fuera de su caja, el texto termina apoyado
- *    en píxeles que decidió un modelo y el contraste deja de estar garantizado.
+ * 1. **Nada de la capa determinista se sale de su zona de marca.** Si un
+ *    titular largo empuja el llamado a la acción fuera de su placa, velo o
+ *    sello, el texto termina apoyado en píxeles que decidió un modelo y el
+ *    contraste deja de estar garantizado.
  * 2. **El contraste medido cumple el umbral.** No el contraste que deberían
  *    tener los tokens, sino el que tienen los píxeles exportados: se toma el
  *    color de fondo real debajo de cada texto y se compara con su color.
@@ -34,6 +35,8 @@ import {
   contrastRatio,
   CONTRAST_THRESHOLDS,
   FORMATS,
+  parseColor,
+  relativeLuminance,
 } from "@aramayo/design-engine";
 import { chromium, type Browser } from "playwright-core";
 import sharp from "sharp";
@@ -87,11 +90,19 @@ interface CaseReport {
 }
 
 /**
- * Color de fondo real debajo de un texto.
+ * Color de fondo real debajo de un texto, en su caso más difícil.
  *
- * Se toma el color más frecuente de su caja: los trazos de las letras ocupan
- * una minoría de los píxeles, así que la moda es el fondo sobre el que la
- * persona lee. Medir el promedio daría un color que no existe en la pieza.
+ * Se mide sobre la captura sin texto (`textlessStylesheet`), así que la caja de
+ * un titular no cuenta los trazos de sus propias letras: en una condensada
+ * pesada, ajustada al ancho de la palabra, las letras llegan a ocupar más
+ * superficie que el fondo, y la moda devolvía el color de la letra. De los
+ * píxeles del fondo se toma el percentil de luminancia más cercano a la letra
+ * —el 95 para un texto claro, el 5 para uno oscuro—: sobre una placa es el
+ * color de la placa, y sobre un velo encima de una foto es el tramo más difícil
+ * de leer, sin que un puñado de píxeles sueltos decida el resultado. Se mide la
+ * caja de contenido y no la caja entera: en un botón redondeado, las esquinas
+ * que quedan afuera de la píldora muestran lo que hay detrás y no tocan ninguna
+ * letra.
  */
 async function backdropUnder(png: Buffer, node: MeasuredNode): Promise<string> {
   // La caja se acota a la pieza antes de recortar: un elemento que se sale se
@@ -101,15 +112,21 @@ async function backdropUnder(png: Buffer, node: MeasuredNode): Promise<string> {
   const metadata = await image.metadata();
   const canvasWidth = metadata.width;
   const canvasHeight = metadata.height;
-  const left = Math.min(Math.max(0, Math.round(node.x)), canvasWidth - 1);
-  const top = Math.min(Math.max(0, Math.round(node.y)), canvasHeight - 1);
+  const left = Math.min(
+    Math.max(0, Math.round(node.contentX)),
+    canvasWidth - 1,
+  );
+  const top = Math.min(
+    Math.max(0, Math.round(node.contentY)),
+    canvasHeight - 1,
+  );
   const width = Math.max(
     1,
-    Math.min(Math.round(node.width), canvasWidth - left),
+    Math.min(Math.round(node.contentWidth), canvasWidth - left),
   );
   const height = Math.max(
     1,
-    Math.min(Math.round(node.height), canvasHeight - top),
+    Math.min(Math.round(node.contentHeight), canvasHeight - top),
   );
   const region = await sharp(png)
     .extract({ height, left, top, width })
@@ -131,17 +148,51 @@ async function backdropUnder(png: Buffer, node: MeasuredNode): Promise<string> {
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
-  let bestKey = 0;
-  let bestCount = -1;
-  for (const [key, count] of counts) {
-    if (count > bestCount) {
-      bestCount = count;
-      bestKey = key;
-    }
-  }
+  const colors = [...counts.entries()]
+    .map(([key, count]) => ({
+      count,
+      key,
+      luminance: relativeLuminance({
+        alpha: 1,
+        blue: key & 0xff,
+        green: (key >> 8) & 0xff,
+        red: (key >> 16) & 0xff,
+      }),
+    }))
+    .sort((first, second) => first.luminance - second.luminance);
+  const total = colors.reduce((sum, color) => sum + color.count, 0);
 
-  return `#${bestKey.toString(16).padStart(6, "0")}`;
+  const colorAt = (fraction: number): (typeof colors)[number] | undefined => {
+    const target = fraction * (total - 1);
+    let seen = 0;
+
+    for (const color of colors) {
+      seen += color.count;
+
+      if (seen > target) {
+        return color;
+      }
+    }
+
+    return colors.at(-1);
+  };
+
+  const median = colorAt(0.5);
+  const textIsLight =
+    relativeLuminance(parseColor(node.color)) >= (median?.luminance ?? 0);
+  const worst = colorAt(textIsLight ? 0.95 : 0.05);
+
+  return `#${(worst?.key ?? 0).toString(16).padStart(6, "0")}`;
 }
+
+/**
+ * Hoja que borra letras y dibujos y conserva todo lo demás.
+ *
+ * Con ella se toma la segunda captura: placas, velos, fotos y fondos de botón
+ * quedan donde estaban, y lo único que falta es lo que se lee.
+ */
+const textlessStylesheet =
+  "*{color:transparent !important;-webkit-text-fill-color:transparent !important;text-shadow:none !important;}svg{visibility:hidden !important;}";
 
 /**
  * Renderiza la pieza por el mismo camino que producción.
@@ -157,7 +208,11 @@ async function renderOnce(
   workingDirectory: string,
   caseId: string,
   piece: ComposedPiece,
-): Promise<{ nodes: readonly MeasuredNode[]; png: Buffer }> {
+): Promise<{
+  backdrop: Buffer;
+  nodes: readonly MeasuredNode[];
+  png: Buffer;
+}> {
   const format = FORMATS[piece.document.format];
   const documentPath = join(workingDirectory, `${caseId}.html`);
   await writeFile(
@@ -183,7 +238,12 @@ async function renderOnce(
     const measured: unknown = await page.evaluate(measuredNodesScript);
     const png = await page.locator("[data-card]").screenshot({ type: "png" });
 
-    return { nodes: measured as readonly MeasuredNode[], png };
+    await page.addStyleTag({ content: textlessStylesheet });
+    const backdrop = await page
+      .locator("[data-card]")
+      .screenshot({ type: "png" });
+
+    return { backdrop, nodes: measured as readonly MeasuredNode[], png };
   } finally {
     await page.close();
   }
@@ -213,8 +273,12 @@ async function reviewCase(
 
   const piece = composePiece({
     base,
-    brief: compositionBrief,
+    brief:
+      entry.title === undefined
+        ? compositionBrief
+        : { ...compositionBrief, title: entry.title },
     format: entry.format,
+    layout: entry.layout,
     region: entry.region,
     slug: `revision-${entry.id}`.slice(0, 64),
   });
@@ -229,10 +293,10 @@ async function reviewCase(
     problems.push(`${entry.id}: dos renders de la misma pieza no coinciden.`);
   }
 
-  const panel = first.nodes.find((node) => node.role === "panel");
+  const panels = first.nodes.filter((node) => node.role === "panel");
 
-  if (panel === undefined) {
-    problems.push(`${entry.id}: la pieza no dibuja el panel de marca.`);
+  if (panels.length === 0) {
+    problems.push(`${entry.id}: la pieza no dibuja ninguna zona de marca.`);
   }
 
   let minimumContrast = Number.POSITIVE_INFINITY;
@@ -242,11 +306,15 @@ async function reviewCase(
       continue;
     }
 
-    // Todo lo determinista vive dentro del panel: es lo que permite afirmar el
-    // contraste, porque el color de fondo lo elegimos nosotros.
-    if (panel !== undefined && !containedIn(node, panel)) {
+    // Todo lo determinista vive dentro de una zona de marca —placa, velo, sello
+    // o cartel—: es lo que permite afirmar el contraste, porque el fondo de esa
+    // zona lo elegimos nosotros (`ADR-029`).
+    if (
+      panels.length > 0 &&
+      !panels.some((panel) => containedIn(node, panel))
+    ) {
       problems.push(
-        `${entry.id}: ${node.role} se sale del panel de marca y queda apoyado sobre la imagen generada.`,
+        `${entry.id}: ${node.role} se sale de su zona de marca y queda apoyado sobre la imagen generada.`,
       );
     }
 
@@ -254,7 +322,7 @@ async function reviewCase(
       continue;
     }
 
-    const backdrop = await backdropUnder(first.png, node);
+    const backdrop = await backdropUnder(first.backdrop, node);
     const measured = contrastRatio(node.color, backdrop);
     minimumContrast = Math.min(minimumContrast, measured);
 

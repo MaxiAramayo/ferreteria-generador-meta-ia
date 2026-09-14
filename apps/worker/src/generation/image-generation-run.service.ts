@@ -321,10 +321,10 @@ export class ImageGenerationRunService {
       return this.#resolveWithoutSpending(run, null, plan.detail, "failed");
     }
 
-    // La composición se comprueba antes de gastar: una región sin pieza, un
-    // formato que la pieza no admite o un titular que no entra son rechazos
-    // deterministas, y descubrirlos después de pagarle una imagen al proveedor
-    // sería gastar para nada.
+    // La composición se comprueba antes de gastar: un formato que la pieza no
+    // admite o un titular que no entra en su marco son rechazos deterministas,
+    // y descubrirlos después de pagarle una imagen al proveedor sería gastar
+    // para nada.
     const composable = this.#assertComposable(run, plan.brief, plan.plan);
     if (composable !== null) {
       return this.#resolveWithoutSpending(run, null, composable, "failed");
@@ -538,9 +538,9 @@ export class ImageGenerationRunService {
    * Comprueba que la pieza se pueda componer, sin componerla de verdad.
    *
    * Devuelve el motivo cuando no se puede, y `null` cuando sí. Se corre antes de
-   * gastar porque los tres rechazos posibles —región sin pieza, formato no
-   * admitido y titular que no entra— son deterministas: reintentar no los
-   * cambia, y descubrirlos después de generar sería gastar para nada.
+   * gastar porque los dos rechazos posibles —formato no admitido y titular que
+   * no entra en el marco— son deterministas: reintentar no los cambia, y
+   * descubrirlos después de generar sería gastar para nada.
    */
   #assertComposable(
     run: GenerationRunRecord,

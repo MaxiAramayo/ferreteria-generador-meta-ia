@@ -42,6 +42,7 @@
     "dev": "pnpm --recursive --filter \"./packages/*\" build && pnpm --recursive --parallel --filter \"./apps/*\" dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "frames:catalog": "pnpm --filter @aramayo/brand-knowledge build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker catalog:frames",
     "image:smoke": "pnpm --filter @aramayo/configuration build && pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/worker smoke:image",
     "image-quality:eval": "pnpm --filter @aramayo/domain build && pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker eval:image-quality",
     "image-creative:prototype": "pnpm --filter @aramayo/design-engine build && pnpm --filter @aramayo/worker prototype:image-creatives",
