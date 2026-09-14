@@ -24,8 +24,10 @@
  * ```
  */
 
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { ARAMAYO_BRAND_PROFILE } from "@aramayo/brand-knowledge";
 import {
@@ -36,9 +38,11 @@ import {
 import { chromium, type Browser } from "playwright-core";
 import sharp from "sharp";
 
+import { renderBrowserLaunchOptions } from "../rendering/playwright-renderer.ts";
 import {
   buildRenderHtml,
   renderContextFor,
+  waitForRenderAssets,
 } from "../rendering/render-document.ts";
 import {
   backgroundBytes,
@@ -139,23 +143,42 @@ async function backdropUnder(png: Buffer, node: MeasuredNode): Promise<string> {
   return `#${bestKey.toString(16).padStart(6, "0")}`;
 }
 
+/**
+ * Renderiza la pieza por el mismo camino que producción.
+ *
+ * El documento se escribe a disco y se abre por `file://`, con las opciones de
+ * navegador de `renderBrowserLaunchOptions`. Antes se cargaba con `setContent`:
+ * la página quedaba en `about:blank`, que no puede leer las hojas de fuentes
+ * locales, y la suite medía desbordes y exportaba referencias con la tipografía
+ * de reserva en lugar de la de marca.
+ */
 async function renderOnce(
   browser: Browser,
+  workingDirectory: string,
+  caseId: string,
   piece: ComposedPiece,
 ): Promise<{ nodes: readonly MeasuredNode[]; png: Buffer }> {
   const format = FORMATS[piece.document.format];
+  const documentPath = join(workingDirectory, `${caseId}.html`);
+  await writeFile(
+    documentPath,
+    buildRenderHtml({ context, document: piece.document }),
+    "utf8",
+  );
   const page = await browser.newPage({
+    deviceScaleFactor: 1,
     viewport: { height: format.height, width: format.width },
   });
 
   try {
-    await page.setContent(
-      buildRenderHtml({ context, document: piece.document }),
-      {
-        waitUntil: "load",
-      },
-    );
-    await page.evaluate("document.fonts.ready");
+    await page.goto(pathToFileURL(documentPath).href, { waitUntil: "load" });
+
+    const broken: unknown = await page.evaluate(waitForRenderAssets);
+    if (!Array.isArray(broken) || broken.length > 0) {
+      throw new Error(
+        `${caseId}: una imagen de la pieza no decodificó; no hay render que revisar.`,
+      );
+    }
 
     const measured: unknown = await page.evaluate(measuredNodesScript);
     const png = await page.locator("[data-card]").screenshot({ type: "png" });
@@ -168,6 +191,7 @@ async function renderOnce(
 
 async function reviewCase(
   browser: Browser,
+  workingDirectory: string,
   entry: CompositionCase,
   problems: string[],
 ): Promise<CaseReport> {
@@ -195,8 +219,8 @@ async function reviewCase(
     slug: `revision-${entry.id}`.slice(0, 64),
   });
 
-  const first = await renderOnce(browser, piece);
-  const second = await renderOnce(browser, piece);
+  const first = await renderOnce(browser, workingDirectory, entry.id, piece);
+  const second = await renderOnce(browser, workingDirectory, entry.id, piece);
   const sha256 = sha256Of(new Uint8Array(first.png));
 
   // Reproducibilidad: la misma composición tiene que dar el mismo PNG. Si no,
@@ -337,7 +361,10 @@ function compareWithBaseline(
 
 async function main(): Promise<void> {
   const check = process.argv.includes("--check");
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
+  const browser = await chromium.launch(renderBrowserLaunchOptions({}));
+  const workingDirectory = await mkdtemp(
+    join(tmpdir(), "aramayo-revision-composicion-"),
+  );
   const problems: string[] = [];
   const reports: CaseReport[] = [];
 
@@ -353,10 +380,13 @@ async function main(): Promise<void> {
 
   try {
     for (const entry of compositionCases()) {
-      reports.push(await reviewCase(browser, entry, problems));
+      reports.push(
+        await reviewCase(browser, workingDirectory, entry, problems),
+      );
     }
   } finally {
     await browser.close();
+    await rm(workingDirectory, { force: true, recursive: true });
   }
 
   compareWithBaseline(baseline, reports, problems);
