@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-12
+Actualizado: 2026-09-14
 
 ## Fase activa
 
@@ -93,6 +93,14 @@ corrección final: se eliminó por completo el marco rojo exterior para reducir 
 carga visual. Los rótulos, medidas y pasos siguen siendo deterministas. No deben
 ejecutarse otra muestra paga ni avanzar con Reels hasta reabrir el gate conforme
 a la excepción de `ADR-017`.
+
+El 2026-09-14 se agregó la familia de marcos «Letrero de Chapa»
+([`ADR-029`](architecture/decisions/ADR-029-BRAND-FRAME-FAMILY.md)), a pedido
+del usuario del 2026-09-13: nueve marcos que llevan el cartel de la marca arriba
+y tapan más o menos imagen según dónde quedó el producto. Pasan a ser la pieza
+por defecto de toda composición nueva sin cambiar prompt, perfil ni modelo, así
+que no reabren la muestra paga de `ADR-017`. Elegir marco y editar textos desde
+la variante queda para el cambio siguiente.
 
 ## Resumen
 

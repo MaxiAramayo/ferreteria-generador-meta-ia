@@ -81,7 +81,7 @@ ni Cloudinary.
 
 ### Visual
 
-`pnpm visual:regression` renderiza 53 piezas por el mismo camino que el worker
+`pnpm visual:regression` renderiza 86 piezas por el mismo camino que el worker
 —documento por `file://`, fuentes y activos locales, recorte de
 `[data-card]`— y compara lo que el navegador compuso contra la línea base
 versionada en `apps/worker/visual-regression/`:
@@ -90,7 +90,9 @@ versionada en `apps/worker/visual-regression/`:
   cuadrado, historia, banner y portada destacada—, 26 piezas;
 - **perfil**: los seis perfiles visuales en los tres formatos que componen,
   con los briefs y los fondos sintéticos de `P4-T08`, 18 piezas;
-- **determinista**: las tres piezas de composición sin imagen generada;
+- **determinista**: las doce piezas de composición —las tres de región y los
+  nueve marcos de `ADR-029`— sin imagen generada, en los tres formatos, 36
+  piezas;
 - **tema**: los cuatro temas sobre una publicación y una historia, para que
   ninguno quede sin una pieza que lo pinte.
 
@@ -133,6 +135,21 @@ y el informe de cada pieza distinta; CI conserva esa carpeta como artefacto.
 Textos largos, zonas seguras, imágenes rotas y dimensiones de formato siguen
 en las pruebas del motor y del render; esta suite cubre lo que sólo se ve
 renderizando.
+
+`pnpm composition:snapshot` es la suite de la capa de marca. Compone las doce
+piezas de composición en los tres formatos sobre cuatro fondos hostiles, sin
+imagen y, en cada marco, con un titular al límite de su presupuesto —207
+casos—, y falla si un texto se sale de su zona de marca o si su contraste medido
+no alcanza el umbral. El fondo de cada texto se mide sobre una segunda captura
+sin letras ni dibujos, en el percentil de luminancia más difícil de leer: sobre
+un velo encima de una foto, eso es el tramo más claro que queda debajo de un
+texto claro. Un cambio deliberado de composición se acepta borrando
+`composition-reference/manifest.json` y volviendo a correr la suite; el diff
+del manifiesto es lo que se revisa.
+
+`pnpm frames:catalog` no es una prueba: renderiza los nueve marcos sobre fotos
+reales de la biblioteca, en los tres formatos y los cuatro temas, y deja las
+hojas en `output/marcos/` para la revisión humana.
 
 ### Smoke de procesos
 
@@ -301,7 +318,7 @@ las capas caras se reservan para lo que ninguna otra puede probar.
 | Configuración, contratos, observabilidad y salud | 29 | Bordes de entorno, correlación y redacción |
 | Integración | 75 | Aislamiento entre organizaciones, transacciones y concurrencia real sobre PostgreSQL |
 | Extremo a extremo | 3 suites | La cadena completa con Chrome real: regla, borrador, aprobación, ocurrencia y excepción |
-| Regresión visual | 53 piezas | Lo que el navegador compone en cada formato, perfil y tema aprobados |
+| Regresión visual | 86 piezas | Lo que el navegador compone en cada formato, perfil y tema aprobados |
 | Smoke de procesos | 14 comprobaciones | Arranque, readiness, cierre ordenado y ausencia de secretos |
 
 **Integración y extremo a extremo son ahora una compuerta de CI.** Corrían sólo

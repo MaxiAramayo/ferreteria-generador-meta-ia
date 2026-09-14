@@ -104,6 +104,43 @@ Reglas que las gobiernan:
 4. **Sin imagen generada se componen igual**, con el fondo de marca del tema. Una
    pieza que sale por el camino determinista no es una pieza incompleta.
 
+Desde [`ADR-029`](decisions/ADR-029-BRAND-FRAME-FAMILY.md) una composición nueva
+sale con un marco de la familia siguiente; estas tres piezas quedan vigentes
+para volver a componer lo que ya se generó con ellas.
+
+### Marcos de marca «Letrero de Chapa» (1080×1350, 1080×1080, 1080×1920)
+
+Nueve marcos para la imagen generada, todos con el cartel de la marca arriba: el
+isotipo, «Ferretería Aramayo» o «Lubricentro Aramayo» según la pieza, y la
+pestaña «EN FRÍAS». Se diferencian por cuánta imagen tapan y por dónde, así que
+se elige el que deja libre el lugar donde quedó el producto.
+
+| Pieza | Qué tapa | Contenido | Conviene cuando |
+|---|---|---|---|
+| `marco-firma` | El cartel y un rótulo abajo | Título y botón | El producto ocupa casi toda la foto |
+| `marco-etiqueta` | Una etiqueta de papel en la esquina inferior izquierda | Título; etiqueta, precio o «Consultá precio», vigencia y botón | El producto está al centro o a la derecha |
+| `marco-sello` | Un sello circular en el centro | Título; precio o «Consultá precio», vigencia y botón | La escena dejó el centro libre |
+| `marco-velo-superior` | Un velo que baja desde arriba | Título; etiqueta, bajada, precio, vigencia y botón | El producto está en la mitad inferior |
+| `marco-velo-inferior` | Un velo que sube desde abajo | Título; etiqueta, bajada, precio, vigencia y botón | El producto está arriba o al centro |
+| `marco-columna-izquierda` | Una columna maciza a la izquierda | Título; etiqueta, bajada corta, precio, vigencia y botón | El producto está a la derecha |
+| `marco-columna-derecha` | Una columna maciza a la derecha | Título; etiqueta, bajada corta, precio, vigencia y botón | El producto está a la izquierda |
+| `marco-zocalo` | Una base maciza; la foto queda entera encima | Título; etiqueta, bajada, precio o «Consultá precio», vigencia y botón | Precio y botón tienen que leerse sin esfuerzo |
+| `marco-vitrina` | Nada: la foto se ve por una ventana, más chica | Título; etiqueta, precio, vigencia y botón | La foto no admite nada encima |
+
+Reglas que los gobiernan:
+
+1. **Todo texto vive en una zona de marca**: placa, velo, sello o cartel. Sobre
+   un velo, el texto ocupa sólo el tramo cuya opacidad no baja de 0,86.
+2. **La región del perfil decide sólo el marco por defecto**: `lower_third` sale
+   con zócalo, `upper_band` con velo superior, `center_circle` con sello y
+   `left_column` con columna izquierda. Quien revisa la variante puede elegir
+   otro, y el recorte se corre en contra del marco elegido.
+3. **Cada marco declara su presupuesto de titular y los campos que ubica.** Un
+   titular que no entra en el marco elegido se rechaza antes de componer.
+4. **La etiqueta se compone sólo cuando el brief la sustenta**: «Oferta» con un
+   hecho de promoción verificado y «Hoy» en la historia diaria. Un producto ya
+   no lleva «Disponible», que afirmaba stock sin fuente.
+
 ### Banner y destacadas
 
 | Pieza | Objetivo | Contenido mínimo | CTA |
