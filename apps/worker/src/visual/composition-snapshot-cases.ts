@@ -1,10 +1,12 @@
 /**
  * Casos de la suite de composición.
  *
- * Cubren lo que la tarea exige demostrar: las tres piezas en los tres formatos
- * aprobados, sobre los cuatro fondos que rompen una composición —claro, oscuro,
- * recargado y con el producto fuera de centro— más el camino determinista, que
- * sale sin imagen del modelo.
+ * Cubren lo que hay que demostrar de cada pieza —las tres de región de `P4-T05`
+ * y los nueve marcos de `ADR-029`— en los tres formatos aprobados, sobre los
+ * cuatro fondos que rompen una composición —claro, oscuro, recargado y con el
+ * producto fuera de centro—, más el camino determinista, que sale sin imagen del
+ * modelo. Cada marco se prueba además con un titular al límite de su
+ * presupuesto, que es donde un texto se sale de su zona.
  *
  * Los fondos se fabrican acá y no se descargan: la suite tiene que dar el mismo
  * resultado en cualquier máquina y sin red, y para eso los píxeles se generan
@@ -16,8 +18,14 @@ import { createHash } from "node:crypto";
 import type { FormatId } from "@aramayo/design-engine";
 import {
   composedLayoutFor,
+  composedTitleBudget,
+  frameLayoutIds,
+  regionLayoutIds,
+  regionLayoutRegions,
+  visualReservedSpaces,
   type ComposedLayoutId,
   type ContentBrief,
+  type FrameLayoutId,
   type VisualReservedSpace,
 } from "@aramayo/domain";
 import sharp from "sharp";
@@ -34,12 +42,6 @@ export const compositionBackgrounds = [
 ] as const;
 
 export type CompositionBackground = (typeof compositionBackgrounds)[number];
-
-const regions: readonly VisualReservedSpace[] = [
-  "lower_third",
-  "upper_band",
-  "center_circle",
-];
 
 const formats: readonly FormatId[] = ["feed", "cuadrado", "historia"];
 
@@ -160,44 +162,117 @@ export interface CompositionCase {
   readonly id: string;
   readonly layout: ComposedLayoutId;
   readonly region: VisualReservedSpace;
+  /**
+   * Titular que reemplaza al del brief de la suite. Existe para probar cada
+   * marco con el texto más largo que admite.
+   */
+  readonly title?: string | undefined;
+}
+
+/**
+ * Región con que se compone cada marco en la suite.
+ *
+ * Un marco no depende de la región —su zona es propia—, pero el plan la
+ * conserva y entra en la huella. Se usa la región de la que el marco es el
+ * valor por defecto y, si no lo es de ninguna, el tercio inferior.
+ */
+function regionForFrame(layout: FrameLayoutId): VisualReservedSpace {
+  return (
+    visualReservedSpaces.find(
+      (region) => composedLayoutFor(region) === layout,
+    ) ?? "lower_third"
+  );
+}
+
+const longTitleWords: readonly string[] =
+  "Perforadora percutora inalámbrica de 650 W con mecha maletín cargador y batería para obra taller y hogar".split(
+    " ",
+  );
+
+/**
+ * Titular realista al límite del presupuesto de una pieza.
+ *
+ * Se arma con palabras enteras: una palabra no se parte, así que es la que
+ * decide si un titular desborda, y un relleno de letras repetidas probaría otra
+ * cosa.
+ */
+export function longTitleFor(layout: ComposedLayoutId): string {
+  const budget = composedTitleBudget[layout];
+  let title = "";
+
+  for (const word of longTitleWords) {
+    const next = title.length === 0 ? word : `${title} ${word}`;
+
+    if (next.length > budget) {
+      break;
+    }
+
+    title = next;
+  }
+
+  return title;
+}
+
+function pushPieceCases(
+  cases: CompositionCase[],
+  layout: ComposedLayoutId,
+  region: VisualReservedSpace,
+): void {
+  for (const format of formats) {
+    for (const background of compositionBackgrounds) {
+      cases.push({
+        background,
+        format,
+        id: `${layout}-${format}-${background}`,
+        layout,
+        region,
+      });
+    }
+  }
+
+  for (const format of formats) {
+    cases.push({
+      background: null,
+      format,
+      id: `${layout}-${format}-determinista`,
+      layout,
+      region,
+    });
+  }
 }
 
 /**
  * El recorrido completo.
  *
  * Cada pieza en cada formato contra cada fondo, más una corrida determinista
- * por pieza. El caso determinista no lleva fondo: es la pieza que sale cuando
- * el brief pidió plantilla, la generación está apagada o no hay foto aprobada.
+ * por pieza y formato. El caso determinista no lleva fondo: es la pieza que
+ * sale cuando el brief pidió plantilla, la generación está apagada o no hay
+ * foto aprobada, y es también el que cubre en la regresión visual los formatos
+ * de las piezas que ningún perfil usa por defecto.
+ * Los marcos suman, por formato, el titular más largo que admiten sobre el
+ * fondo claro.
  */
 export function compositionCases(): readonly CompositionCase[] {
   const cases: CompositionCase[] = [];
 
-  for (const region of regions) {
-    const layout = composedLayoutFor(region);
+  for (const layout of regionLayoutIds) {
+    pushPieceCases(cases, layout, regionLayoutRegions[layout]);
+  }
 
-    if (layout === null) {
-      continue;
-    }
+  for (const layout of frameLayoutIds) {
+    const region = regionForFrame(layout);
+    pushPieceCases(cases, layout, region);
 
     for (const format of formats) {
-      for (const background of compositionBackgrounds) {
-        cases.push({
-          background,
-          format,
-          id: `${layout}-${format}-${background}`,
-          layout,
-          region,
-        });
-      }
+      cases.push({
+        background: "claro",
+        format,
+        id: `${layout}-${format}-titulo-largo`,
+        layout,
+        region,
+        title: longTitleFor(layout),
+      });
     }
-
-    cases.push({
-      background: null,
-      format: "feed",
-      id: `${layout}-feed-determinista`,
-      layout,
-      region,
-    });
   }
 
   return cases;

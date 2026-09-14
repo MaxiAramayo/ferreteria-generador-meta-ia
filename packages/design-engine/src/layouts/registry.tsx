@@ -15,6 +15,17 @@ import {
   ProductoEditorial,
 } from "./composed-pieces.tsx";
 import {
+  MarcoColumnaDerecha,
+  MarcoColumnaIzquierda,
+  MarcoEtiqueta,
+  MarcoFirma,
+  MarcoSello,
+  MarcoVeloInferior,
+  MarcoVeloSuperior,
+  MarcoVitrina,
+  MarcoZocalo,
+} from "./frame-pieces.tsx";
+import {
   HistoriaProblemaSolucion,
   HistoriaProductoPrecio,
   HistoriaSurtidoReal,
@@ -79,6 +90,15 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "historia-tip": HistoriaTip,
     "historia-turno-lubricentro": HistoriaTurnoLubricentro,
     "lubricentro-servicio": LubricentroServicio,
+    "marco-columna-derecha": MarcoColumnaDerecha,
+    "marco-columna-izquierda": MarcoColumnaIzquierda,
+    "marco-etiqueta": MarcoEtiqueta,
+    "marco-firma": MarcoFirma,
+    "marco-sello": MarcoSello,
+    "marco-velo-inferior": MarcoVeloInferior,
+    "marco-velo-superior": MarcoVeloSuperior,
+    "marco-vitrina": MarcoVitrina,
+    "marco-zocalo": MarcoZocalo,
     "presentacion-marca": PresentacionMarca,
     "problema-solucion": ProblemaSolucion,
     "producto-destacado": ProductoDestacado,

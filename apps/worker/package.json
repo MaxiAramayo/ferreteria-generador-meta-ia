@@ -23,6 +23,7 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "smoke:image": "node ../../tools/run-with-env.mjs node src/generation/image-smoke.ts",
     "review:composition": "node src/visual/composition-review.ts",
+    "catalog:frames": "node src/visual/frame-catalog-cli.ts",
     "regression:visual": "node src/visual/visual-regression-cli.ts"
   },
   "dependencies": {

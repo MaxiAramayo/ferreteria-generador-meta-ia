@@ -181,7 +181,6 @@ function technicalBaselinePassed(
 ): boolean {
   const region = visualProfileFor(entry.profileId).reservedSpace;
   const layout = composedLayoutFor(region);
-  if (layout === null) return false;
 
   return compositionBackgrounds.every((background) => {
     const caseId = `${layout}-${entry.format}-${background}`;

@@ -412,12 +412,16 @@ consume proveedor.
 
 ## Decisiones pendientes del negocio
 
-1. Firma principal: `FERRETERÍA ARAMAYO · FRÍAS` o `CONSEGUÍLO EN FRÍAS`.
-2. Regla de precios: contado, transferencia, unidad, IVA y vigencia visible.
-3. Alcance exacto de `IMAGEN ILUSTRATIVA` para productos similares.
-4. Primeros tres productos/categorías con datos vigentes para reemplazar los
+La firma principal quedó resuelta el 2026-09-13: el negocio pidió que las piezas
+digan «FERRETERÍA ARAMAYO» arriba, y el cartel de
+[`ADR-029`](../architecture/decisions/ADR-029-BRAND-FRAME-FAMILY.md) la compone
+con la pestaña «EN FRÍAS».
+
+1. Regla de precios: contado, transferencia, unidad, IVA y vigencia visible.
+2. Alcance exacto de `IMAGEN ILUSTRATIVA` para productos similares.
+3. Primeros tres productos/categorías con datos vigentes para reemplazar los
    precios sintéticos de los prototipos.
-5. Aprobación del contexto social persistente: audiencia, voz, plataforma y
+4. Aprobación del contexto social persistente: audiencia, voz, plataforma y
    objetivo primario.
-6. Tamaño del equipo y modalidad de render de video para resolver la licencia
+5. Tamaño del equipo y modalidad de render de video para resolver la licencia
    de Remotion antes de instalarlo.

@@ -3,8 +3,9 @@
  *
  * `P4-T01` decidió qué se le pide al modelo; este módulo decide qué se le pone
  * encima. La imagen generada es el fondo, y el título, el precio, la vigencia,
- * el llamado a la acción y el logo se componen con el motor de marca sobre el
- * mismo rectángulo que el prompt le pidió al modelo dejar tranquilo.
+ * el llamado a la acción y la marca se componen con el motor de diseño en la
+ * zona de la pieza elegida: uno de los marcos de `ADR-029` o, para lo ya
+ * generado, una de las piezas de región de `P4-T05`.
  *
  * Tres invariantes lo gobiernan:
  *
@@ -12,23 +13,20 @@
  *    del brief validado y de su ledger de evidencia; si un dato no está
  *    sustentado, no se compone.
  * 2. **La composición se decide antes de gastar.** Un pedido que no puede
- *    componerse —una región sin pieza, un formato que la pieza no admite, un
- *    titular que no entra— se rechaza en la planificación y no después de
- *    pagarle una imagen al proveedor.
+ *    componerse —un formato que la pieza no admite, un titular que no entra— se
+ *    rechaza en la planificación y no después de pagarle una imagen al
+ *    proveedor.
  * 3. **La misma entrada produce la misma pieza.** El hash de composición cubre
  *    versión, pieza, tema, formato, copy y la base, de modo que dos
  *    composiciones iguales se reconocen sin comparar píxeles.
  *
- * Igual que `visual-prompt.ts`, este módulo no importa el motor de diseño: la
- * geometría del rectángulo reservado está declarada de los dos lados y el
- * worker comprueba que coincidan.
+ * Igual que `visual-prompt.ts`, este módulo no importa el motor de diseño: los
+ * identificadores de pieza, los presupuestos de titular y los campos que cada
+ * pieza sabe ubicar están declarados de los dos lados, y el worker comprueba
+ * que coincidan.
  */
 
-import {
-  type ContentBrief,
-  type ContentBriefFact,
-  type ContentObjective,
-} from "./content-brief.ts";
+import { type ContentBrief, type ContentBriefFact } from "./content-brief.ts";
 import {
   reservedRectangleFor,
   type VisualCanvas,
@@ -41,24 +39,64 @@ import {
  *
  * Cambiar qué campo se compone, con qué pieza o con qué recorte obliga a
  * subirla: es lo que permite mirar una pieza vieja y saber con qué reglas se
- * armó.
+ * armó. `2026-09-14.1` agrega los marcos de `ADR-029`, los vuelve la pieza por
+ * defecto de cada región y deja de componer etiquetas que el brief no sustenta.
  */
-export const visualCompositionVersion = "visual-composition/2026-08-05.1";
+export const visualCompositionVersion = "visual-composition/2026-09-14.1";
 
 /**
- * Piezas de composición del motor de diseño.
+ * Piezas de región (`P4-T05`).
  *
- * Se declaran acá por nombre porque el dominio no importa el motor. El worker
- * comprueba en tiempo de compilación que sigan siendo identificadores de layout
- * válidos, igual que hace con los formatos.
+ * Su panel cae sobre el rectángulo que el prompt le pidió al modelo dejar
+ * libre. Siguen registradas para volver a componer lo que ya se generó con
+ * ellas; una pieza nueva sale con un marco.
  */
-export const composedLayoutIds = [
+export const regionLayoutIds = [
   "composicion-tercio-inferior",
   "composicion-banda-superior",
   "composicion-circulo-central",
 ] as const;
 
+export type RegionLayoutId = (typeof regionLayoutIds)[number];
+
+/**
+ * Marcos de marca (`ADR-029`).
+ *
+ * Cada uno ocupa su propia zona, y quien revisa la variante elige el que no
+ * tapa el producto. Se declaran acá por nombre porque el dominio no importa el
+ * motor; el worker comprueba en tiempo de compilación que sigan siendo
+ * identificadores de layout válidos, igual que hace con los formatos.
+ */
+export const frameLayoutIds = [
+  "marco-firma",
+  "marco-etiqueta",
+  "marco-sello",
+  "marco-velo-superior",
+  "marco-velo-inferior",
+  "marco-columna-izquierda",
+  "marco-columna-derecha",
+  "marco-zocalo",
+  "marco-vitrina",
+] as const;
+
+export type FrameLayoutId = (typeof frameLayoutIds)[number];
+
+/** Todas las piezas que componen una base generada. */
+export const composedLayoutIds = [
+  ...regionLayoutIds,
+  ...frameLayoutIds,
+] as const;
+
 export type ComposedLayoutId = (typeof composedLayoutIds)[number];
+
+/** Región que ocupa cada pieza de región: es la que el prompt reservó. */
+export const regionLayoutRegions: Readonly<
+  Record<RegionLayoutId, VisualReservedSpace>
+> = Object.freeze({
+  "composicion-banda-superior": "upper_band",
+  "composicion-circulo-central": "center_circle",
+  "composicion-tercio-inferior": "lower_third",
+});
 
 /** Temas del motor que la composición sabe elegir. */
 export const composedThemeIds = ["taller", "lubricentro", "promo"] as const;
@@ -79,48 +117,54 @@ export function isComposedFormat(
 }
 
 /**
- * Cuántos caracteres de titular sostiene cada región.
+ * Cuántos caracteres de titular sostiene cada pieza.
  *
- * Duplica `COMPOSED_TITLE_BUDGET` del motor por la misma razón que los
- * formatos: el dominio no lo importa y el worker comprueba que coincidan.
+ * Duplica `COMPOSED_TITLE_BUDGET` y `FRAME_TITLE_BUDGET` del motor por la misma
+ * razón que los formatos: el dominio no los importa y el worker comprueba que
+ * coincidan.
  */
 export const composedTitleBudget: Readonly<Record<ComposedLayoutId, number>> =
   Object.freeze({
     "composicion-banda-superior": 56,
     "composicion-circulo-central": 44,
     "composicion-tercio-inferior": 70,
+    "marco-columna-derecha": 48,
+    "marco-columna-izquierda": 48,
+    "marco-etiqueta": 44,
+    "marco-firma": 36,
+    "marco-sello": 32,
+    "marco-velo-inferior": 70,
+    "marco-velo-superior": 56,
+    "marco-vitrina": 60,
+    "marco-zocalo": 70,
   });
 
 /**
- * Qué pieza compone cada región reservada.
+ * Marco por defecto de cada región reservada (`ADR-029`).
  *
- * `left_column` no tiene pieza: ningún perfil visual aprobado la usa y el
- * catálogo no admite una pieza sin objetivo comercial. Devolver `null` obliga a
- * quien llama a decidir explícitamente qué hacer, en lugar de caer en otra
- * pieza y escribir donde el modelo no dejó lugar.
+ * La región sigue siendo lo que el prompt le pide al modelo dejar libre, y el
+ * marco por defecto es el que ocupa esa misma zona: el zócalo abajo, el velo
+ * arriba, el sello en el centro y la columna a la izquierda. Quien revisa la
+ * variante puede elegir cualquier otro.
  */
-export function composedLayoutFor(
-  region: VisualReservedSpace,
-): ComposedLayoutId | null {
+export function composedLayoutFor(region: VisualReservedSpace): FrameLayoutId {
   switch (region) {
     case "lower_third":
-      return "composicion-tercio-inferior";
+      return "marco-zocalo";
     case "upper_band":
-      return "composicion-banda-superior";
+      return "marco-velo-superior";
     case "center_circle":
-      return "composicion-circulo-central";
+      return "marco-sello";
     case "left_column":
-      return null;
+      return "marco-columna-izquierda";
   }
 }
 
 export type VisualCompositionErrorCode =
-  /** El titular no entra en la región ni en su escalón más chico. */
+  /** El titular no entra en la pieza ni en su escalón más chico. */
   | "copy-too-long"
   /** La pieza de composición no está aprobada para ese formato. */
-  | "format-not-composable"
-  /** La región reservada no tiene pieza de composición. */
-  | "region-without-layout";
+  | "format-not-composable";
 
 /** Rechazo previo a componer, y por lo tanto previo a gastar. */
 export class VisualCompositionError extends Error {
@@ -241,17 +285,28 @@ export function verifiedValidityFor(brief: ContentBrief): string | null {
   return null;
 }
 
-/** Etiqueta corta de la pieza, derivada del objetivo del brief. */
-export function composedBadgeFor(objective: ContentObjective): string {
-  switch (objective) {
+/**
+ * Etiqueta corta de la pieza.
+ *
+ * Sólo se compone lo que el brief sustenta, porque la etiqueta se dibuja fuera
+ * del texto que valida `validateContentBrief`. «Oferta» exige un hecho de
+ * promoción verificado: el objetivo del brief es una intención, no evidencia.
+ * Un producto no lleva «Disponible»: afirmaría stock que nadie verificó, y aun
+ * con un hecho de stock caducaría a los cinco minutos mientras la pieza sigue
+ * publicada. Una pieza informativa no lleva etiqueta: el cartel ya dice quién
+ * vende.
+ */
+export function composedBadgeFor(brief: ContentBrief): string | null {
+  switch (brief.objective) {
     case "promotion":
-      return "Oferta";
-    case "product":
-      return "Disponible";
-    case "informative":
-      return "Aramayo";
+      return brief.verifiedFacts.some((fact) => fact.claimKind === "promotion")
+        ? "Oferta"
+        : null;
     case "daily_story":
       return "Hoy";
+    case "informative":
+    case "product":
+      return null;
   }
 }
 
@@ -271,7 +326,7 @@ export function composedThemeFor(brief: ContentBrief): ComposedThemeId {
  * cuando alguien edite el precio.
  */
 export interface ComposedCopy {
-  readonly badge: string;
+  readonly badge: string | null;
   readonly callToAction: string;
   readonly price: string | null;
   readonly priceEvidenceId: string | null;
@@ -286,25 +341,106 @@ export interface ComposedCopy {
  */
 const subtitleTitleCeiling = 40;
 
+interface CopyCapacity {
+  readonly badge: boolean;
+  readonly price: boolean;
+  /** Largo máximo de la bajada; `0` es una pieza que no lleva bajada. */
+  readonly subtitleMaximum: number;
+}
+
+/**
+ * Qué campos sabe ubicar cada pieza.
+ *
+ * Refleja los campos que cada layout declara en `LAYOUT_SPECS` del motor, y el
+ * worker comprueba que el dominio nunca componga uno que la pieza no sabe
+ * dibujar: componerlo igual cambiaría la huella de la pieza sin cambiar lo que
+ * se ve. Los topes de bajada son de las zonas angostas: una columna de 500 px
+ * no sostiene la misma bajada que un velo a todo el ancho.
+ */
+const copyCapacity: Readonly<Record<ComposedLayoutId, CopyCapacity>> =
+  Object.freeze({
+    "composicion-banda-superior": Object.freeze({
+      badge: true,
+      price: false,
+      subtitleMaximum: 0,
+    }),
+    "composicion-circulo-central": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 0,
+    }),
+    "composicion-tercio-inferior": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 150,
+    }),
+    "marco-columna-derecha": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 90,
+    }),
+    "marco-columna-izquierda": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 90,
+    }),
+    "marco-etiqueta": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 0,
+    }),
+    "marco-firma": Object.freeze({
+      badge: false,
+      price: false,
+      subtitleMaximum: 0,
+    }),
+    "marco-sello": Object.freeze({
+      badge: false,
+      price: true,
+      subtitleMaximum: 0,
+    }),
+    "marco-velo-inferior": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 120,
+    }),
+    "marco-velo-superior": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 120,
+    }),
+    "marco-vitrina": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 0,
+    }),
+    "marco-zocalo": Object.freeze({
+      badge: true,
+      price: true,
+      subtitleMaximum: 120,
+    }),
+  });
+
 export function composedCopyFor(
   brief: ContentBrief,
   layout: ComposedLayoutId,
 ): ComposedCopy {
-  const price = verifiedPriceFor(brief);
-  const carriesPrice = layout !== "composicion-banda-superior";
+  const capacity = copyCapacity[layout];
+  const price = capacity.price ? verifiedPriceFor(brief) : null;
   const carriesSubtitle =
-    layout === "composicion-tercio-inferior" &&
     brief.subtitle !== null &&
-    brief.title.length <= subtitleTitleCeiling;
+    brief.subtitle.length <= capacity.subtitleMaximum &&
+    (layout !== "composicion-tercio-inferior" ||
+      brief.title.length <= subtitleTitleCeiling);
 
   return Object.freeze({
-    badge: composedBadgeFor(brief.objective),
+    badge: capacity.badge ? composedBadgeFor(brief) : null,
     callToAction: brief.callToAction.label,
-    price: carriesPrice ? (price?.amount ?? null) : null,
-    priceEvidenceId: carriesPrice ? (price?.evidenceId ?? null) : null,
+    price: price?.amount ?? null,
+    priceEvidenceId: price?.evidenceId ?? null,
     subtitle: carriesSubtitle ? brief.subtitle : null,
     title: brief.title,
-    validity: carriesPrice ? verifiedValidityFor(brief) : null,
+    validity: capacity.price ? verifiedValidityFor(brief) : null,
   });
 }
 
@@ -315,10 +451,10 @@ export function composedCopyFor(
  * base de 1024×1536 tiene que entrar en un feed de 1080×1350. Recortar es
  * inevitable; lo que se decide acá es **por dónde**.
  *
- * La regla es alinear: la mitad de la base que el prompt dejó libre tiene que
- * caer sobre el panel, y la mitad donde está el producto sobre lo que queda a
- * la vista. Por eso el foco se corre en contra de la región reservada —si el
- * panel va abajo, el encuadre sube— en lugar de quedarse en el centro, que
+ * La regla es alinear: la parte de la base que la pieza tapa tiene que ser la
+ * que el prompt dejó libre, y la parte donde está el producto tiene que quedar
+ * a la vista. Por eso el foco se corre en contra de la zona de la pieza —si la
+ * pieza va abajo, el encuadre sube— en lugar de quedarse en el centro, que
  * cortaría la mitad del sujeto en un formato más apaisado que la base.
  */
 export interface ComposedCrop {
@@ -363,10 +499,69 @@ export function composedCropFor(
 }
 
 /**
- * Punto de interés opuesto a la región reservada.
+ * Zona que ocupa cada pieza, para recortar la base en su contra.
  *
- * Devuelve el centro de la franja que la región deja libre, expresado en
- * porcentaje. Si la región está centrada y no deja una franja mayor de un lado
+ * `null` es una pieza que no se apoya en ningún costado: la firma y la etiqueta
+ * tapan tan poco que correr el encuadre movería el producto sin necesidad, y la
+ * vitrina muestra la foto entera en una ventana propia. La columna derecha no
+ * tiene región reservada que la nombre y se resuelve como espejo de la
+ * izquierda.
+ */
+type CompositionZone = VisualReservedSpace | "right_column";
+
+function zoneOf(layout: ComposedLayoutId): CompositionZone | null {
+  switch (layout) {
+    case "composicion-banda-superior":
+    case "marco-velo-superior":
+      return "upper_band";
+    case "composicion-circulo-central":
+    case "marco-sello":
+      return "center_circle";
+    case "composicion-tercio-inferior":
+    case "marco-velo-inferior":
+    case "marco-zocalo":
+      return "lower_third";
+    case "marco-columna-izquierda":
+      return "left_column";
+    case "marco-columna-derecha":
+      return "right_column";
+    case "marco-etiqueta":
+    case "marco-firma":
+    case "marco-vitrina":
+      return null;
+  }
+}
+
+export function composedCropForLayout(
+  layout: ComposedLayoutId,
+  base: ComposedBaseSize,
+  canvas: VisualCanvas,
+): ComposedCrop {
+  const zone = zoneOf(layout);
+
+  if (zone === null) {
+    return Object.freeze({
+      fit: "cover" as const,
+      focusX: 50,
+      focusY: 50,
+      zoom: 1,
+    });
+  }
+
+  if (zone === "right_column") {
+    const mirrored = composedCropFor("left_column", base, canvas);
+
+    return Object.freeze({ ...mirrored, focusX: 100 - mirrored.focusX });
+  }
+
+  return composedCropFor(zone, base, canvas);
+}
+
+/**
+ * Punto de interés opuesto a la zona de la pieza.
+ *
+ * Devuelve el centro de la franja que la zona deja libre, expresado en
+ * porcentaje. Si la zona está centrada y no deja una franja mayor de un lado
  * que del otro, el foco queda en el medio.
  */
 function oppositeFocus(start: number, length: number, total: number): number {
@@ -407,6 +602,12 @@ export interface PlanComposedPieceInput {
   readonly brief: ContentBrief;
   readonly canvas: VisualCanvas;
   readonly format: VisualFormatId;
+  /**
+   * Pieza elegida por quien revisa la variante. Sin ella se usa el marco por
+   * defecto de la región reservada.
+   */
+  readonly layout?: ComposedLayoutId | undefined;
+  /** Región que el prompt reservó; en el camino determinista, la del perfil. */
   readonly region: VisualReservedSpace;
 }
 
@@ -416,16 +617,7 @@ export interface PlanComposedPieceInput {
 export function planComposedPiece(
   input: PlanComposedPieceInput,
 ): ComposedPiecePlan {
-  const layout = composedLayoutFor(input.region);
-
-  if (layout === null) {
-    throw new VisualCompositionError(
-      "region-without-layout",
-      "region",
-      "La región reservada no tiene una pieza de composición aprobada.",
-      "Elegí un perfil visual cuya región reservada tenga pieza: banda superior, tercio inferior o sello central.",
-    );
-  }
+  const layout = input.layout ?? composedLayoutFor(input.region);
 
   if (!isComposedFormat(input.format)) {
     throw new VisualCompositionError(
@@ -436,18 +628,20 @@ export function planComposedPiece(
     );
   }
 
-  if (input.brief.title.length > composedTitleBudget[layout]) {
+  const budget = composedTitleBudget[layout];
+
+  if (input.brief.title.length > budget) {
     throw new VisualCompositionError(
       "copy-too-long",
       "brief.title",
-      "El titular no entra en la región reservada de la pieza.",
-      `Acortá el título a ${String(composedTitleBudget[layout])} caracteres o menos.`,
+      "El titular no entra en la zona de texto de la pieza.",
+      `Acortá el título a ${String(budget)} caracteres o menos, o elegí un marco con más lugar para el texto.`,
     );
   }
 
   return Object.freeze({
     copy: composedCopyFor(input.brief, layout),
-    crop: composedCropFor(input.region, input.base, input.canvas),
+    crop: composedCropForLayout(layout, input.base, input.canvas),
     format: input.format,
     layout,
     region: input.region,
@@ -464,8 +658,8 @@ export function planComposedPiece(
  * y la base. Dos composiciones con la misma entrada son la misma pieza, y por
  * eso volver a renderizarla puede compararse sin mirar un solo píxel.
  *
- * El recorte no entra por separado porque se deriva de la base y del formato,
- * que ya están.
+ * El recorte no entra por separado porque se deriva de la pieza, la base y el
+ * formato, que ya están.
  */
 export function composedPieceFingerprint(
   plan: ComposedPiecePlan,
@@ -482,7 +676,7 @@ export function composedPieceFingerprint(
     baseSha256 ?? "sin-base",
     copy.title,
     copy.subtitle ?? "",
-    copy.badge,
+    copy.badge ?? "",
     copy.callToAction,
     copy.price ?? "",
     copy.validity ?? "",

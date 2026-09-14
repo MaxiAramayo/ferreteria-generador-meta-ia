@@ -71,6 +71,11 @@ export interface ComposePieceInput {
   readonly brief: ContentBrief;
   readonly format: VisualFormatId;
   /**
+   * Pieza elegida por quien revisa la variante (`ADR-029`). Sin ella se usa el
+   * marco por defecto de la región.
+   */
+  readonly layout?: ComposedLayoutId | undefined;
+  /**
    * Región que el prompt reservó. En el camino determinista no hubo prompt, y
    * quien llama elige la del perfil que habría correspondido.
    */
@@ -180,7 +185,7 @@ function contentFor(plan: ComposedPiecePlan): DesignContent {
   const { copy } = plan;
 
   return {
-    ...(admits("badge") ? { badge: copy.badge } : {}),
+    ...(copy.badge !== null && admits("badge") ? { badge: copy.badge } : {}),
     ...(admits("callToAction") ? { callToAction: copy.callToAction } : {}),
     ...(copy.price !== null && admits("price") ? { price: copy.price } : {}),
     ...(copy.subtitle !== null && admits("subtitle")
@@ -211,6 +216,7 @@ export function composePiece(input: ComposePieceInput): ComposedPiece {
     brief: input.brief,
     canvas: canvasFor(input.format),
     format: input.format,
+    layout: input.layout,
     region: input.region,
   });
   const spec = layoutSpecFor(plan.layout);

@@ -133,12 +133,6 @@ export function visualRegressionCases(): readonly VisualRegressionCase[] {
       visualProfileFor(entry.profileId).reservedSpace,
     );
 
-    if (layout === null) {
-      throw new Error(
-        `El perfil ${entry.profileId} reserva una región que ninguna pieza compone.`,
-      );
-    }
-
     cases.push({
       format: entry.format,
       id: `perfil-${entry.caseId}`,
@@ -229,6 +223,7 @@ export async function visualRegressionDocument(
         base: null,
         brief: compositionBrief,
         format: source.composition.format,
+        layout: source.composition.layout,
         region: source.composition.region,
         slug: `regresion-${entry.id}`.slice(0, 64),
       }).document;

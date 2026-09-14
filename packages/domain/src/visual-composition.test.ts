@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  composedBadgeFor,
   composedCopyFor,
   composedCropFor,
+  composedCropForLayout,
   composedLayoutFor,
   composedPieceFingerprint,
   composedThemeFor,
   composedTitleBudget,
+  frameLayoutIds,
   parseVerifiedAmount,
   planComposedPiece,
   verifiedPriceFor,
@@ -122,17 +125,42 @@ test("la vigencia sólo se compone si el hecho la declara", () => {
   assert.equal(verifiedValidityFor(withoutValidity), null);
 });
 
-test("cada región reservada tiene pieza, salvo la columna izquierda", () => {
+test("cada región reservada tiene un marco por defecto que ocupa esa zona", () => {
+  assert.equal(composedLayoutFor("lower_third"), "marco-zocalo");
+  assert.equal(composedLayoutFor("upper_band"), "marco-velo-superior");
+  assert.equal(composedLayoutFor("center_circle"), "marco-sello");
+  assert.equal(composedLayoutFor("left_column"), "marco-columna-izquierda");
+
+  const frames: ReadonlySet<string> = new Set(frameLayoutIds);
+
   for (const region of visualReservedSpaces) {
-    const layout = composedLayoutFor(region);
-
-    if (region === "left_column") {
-      assert.equal(layout, null);
-      continue;
-    }
-
-    assert.ok(layout !== null, `La región ${region} no tiene pieza.`);
+    assert.ok(
+      frames.has(composedLayoutFor(region)),
+      `La región ${region} no tiene un marco por defecto.`,
+    );
   }
+});
+
+test("la etiqueta sólo afirma lo que el brief sustenta", () => {
+  // Una promoción sin hecho de promoción verificado no dice «Oferta».
+  assert.equal(composedBadgeFor(briefWith({ objective: "promotion" })), null);
+  assert.equal(
+    composedBadgeFor(
+      briefWith({
+        objective: "promotion",
+        verifiedFacts: [fact("promotion", "La oferta rige hasta el sábado 9.")],
+      }),
+    ),
+    "Oferta",
+  );
+  // Un producto no afirma disponibilidad y una pieza informativa no repite la
+  // marca que ya dice el cartel.
+  assert.equal(composedBadgeFor(brief), null);
+  assert.equal(composedBadgeFor(briefWith({ objective: "informative" })), null);
+  assert.equal(
+    composedBadgeFor(briefWith({ objective: "daily_story" })),
+    "Hoy",
+  );
 });
 
 test("la banda superior no compone precio y el tercio inferior sí", () => {
@@ -150,7 +178,47 @@ test("la banda superior no compone precio y el tercio inferior sí", () => {
   );
 });
 
-test("la bajada se compone sólo cuando el titular deja lugar", () => {
+test("cada marco compone sólo los campos que su zona sabe ubicar", () => {
+  const promotion = briefWith({
+    objective: "promotion",
+    subtitle: "Con mecha y maletín.",
+    title: "Perforadora",
+    verifiedFacts: [
+      fact("price", "La perforadora cuesta $ 24.500."),
+      fact("promotion", "La oferta rige hasta el sábado 9."),
+    ],
+  });
+
+  const firma = composedCopyFor(promotion, "marco-firma");
+  assert.equal(firma.badge, null);
+  assert.equal(firma.price, null);
+  assert.equal(firma.subtitle, null);
+  assert.equal(firma.validity, null);
+
+  const sello = composedCopyFor(promotion, "marco-sello");
+  assert.equal(sello.badge, null);
+  assert.equal(sello.price, "$ 24.500");
+  assert.equal(sello.subtitle, null);
+
+  const zocalo = composedCopyFor(promotion, "marco-zocalo");
+  assert.equal(zocalo.badge, "Oferta");
+  assert.equal(zocalo.price, "$ 24.500");
+  assert.equal(zocalo.priceEvidenceId, "C1");
+  assert.equal(zocalo.subtitle, "Con mecha y maletín.");
+  assert.equal(zocalo.validity, "hasta el sábado 9");
+});
+
+test("una bajada que no entra en una zona angosta no se compone", () => {
+  const long = briefWith({ subtitle: "x".repeat(91), title: "Perforadora" });
+
+  assert.equal(composedCopyFor(long, "marco-columna-izquierda").subtitle, null);
+  assert.equal(
+    composedCopyFor(long, "marco-velo-inferior").subtitle,
+    "x".repeat(91),
+  );
+});
+
+test("la bajada del tercio inferior se compone sólo cuando el titular deja lugar", () => {
   const short = briefWith({
     subtitle: "Con mecha y maletín.",
     title: "Perforadora",
@@ -211,6 +279,40 @@ test("el recorte corre el encuadre en contra de la región reservada", () => {
   );
 });
 
+test("el recorte corre el encuadre en contra de la zona del marco elegido", () => {
+  // Una base apaisada sobra de ancho: la columna decide qué costado se ve.
+  const landscape = { height: 1024, width: 1536 };
+  const left = composedCropForLayout(
+    "marco-columna-izquierda",
+    landscape,
+    feedCanvas,
+  );
+  const right = composedCropForLayout(
+    "marco-columna-derecha",
+    landscape,
+    feedCanvas,
+  );
+
+  assert.ok(
+    left.focusX > 50,
+    "La columna izquierda debería mostrar la derecha.",
+  );
+  assert.ok(
+    right.focusX < 50,
+    "La columna derecha debería mostrar la izquierda.",
+  );
+  assert.equal(left.focusX + right.focusX, 100);
+
+  // La firma tapa tan poco que no mueve el encuadre.
+  const firma = composedCropForLayout(
+    "marco-firma",
+    { height: 1536, width: 1024 },
+    feedCanvas,
+  );
+  assert.equal(firma.focusX, 50);
+  assert.equal(firma.focusY, 50);
+});
+
 test("una base sin sobrante no mueve el encuadre", () => {
   // Misma proporción que el lienzo: no hay nada que elegir.
   const crop = composedCropFor(
@@ -243,20 +345,6 @@ test("un pedido que no se puede componer se rechaza antes de gastar", () => {
         base,
         brief,
         canvas: feedCanvas,
-        format: "feed",
-        region: "left_column",
-      }),
-    (error: unknown) =>
-      error instanceof VisualCompositionError &&
-      error.code === "region-without-layout",
-  );
-
-  assert.throws(
-    () =>
-      planComposedPiece({
-        base,
-        brief,
-        canvas: feedCanvas,
         format: "banner-fb",
         region: "lower_third",
       }),
@@ -270,9 +358,7 @@ test("un pedido que no se puede componer se rechaza antes de gastar", () => {
       planComposedPiece({
         base,
         brief: briefWith({
-          title: "P".repeat(
-            composedTitleBudget["composicion-banda-superior"] + 1,
-          ),
+          title: "P".repeat(composedTitleBudget["marco-velo-superior"] + 1),
         }),
         canvas: feedCanvas,
         format: "feed",
@@ -282,6 +368,25 @@ test("un pedido que no se puede componer se rechaza antes de gastar", () => {
       error instanceof VisualCompositionError &&
       error.code === "copy-too-long" &&
       error.correction.includes("56"),
+  );
+
+  // Un titular que entra en el marco por defecto puede no entrar en el elegido.
+  assert.throws(
+    () =>
+      planComposedPiece({
+        base,
+        brief: briefWith({
+          title: "P".repeat(composedTitleBudget["marco-firma"] + 1),
+        }),
+        canvas: feedCanvas,
+        format: "feed",
+        layout: "marco-firma",
+        region: "lower_third",
+      }),
+    (error: unknown) =>
+      error instanceof VisualCompositionError &&
+      error.code === "copy-too-long" &&
+      error.correction.includes(String(composedTitleBudget["marco-firma"])),
   );
 });
 
@@ -295,26 +400,40 @@ test("el plan queda ligado a su versión de reglas", () => {
   });
 
   assert.equal(plan.version, visualCompositionVersion);
-  assert.equal(plan.layout, "composicion-tercio-inferior");
+  assert.equal(plan.layout, "marco-zocalo");
   assert.equal(plan.theme, "taller");
   assert.equal(plan.copy.callToAction, "Reservalo por WhatsApp");
 });
 
-test("la huella distingue dos composiciones que no son la misma pieza", () => {
+test("el marco elegido reemplaza al de la región sin olvidar la región", () => {
   const plan = planComposedPiece({
     base: { height: 1536, width: 1024 },
     brief,
     canvas: feedCanvas,
     format: "feed",
+    layout: "marco-vitrina",
     region: "lower_third",
   });
-  const other = planComposedPiece({
+
+  assert.equal(plan.layout, "marco-vitrina");
+  assert.equal(plan.region, "lower_third");
+  assert.equal(plan.crop.focusY, 50);
+});
+
+test("la huella distingue dos composiciones que no son la misma pieza", () => {
+  const input = {
     base: { height: 1536, width: 1024 },
-    brief: briefWith({ title: "Perforadora para tu taller" }),
+    brief,
     canvas: feedCanvas,
-    format: "feed",
-    region: "lower_third",
+    format: "feed" as const,
+    region: "lower_third" as const,
+  };
+  const plan = planComposedPiece(input);
+  const otherCopy = planComposedPiece({
+    ...input,
+    brief: briefWith({ title: "Perforadora para tu taller" }),
   });
+  const otherFrame = planComposedPiece({ ...input, layout: "marco-etiqueta" });
 
   assert.equal(
     composedPieceFingerprint(plan, "a".repeat(64)),
@@ -326,6 +445,10 @@ test("la huella distingue dos composiciones que no son la misma pieza", () => {
   );
   assert.notEqual(
     composedPieceFingerprint(plan, "a".repeat(64)),
-    composedPieceFingerprint(other, "a".repeat(64)),
+    composedPieceFingerprint(otherCopy, "a".repeat(64)),
+  );
+  assert.notEqual(
+    composedPieceFingerprint(plan, "a".repeat(64)),
+    composedPieceFingerprint(otherFrame, "a".repeat(64)),
   );
 });
