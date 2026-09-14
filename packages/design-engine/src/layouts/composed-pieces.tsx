@@ -38,9 +38,11 @@ import { mediaAt, type LayoutProps } from "./layout-context.ts";
  *    se apoya en píxeles que decidió un modelo, ni siquiera el logo. Es lo que
  *    permite afirmar un umbral de contraste en lugar de suponerlo: el color de
  *    fondo del texto lo elegimos nosotros.
- * 2. **El panel es exactamente el rectángulo reservado.** No crece para que
- *    entre el contenido; el contenido se elige para que entre en él, y cada
- *    región declara en `LAYOUT_SPECS` qué campos sabe sostener.
+ * 2. **El panel nunca pasa el rectángulo reservado.** No crece para que entre
+ *    el contenido; el contenido se elige para que entre en él, y cada región
+ *    declara en `LAYOUT_SPECS` qué campos sabe sostener. El rectángulo es un
+ *    techo y no una medida obligatoria: la banda superior mide lo que su
+ *    contenido para no tapar foto que no usa.
  */
 
 /**
@@ -88,14 +90,28 @@ function Base(props: LayoutProps): ReactElement | null {
   );
 }
 
-function panelStyle(rect: ComposedPanelRect): CSSProperties {
+/**
+ * Caja del panel dentro de la región reservada.
+ *
+ * `region` la llena entera: es lo que corresponde cuando el contenido usa todo
+ * ese espacio. `content` deja que el panel mida lo que mide su contenido y sólo
+ * usa la región como techo, para no tapar foto que nadie necesitaba tapar. El
+ * ancho y la posición no cambian en ningún caso: el modelo dejó libre ese
+ * rectángulo y el panel no puede salirse de él.
+ */
+function panelStyle(
+  rect: ComposedPanelRect,
+  fit: "content" | "region" = "region",
+): CSSProperties {
   return {
-    height: rect.height,
     left: rect.x,
     padding: SPACING.lg,
     position: "absolute",
     top: rect.y,
     width: rect.width,
+    ...(fit === "region"
+      ? { height: rect.height }
+      : { maxHeight: rect.height }),
   };
 }
 
@@ -227,6 +243,12 @@ export function ComposicionTercioInferior(props: LayoutProps): ReactElement {
  * Es ancha y baja, así que sostiene identidad, etiqueta, titular y llamado a la
  * acción, y no precio: un número grande dentro de esta caja obligaría a achicar
  * el titular hasta que deje de ser un titular.
+ *
+ * El panel mide lo que mide su contenido. Antes llenaba la región entera y
+ * repartía tres elementos livianos a lo largo de todo el alto reservado: la
+ * pieza perdía foto que el panel no estaba usando para nada. La región sigue
+ * siendo el techo, así que un titular largo nunca se sale de lo que el modelo
+ * dejó libre.
  */
 export function ComposicionBandaSuperior(props: LayoutProps): ReactElement {
   const { content, theme } = props;
@@ -236,7 +258,11 @@ export function ComposicionBandaSuperior(props: LayoutProps): ReactElement {
     <>
       <Base {...props} />
       <BrandPanel
-        style={{ ...panelStyle(rect), justifyContent: "space-between" }}
+        style={{
+          ...panelStyle(rect, "content"),
+          gap: SPACING.md,
+          justifyContent: "flex-start",
+        }}
         theme={theme}
       >
         <PanelHeader badge={content.badge} rect={rect} theme={theme} />
