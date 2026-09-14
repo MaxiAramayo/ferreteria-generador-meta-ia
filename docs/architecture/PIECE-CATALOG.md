@@ -93,9 +93,11 @@ Reglas que las gobiernan:
 1. **Todo lo determinista vive dentro del panel**, incluido el logo. Nada de la
    capa de marca se apoya en píxeles que decidió un modelo: es lo que permite
    afirmar un umbral de contraste en lugar de suponerlo.
-2. **El panel no crece.** Es exactamente el rectángulo reservado, y el contenido
-   se elige para que entre: la banda superior es ancha y baja, así que no lleva
+2. **El panel no crece.** Nunca pasa el rectángulo reservado, y el contenido se
+   elige para que entre: la banda superior es ancha y baja, así que no lleva
    precio; el tercio inferior sólo lleva bajada cuando el formato le deja alto.
+   El rectángulo es un techo: la banda superior mide lo que su contenido, para
+   no tapar foto que no usa.
 3. **Se componen en feed, cuadrado e historia.** Un banner de Facebook y una
    portada destacada no sostienen el bloque de marca sin achicar el titular hasta
    que deje de serlo, y la portada ya tiene su propia pieza.
