@@ -1,0 +1,33 @@
+{
+  "id": "determinista-marco-velo-superior-cuadrado",
+  "format": "cuadrado",
+  "fonts": [
+    "Archivo 500 normal",
+    "Archivo 600 normal",
+    "Archivo 800 normal",
+    "Saira Condensed 800 normal",
+    "Saira Condensed 900 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1080 div[data-card][data-format=cuadrado][data-safe-area={\"bottom\":72,\"left\":72,\"right\":72,\"top\":72}][data-theme=promo] · color rgb(255, 255, 255) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(230, 59, 30) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1080 div · background-image linear-gradient(135deg, rgba(246, 241, 234, 0.08) 0px, rgba(246, 241, 234, 0.08) 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 42px), linear-gradient(rgba(230, 59, 30, 0.12), rgba(0, 0, 0, 0) 48%) · background-position 0% 0%, 0% 0% · background-repeat repeat, repeat · background-size auto, auto",
+    "  @0,0 1080×1080 div · background-image linear-gradient(rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.12))",
+    "  @0,0 1080×778 div[data-frame=marco-velo-superior][data-panel][data-veil=top] · text-shadow rgba(13, 13, 13, 0.4) 0px 2px 18px · background-image linear-gradient(rgba(13, 13, 13, 0.94) 0%, rgba(13, 13, 13, 0.86) calc(100% - 240px), rgba(13, 13, 13, 0.5) calc(100% - 120px), rgba(13, 13, 13, 0) 100%) · z-index 10",
+    "    @72,204 149×46 span[data-role=etiqueta] «Oferta» 1 línea · font-size 26px · font-weight 800 · letter-spacing 1.2px · line-height 26px · text-shadow none · text-transform uppercase · background-color rgb(182, 42, 18) · border-radius 10px",
+    "    @72,268 629×72 h1 «Perforadora 650 W» 1 línea · color rgb(246, 241, 234) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 80px · font-weight 800 · line-height 72px · text-transform uppercase",
+    "    @72,358 300×40 p[data-role=bajada] «Con mecha y maletín.» 1 línea · color rgba(246, 241, 234, 0.86) · font-size 31px · font-weight 500 · line-height 40.3px",
+    "    @72,422 936×115 div",
+    "      @72,422 311×115 div[data-price][data-role=precio] · color rgb(246, 241, 234)",
+    "        @72,422 311×79 span «$ 24.500» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 96px · font-weight 900 · line-height 78.72px",
+    "        @72,509 311×29 span «hasta el sábado» 1 línea · color rgba(246, 241, 234, 0.86) · font-size 26px · font-weight 600 · line-height 28.6px",
+    "      @588,468 420×70 div[data-cta][data-role=cta] «Reservalo por WhatsApp» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 34px · font-weight 800 · letter-spacing 0.4px · line-height 34px · text-align center · text-shadow none · text-transform uppercase · background-color rgb(246, 241, 234) · border-radius 9999px",
+    "  @72,72 806×92 div[data-cartel][data-panel] · box-shadow rgba(13, 13, 13, 0.28) 0px 12px 32px 0px · z-index 20",
+    "    @72,72 627×92 div[data-logo][data-role=logo] · background-color rgb(182, 42, 18)",
+    "      @94,91 54×54 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "        @97,97 49×42 polygon forma 8054943f · stroke rgb(255, 255, 255) · stroke-linejoin round · stroke-width 8px",
+    "        @109,103 23×33 path forma 84f97282 · stroke rgb(255, 255, 255) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "        @114,125 14×0 path forma 019592ec · stroke rgb(255, 255, 255) · stroke-linecap round · stroke-width 12px",
+    "      @166,88 503×60 span «Ferretería Aramayo» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 60px · font-weight 900 · letter-spacing 0.4px · line-height 60px · text-transform uppercase",
+    "    @699,72 179×92 div[data-locality][data-role=localidad] «En FRÍAS» 1 línea · color rgb(246, 241, 234) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 38px · font-weight 800 · letter-spacing 1px · line-height 38px · text-transform uppercase · background-color rgb(20, 20, 20)"
+  ]
+}

@@ -47,7 +47,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "c11d3260c32085cf960e83b97744a4b98d9ae7a2b5fc9b28ab8062e8fd5578ec",
+      "overlayHash": "eb346ef1c89977258260dae339efb55913cccca65e8e497dac981a3e160b6c35",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -98,7 +98,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "fc884ec7de017d1985364199ffe3ca78a7c70aefc1ae2e3ff236114879ed19b0",
+      "overlayHash": "5a8675ffa2e977ea3bce61b01389d458c4373d0bf799f6383abf0874a293be42",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -149,7 +149,7 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "53ab8cceef45aac734757c540a7122abf6f8e599c2228adb588633ecd77615eb",
+      "overlayHash": "bc09797461cd18e552aa3fb6a9f036489fe151e731539e485c496001d9af935a",
       "passed": true,
       "profileId": "ferreteria-producto-limpio"
     },
@@ -200,7 +200,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "9510f911da5cdf6181abdf9be74a54b8a7cb62552d8f34f12d2f63e0be6f9f47",
+      "overlayHash": "802a86a1a730bed4d8b8350f91cc30d1d39bbbb8ca0f9b2689f548357a6435cc",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -251,7 +251,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "e8b861aa2118ce1006d99a281eac77bae9625c838d8767265f69d90114de3748",
+      "overlayHash": "0ce92c896d46af7141b3219a223a6c93dd25042ce3f9ba27c03ebbae82ef7817",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -302,7 +302,7 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "513c62266875c9feb2b2f4f8a7859a7de92f00b955147ffe4a2750e85b28424c",
+      "overlayHash": "bf10e83c5a44ffe9a6cf1b79920092ba39e46b865870779294d732e154e89bd2",
       "passed": true,
       "profileId": "lubricentro-producto-limpio"
     },
@@ -353,7 +353,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "7d1d1e18ea9419e84478a1e08fde12172b14f181de341b48f0e0b95d1c989dc9",
+      "overlayHash": "9b5b91ea525d3e8f9d22a1febb876f7395fc97312f4c1b13469970ef7c6d0012",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -404,7 +404,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "51ec614d5e177c42b9b2191d6e1a8bcead3898ed503c3bd0652e5f046c3d36f7",
+      "overlayHash": "cb373974514aa8d26bbe1f6c70b2d69f7ebc51fdf8a939c169e824b1bd542b38",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -455,7 +455,7 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "c79e15bbfdb4b0486ed7b1345f5e5edd5127fe6a7eff6f8bc354a2ecf77da0b3",
+      "overlayHash": "466dea485c39fa8c851cded476d2fc47758339189d229b135a7b042f7857d8d6",
       "passed": true,
       "profileId": "ferreteria-taller"
     },
@@ -506,7 +506,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "623ac80c745593e3ec26deece9a842c8f43c3906b77f59e8224224ff8bfd6f48",
+      "overlayHash": "62e38bccc77c7f6edf51cb38fa2444cb768a587704f54bf300e7c794c636c733",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -557,7 +557,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "f087580010a0c1e903e24bd8a50de1e1fe712b68703426c0ddd1cc0f5d9fcf74",
+      "overlayHash": "f96b27bfaf062a0147a6339d2951cbeb9540c0e89c39837566be591600d8edcc",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -608,7 +608,7 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "487418ed577f9be29504de3ba749ef87786c678c5706be915ee09852385a4f34",
+      "overlayHash": "c6ffb00b45b2d731ae4047b45c854d98a163c950ffc20edd984580ef8c63638d",
       "passed": true,
       "profileId": "ferreteria-obra"
     },
@@ -659,7 +659,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "6a43b844aff7a8c6c8f103814c51bbaf6f52450aa4ed148326cfd0225b1aed6a",
+      "overlayHash": "7d2969462c7b323e1dceb0b31cbd0992414451d87fc200607812b1b2e388f805",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -710,7 +710,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "5cd91ae836952d94b8e911da40de8e1d161d23aa8e9045cbaa070597381934c4",
+      "overlayHash": "322e4a69ba7d02917ca79b9e062dc8722f8540a4ad55c816a11b3689680fa046",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -761,7 +761,7 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "a5026d2506e001d2a22300beaa2eaa5fafaf861182098ada9daf41423e303464",
+      "overlayHash": "102c9a73f46441ec819138b96b6fbddadd6494c9807c8bd16f229559607e57a8",
       "passed": true,
       "profileId": "lubricentro-servicio"
     },
@@ -812,7 +812,7 @@
         }
       ],
       "format": "feed",
-      "overlayHash": "7e16ebcc00a4213efbf88246aa4e66ae009f0494bf4bc79e7eaf67711f1b93f0",
+      "overlayHash": "6cfa8877a5b55851a0a550ad779dded229356ebb3cc91c96e8f1753c1f4e4a3b",
       "passed": true,
       "profileId": "promocion-estacional"
     },
@@ -863,7 +863,7 @@
         }
       ],
       "format": "cuadrado",
-      "overlayHash": "b5b02155d01d5023ac8849011043cd3c9c16702eac57986397ddca734cb6ef4a",
+      "overlayHash": "6c97f0736d77e710c93d5fb63de3d2fb9b8c9581f60e2b2c3edc3743e3875b0f",
       "passed": true,
       "profileId": "promocion-estacional"
     },
@@ -914,14 +914,14 @@
         }
       ],
       "format": "historia",
-      "overlayHash": "32cb5f5183780c9e36ccab15c77137cf59d6a25a31d87a8d3967d798c0df0f92",
+      "overlayHash": "8f72ce0e3ba2748225eeb881123b5f462d449bda54575b103f59cfdf69946592",
       "passed": true,
       "profileId": "promocion-estacional"
     }
   ],
-  "compositionVersion": "visual-composition/2026-08-05.1",
+  "compositionVersion": "visual-composition/2026-09-14.1",
   "datasetVersion": "image-quality/2026-08-07.2",
-  "generatedAt": "2026-08-07T23:12:40.049Z",
+  "generatedAt": "2026-09-14T13:31:08.866Z",
   "humanReview": {
     "assessments": [],
     "reviewedAt": null,
