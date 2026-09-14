@@ -74,6 +74,7 @@ export type {
   BannerLayoutId,
   CarouselLayoutId,
   ComposedLayoutId,
+  FrameLayoutId,
   HighlightLayoutId,
   LayoutId,
   PublicationLayoutId,
@@ -90,6 +91,15 @@ export {
   type ComposedPanelRect,
   type ComposedRegion,
 } from "./layouts/composed-geometry.ts";
+export {
+  CARTEL_HEIGHT,
+  FRAME_LAYOUT_IDS,
+  FRAME_TITLE_BUDGET,
+  frameTitleSize,
+  isFrameLayoutId,
+  VEIL_DENSE_OPACITY,
+  VEIL_TEXT_MINIMUM_OPACITY,
+} from "./layouts/frame-geometry.ts";
 export type {
   ContentFieldKey,
   LayoutFamily,

@@ -74,6 +74,25 @@ export type ComposedLayoutId =
   | "composicion-banda-superior"
   | "composicion-circulo-central";
 
+/**
+ * Marcos de marca sobre la base generada (`ADR-029`).
+ *
+ * También componen una base generada, pero no dependen de la región que el
+ * prompt reservó: su nombre describe la forma del marco, y quien revisa la
+ * variante elige el que no tapa el producto. La región del perfil sólo decide
+ * cuál se usa por defecto.
+ */
+export type FrameLayoutId =
+  | "marco-firma"
+  | "marco-etiqueta"
+  | "marco-sello"
+  | "marco-velo-superior"
+  | "marco-velo-inferior"
+  | "marco-columna-izquierda"
+  | "marco-columna-derecha"
+  | "marco-zocalo"
+  | "marco-vitrina";
+
 export type BannerLayoutId = "banner-marca";
 
 export type HighlightLayoutId = "destacada-cover";
@@ -82,6 +101,7 @@ export type LayoutId =
   | BannerLayoutId
   | CarouselLayoutId
   | ComposedLayoutId
+  | FrameLayoutId
   | HighlightLayoutId
   | PublicationLayoutId
   | StoryLayoutId;

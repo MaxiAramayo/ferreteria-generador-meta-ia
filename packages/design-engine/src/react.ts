@@ -57,6 +57,24 @@ export {
   ComposicionTercioInferior,
 } from "./layouts/composed-pieces.tsx";
 export {
+  Cartel,
+  frameAccent,
+  frameCtaColors,
+  type FrameAccent,
+  type FrameCtaColors,
+} from "./layouts/frame-kit.tsx";
+export {
+  MarcoColumnaDerecha,
+  MarcoColumnaIzquierda,
+  MarcoEtiqueta,
+  MarcoFirma,
+  MarcoSello,
+  MarcoVeloInferior,
+  MarcoVeloSuperior,
+  MarcoVitrina,
+  MarcoZocalo,
+} from "./layouts/frame-pieces.tsx";
+export {
   HistoriaProblemaSolucion,
   HistoriaProductoPrecio,
   HistoriaSurtidoReal,
