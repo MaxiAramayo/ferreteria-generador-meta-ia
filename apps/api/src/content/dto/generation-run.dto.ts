@@ -1,4 +1,6 @@
 import {
+  contentBriefLimits,
+  frameLayoutIds,
   generationEditKinds,
   generationRunLimits,
   visualFormatIds,
@@ -15,6 +17,7 @@ import {
   Min,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { Transform, Type } from "class-transformer";
 
@@ -89,14 +92,24 @@ export class GenerationRunHistoryQueryDto {
   lineageRootId?: string;
 }
 
+/**
+ * Pedido de edición.
+ *
+ * `instruction` es lo que se le pide a un modelo, y por eso no aplica a
+ * `kind: "composition"`: cambiar de marco y textos no genera nada, así que en
+ * su lugar lleva el marco elegido y el copy completo. Las dos formas
+ * comparten `kind` y `parentVariantId`; el resto se valida sólo cuando
+ * corresponde a la forma elegida.
+ */
 export class RequestGenerationEditDto {
   @IsIn([...generationEditKinds])
   kind!: string;
 
+  @ValidateIf((dto: RequestGenerationEditDto) => dto.kind !== "composition")
   @IsString()
   @MinLength(generationRunLimits.editInstructionMinimum)
   @MaxLength(generationRunLimits.editInstructionMaximum)
-  instruction!: string;
+  instruction?: string;
 
   @IsUUID()
   parentVariantId!: string;
@@ -111,6 +124,43 @@ export class RequestGenerationEditDto {
   @Min(generationRunLimits.variantsMinimum)
   @Max(generationRunLimits.variantsMaximum)
   variants?: number;
+
+  /** Sólo para `kind: "composition"`: uno de los nueve marcos aprobados. */
+  @ValidateIf((dto: RequestGenerationEditDto) => dto.kind === "composition")
+  @IsIn([...frameLayoutIds])
+  layout?: string;
+
+  @ValidateIf((dto: RequestGenerationEditDto) => dto.kind === "composition")
+  @IsString()
+  @MinLength(contentBriefLimits.titleMinimum)
+  @MaxLength(contentBriefLimits.titleMaximum)
+  title?: string;
+
+  @ValidateIf(
+    (dto: RequestGenerationEditDto) =>
+      dto.kind === "composition" && dto.subtitle !== null,
+  )
+  @IsOptional()
+  @IsString()
+  @MinLength(contentBriefLimits.subtitleMinimum)
+  @MaxLength(contentBriefLimits.subtitleMaximum)
+  subtitle?: string | null;
+
+  @ValidateIf((dto: RequestGenerationEditDto) => dto.kind === "composition")
+  @IsString()
+  @MinLength(contentBriefLimits.callToActionLabelMinimum)
+  @MaxLength(contentBriefLimits.callToActionLabelMaximum)
+  callToAction?: string;
+
+  @ValidateIf(
+    (dto: RequestGenerationEditDto) =>
+      dto.kind === "composition" && dto.badge !== null,
+  )
+  @IsOptional()
+  @IsString()
+  @MinLength(generationRunLimits.compositionBadgeMinimum)
+  @MaxLength(generationRunLimits.compositionBadgeMaximum)
+  badge?: string | null;
 }
 
 export class SelectGenerationVariantDto {

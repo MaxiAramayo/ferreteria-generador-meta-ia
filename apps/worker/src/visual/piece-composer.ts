@@ -31,6 +31,7 @@ import {
   planComposedPiece,
   visualCompositionVersion,
   VisualCompositionError,
+  type ComposedCopyOverride,
   type ComposedLayoutId,
   type ComposedPiecePlan,
   type ComposedThemeId,
@@ -69,6 +70,12 @@ export interface ComposedBaseImage {
 export interface ComposePieceInput {
   readonly base: ComposedBaseImage | null;
   readonly brief: ContentBrief;
+  /**
+   * Título, bajada, etiqueta y llamado a la acción elegidos desde la
+   * variante (`ADR-029`, cambio de marco y textos). Sin ella, los cuatro
+   * salen del brief como siempre.
+   */
+  readonly copyOverride?: ComposedCopyOverride | undefined;
   readonly format: VisualFormatId;
   /**
    * Pieza elegida por quien revisa la variante (`ADR-029`). Sin ella se usa el
@@ -215,6 +222,7 @@ export function composePiece(input: ComposePieceInput): ComposedPiece {
         : { height: input.base.height, width: input.base.width },
     brief: input.brief,
     canvas: canvasFor(input.format),
+    copyOverride: input.copyOverride,
     format: input.format,
     layout: input.layout,
     region: input.region,

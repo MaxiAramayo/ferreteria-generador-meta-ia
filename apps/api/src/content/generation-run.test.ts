@@ -953,6 +953,123 @@ test("una edición visual crea un lote hijo y no cambia el brief", async () => {
   });
 });
 
+test("cambiar de marco y textos valida el copy y crea un lote hijo sin instrucción", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+
+  const accepted = await service.requestEdit(
+    actor,
+    parent.id,
+    {
+      callToAction: "Escribinos ya",
+      kind: "composition",
+      layout: "marco-etiqueta",
+      parentVariantId: source.id,
+      title: "Taladro en oferta",
+    },
+    "generation-edit-composition-0001",
+  );
+
+  assert.equal(accepted.status, "pending");
+  const compositionEdit = editorial.lastEdit;
+  assert.ok(compositionEdit);
+  // Conserva el brief original: no hay nada que revalidar.
+  assert.equal(compositionEdit.contentBriefRunId, parent.contentBriefRunId);
+  assert.deepEqual(compositionEdit.edit, {
+    copy: {
+      badge: null,
+      callToAction: "Escribinos ya",
+      subtitle: null,
+      title: "Taladro en oferta",
+    },
+    kind: "composition",
+    layout: "marco-etiqueta",
+    parentRunId: parent.id,
+    parentVariantId: source.id,
+  });
+  // Cambiar de marco y textos siempre produce una sola variante.
+  assert.equal(compositionEdit.variantIds.length, 1);
+});
+
+test("un título que no entra en el marco elegido se rechaza antes de crear el lote", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          callToAction: "Consultá por WhatsApp",
+          kind: "composition",
+          // El presupuesto de marco-sello es 32; este título entra en el
+          // brief y no entra en el sello.
+          layout: "marco-sello",
+          parentVariantId: source.id,
+          title: "Taladro percutor inalámbrico de 13 mm con maletín",
+        },
+        "generation-edit-composition-0002",
+      ),
+    BadRequestException,
+  );
+  assert.equal(editorial.lastEdit, undefined);
+});
+
+test("cambiar de marco y textos no acepta otro brief", async () => {
+  const runs = new FakeRuns();
+  const parent = runs.add(completedRun());
+  const editorial = new FakeEditorial();
+  const service = await serviceFor(
+    new FakeRequests(),
+    runs,
+    new FakeBriefs(),
+    undefined,
+    editorial,
+  );
+  const source = parent.variants[0];
+  assert.ok(source !== undefined);
+
+  await assert.rejects(
+    () =>
+      service.requestEdit(
+        actor,
+        parent.id,
+        {
+          callToAction: "Consultá por WhatsApp",
+          contentBriefRunId: "30000000-0000-4000-8000-000000000099",
+          kind: "composition",
+          layout: "marco-etiqueta",
+          parentVariantId: source.id,
+          title: "Taladro para tu obra",
+        },
+        "generation-edit-composition-0003",
+      ),
+    BadRequestException,
+  );
+  assert.equal(editorial.lastEdit, undefined);
+});
+
 test("precio, producto o promoción obligan a un brief nuevo", async () => {
   const runs = new FakeRuns();
   const parent = runs.add(completedRun());

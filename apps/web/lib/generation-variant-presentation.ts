@@ -1,7 +1,7 @@
 import type { GenerationVariantResponse } from "@aramayo/contracts";
 
 export type GenerationVariantAction =
-  "compare" | "edit-factual" | "edit-visual" | "select";
+  "compare" | "edit-composition" | "edit-factual" | "edit-visual" | "select";
 
 export function availableGenerationVariantActions(
   variant: GenerationVariantResponse,
@@ -11,6 +11,9 @@ export function availableGenerationVariantActions(
   }
   const actions = new Set<GenerationVariantAction>([
     "compare",
+    // Cambiar de marco y textos no depende de si hubo imagen generada: una
+    // pieza determinista también se puede recomponer con otro marco.
+    "edit-composition",
     "edit-factual",
     "select",
   ]);

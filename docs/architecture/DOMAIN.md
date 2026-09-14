@@ -83,13 +83,18 @@ escribirse, no se entrega brief.
 
 `GenerationRun` es un lote de variantes y también la unidad append-only de una
 edición. Un lote raíz se apunta a sí mismo con `lineageRootId`; un hijo conserva
-además `parentRunId`, `parentVariantId`, clase `visual | factual` e instrucción.
-La base impide raíces con datos de edición e hijos incompletos.
+además `parentRunId`, `parentVariantId` y una de tres clases: `visual` y
+`factual` llevan instrucción, `composition` lleva el marco elegido y el copy
+completo. La base impide raíces con datos de edición e hijos incompletos, y
+exige que sólo `composition` tenga marco y copy.
 
 Una edición visual conserva el `ContentBriefRun` y exige una variante padre
 exitosa, generada y compuesta. Una edición factual exige un brief generado,
 posterior y distinto: cambiar precio, producto o promoción nunca se resuelve
-sólo modificando píxeles.
+sólo modificando píxeles. Una edición de composición (`ADR-029`) conserva el
+brief y no le pide nada a un modelo: recompone la misma base —o su ausencia, si
+el padre es determinista— con otro marco y otro copy, y por eso nunca reserva
+presupuesto de generación.
 
 Cada ejecución puede apuntar a una variante exitosa mediante
 `selectedVariantId`. `selectionVersion` protege carreras y la selección conserva

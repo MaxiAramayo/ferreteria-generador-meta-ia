@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it, test } from "node:test";
 
+import type { ContentBrief } from "./content-brief.ts";
 import {
+  GenerationCompositionEditValidationError,
   generationRunLimits,
   generationRunOutcome,
   generationEditNeedsFactualRevalidation,
@@ -10,6 +12,8 @@ import {
   generationVariantStatuses,
   isGenerationRunResolved,
   isGenerationRunTransitionAllowed,
+  validateGenerationCompositionEditCopy,
+  type GenerationCompositionEditRequest,
   type GenerationRunStatus,
   type GenerationVariantRecord,
   type GenerationVariantStatus,
@@ -196,5 +200,188 @@ describe("estados declarados", () => {
   it("no hay estados duplicados", () => {
     const unique = new Set<GenerationRunStatus>(generationRunStatuses);
     assert.equal(unique.size, generationRunStatuses.length);
+  });
+});
+
+describe("copy de una edición de marco y textos (ADR-029)", () => {
+  const brief: ContentBrief = Object.freeze({
+    brand: "ferreteria",
+    callToAction: Object.freeze({
+      kind: "whatsapp",
+      label: "Consultanos por WhatsApp",
+    }),
+    caption: "Pasá por el local y consultanos cuál te sirve para tu obra.",
+    creativeProposal: "Tono directo, foco en el uso real de la herramienta.",
+    missingInformation: Object.freeze([]),
+    objective: "product",
+    products: Object.freeze([
+      Object.freeze({
+        evidenceId: "C1",
+        externalProductId: "odoo-product-101",
+        label: "Perforadora percutora 650 W",
+      }),
+    ]),
+    requiresHumanApproval: false,
+    subtitle: null,
+    title: "Perforadora para tu obra",
+    verifiedFacts: Object.freeze([]),
+    visualDirection: "clean_product",
+  });
+
+  const pricedBrief: ContentBrief = Object.freeze({
+    ...brief,
+    objective: "promotion",
+    requiresHumanApproval: true,
+    verifiedFacts: Object.freeze([
+      Object.freeze({
+        claimKind: "price" as const,
+        evidenceId: "C1",
+        statement: "La perforadora cuesta $ 24.500 en mostrador.",
+      }),
+    ]),
+  });
+
+  function request(
+    overrides: Partial<GenerationCompositionEditRequest> = {},
+  ): GenerationCompositionEditRequest {
+    return {
+      badge: null,
+      callToAction: "Consultá por WhatsApp",
+      layout: "marco-zocalo",
+      subtitle: "Con mecha y maletín.",
+      title: "Perforadora percutora 650 W",
+      ...overrides,
+    };
+  }
+
+  it("normaliza espacios y acepta un copy que entra en el marco", () => {
+    const copy = validateGenerationCompositionEditCopy(
+      request({ title: "  Perforadora   percutora  650 W " }),
+      brief,
+    );
+    assert.deepEqual(copy, {
+      badge: null,
+      callToAction: "Consultá por WhatsApp",
+      subtitle: "Con mecha y maletín.",
+      title: "Perforadora percutora 650 W",
+    });
+  });
+
+  it("un título fuera del rango del brief se rechaza antes de mirar el marco", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(request({ title: "Hi" }), brief),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "title-length",
+    );
+  });
+
+  it("un título que entra en el brief puede seguir sin entrar en el marco", () => {
+    // El presupuesto de marco-sello es 32; éste entra en el brief (70) y no
+    // entra en el sello.
+    const longTitle = "Perforadora percutora inalámbrica de 650 W con mecha";
+    assert.ok(longTitle.length <= 70 && longTitle.length > 32);
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ layout: "marco-sello", title: longTitle }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "title-too-long-for-layout",
+    );
+  });
+
+  it("una bajada en un marco que no la sostiene se rechaza", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ layout: "marco-sello", subtitle: "Con mecha y maletín." }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "subtitle-not-supported",
+    );
+  });
+
+  it("una bajada que entra en el brief puede seguir sin entrar en una zona angosta", () => {
+    // Las columnas sostienen hasta 90; esto entra en el brief (120) y no en
+    // la columna.
+    const subtitle =
+      "Incluye mecha para hormigón, maletín de transporte, batería de litio de repuesto y cargador rápido incluido.";
+    assert.ok(subtitle.length <= 120 && subtitle.length > 90);
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ layout: "marco-columna-izquierda", subtitle }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "subtitle-too-long-for-layout",
+    );
+  });
+
+  it("un llamado a la acción fuera de rango se rechaza", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ callToAction: "Ok" }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "call-to-action-length",
+    );
+  });
+
+  it("una etiqueta en un marco que no la sostiene se rechaza", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ badge: "Oferta", layout: "marco-firma", subtitle: null }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "badge-not-supported",
+    );
+  });
+
+  it("una etiqueta que afirma disponibilidad se rechaza aunque el brief la sustente", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ badge: "Disponible" }),
+          pricedBrief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "badge-blocked-term",
+    );
+  });
+
+  it("un precio mencionado sin hecho verificado se rechaza", () => {
+    assert.throws(
+      () =>
+        validateGenerationCompositionEditCopy(
+          request({ subtitle: "Cuesta $ 24.500 en mostrador." }),
+          brief,
+        ),
+      (error: unknown) =>
+        error instanceof GenerationCompositionEditValidationError &&
+        error.code === "unsupported-claim-in-copy",
+    );
+  });
+
+  it("el mismo precio se acepta cuando el brief lo sustenta con evidencia", () => {
+    const copy = validateGenerationCompositionEditCopy(
+      request({ badge: "Oferta", subtitle: "Cuesta $ 24.500 en mostrador." }),
+      pricedBrief,
+    );
+    assert.equal(copy.subtitle, "Cuesta $ 24.500 en mostrador.");
   });
 });

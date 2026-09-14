@@ -1247,6 +1247,8 @@ model GenerationRun {
   parentVariantId        String?             @map("parent_variant_id") @db.Uuid
   editKind               String?             @map("edit_kind") @db.VarChar(20)
   editInstruction        String?             @map("edit_instruction") @db.VarChar(600)
+  editLayout             String?             @map("edit_layout") @db.VarChar(60)
+  editCopy               Json?               @map("edit_copy")
   selectedVariantId      String?             @map("selected_variant_id") @db.Uuid
   selectedAt             DateTime?           @map("selected_at") @db.Timestamptz(3)
   selectedByMembershipId String?             @map("selected_by_membership_id") @db.Uuid

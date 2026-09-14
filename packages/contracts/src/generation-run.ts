@@ -59,12 +59,28 @@ export type GenerationVariantCompositionResponse = {
   width: number;
 };
 
-export type GenerationRunEditResponse = {
-  instruction: string;
-  kind: "visual" | "factual";
-  parentRunId: string;
-  parentVariantId: string;
+/** Copy elegido desde la variante, en lugar del que derivaría el brief. */
+export type GenerationCompositionEditCopyResponse = {
+  badge: string | null;
+  callToAction: string;
+  subtitle: string | null;
+  title: string;
 };
+
+export type GenerationRunEditResponse =
+  | {
+      instruction: string;
+      kind: "factual" | "visual";
+      parentRunId: string;
+      parentVariantId: string;
+    }
+  | {
+      copy: GenerationCompositionEditCopyResponse;
+      kind: "composition";
+      layout: string;
+      parentRunId: string;
+      parentVariantId: string;
+    };
 
 /** Progreso del lote, para que la espera sea legible sin contar a mano. */
 export type GenerationRunProgressResponse = {

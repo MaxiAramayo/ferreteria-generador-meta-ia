@@ -1,7 +1,9 @@
 # ADR-029: familia de marcos «Letrero de Chapa» sobre la imagen generada
 
 - Estado: aceptado; aprobado visualmente por el negocio el 2026-09-14 sobre el
-  canvas de revisión, con los nueve marcos en los tres formatos
+  canvas de revisión, con los nueve marcos en los tres formatos. Elegir marco y
+  editar textos desde la variante (sección 7) quedó implementado el mismo día,
+  como `GenerationRunEdit` de clase `composition` (`ADR-016`)
 - Fecha: 2026-09-14
 - Origen: pedido del usuario del 2026-09-13
 
@@ -119,9 +121,16 @@ y requiere la revisión visual del negocio.
 
 ### 7. Textos
 
-Título, bajada, etiqueta y llamado a la acción son los campos que podrán
-editarse desde la variante. Precio y vigencia se siguen componiendo sólo desde
-hechos verificados del brief. El cartel no se edita: es la identidad.
+Título, bajada, etiqueta y llamado a la acción son los campos que se editan
+desde la variante, como `GenerationRunEdit` de clase `composition`
+(`ADR-016`): elegir otro marco entre los nueve y reemplazar su copy, sin
+volver a pagar una imagen. El copy se valida contra la capacidad del marco
+elegido y contra la misma evidencia del brief, con las mismas reglas que
+`composedBadgeFor` —una etiqueta no puede afirmar disponibilidad ni stock— y
+que `assertCopyIsSupported` —un precio o una promoción mencionados en el
+texto exigen un hecho verificado que los sustente. Precio y vigencia se
+siguen componiendo sólo desde hechos verificados del brief y no forman parte
+de lo editable. El cartel no se edita: es la identidad.
 
 ## Consecuencias
 
@@ -135,5 +144,8 @@ hechos verificados del brief. El cartel no se edita: es la identidad.
   biblioteca, en los tres formatos y los cuatro temas, para la revisión humana.
 - Bajar la opacidad de un velo sin volver a correr la suite rompe la garantía de
   contraste.
-- Elegir marco y editar textos desde la variante es un tipo de edición nuevo, y
-  queda para un cambio posterior.
+- Elegir marco y editar textos desde la variante es un tipo de edición nuevo
+  (`composition`, `ADR-016`): agrega dos columnas a `generation_runs`
+  (`edit_layout`, `edit_copy`) y un tercer motivo de admisión determinista
+  (`composition-edit`) que no compite por presupuesto porque nunca llama al
+  proveedor.

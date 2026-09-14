@@ -108,12 +108,21 @@ export class GenerationRunController {
       session.actor,
       runId,
       {
-        instruction: body.instruction,
         kind: body.kind,
         parentVariantId: body.parentVariantId,
+        ...(body.badge === undefined ? {} : { badge: body.badge }),
+        ...(body.callToAction === undefined
+          ? {}
+          : { callToAction: body.callToAction }),
         ...(body.contentBriefRunId === undefined
           ? {}
           : { contentBriefRunId: body.contentBriefRunId }),
+        ...(body.instruction === undefined
+          ? {}
+          : { instruction: body.instruction }),
+        ...(body.layout === undefined ? {} : { layout: body.layout }),
+        ...(body.subtitle === undefined ? {} : { subtitle: body.subtitle }),
+        ...(body.title === undefined ? {} : { title: body.title }),
         ...(body.variants === undefined ? {} : { variants: body.variants }),
       },
       idempotencyKey,

@@ -2,7 +2,10 @@ export type GenerationAdmissionReasonResponse =
   | "generation-disabled"
   | "monthly-budget-exceeded"
   | "organization-daily-limit"
-  | "user-daily-limit";
+  | "user-daily-limit"
+  // No es un bloqueo: una edición de marco y textos nunca pide una llamada al
+  // proveedor, así que no se evalúa contra presupuesto ni límites diarios.
+  | "composition-edit";
 
 export type GenerationAdmissionResponse =
   | Readonly<{

@@ -14,6 +14,8 @@
  * y reentregarlo no vuelve a gastar una variante ya resuelta.
  */
 
+import { contentBriefLimits, detectClaimSignals } from "./content-brief.ts";
+import type { ContentBrief } from "./content-brief.ts";
 import type { ImageGenerationFailureCode } from "./image-generation.ts";
 import type {
   GenerationAdmission,
@@ -23,6 +25,12 @@ import type {
 import type { OrganizationScope } from "./persistence.ts";
 import type { PaginatedRecords } from "./publication-draft.ts";
 import type { ReliableMutationContext } from "./reliable-operations.ts";
+import {
+  composedCopyCapacityFor,
+  composedTitleBudget,
+  type ComposedCopyOverride,
+  type FrameLayoutId,
+} from "./visual-composition.ts";
 import type {
   DeterministicVisualReason,
   VisualFormatId,
@@ -41,17 +49,54 @@ export const generationRunLimits = Object.freeze({
   variantsMinimum: 1,
   editInstructionMaximum: 600,
   editInstructionMinimum: 8,
+  /**
+   * Una edición de marco y textos no gasta ninguna llamada: recompone la
+   * misma base con otro marco y otro copy. Pedir varias copias idénticas no
+   * tendría sentido, así que el lote siempre tiene una sola variante.
+   */
+  compositionEditVariants: 1,
+  /**
+   * La etiqueta editable es más corta que el resto del copy: es un remate de
+   * una o dos palabras, no una oración. Los valores que hoy compone el motor
+   * —«Oferta», «Hoy», «Herramientas»— entran cómodos en este tope.
+   */
+  compositionBadgeMaximum: 18,
+  compositionBadgeMinimum: 3,
 });
 
-export const generationEditKinds = ["visual", "factual"] as const;
+export const generationEditKinds = [
+  "visual",
+  "factual",
+  "composition",
+] as const;
 export type GenerationEditKind = (typeof generationEditKinds)[number];
 
-export interface GenerationRunEdit {
+/** Edición que le pide algo a la IA: otra imagen o un brief revalidado. */
+export interface GenerationInstructionEdit {
   readonly instruction: string;
-  readonly kind: GenerationEditKind;
+  readonly kind: "factual" | "visual";
   readonly parentRunId: string;
   readonly parentVariantId: string;
 }
+
+/**
+ * Cambiar de marco y editar los textos (`ADR-029`).
+ *
+ * No lleva instrucción: no hay nada que pedirle a un modelo. Es la misma base
+ * ya generada —o la ausencia de base, si el padre es determinista—
+ * recompuesta con otro marco y otro copy, y por eso nunca gasta una llamada al
+ * proveedor.
+ */
+export interface GenerationCompositionEdit {
+  readonly copy: ComposedCopyOverride;
+  readonly kind: "composition";
+  readonly layout: FrameLayoutId;
+  readonly parentRunId: string;
+  readonly parentVariantId: string;
+}
+
+export type GenerationRunEdit =
+  GenerationCompositionEdit | GenerationInstructionEdit;
 
 /**
  * Guardia deliberadamente conservadora para el camino visual.
@@ -68,6 +113,192 @@ export function generationEditNeedsFactualRevalidation(
   instruction: string,
 ): boolean {
   return factualEditSignal.test(instruction);
+}
+
+/**
+ * Términos que la etiqueta editable nunca puede afirmar.
+ *
+ * Repite la decisión de `composedBadgeFor`: un producto dejó de llevar
+ * «Disponible» porque afirmaba stock que nadie verificó, y un hecho de stock
+ * caduca a los cinco minutos mientras la pieza sigue publicada. Editar la
+ * etiqueta a mano no reabre esa puerta.
+ */
+const compositionBadgeBlockedTerms =
+  /\bdisponib|\ben\s+stock\b|\bsin\s+stock\b|\bagotad[oa]\b|\bquedan\s+pocas?\b/iu;
+
+export type GenerationCompositionEditValidationErrorCode =
+  | "badge-blocked-term"
+  | "badge-length"
+  | "badge-not-supported"
+  | "call-to-action-length"
+  | "subtitle-length"
+  | "subtitle-not-supported"
+  | "subtitle-too-long-for-layout"
+  | "title-length"
+  | "title-too-long-for-layout"
+  | "unsupported-claim-in-copy";
+
+/** Rechazo de un copy editado, antes de crear la ejecución hija. */
+export class GenerationCompositionEditValidationError extends Error {
+  readonly code: GenerationCompositionEditValidationErrorCode;
+  readonly field: string;
+
+  constructor(
+    code: GenerationCompositionEditValidationErrorCode,
+    field: string,
+    message: string,
+  ) {
+    super(message);
+    this.code = code;
+    this.field = field;
+    this.name = "GenerationCompositionEditValidationError";
+  }
+}
+
+/** Lo que llega desde el formulario, antes de normalizar. */
+export interface GenerationCompositionEditRequest {
+  readonly badge: string | null;
+  readonly callToAction: string;
+  readonly layout: FrameLayoutId;
+  readonly subtitle: string | null;
+  readonly title: string;
+}
+
+function normalizedText(value: string): string {
+  return value.replaceAll(/\s+/gu, " ").trim();
+}
+
+/**
+ * Valida el copy editado contra la capacidad del marco elegido y contra la
+ * evidencia del mismo brief, y devuelve el copy ya normalizado.
+ *
+ * Título, bajada y llamado a la acción comparten los topes del brief
+ * (`contentBriefLimits`): son el mismo tipo de texto, editado desde otro
+ * lugar. El presupuesto de titular y la capacidad de bajada y etiqueta son,
+ * en cambio, del marco: un texto que entraría en el brief puede seguir sin
+ * entrar en la zona del marco elegido. Precio y vigencia no entran acá porque
+ * no se editan: siguen componiéndose sólo desde hechos verificados.
+ */
+export function validateGenerationCompositionEditCopy(
+  request: GenerationCompositionEditRequest,
+  brief: ContentBrief,
+): ComposedCopyOverride {
+  const title = normalizedText(request.title);
+  const subtitle =
+    request.subtitle === null ? null : normalizedText(request.subtitle);
+  const callToAction = normalizedText(request.callToAction);
+  const badge = request.badge === null ? null : normalizedText(request.badge);
+  const capacity = composedCopyCapacityFor(request.layout);
+
+  if (
+    title.length < contentBriefLimits.titleMinimum ||
+    title.length > contentBriefLimits.titleMaximum
+  ) {
+    throw new GenerationCompositionEditValidationError(
+      "title-length",
+      "title",
+      `El título debe tener entre ${String(contentBriefLimits.titleMinimum)} y ${String(contentBriefLimits.titleMaximum)} caracteres.`,
+    );
+  }
+
+  const titleBudget = composedTitleBudget[request.layout];
+
+  if (title.length > titleBudget) {
+    throw new GenerationCompositionEditValidationError(
+      "title-too-long-for-layout",
+      "title",
+      `El título no entra en este marco: acortalo a ${String(titleBudget)} caracteres o menos, o elegí un marco con más lugar para el texto.`,
+    );
+  }
+
+  if (subtitle !== null) {
+    if (capacity.subtitleMaximum === 0) {
+      throw new GenerationCompositionEditValidationError(
+        "subtitle-not-supported",
+        "subtitle",
+        "Este marco no muestra bajada. Quitala o elegí otro marco.",
+      );
+    }
+    if (
+      subtitle.length < contentBriefLimits.subtitleMinimum ||
+      subtitle.length > contentBriefLimits.subtitleMaximum
+    ) {
+      throw new GenerationCompositionEditValidationError(
+        "subtitle-length",
+        "subtitle",
+        `La bajada debe tener entre ${String(contentBriefLimits.subtitleMinimum)} y ${String(contentBriefLimits.subtitleMaximum)} caracteres.`,
+      );
+    }
+    if (subtitle.length > capacity.subtitleMaximum) {
+      throw new GenerationCompositionEditValidationError(
+        "subtitle-too-long-for-layout",
+        "subtitle",
+        `La bajada no entra en este marco: acortala a ${String(capacity.subtitleMaximum)} caracteres o menos.`,
+      );
+    }
+  }
+
+  if (
+    callToAction.length < contentBriefLimits.callToActionLabelMinimum ||
+    callToAction.length > contentBriefLimits.callToActionLabelMaximum
+  ) {
+    throw new GenerationCompositionEditValidationError(
+      "call-to-action-length",
+      "callToAction",
+      `El botón debe tener entre ${String(contentBriefLimits.callToActionLabelMinimum)} y ${String(contentBriefLimits.callToActionLabelMaximum)} caracteres.`,
+    );
+  }
+
+  if (badge !== null) {
+    if (!capacity.badge) {
+      throw new GenerationCompositionEditValidationError(
+        "badge-not-supported",
+        "badge",
+        "Este marco no muestra etiqueta. Quitala o elegí otro marco.",
+      );
+    }
+    if (
+      badge.length < generationRunLimits.compositionBadgeMinimum ||
+      badge.length > generationRunLimits.compositionBadgeMaximum
+    ) {
+      throw new GenerationCompositionEditValidationError(
+        "badge-length",
+        "badge",
+        `La etiqueta debe tener entre ${String(generationRunLimits.compositionBadgeMinimum)} y ${String(generationRunLimits.compositionBadgeMaximum)} caracteres.`,
+      );
+    }
+    if (compositionBadgeBlockedTerms.test(badge)) {
+      throw new GenerationCompositionEditValidationError(
+        "badge-blocked-term",
+        "badge",
+        "La etiqueta no puede afirmar disponibilidad o stock: nadie lo verificó, y un hecho de stock caduca mientras la pieza sigue publicada.",
+      );
+    }
+  }
+
+  const provenClaims = new Set(
+    brief.verifiedFacts.map((fact) => fact.claimKind),
+  );
+  const surfaces: readonly Readonly<{ field: string; text: string }>[] = [
+    { field: "title", text: title },
+    { field: "subtitle", text: subtitle ?? "" },
+    { field: "callToAction", text: callToAction },
+    { field: "badge", text: badge ?? "" },
+  ];
+
+  for (const surface of surfaces) {
+    for (const claimKind of detectClaimSignals(surface.text)) {
+      if (!provenClaims.has(claimKind)) {
+        throw new GenerationCompositionEditValidationError(
+          "unsupported-claim-in-copy",
+          surface.field,
+          `El texto afirma ${claimKind} sin un hecho verificado que lo sustente en este brief.`,
+        );
+      }
+    }
+  }
+
+  return Object.freeze({ badge, callToAction, subtitle, title });
 }
 
 /**

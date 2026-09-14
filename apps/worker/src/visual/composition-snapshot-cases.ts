@@ -17,15 +17,13 @@ import { createHash } from "node:crypto";
 
 import type { FormatId } from "@aramayo/design-engine";
 import {
-  composedLayoutFor,
   composedTitleBudget,
+  defaultRegionForFrame,
   frameLayoutIds,
   regionLayoutIds,
   regionLayoutRegions,
-  visualReservedSpaces,
   type ComposedLayoutId,
   type ContentBrief,
-  type FrameLayoutId,
   type VisualReservedSpace,
 } from "@aramayo/domain";
 import sharp from "sharp";
@@ -169,21 +167,6 @@ export interface CompositionCase {
   readonly title?: string | undefined;
 }
 
-/**
- * Región con que se compone cada marco en la suite.
- *
- * Un marco no depende de la región —su zona es propia—, pero el plan la
- * conserva y entra en la huella. Se usa la región de la que el marco es el
- * valor por defecto y, si no lo es de ninguna, el tercio inferior.
- */
-function regionForFrame(layout: FrameLayoutId): VisualReservedSpace {
-  return (
-    visualReservedSpaces.find(
-      (region) => composedLayoutFor(region) === layout,
-    ) ?? "lower_third"
-  );
-}
-
 const longTitleWords: readonly string[] =
   "Perforadora percutora inalámbrica de 650 W con mecha maletín cargador y batería para obra taller y hogar".split(
     " ",
@@ -260,7 +243,7 @@ export function compositionCases(): readonly CompositionCase[] {
   }
 
   for (const layout of frameLayoutIds) {
-    const region = regionForFrame(layout);
+    const region = defaultRegionForFrame(layout);
     pushPieceCases(cases, layout, region);
 
     for (const format of formats) {

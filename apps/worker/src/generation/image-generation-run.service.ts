@@ -24,6 +24,7 @@ import { createHash } from "node:crypto";
 
 import type { DesignRenderer } from "@aramayo/design-engine";
 import {
+  defaultRegionForFrame,
   generationImageModel,
   generationModerationModel,
   generationRunOutcome,
@@ -118,6 +119,11 @@ const corrections: Readonly<Record<GenerationVariantFailureCode, string>> =
     // llegado bien y aun así el navegador no haber podido renderizar la pieza.
     "composition-failed":
       "La imagen se generó pero la pieza no se pudo componer. Volvé a pedir el lote.",
+    // Este motivo nunca llega a mostrarse como fallo: una edición de marco y
+    // textos siempre se admite. Existe acá sólo porque `GenerationAdmissionReason`
+    // entra en `GenerationVariantFailureCode` y este registro es exhaustivo.
+    "composition-edit":
+      "Cambiar de marco y textos no pide una imagen nueva. Si ves este mensaje, avisá: es un estado que no debería mostrarse.",
     "generation-disabled":
       "La generación fue desactivada por un administrador. Volvé a pedir la pieza cuando se habilite.",
     "monthly-budget-exceeded":
@@ -313,6 +319,13 @@ export class ImageGenerationRunService {
     // Las variantes ya resueltas no se vuelven a pedir.
     if (run.status !== "pending" && run.status !== "running") {
       return { runId: run.id, status: "discarded" };
+    }
+
+    // Cambiar de marco y textos (`ADR-029`) no necesita un plan visual: no hay
+    // prompt que construir ni proveedor que consultar, así que se resuelve
+    // antes de llegar a la política de generación, que no le concierne.
+    if (run.edit?.kind === "composition") {
+      return this.#resolveCompositionEdit(run, run.edit);
     }
 
     const generationEnabled = await this.#generationEnabledFor(run);
@@ -638,6 +651,123 @@ export class ImageGenerationRunService {
     });
 
     return this.#resolveWithoutSpending(run, plan.reason, detail, "completed");
+  }
+
+  /**
+   * Cambia de marco y textos (`ADR-029`).
+   *
+   * Reutiliza la base que ya existía —o su ausencia, si el padre es
+   * determinista— y sólo cambia lo que dibuja el motor de marca encima: nunca
+   * pide una imagen nueva ni gasta una llamada al proveedor.
+   */
+  async #resolveCompositionEdit(
+    run: GenerationRunRecord,
+    edit: Extract<GenerationRunRecord["edit"], { kind: "composition" }>,
+  ): Promise<GenerationRunExecutionResult> {
+    const detail =
+      "La pieza se recompone con el marco y los textos elegidos, sin generar una imagen nueva.";
+    const [variant] = run.variants;
+
+    if (variant === undefined) {
+      return this.#resolveWithoutSpending(
+        run,
+        "composition-edit",
+        detail,
+        "completed",
+      );
+    }
+
+    const briefRun = await this.#briefs.findById({
+      id: run.contentBriefRunId,
+      organizationId: run.organizationId,
+    });
+    if (briefRun === null || briefRun.brief === null) {
+      return this.#resolveWithoutSpending(
+        run,
+        null,
+        "La ejecución de brief que originó el lote no produjo un brief que se pueda ilustrar.",
+        "failed",
+      );
+    }
+
+    const parent = await this.#runs.findById({
+      id: edit.parentRunId,
+      organizationId: run.organizationId,
+    });
+    const source = parent?.variants.find(
+      (candidate) => candidate.id === edit.parentVariantId,
+    );
+    if (parent === null || source?.status !== "succeeded") {
+      throw new Error(
+        "La variante de origen ya no está disponible para recomponer.",
+      );
+    }
+
+    let base: ComposedBaseImage | null = null;
+    if (source.source === "generated") {
+      if (source.mediaAssetId === null) {
+        throw new Error(
+          "La variante de origen no conserva una base para recomponer.",
+        );
+      }
+      base = await this.#media.read({
+        mediaAssetId: source.mediaAssetId,
+        organizationId: run.organizationId,
+      });
+    }
+
+    let composition: GenerationVariantComposition;
+    try {
+      const piece = composePiece({
+        base,
+        brief: briefRun.brief,
+        copyOverride: edit.copy,
+        format: run.format,
+        layout: edit.layout,
+        region: defaultRegionForFrame(edit.layout),
+        slug: compositionSlug(run.id),
+      });
+      composition = await this.#renderAndStore(run, piece);
+    } catch (cause: unknown) {
+      if (cause instanceof VisualCompositionError) {
+        return this.#resolveWithoutSpending(
+          run,
+          null,
+          resolutionDetail(`${cause.message} ${cause.correction}`),
+          "failed",
+        );
+      }
+      throw cause;
+    }
+
+    const now = this.#clock().toISOString();
+    const written = await this.#runs.completeDeterministicVariant(
+      {
+        composition,
+        organizationId: run.organizationId,
+        runId: run.id,
+        variantId: variant.id,
+      },
+      now,
+    );
+    if (written.status !== "written") {
+      return { runId: run.id, status: "discarded" };
+    }
+
+    // Una edición de marco y textos siempre pide una sola variante; esto
+    // descarta lo que hubiera quedado pendiente si algo dejó el lote a medias.
+    await this.#runs.discardPendingVariants({
+      discardedAt: now,
+      organizationId: run.organizationId,
+      runId: run.id,
+    });
+
+    return this.#resolveWithoutSpending(
+      run,
+      "composition-edit",
+      detail,
+      "completed",
+    );
   }
 
   /**

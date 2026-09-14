@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260911150000_password_change_events";
+const latestMigrationName = "20260914000000_generation_composition_edit";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -175,6 +175,7 @@ async function verifyDatabase(): Promise<void> {
         generation_policies_table: string | null;
         admission_mode_exists: boolean;
         generation_lineage_exists: boolean;
+        generation_composition_edit_exists: boolean;
         idempotency_table: string | null;
         knowledge_documents_table: string | null;
         audit_correlation_exists: boolean;
@@ -230,6 +231,13 @@ async function verifyDatabase(): Promise<void> {
                 AND table_name = 'generation_runs'
                 AND column_name = 'lineage_root_id'
             ) AS "generation_lineage_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'generation_runs'
+                AND column_name = 'edit_layout'
+            ) AS "generation_composition_edit_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -435,10 +443,11 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
-      // Revertir los eventos de cambio de contraseña reetiqueta los que hubo y
-      // quita los valores del enum, sin tocar la correlación ni la bandeja
-      // operativa, que son de migraciones anteriores.
-      assert.equal(rollbackEvidence.password_change_event_exists, false);
+      // El cambio de contraseña es anterior a la migración que se revierte
+      // acá (`20260914000000_generation_composition_edit`): sus valores de
+      // enum quedan intactos, igual que la correlación y la bandeja
+      // operativa.
+      assert.equal(rollbackEvidence.password_change_event_exists, true);
       assert.equal(rollbackEvidence.audit_correlation_exists, true);
       assert.equal(rollbackEvidence.outbox_correlation_exists, true);
       assert.equal(
@@ -473,6 +482,9 @@ async function verifyDatabase(): Promise<void> {
         "meta_oauth_transactions",
       );
       assert.equal(rollbackEvidence.generation_lineage_exists, true);
+      // Esta migración es la que se está revirtiendo: el marco y el copy
+      // editables tienen que desaparecer con ella.
+      assert.equal(rollbackEvidence.generation_composition_edit_exists, false);
       assert.equal(rollbackEvidence.admission_mode_exists, true);
       assert.equal(
         rollbackEvidence.generation_attempts_table,

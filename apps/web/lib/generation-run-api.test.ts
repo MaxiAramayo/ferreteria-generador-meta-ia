@@ -5,6 +5,7 @@ import type { GenerationRunResponse } from "@aramayo/contracts";
 
 import {
   isGenerationRunResponse,
+  requestGenerationCompositionEdit,
   requestGenerationEdit,
   shouldPollGenerationRun,
 } from "./generation-run-api.ts";
@@ -110,6 +111,62 @@ test("una edición factual envía el brief revalidado y la genealogía", async (
     assert.equal(body["contentBriefRunId"], "revalidated-brief");
     assert.equal(body["parentVariantId"], "parent-variant");
     assert.equal(requests[1]?.headers.get("idempotency-key"), "edit-key");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("cambiar de marco y textos envía el marco y el copy, sin instrucción", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Request[] = [];
+  globalThis.fetch = (input, init) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    return Promise.resolve(
+      requests.length === 1
+        ? new Response(JSON.stringify({ csrfToken: "csrf-test" }), {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          })
+        : new Response(
+            JSON.stringify({ runId: "child-run", status: "pending" }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 202,
+            },
+          ),
+    );
+  };
+  try {
+    const result = await requestGenerationCompositionEdit(
+      "https://api.invalid/",
+      {
+        badge: null,
+        callToAction: "Escribinos ya",
+        idempotencyKey: "composition-key",
+        layout: "marco-etiqueta",
+        parentRunId: "parent-run",
+        parentVariantId: "parent-variant",
+        subtitle: null,
+        title: "Amoladora en oferta",
+      },
+    );
+
+    assert.deepEqual(result, { kind: "accepted", runId: "child-run" });
+    const body = JSON.parse(
+      await (requests[1]?.clone().text() ?? "{}"),
+    ) as Record<string, unknown>;
+    assert.equal(body["kind"], "composition");
+    assert.equal(body["layout"], "marco-etiqueta");
+    assert.equal(body["title"], "Amoladora en oferta");
+    assert.equal(body["callToAction"], "Escribinos ya");
+    assert.equal(body["badge"], null);
+    assert.equal(body["subtitle"], null);
+    assert.equal("instruction" in body, false);
+    assert.equal(
+      requests[1]?.headers.get("idempotency-key"),
+      "composition-key",
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

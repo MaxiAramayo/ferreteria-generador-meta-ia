@@ -3009,12 +3009,18 @@ a {
 }
 
 .generation-controls select,
-.generation-edit-form textarea {
+.generation-edit-form select,
+.generation-edit-form textarea,
+.generation-edit-form input[type="text"] {
   background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--workspace-ink) 35%, transparent);
   color: inherit;
   min-height: 2.8rem;
   padding: 0.65rem;
+}
+
+.generation-composition-form {
+  border-left-color: var(--workspace-ink);
 }
 
 .generation-controls .workspace-primary-action {

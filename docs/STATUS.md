@@ -100,8 +100,15 @@ del usuario del 2026-09-13: nueve marcos que llevan el cartel de la marca arriba
 y tapan más o menos imagen según dónde quedó el producto. Pasan a ser la pieza
 por defecto de toda composición nueva sin cambiar prompt, perfil ni modelo, así
 que no reabren la muestra paga de `ADR-017`. El negocio los aprobó el mismo día
-sobre el canvas de revisión, renderizado con el motor real. Elegir marco y editar textos desde
-la variante queda para el cambio siguiente.
+sobre el canvas de revisión, renderizado con el motor real.
+
+El mismo 2026-09-14 se agregó «Cambiar marco y textos»: un tercer tipo de
+edición append-only (`GenerationRunEdit` de clase `composition`, `ADR-016`)
+que recompone la misma base con otro marco y otro copy sin llamar al
+proveedor. El copy se valida contra la capacidad del marco elegido y contra la
+evidencia del brief antes de crear la ejecución hija, y admite tanto una
+variante generada como una determinista. Una misma base admite así tantos
+marcos y textos como se quieran probar sin volver a pagar la imagen.
 
 ## Resumen
 
