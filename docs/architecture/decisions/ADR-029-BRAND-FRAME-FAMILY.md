@@ -1,6 +1,7 @@
 # ADR-029: familia de marcos «Letrero de Chapa» sobre la imagen generada
 
-- Estado: aceptado
+- Estado: aceptado; aprobado visualmente por el negocio el 2026-09-14 sobre el
+  canvas de revisión, con los nueve marcos en los tres formatos
 - Fecha: 2026-09-14
 - Origen: pedido del usuario del 2026-09-13
 

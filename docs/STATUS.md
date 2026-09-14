@@ -99,7 +99,8 @@ El 2026-09-14 se agregó la familia de marcos «Letrero de Chapa»
 del usuario del 2026-09-13: nueve marcos que llevan el cartel de la marca arriba
 y tapan más o menos imagen según dónde quedó el producto. Pasan a ser la pieza
 por defecto de toda composición nueva sin cambiar prompt, perfil ni modelo, así
-que no reabren la muestra paga de `ADR-017`. Elegir marco y editar textos desde
+que no reabren la muestra paga de `ADR-017`. El negocio los aprobó el mismo día
+sobre el canvas de revisión, renderizado con el motor real. Elegir marco y editar textos desde
 la variante queda para el cambio siguiente.
 
 ## Resumen
