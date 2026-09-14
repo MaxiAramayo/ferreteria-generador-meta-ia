@@ -443,10 +443,11 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_next_attempt_exists, true);
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
-      // Revertir los eventos de cambio de contraseña reetiqueta los que hubo y
-      // quita los valores del enum, sin tocar la correlación ni la bandeja
-      // operativa, que son de migraciones anteriores.
-      assert.equal(rollbackEvidence.password_change_event_exists, false);
+      // El cambio de contraseña es anterior a la migración que se revierte
+      // acá (`20260914000000_generation_composition_edit`): sus valores de
+      // enum quedan intactos, igual que la correlación y la bandeja
+      // operativa.
+      assert.equal(rollbackEvidence.password_change_event_exists, true);
       assert.equal(rollbackEvidence.audit_correlation_exists, true);
       assert.equal(rollbackEvidence.outbox_correlation_exists, true);
       assert.equal(
