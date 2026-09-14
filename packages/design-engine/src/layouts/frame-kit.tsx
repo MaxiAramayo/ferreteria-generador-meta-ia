@@ -318,7 +318,15 @@ export function FramePrice({
     <div
       data-price=""
       data-role="precio"
-      style={{ color, display: "flex", flexDirection: "column", gap: 8 }}
+      style={{
+        color,
+        display: "flex",
+        flexDirection: "column",
+        // En la fila de compra el que cede es el botón: un importe angosto
+        // obligaría a partir la vigencia en renglones de una palabra.
+        flexShrink: 0,
+        gap: 8,
+      }}
     >
       {price === undefined ? (
         <span
@@ -386,6 +394,15 @@ export function frameCtaColors(theme: Theme, surface: string): FrameCtaColors {
     : Object.freeze({ background: COLORS.paper, text: COLORS.ink });
 }
 
+/**
+ * Botón de acción.
+ *
+ * El texto lo puede escribir quien revisa la variante, así que un botón largo
+ * baja a otro renglón en lugar de salirse de su zona: en una sola línea, un
+ * llamado de 60 caracteres empuja la fila de compra fuera del lienzo. El
+ * reparto equilibrado evita un último renglón de una palabra, y un botón que
+ * entra en una línea se ve igual que antes.
+ */
 export function FrameCta({
   children,
   colors,
@@ -410,12 +427,13 @@ export function FrameCta({
         backgroundColor: colors.background,
         borderRadius: RADII.pill,
         color: colors.text,
-        flexShrink: 0,
+        flexShrink: 1,
         fontFamily: TYPOGRAPHY.display.cssStack,
         fontSize: 34,
         fontWeight: FONT_WEIGHTS.extrabold,
         letterSpacing: 0.4,
         lineHeight: 1,
+        maxWidth: "100%",
         paddingBottom: 18,
         paddingLeft: 34,
         paddingRight: 34,
@@ -423,7 +441,8 @@ export function FrameCta({
         textAlign: "center",
         textShadow: "none",
         textTransform: "uppercase",
-        whiteSpace: "nowrap",
+        textWrap: "balance",
+        whiteSpace: "normal",
         width: "fit-content",
         ...style,
       }}

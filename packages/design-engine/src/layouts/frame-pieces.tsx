@@ -97,6 +97,9 @@ export function MarcoFirma(props: LayoutProps): ReactElement {
             backgroundColor: plate.background,
             display: "flex",
             flexDirection: "column",
+            // Con un botón largo el que baja de renglón es el botón: la placa
+            // conserva el ancho con que se midió el titular.
+            flexShrink: 0,
             gap: 10,
             justifyContent: "center",
             maxWidth: FIRMA_TITLE_MAXIMUM_WIDTH + 52,
@@ -513,10 +516,7 @@ function MarcoColumna({
           price={content.price}
           validity={content.validity}
         />
-        <FrameCta
-          colors={cta}
-          style={{ alignSelf: "stretch", whiteSpace: "normal", width: "auto" }}
-        >
+        <FrameCta colors={cta} style={{ alignSelf: "stretch", width: "auto" }}>
           {content.callToAction ?? defaultCallToAction}
         </FrameCta>
         {content.disclaimer === undefined ? null : (
