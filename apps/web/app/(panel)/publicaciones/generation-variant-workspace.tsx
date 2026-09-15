@@ -444,9 +444,7 @@ export function GenerationVariantWorkspace({
                 ? current
                 : [loaded.run, ...current],
             );
-            setNotice(
-              "Ejecución creada. El worker está preparando las variantes.",
-            );
+            setNotice("Ejecución creada. Las variantes se están preparando.");
           } else {
             setNotice(
               "La ejecución fue aceptada, pero todavía no se pudo consultar.",

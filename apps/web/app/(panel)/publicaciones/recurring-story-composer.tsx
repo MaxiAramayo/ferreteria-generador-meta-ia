@@ -138,7 +138,7 @@ function MaterializationRail({
         <span>03</span>
         <div>
           <strong>Ocurrencia única</strong>
-          <small>Recién nace después de aprobar el snapshot.</small>
+          <small>Recién nace después de aprobar la revisión.</small>
         </div>
       </li>
     </ol>
@@ -252,7 +252,7 @@ export function RecurringStoryRuleComposer({
               : current,
           );
           setNotice(
-            `Regla “${result.rule.name}” activa. El worker creará cada borrador dentro de la anticipación elegida.`,
+            `Regla “${result.rule.name}” activa. Cada borrador se crea solo, con la anticipación elegida.`,
           );
           return;
         }

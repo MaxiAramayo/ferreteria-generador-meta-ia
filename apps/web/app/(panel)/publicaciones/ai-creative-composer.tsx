@@ -427,7 +427,7 @@ export function AICreativeComposer({
       }
       idempotencyKey.current ??= crypto.randomUUID();
       setBusy(true);
-      setNotice({ text: "Pedido enviado. Esperando al worker…", tone: "info" });
+      setNotice({ text: "Pedido enviado. Preparando el brief…", tone: "info" });
       void requestContentBrief(apiBaseUrl, {
         idempotencyKey: idempotencyKey.current,
         ...(locationId === "" ? {} : { locationId }),

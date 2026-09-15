@@ -195,7 +195,7 @@ function MetaConnectionsProvider({
       perform(
         connectionId,
         revokeMetaConnection(apiBaseUrl, connectionId),
-        "Conexión revocada. Los tokens locales fueron eliminados.",
+        "Conexión revocada. Las credenciales guardadas se eliminaron.",
       );
     },
     [apiBaseUrl, perform],
@@ -349,8 +349,8 @@ function MetaConnectionsContent() {
       )}
       <div className="meta-connection-toolbar">
         <p>
-          La autorización abre Meta en una pantalla separada. Ningún token se
-          muestra ni se envía al navegador.
+          La autorización abre Meta en una pantalla separada. Ninguna credencial
+          se muestra ni se envía al navegador.
         </p>
         <button
           className="configuration-button"

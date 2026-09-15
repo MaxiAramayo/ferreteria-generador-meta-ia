@@ -501,7 +501,7 @@ export function SchedulingWorkspace({
             </div>
           ) : (
             <>
-              <p className="workspace-eyebrow">Snapshot aprobado</p>
+              <p className="workspace-eyebrow">Revisión aprobada</p>
               <h2>{scheduleLabel(activeEntry, publicationTitles)}</h2>
               <Link
                 className="schedule-detail-link"
