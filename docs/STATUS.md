@@ -138,8 +138,10 @@ Verifica la sesión una sola vez: sin sesión lleva al login recordando la
 pantalla pedida y, con la API caída, lo dice en vez de mandar a iniciar sesión.
 La portada `/` es «Para hoy», un tablero por rol que cuenta lo pendiente y lleva
 a la pantalla que lo resuelve. `pnpm e2e:navigation` lo recorre en un navegador
-real y corre en CI. Falta separar Publicaciones en listado y «Crear pieza» y
-enlazar entre sí publicaciones, programación y alertas.
+real y corre en CI. Publicaciones quedó dividida en listado y «Crear pieza»,
+con cada flujo en su propia dirección, y las secciones se enlazan: una pieza
+aprobada se programa desde el listado ya elegida, y alertas y turnos llevan a la
+pieza puntual.
 
 ## Próxima tarea
 

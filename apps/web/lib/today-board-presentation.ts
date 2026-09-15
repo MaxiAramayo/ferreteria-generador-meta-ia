@@ -171,7 +171,7 @@ export function todayShortcuts(
 ): readonly TodayShortcut[] {
   return [
     ...(permissions.edit
-      ? [{ href: "/publicaciones", label: "Crear pieza", primary: true }]
+      ? [{ href: "/publicaciones/nueva", label: "Crear pieza", primary: true }]
       : []),
     ...(permissions.schedule
       ? [

@@ -134,3 +134,18 @@ export function loginPathFor(pathname: string, search: string): string {
     ? loginPath
     : `${loginPath}?volver=${encodeURIComponent(returnPath)}`;
 }
+
+/** Ancla de una pieza dentro del listado de Publicaciones. */
+export function publicationAnchorId(publicationId: string): string {
+  return `publicacion-${publicationId}`;
+}
+
+/** Lleva a una pieza puntual del listado, desde una alerta o un turno. */
+export function publicationHref(publicationId: string): string {
+  return `/publicaciones#${publicationAnchorId(publicationId)}`;
+}
+
+/** Abre Programación con una pieza aprobada ya elegida para programar. */
+export function schedulePublicationHref(publicationId: string): string {
+  return `/programacion?publicacion=${encodeURIComponent(publicationId)}`;
+}

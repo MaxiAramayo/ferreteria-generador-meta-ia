@@ -7,8 +7,19 @@ import type {
 } from "@aramayo/contracts";
 import Link from "next/link";
 import Image from "next/image";
-import { startTransition, useCallback, useEffect, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
+import {
+  publicationAnchorId,
+  schedulePublicationHref,
+} from "../../../lib/panel-navigation.ts";
+import { createPiecePath } from "../../../lib/publication-composer-contract.ts";
 import { loadPublishingReadiness } from "../../../lib/publication-publishing-api.ts";
 import {
   publishGate,
@@ -25,7 +36,7 @@ import {
   type PublicationPreviewResult,
   type PublicationWorkspaceLoadResult,
 } from "../../../lib/publication-workspace-api";
-import { PublicationComposer } from "./publication-composer";
+import { PublicationsSubnav } from "./publications-subnav";
 
 function statusLabel(status: PublicationStatusResponse): string {
   switch (status) {
@@ -61,6 +72,7 @@ function statusLabel(status: PublicationStatusResponse): string {
 function PublicationRow({
   canApprove,
   canEdit,
+  canSchedule,
   gate,
   onApprove,
   onHistory,
@@ -71,6 +83,7 @@ function PublicationRow({
 }: {
   readonly canApprove: boolean;
   readonly canEdit: boolean;
+  readonly canSchedule: boolean;
   readonly gate: PublishGate;
   readonly onApprove: (publication: PublicationSummaryResponse) => void;
   readonly onHistory: (publication: PublicationSummaryResponse) => void;
@@ -80,7 +93,8 @@ function PublicationRow({
   readonly publication: PublicationSummaryResponse;
 }) {
   return (
-    <li>
+    // El id deja llegar a esta pieza puntual desde una alerta o un turno.
+    <li id={publicationAnchorId(publication.id)}>
       <div className="publication-state-rail" data-status={publication.status}>
         <span>{statusLabel(publication.status)}</span>
       </div>
@@ -147,6 +161,11 @@ function PublicationRow({
           >
             Aprobar snapshot
           </button>
+        ) : null}
+        {publication.status === "approved" && canSchedule ? (
+          // Aprobar no publica: habilita elegir día y hora, y eso se hace en
+          // Programación con esta pieza ya elegida.
+          <Link href={schedulePublicationHref(publication.id)}>Programar</Link>
         ) : null}
         {gate.kind === "ready" ? (
           // Abre la confirmación; no publica. Los puntos suspensivos son la
@@ -244,17 +263,11 @@ export function PublicationWorkspace({
     useState<PublicationSummaryResponse | null>(null);
   const [inspecting, setInspecting] =
     useState<PublicationSummaryResponse | null>(null);
+  const anchoredToLink = useRef(false);
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
     setReloadToken((token) => token + 1);
   }, []);
-  const draftSaved = useCallback(
-    (title: string) => {
-      setCommandNotice(`Borrador guardado como “${title}”.`);
-      reload();
-    },
-    [reload],
-  );
   const runCommand = useCallback(
     async (
       publication: PublicationSummaryResponse,
@@ -338,6 +351,16 @@ export function PublicationWorkspace({
       clearTimeout(refresh);
     };
   }, [initial]);
+  // Una alerta o un turno enlazan a una pieza puntual (`#publicacion-…`). El
+  // enlace llega antes que el listado, así que la fila se busca cuando ya
+  // cargó, y una sola vez: el refresco periódico no puede mover la página.
+  useEffect(() => {
+    if (initial.kind !== "ready" || anchoredToLink.current) return;
+    anchoredToLink.current = true;
+    const target = window.location.hash.slice(1);
+    if (target === "") return;
+    document.getElementById(target)?.scrollIntoView({ block: "center" });
+  }, [initial]);
 
   if (initial.kind === "loading") {
     return (
@@ -366,6 +389,7 @@ export function PublicationWorkspace({
   }
   const publications =
     initial.kind === "ready" ? initial.publications.items : [];
+  const canCreate = initial.canEdit || initial.canSchedule;
   return (
     <main className="workspace-shell">
       <section aria-labelledby="mesa-de-contenido" className="workspace-intro">
@@ -381,6 +405,8 @@ export function PublicationWorkspace({
         </p>
       </section>
 
+      <PublicationsSubnav canCreate={canCreate} />
+
       <section aria-labelledby="publicaciones" className="publication-board">
         <div className="workspace-section-heading">
           <div>
@@ -392,10 +418,16 @@ export function PublicationWorkspace({
         {publications.length === 0 ? (
           <div className="publication-empty">
             <strong>Todavía no hay borradores.</strong>
-            <p>
-              Elegí una plantilla debajo y creá la primera pieza. Nada se
-              publica al guardarla.
-            </p>
+            {canCreate ? (
+              <p>
+                <Link href={createPiecePath}>Creá la primera pieza</Link>. Nada
+                se publica al guardarla.
+              </p>
+            ) : (
+              <p>
+                Cuando alguien del equipo cree una pieza, va a aparecer acá.
+              </p>
+            )}
           </div>
         ) : (
           <ul className="publication-list">
@@ -403,6 +435,7 @@ export function PublicationWorkspace({
               <PublicationRow
                 canApprove={initial.canApprove}
                 canEdit={initial.canEdit}
+                canSchedule={initial.canSchedule}
                 gate={publishGate(initial.actor, publication, readiness)}
                 key={publication.id}
                 onApprove={(selected) => {
@@ -487,28 +520,6 @@ export function PublicationWorkspace({
           </figure>
         )}
       </section>
-
-      <PublicationComposer.Provider
-        apiBaseUrl={apiBaseUrl}
-        canEdit={initial.canEdit}
-        canSchedule={initial.canSchedule}
-        onDraftSaved={draftSaved}
-      >
-        <section className="composer-section">
-          <div className="workspace-section-heading">
-            <div>
-              <p className="workspace-eyebrow">Nueva pieza</p>
-              <h2>Elegí el flujo correcto</h2>
-            </div>
-            <span>
-              {initial.canEdit ? "Edición habilitada" : "Sólo lectura"}
-            </span>
-          </div>
-          <PublicationComposer.VariantNavigation />
-          <PublicationComposer.Active />
-          <PublicationComposer.Notice />
-        </section>
-      </PublicationComposer.Provider>
     </main>
   );
 }

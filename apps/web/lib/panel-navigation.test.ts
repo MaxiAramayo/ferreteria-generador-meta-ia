@@ -7,8 +7,10 @@ import {
   activePanelSection,
   loginPathFor,
   panelNavigationFor,
+  publicationHref,
   rolesLabel,
   safeReturnPath,
+  schedulePublicationHref,
 } from "./panel-navigation.ts";
 
 function actor(roles: readonly OrganizationRole[]): AuthenticatedActor {
@@ -87,4 +89,15 @@ test("los roles se nombran por lo que hace la persona", () => {
     "Aprobación · Publicación",
   );
   assert.equal(rolesLabel([]), "Sin rol asignado");
+});
+
+test("los enlaces entre secciones llevan a la pieza puntual", () => {
+  assert.equal(
+    publicationHref("pieza-1"),
+    "/publicaciones#publicacion-pieza-1",
+  );
+  assert.equal(
+    schedulePublicationHref("pieza 1"),
+    "/programacion?publicacion=pieza%201",
+  );
 });

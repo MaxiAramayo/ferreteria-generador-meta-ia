@@ -5,6 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   allowedComposerActions,
+  composerVariantFromSlug,
+  composerVariantHref,
+  defaultComposerVariant,
   publicationComposerVariants,
 } from "./publication-composer-contract.ts";
 import { usePublicationComposerState } from "../app/(panel)/publicaciones/publication-composer-context.ts";
@@ -26,6 +29,39 @@ test("cada variante expone únicamente sus acciones válidas", () => {
       assert.equal(allowedComposerActions(variant).size, 0);
     }
   }
+});
+
+test("cada flujo tiene su dirección y la URL decide cuál se abre", () => {
+  for (const variant of publicationComposerVariants) {
+    const href = new URL(composerVariantHref(variant), "https://panel.invalid");
+    assert.equal(href.pathname, "/publicaciones/nueva");
+    assert.equal(
+      composerVariantFromSlug(href.searchParams.get("flujo")),
+      variant,
+    );
+  }
+  assert.equal(
+    composerVariantHref("ai-creative"),
+    "/publicaciones/nueva?flujo=creatividad-ia",
+  );
+  assert.equal(composerVariantFromSlug("ai-creative"), null);
+  assert.equal(composerVariantFromSlug(null), null);
+  assert.equal(composerVariantFromSlug(undefined), null);
+});
+
+test("sin flujo en la URL, quien sólo programa empieza por lo que puede hacer", () => {
+  assert.equal(
+    defaultComposerVariant({ canEdit: true, canSchedule: true }),
+    "template",
+  );
+  assert.equal(
+    defaultComposerVariant({ canEdit: false, canSchedule: true }),
+    "recurring-story",
+  );
+  assert.equal(
+    defaultComposerVariant({ canEdit: false, canSchedule: false }),
+    "template",
+  );
 });
 
 test("un consumidor fuera del provider falla de forma explícita", () => {

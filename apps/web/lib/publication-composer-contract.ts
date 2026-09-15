@@ -82,3 +82,48 @@ export function requirePublicationComposerValue<Value>(
   }
   return value;
 }
+
+/** Dirección de «Crear pieza». */
+export const createPiecePath = "/publicaciones/nueva";
+
+/**
+ * Cómo se nombra cada flujo en la dirección de «Crear pieza». Van en castellano
+ * porque la dirección se lee y se comparte.
+ */
+const variantSlugs: Readonly<Record<PublicationComposerVariant, string>> =
+  Object.freeze({
+    "ai-creative": "creatividad-ia",
+    "product-promotion": "promocion",
+    "recurring-story": "historia-recurrente",
+    template: "plantilla",
+  });
+
+export function composerVariantHref(
+  variant: PublicationComposerVariant,
+): string {
+  return `${createPiecePath}?flujo=${variantSlugs[variant]}`;
+}
+
+/** El flujo que nombra la URL, o `null` si no nombra uno conocido. */
+export function composerVariantFromSlug(
+  slug: string | null | undefined,
+): PublicationComposerVariant | null {
+  return (
+    publicationComposerVariants.find(
+      (variant) => variantSlugs[variant] === slug,
+    ) ?? null
+  );
+}
+
+/**
+ * El flujo con el que abre «Crear pieza» si la URL no elige uno. Quien programa
+ * pero no edita no puede usar la plantilla, así que empieza por la historia
+ * recurrente, que sí puede activar.
+ */
+export function defaultComposerVariant(
+  permissions: Readonly<{ canEdit: boolean; canSchedule: boolean }>,
+): PublicationComposerVariant {
+  return !permissions.canEdit && permissions.canSchedule
+    ? "recurring-story"
+    : "template";
+}
