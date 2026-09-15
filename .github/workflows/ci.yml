@@ -128,6 +128,11 @@ jobs:
       - name: Extremo a extremo de navegación del panel
         run: pnpm run e2e:navigation
 
+      # Los presupuestos se miden con datos representativos: sin volumen, una
+      # consulta que empeora un orden de magnitud sigue pareciendo rápida.
+      - name: Presupuestos de rendimiento y costo
+        run: pnpm run budget:load
+
       - name: Detener infraestructura
         if: always()
         run: pnpm run infra:down

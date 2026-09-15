@@ -154,7 +154,13 @@ puede hacerse desde adentro de la sesión que escribió el código.
 
 Con `P7-T03` y `P7-T04` cerradas, **`P7-T05` —presupuestos de rendimiento y
 costo— es la única tarea de la fase sin bloqueo externo**: depende de `P7-T02` y
-`P7-T03`, ambas completas.
+`P7-T03`, ambas completas. **El 2026-09-15 quedó medida y en CI**: los
+presupuestos viven en el dominio, `pnpm budget:load` los mide con volumen
+representativo y atribuye el costo por brief, variante y pieza. Le falta la
+prueba de carga sobre staging, que corre contra el servidor real y necesita
+autorización, y elegir por medición el timeout y la concurrencia de render y
+generación. Está en
+[`PERFORMANCE-AND-COST-BUDGETS.md`](operations/PERFORMANCE-AND-COST-BUDGETS.md).
 
 El [threat model](operations/THREAT-MODEL.md) dejó cuatro hallazgos, todos
 resueltos: dos avisos críticos de ejecución remota en Next.js —uno en

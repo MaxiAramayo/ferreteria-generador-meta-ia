@@ -94,6 +94,12 @@ porque levantan la vertical entera con un navegador real:
 Los cuatro usan una base efímera y dobles locales de medios; ninguno contacta
 Meta ni Cloudinary, y el de marcos tampoco OpenAI.
 
+`pnpm budget:load` acompaña a esos recorridos en CI: mide los presupuestos de
+rendimiento y costo con volumen representativo —latencia con p95 y p99,
+paginación, backlog y recuperación del outbox, costo por operación y corte por
+rate limit— y falla si algo se sale del presupuesto. Está en
+[`PERFORMANCE-AND-COST-BUDGETS.md`](PERFORMANCE-AND-COST-BUDGETS.md).
+
 ### Visual
 
 `pnpm visual:regression` renderiza 86 piezas por el mismo camino que el worker
