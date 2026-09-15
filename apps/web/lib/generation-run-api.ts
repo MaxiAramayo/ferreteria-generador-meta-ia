@@ -143,6 +143,19 @@ async function mutation(
             : "El estado cambió. Actualizá el historial.",
       };
     }
+    // Un rechazo de negocio trae su motivo en castellano —«el título no entra
+    // en este marco», «el texto menciona un precio»— y ocultarlo deja a quien
+    // edita sin saber qué corregir. Los rechazos del validador de forma llegan
+    // como lista y en inglés: ésos se resumen.
+    if (response.status === 400) {
+      return {
+        kind: "error",
+        message:
+          typeof responseBody?.["message"] === "string"
+            ? responseBody["message"]
+            : "La API rechazó el pedido. Revisá los datos del formulario.",
+      };
+    }
     const runId = responseBody?.["runId"];
     if (!response.ok || typeof runId !== "string") {
       return { kind: "error", message: "La acción no pudo confirmarse." };

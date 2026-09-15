@@ -66,7 +66,7 @@ Las pruebas unitarias nunca llaman APIs reales.
 - publicar contra adaptador sandbox;
 - mostrar éxito o fallo.
 
-Dos recorridos existen como comandos y no forman parte de `pnpm verify` porque
+Tres recorridos existen como comandos y no forman parte de `pnpm verify` porque
 levantan la vertical entera con un navegador real:
 
 - `pnpm e2e:publishing` recorre publicar por rol y por estado, el doble envío y
@@ -74,10 +74,16 @@ levantan la vertical entera con un navegador real:
 - `pnpm e2e:recurring-story` recorre regla → borrador → aprobación → ocurrencia:
   activa la regla desde el panel, comprueba que eso no cree ninguna pieza,
   materializa con el servicio del worker, renderiza con el Chromium del worker,
-  aprueba por HTTP y verifica la ocurrencia planificada sin orden.
+  aprueba por HTTP y verifica la ocurrencia planificada sin orden;
+- `pnpm e2e:composition-edit` recorre «Cambiar marco y textos» (`ADR-029`): el
+  panel pide un lote que el worker resuelve determinista, abre el formulario
+  sobre la variante, comprueba que cada marco muestre sólo sus campos, que un
+  precio sin evidencia se rechace con un motivo legible, que dos clics dejen
+  una sola recomposición y que la hija no registre intentos ni costo. Deja las
+  capturas y las dos piezas en `output/e2e-composition-edit/`.
 
-Ambos usan una base efímera y dobles locales de medios; ninguno contacta Meta
-ni Cloudinary.
+Los tres usan una base efímera y dobles locales de medios; ninguno contacta
+Meta ni Cloudinary, y el de marcos tampoco OpenAI.
 
 ### Visual
 

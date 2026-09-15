@@ -3019,10 +3019,6 @@ a {
   padding: 0.65rem;
 }
 
-.generation-composition-form {
-  border-left-color: var(--workspace-ink);
-}
-
 .generation-controls .workspace-primary-action {
   grid-column: 1 / -1;
 }
@@ -3033,6 +3029,11 @@ a {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
+}
+
+/* Va después del formulario base: su `border-left` pisaría el color. */
+.generation-composition-form {
+  border-left-color: var(--workspace-ink);
 }
 
 .generation-empty,

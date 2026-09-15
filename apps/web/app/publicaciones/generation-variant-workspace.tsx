@@ -51,6 +51,15 @@ const frameLayoutLabels: Readonly<Record<FrameLayoutId, string>> = {
   "marco-zocalo": "Zócalo",
 };
 
+/** Cómo se nombra cada tipo de edición en el historial. */
+const editKindLabels: Readonly<
+  Record<NonNullable<GenerationRunResponse["edit"]>["kind"], string>
+> = {
+  composition: "Cambio de marco y textos",
+  factual: "Cambio de datos",
+  visual: "Cambio de imagen",
+};
+
 function isFrameLayoutId(value: string): value is FrameLayoutId {
   return (frameLayoutIds as readonly string[]).includes(value);
 }
@@ -891,7 +900,9 @@ export function GenerationVariantWorkspace({
                 <header>
                   <span data-status={run.status}>{run.status}</span>
                   <strong>
-                    {run.edit === null ? "Origen" : `Hija · ${run.edit.kind}`}
+                    {run.edit === null
+                      ? "Origen"
+                      : `Hija · ${editKindLabels[run.edit.kind]}`}
                   </strong>
                   <small>
                     {new Date(run.requestedAt).toLocaleString("es-AR")} ·{" "}
