@@ -116,6 +116,62 @@ test("una edición factual envía el brief revalidado y la genealogía", async (
   }
 });
 
+test("un rechazo de negocio muestra su motivo y uno de forma se resume", async () => {
+  const originalFetch = globalThis.fetch;
+  const responses = [
+    { message: "El texto menciona un precio y el brief no lo sustenta." },
+    { message: ["title must be longer than or equal to 4 characters"] },
+  ];
+  let call = 0;
+  globalThis.fetch = (input) => {
+    const url = new Request(input).url;
+    if (url.endsWith("auth/csrf")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ csrfToken: "csrf-test" }), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        }),
+      );
+    }
+    const body = responses[call] ?? {};
+    call += 1;
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        headers: { "content-type": "application/json" },
+        status: 400,
+      }),
+    );
+  };
+  const input = {
+    badge: null,
+    callToAction: "Escribinos ya",
+    idempotencyKey: "composition-key",
+    layout: "marco-etiqueta",
+    parentRunId: "parent-run",
+    parentVariantId: "parent-variant",
+    subtitle: null,
+    title: "Tornillos a $ 25.000",
+  };
+  try {
+    assert.deepEqual(
+      await requestGenerationCompositionEdit("https://api.invalid/", input),
+      {
+        kind: "error",
+        message: "El texto menciona un precio y el brief no lo sustenta.",
+      },
+    );
+    assert.deepEqual(
+      await requestGenerationCompositionEdit("https://api.invalid/", input),
+      {
+        kind: "error",
+        message: "La API rechazó el pedido. Revisá los datos del formulario.",
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("cambiar de marco y textos envía el marco y el copy, sin instrucción", async () => {
   const originalFetch = globalThis.fetch;
   const requests: Request[] = [];

@@ -15,7 +15,7 @@
  */
 
 import { contentBriefLimits, detectClaimSignals } from "./content-brief.ts";
-import type { ContentBrief } from "./content-brief.ts";
+import type { ContentBrief, FactualClaimKind } from "./content-brief.ts";
 import type { ImageGenerationFailureCode } from "./image-generation.ts";
 import type {
   GenerationAdmission,
@@ -125,6 +125,23 @@ export function generationEditNeedsFactualRevalidation(
  */
 const compositionBadgeBlockedTerms =
   /\bdisponib|\ben\s+stock\b|\bsin\s+stock\b|\bagotad[oa]\b|\bquedan\s+pocas?\b/iu;
+
+/**
+ * Cómo se nombra cada tipo de afirmación en un rechazo.
+ *
+ * El mensaje llega tal cual a quien edita el copy, así que no puede traer el
+ * identificador interno del tipo de hecho.
+ */
+const claimDescriptions: Readonly<Record<FactualClaimKind, string>> =
+  Object.freeze({
+    business_hours: "un horario",
+    location: "una ubicación",
+    price: "un precio",
+    product_attribute: "una característica del producto",
+    promotion: "una promoción",
+    service: "un servicio",
+    stock: "disponibilidad de stock",
+  });
 
 export type GenerationCompositionEditValidationErrorCode =
   | "badge-blocked-term"
@@ -292,7 +309,7 @@ export function validateGenerationCompositionEditCopy(
         throw new GenerationCompositionEditValidationError(
           "unsupported-claim-in-copy",
           surface.field,
-          `El texto afirma ${claimKind} sin un hecho verificado que lo sustente en este brief.`,
+          `El texto menciona ${claimDescriptions[claimKind]} y el brief no tiene un hecho verificado que lo sustente. Quitalo del texto o revalidá el brief.`,
         );
       }
     }

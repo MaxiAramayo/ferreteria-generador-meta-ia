@@ -373,7 +373,8 @@ describe("copy de una edición de marco y textos (ADR-029)", () => {
         ),
       (error: unknown) =>
         error instanceof GenerationCompositionEditValidationError &&
-        error.code === "unsupported-claim-in-copy",
+        error.code === "unsupported-claim-in-copy" &&
+        error.message.includes("un precio"),
     );
   });
 
