@@ -80,8 +80,12 @@ Local, contra el PostgreSQL 17 del compose:
 - El login corta con 429 tras cinco rechazos, sin errores del servidor.
 
 El presupuesto quedó en unas diez veces lo medido: tolera una máquina más lenta
-—CI, por ejemplo— y falla igual si una consulta se degrada un orden de magnitud,
-que es la regresión que importa detectar.
+y falla igual si una consulta se degrada un orden de magnitud, que es la
+regresión que importa detectar.
+
+El mismo día, en CI —runner de GitHub, más lento que la máquina local—: p95
+entre 4 y 18 ms en las cinco lecturas, 130 ms con 25 listados en paralelo y 619
+avisos por segundo. El margen quedó entre cinco y diez veces, que es el buscado.
 
 ## Timeout y concurrencia de lo que tarda
 

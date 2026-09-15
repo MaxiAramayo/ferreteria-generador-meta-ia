@@ -644,6 +644,9 @@ almacenamiento, y detectar regresiones.
   medido: tolera una máquina más lenta y falla si algo se degrada un orden de
   magnitud. Está en
   [`PERFORMANCE-AND-COST-BUDGETS.md`](../operations/PERFORMANCE-AND-COST-BUDGETS.md).
+- **El margen aguanta una máquina más lenta**: en CI, el mismo día, p95 entre 4
+  y 18 ms, 130 ms con 25 listados en paralelo y 619 avisos por segundo, contra
+  presupuestos de 60 a 120 ms.
 - **Costo por operación atribuido**: brief US$ 0,0165, variante US$ 0,0548
   liquidada contra US$ 0,0550 reservada, y pieza publicable US$ 0,1261 sumando
   su brief y sus variantes. La atribución sigue el hilo revisión → brief →
