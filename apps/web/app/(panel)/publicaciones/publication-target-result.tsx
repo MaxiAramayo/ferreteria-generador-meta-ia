@@ -22,7 +22,7 @@ import {
   publicationTargetLabels,
   publicationTargetOutcomeLabels,
   type PublicationTargetOutcome,
-} from "../../lib/publication-publishing-presentation.ts";
+} from "../../../lib/publication-publishing-presentation.ts";
 
 type ManualAction = PublicationManualActionResponse["actions"][number];
 

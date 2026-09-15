@@ -3,7 +3,7 @@ import type { KnowledgeCitationResponse } from "@aramayo/contracts";
 import {
   knowledgeEvidenceDisplay,
   type KnowledgeEvidencePanelState,
-} from "../../lib/knowledge-evidence-presentation";
+} from "../../../lib/knowledge-evidence-presentation";
 
 export type { KnowledgeEvidencePanelState };
 

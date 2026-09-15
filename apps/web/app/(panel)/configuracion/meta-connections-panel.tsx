@@ -18,7 +18,7 @@ import {
   revokeMetaConnection,
   startMetaOAuth,
   type MetaConnectionActionResult,
-} from "../../lib/meta-connections-api";
+} from "../../../lib/meta-connections-api";
 
 type MetaConnectionsState =
   | Readonly<{ kind: "loading" }>

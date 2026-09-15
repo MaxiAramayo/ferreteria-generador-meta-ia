@@ -7,7 +7,7 @@ import {
   type PublicationComposerActions,
   type PublicationComposerMeta,
   type PublicationComposerState,
-} from "../../lib/publication-composer-contract.ts";
+} from "../../../lib/publication-composer-contract.ts";
 
 const PublicationComposerStateContext =
   createContext<PublicationComposerState | null>(null);

@@ -19,7 +19,7 @@ import {
 import {
   loadRecurringStoryWorkspace,
   saveRecurringStoryRule,
-} from "../../lib/recurring-story-api.ts";
+} from "../../../lib/recurring-story-api.ts";
 
 type LoadState =
   | Readonly<{ kind: "loading" }>

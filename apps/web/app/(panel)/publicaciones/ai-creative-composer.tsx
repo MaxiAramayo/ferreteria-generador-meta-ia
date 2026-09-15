@@ -19,15 +19,15 @@ import {
   loadContentBriefHistory,
   loadContentBriefRun,
   requestContentBrief,
-} from "../../lib/content-brief-api";
-import { loadConfiguration } from "../../lib/organization-configuration-api";
+} from "../../../lib/content-brief-api";
+import { loadConfiguration } from "../../../lib/organization-configuration-api";
 import {
   contentBriefDisplay,
   contentBriefUsageDisplay,
   missingInformationLabel,
   shouldPollContentBriefRun,
   type ContentBriefDisplay,
-} from "../../lib/content-brief-presentation";
+} from "../../../lib/content-brief-presentation";
 import { GenerationVariantWorkspace } from "./generation-variant-workspace";
 
 const pollIntervalMilliseconds = 2_000;

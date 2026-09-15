@@ -123,6 +123,11 @@ jobs:
       - name: Extremo a extremo de historia recurrente
         run: pnpm run e2e:recurring-story
 
+      # La barra decide qué secciones ofrecer con la sesión que devuelve la API;
+      # sólo con los guards de verdad se ve que lo ofrecido se puede abrir.
+      - name: Extremo a extremo de navegación del panel
+        run: pnpm run e2e:navigation
+
       - name: Detener infraestructura
         if: always()
         run: pnpm run infra:down

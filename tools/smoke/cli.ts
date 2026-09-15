@@ -384,14 +384,15 @@ async function smokeWeb(): Promise<void> {
       page.body.includes("Aramayo Content Platform"),
       "El panel debe renderizar su estado inicial.",
     );
+    // La sesión se verifica desde el navegador, así que el HTML servido no
+    // espera a la API: muestra la verificación en curso aunque la API no
+    // exista. Qué se ve cuando la API no responde lo cubre `loadSession`.
     assert.ok(
-      page.body.includes("Inalcanzable"),
-      "El panel debe representar explícitamente una API inalcanzable.",
+      page.body.includes("Verificando tu sesión"),
+      "El panel debe servir su estado inicial sin esperar a la API.",
     );
     assertWithoutSecrets("El HTML servido por el panel", page.body);
-    reportCheck(
-      "el panel renderiza su estado inicial y representa la API inalcanzable",
-    );
+    reportCheck("el panel sirve su estado inicial sin depender de la API");
 
     await web.terminate();
   } finally {

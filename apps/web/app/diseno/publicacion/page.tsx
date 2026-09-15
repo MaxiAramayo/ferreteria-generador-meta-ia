@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { PublicationTargetResult } from "../../publicaciones/publication-target-result.tsx";
+import { PublicationTargetResult } from "../../(panel)/publicaciones/publication-target-result.tsx";
 
 /**
  * Harness de los estados de publicación.

@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-14
+Actualizado: 2026-09-15
 
 ## Fase activa
 
@@ -126,6 +126,20 @@ La base local del despliegue en VPS quedó preparada y verificada el 2026-07-29:
 Compose mantiene PostgreSQL/Redis privados, Caddy es el único ingreso público y
 el smoke efímero validó migraciones, API, web, worker y Chromium. Esto no inicia
 ni cierra tareas de Fase 7 y no representa un despliegue remoto.
+
+**El panel tiene una barra compartida** desde el 2026-09-15, fuera de las tareas
+del plan y a pedido del usuario para el lanzamiento. Antes cada sección dibujaba
+su propio encabezado, Configuración y Cuenta no tenían ninguno y el login
+mandaba siempre a Configuración, cuyo «Volver al panel» llevaba a la pantalla
+técnica del arranque. Ahora las pantallas con sesión comparten la barra del
+grupo `(panel)`: muestra sólo las secciones que la API le deja leer a cada rol,
+cuenta las alertas abiertas de Operación y trae «Cerrar sesión», que no existía.
+Verifica la sesión una sola vez: sin sesión lleva al login recordando la
+pantalla pedida y, con la API caída, lo dice en vez de mandar a iniciar sesión.
+La portada `/` es «Para hoy», un tablero por rol que cuenta lo pendiente y lleva
+a la pantalla que lo resuelve. `pnpm e2e:navigation` lo recorre en un navegador
+real y corre en CI. Falta separar Publicaciones en listado y «Crear pieza» y
+enlazar entre sí publicaciones, programación y alertas.
 
 ## Próxima tarea
 

@@ -26,7 +26,7 @@ import {
 import {
   loadContentBriefRun,
   requestContentBrief,
-} from "../../lib/content-brief-api";
+} from "../../../lib/content-brief-api";
 import {
   loadGenerationLineage,
   loadGenerationRun,
@@ -35,8 +35,8 @@ import {
   requestGenerationRun,
   selectGenerationVariant,
   shouldPollGenerationRun,
-} from "../../lib/generation-run-api";
-import { availableGenerationVariantActions } from "../../lib/generation-variant-presentation";
+} from "../../../lib/generation-run-api";
+import { availableGenerationVariantActions } from "../../../lib/generation-variant-presentation";
 
 /** Nombre de cada marco tal como lo elige quien revisa la variante. */
 const frameLayoutLabels: Readonly<Record<FrameLayoutId, string>> = {

@@ -19,7 +19,7 @@ import {
   previewLocationDayOverride,
   saveLocationDayOverride,
   type LocationDayOverrideSubmission,
-} from "../../lib/location-day-override-api";
+} from "../../../lib/location-day-override-api";
 
 type OverrideDraft = Readonly<{
   localDate: string;

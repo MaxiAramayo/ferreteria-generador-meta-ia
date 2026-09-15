@@ -15,8 +15,8 @@ import {
   allowedComposerActions,
   type PublicationComposerState,
   type PublicationComposerVariant,
-} from "../../lib/publication-composer-contract";
-import { saveTemplatePublicationDraft } from "../../lib/publication-workspace-api";
+} from "../../../lib/publication-composer-contract";
+import { saveTemplatePublicationDraft } from "../../../lib/publication-workspace-api";
 import { AICreativeComposer } from "./ai-creative-composer";
 import { RecurringStoryRuleComposer } from "./recurring-story-composer";
 import {

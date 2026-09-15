@@ -7,7 +7,7 @@ import { startTransition, useCallback, useEffect, useState } from "react";
 import {
   loadOperationalAlerts,
   resolveOperationalAlert,
-} from "../../lib/publication-operational-alert-api";
+} from "../../../lib/publication-operational-alert-api";
 import { OperationalHealthBoard } from "./operational-health-board";
 
 type WorkspaceState =
@@ -261,23 +261,6 @@ export function OperationalAlertWorkspace({
 
   return (
     <main className="workspace-shell operational-shell">
-      <header className="workspace-header">
-        <div>
-          <Link className="workspace-brand" href="/">
-            Aramayo
-          </Link>
-          <span>Content Platform</span>
-        </div>
-        <nav aria-label="Navegación principal">
-          <Link href="/publicaciones">Publicaciones</Link>
-          <Link href="/programacion">Programación</Link>
-          <Link aria-current="page" href="/operacion">
-            Operación
-          </Link>
-          <Link href="/configuracion">Configuración</Link>
-        </nav>
-      </header>
-
       <section
         aria-labelledby="operacion"
         className="workspace-intro operational-intro"

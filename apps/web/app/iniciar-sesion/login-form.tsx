@@ -9,7 +9,14 @@ type LoginState =
   | Readonly<{ kind: "submitting" }>
   | Readonly<{ kind: "error"; message: string }>;
 
-export function LoginForm({ apiBaseUrl }: { readonly apiBaseUrl: string }) {
+export function LoginForm({
+  apiBaseUrl,
+  returnTo,
+}: {
+  readonly apiBaseUrl: string;
+  /** Ruta del panel ya validada con `safeReturnPath`. */
+  readonly returnTo: string;
+}) {
   const [state, setState] = useState<LoginState>({ kind: "idle" });
 
   async function authenticate(form: HTMLFormElement): Promise<void> {
@@ -31,7 +38,7 @@ export function LoginForm({ apiBaseUrl }: { readonly apiBaseUrl: string }) {
     switch (result.kind) {
       case "authenticated":
         form.reset();
-        window.location.assign("/configuracion");
+        window.location.assign(returnTo);
         return;
       case "invalid-credentials":
         setState({

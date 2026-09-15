@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type SyntheticEvent } from "react";
 
-import { changePassword } from "../../lib/account-api";
+import { changePassword } from "../../../lib/account-api";
 
 type PasswordState =
   | Readonly<{ kind: "idle" }>

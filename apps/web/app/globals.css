@@ -3403,3 +3403,566 @@ a {
   outline: 3px solid var(--workspace-rust);
   outline-offset: 2px;
 }
+
+/* Panel con sesión: barra compartida del grupo `(panel)`. */
+
+.panel-shell {
+  --workspace-ink: #1c1a19;
+  --workspace-muted: #6e6a66;
+  --workspace-paper: #f6f1ea;
+  --workspace-cream: #e7e2db;
+  --workspace-rust: #e63b1e;
+  --workspace-safety: #ffb200;
+  background:
+    linear-gradient(90deg, var(--workspace-rust) 0 0.4rem, transparent 0),
+    var(--workspace-paper);
+  color: var(--workspace-ink);
+  color-scheme: light;
+  display: flex;
+  flex-direction: column;
+  font-family: "Archivo", system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+html:has(.panel-shell) {
+  scroll-padding-top: 6rem;
+}
+
+.panel-shell :focus-visible {
+  outline-color: var(--workspace-rust);
+}
+
+/* Cada pantalla conserva su `main`; el papel y la franja los pinta el panel. */
+.panel-shell .workspace-shell,
+.panel-shell .configuration-shell {
+  background: transparent;
+  min-height: 0;
+}
+
+.panel-content {
+  flex: 1;
+}
+
+.panel-content:focus {
+  outline: none;
+}
+
+.panel-skip-link {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+  font-weight: 800;
+  left: 1rem;
+  padding: 0.6rem 0.9rem;
+  position: absolute;
+  top: -10rem;
+  z-index: 40;
+}
+
+.panel-skip-link:focus {
+  top: 1rem;
+}
+
+.panel-visually-hidden {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.panel-bar {
+  background:
+    linear-gradient(90deg, var(--workspace-rust) 0 0.4rem, transparent 0),
+    var(--workspace-paper);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  display: grid;
+  gap: 0 2.5rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 4.75rem;
+  padding: 0 max(1.25rem, calc((100vw - 76rem) / 2));
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.panel-brand {
+  align-items: baseline;
+  align-self: center;
+  color: var(--workspace-ink);
+  display: flex;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.panel-brand strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.panel-brand span,
+.panel-account summary > span {
+  color: var(--workspace-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel-nav {
+  display: flex;
+  gap: 1.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.panel-nav a {
+  align-items: center;
+  border-block: 0.22rem solid transparent;
+  color: var(--workspace-ink);
+  display: inline-flex;
+  flex: none;
+  font-size: 0.875rem;
+  font-weight: 700;
+  gap: 0.45rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.panel-nav a:hover {
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--workspace-ink) 30%,
+    transparent
+  );
+}
+
+.panel-nav a[aria-current="page"] {
+  border-bottom-color: var(--workspace-rust);
+}
+
+.panel-nav-count {
+  background: var(--workspace-safety);
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.14rem 0.14rem 0 var(--workspace-ink);
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 1.4rem;
+  padding: 0.18rem 0.3rem;
+  text-align: center;
+}
+
+.panel-account {
+  align-self: center;
+  justify-self: end;
+  position: relative;
+}
+
+.panel-account summary {
+  align-items: end;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  list-style: none;
+  padding: 0.35rem 1.35rem 0.35rem 0;
+  position: relative;
+}
+
+.panel-account summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel-account summary::after {
+  border-left: 0.3rem solid transparent;
+  border-right: 0.3rem solid transparent;
+  border-top: 0.38rem solid var(--workspace-ink);
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 160ms ease;
+}
+
+.panel-account[open] summary::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.panel-account summary strong {
+  font-size: 0.9rem;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-account-menu {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.45rem 0.45rem 0 var(--workspace-ink);
+  display: grid;
+  gap: 0.75rem;
+  min-width: 17rem;
+  padding: 1rem 1.1rem 1.1rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.9rem);
+}
+
+.panel-account-identity {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  display: grid;
+  gap: 0.1rem;
+  margin: 0;
+  padding-bottom: 0.75rem;
+}
+
+.panel-account-identity span {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.panel-account-menu a {
+  color: var(--workspace-ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.panel-account-menu button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    800 0.76rem/1 "Archivo",
+    system-ui,
+    sans-serif;
+  min-height: 2.5rem;
+  padding: 0.6rem 0.8rem;
+  text-transform: uppercase;
+}
+
+.panel-account-menu button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.panel-account-menu p[role="alert"] {
+  color: #a02a16;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+@media (max-width: 48rem) {
+  .panel-bar {
+    gap: 0 1rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 0;
+    padding-top: 0.6rem;
+  }
+
+  .panel-brand span {
+    display: none;
+  }
+
+  .panel-nav {
+    gap: 1.35rem;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0.35rem -1.25rem 0;
+    padding: 0 1.25rem;
+  }
+
+  .panel-nav a {
+    padding: 0.55rem 0;
+  }
+
+  .panel-account summary strong {
+    max-width: 9rem;
+  }
+}
+
+/* Inicio: «Para hoy». */
+
+.today-intro-aside {
+  display: grid;
+  gap: 1.25rem;
+  justify-items: start;
+}
+
+.today-intro-aside > p {
+  font-size: 1.05rem;
+  margin: 0;
+  max-width: 30rem;
+}
+
+.today-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.today-shortcuts a {
+  align-items: center;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.today-section {
+  padding-top: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.today-section-link {
+  color: var(--workspace-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-underline-offset: 0.25em;
+}
+
+.today-tickets {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0 0.45rem 0.45rem 0;
+}
+
+.today-ticket {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  border-left: 0.55rem solid var(--workspace-ink);
+  box-shadow: 0.45rem 0.45rem 0 var(--workspace-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.today-ticket[data-tone="attention"] {
+  border-left-color: var(--workspace-safety);
+}
+
+.today-ticket[data-tone="urgent"] {
+  border-left-color: var(--workspace-rust);
+}
+
+.today-ticket-area {
+  color: var(--workspace-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.today-ticket-figure {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.6rem;
+  margin: 0;
+}
+
+.today-ticket-figure strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(3.25rem, 6vw, 4.5rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 0.85;
+  text-transform: uppercase;
+}
+
+.today-ticket[data-tone="urgent"] .today-ticket-figure strong {
+  color: var(--workspace-rust);
+}
+
+.today-ticket[aria-busy="true"] .today-ticket-figure strong {
+  color: color-mix(in srgb, var(--workspace-ink) 30%, transparent);
+}
+
+.today-ticket-figure span {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.today-ticket-detail {
+  color: var(--workspace-muted);
+  flex: 1;
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.today-ticket-link {
+  color: var(--workspace-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-underline-offset: 0.25em;
+}
+
+@keyframes today-ticket-set {
+  from {
+    box-shadow: 0 0 0 var(--workspace-ink);
+    transform: translate(0.45rem, 0.45rem);
+  }
+}
+
+/* Cada tarjeta se «apoya» en su sombra, una detrás de otra. */
+@media (prefers-reduced-motion: no-preference) {
+  .today-ticket {
+    animation: today-ticket-set 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .today-ticket:nth-child(2) {
+    animation-delay: 45ms;
+  }
+
+  .today-ticket:nth-child(3) {
+    animation-delay: 90ms;
+  }
+
+  .today-ticket:nth-child(4) {
+    animation-delay: 135ms;
+  }
+
+  .today-ticket:nth-child(n + 5) {
+    animation-delay: 180ms;
+  }
+}
+
+.today-note {
+  color: var(--workspace-muted);
+  margin: 0;
+}
+
+.today-outings {
+  border-top: 1px solid var(--workspace-ink);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-outings li {
+  align-items: center;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  padding: 0.9rem 0;
+}
+
+.today-outings time {
+  border-left: 0.55rem solid var(--workspace-ink);
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.9rem;
+}
+
+.today-outings time strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.today-outings time span {
+  color: var(--workspace-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.today-outings li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.today-outings li > div strong {
+  overflow-wrap: anywhere;
+}
+
+.today-outings li > div span {
+  color: var(--workspace-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@media (max-width: 34rem) {
+  .today-outings li {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+}
+
+/* Cambiar contraseña dentro del panel. */
+
+.account-shell .login-card {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  border-radius: 0;
+  box-shadow: 0.6rem 0.6rem 0 var(--workspace-ink);
+  color: var(--workspace-ink);
+  margin: clamp(2.5rem, 10vh, 6rem) auto;
+}
+
+.account-shell .login-card h1 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: clamp(2.4rem, 5vw, 3.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+
+.account-shell .login-intro {
+  color: var(--workspace-muted);
+}
+
+.account-shell .login-form input {
+  background: #ffffff;
+  border-color: #d8d1c7;
+  border-radius: 0;
+  color: var(--workspace-ink);
+}
+
+.account-shell .login-form button {
+  background: var(--workspace-rust);
+  border: 1px solid var(--workspace-ink);
+  border-radius: 0;
+  box-shadow: 0.28rem 0.28rem 0 var(--workspace-ink);
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+@media (max-width: 48rem) {
+  /* La fila se desliza: los bordes difuminados avisan que hay más secciones. */
+  .panel-nav {
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0,
+      #000000 1.25rem,
+      #000000 calc(100% - 1.25rem),
+      transparent 100%
+    );
+    scroll-padding-inline: 1.25rem;
+  }
+}

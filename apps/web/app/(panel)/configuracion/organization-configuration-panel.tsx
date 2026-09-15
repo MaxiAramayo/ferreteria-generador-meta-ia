@@ -26,7 +26,7 @@ import {
   type ConfigurationLoadResult,
   type ConfigurationSaveResult,
   type GenerationPolicySaveResult,
-} from "../../lib/organization-configuration-api";
+} from "../../../lib/organization-configuration-api";
 import { LocationDayOverridesSection } from "./location-day-overrides-section";
 import { MetaConnectionsPanel } from "./meta-connections-panel";
 
@@ -835,11 +835,6 @@ function ReadyView({
             registrado con su autor.
           </p>
         </div>
-        <p>
-          <Link href="/cuenta">Cambiar contraseña</Link>
-          {" · "}
-          <Link href="/">Volver al panel</Link>
-        </p>
       </header>
       {!state.canEdit ? (
         <p className="configuration-permission">
