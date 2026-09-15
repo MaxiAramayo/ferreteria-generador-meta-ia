@@ -58,6 +58,8 @@
   producto, anclaje local y prompt visual v3.
 - [`operations/IMAGE-QUALITY-EVALUATION.md`](operations/IMAGE-QUALITY-EVALUATION.md):
   dataset, rúbrica, muestra real y gate de calidad de Fase 4.
+- [`operations/PERFORMANCE-AND-COST-BUDGETS.md`](operations/PERFORMANCE-AND-COST-BUDGETS.md):
+  presupuestos de latencia, cola y costo por operación, y cómo se miden.
 - [`operations/RELIABLE_OPERATIONS.md`](operations/RELIABLE_OPERATIONS.md):
   idempotencia, auditoría, outbox, leases y retención.
 - [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md)

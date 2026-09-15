@@ -612,18 +612,18 @@ almacenamiento, y detectar regresiones.
 
 ### Criterios de aceptación
 
-- [ ] Se definen p95/p99 para endpoints y colas críticas.
+- [x] Se definen p95/p99 para endpoints y colas críticas.
 - [ ] Render y generación tienen timeout y concurrencia basados en medición.
-- [ ] Listados permanecen paginados bajo volumen esperado.
-- [ ] Costo por brief, variante y publicación puede atribuirse.
-- [ ] El sistema degrada de forma controlada ante rate limits.
-- [ ] Umbrales de presupuesto generan alerta antes del corte.
+- [x] Listados permanecen paginados bajo volumen esperado.
+- [x] Costo por brief, variante y publicación puede atribuirse.
+- [x] El sistema degrada de forma controlada ante rate limits.
+- [x] Umbrales de presupuesto generan alerta antes del corte.
 
 ### Verificación obligatoria
 
 - [ ] Prueba de carga sobre staging con datos representativos.
-- [ ] Prueba de backlog y recuperación.
-- [ ] Comparar costo estimado y observado.
+- [x] Prueba de backlog y recuperación.
+- [x] Comparar costo estimado y observado.
 
 ### Fuera de alcance
 
@@ -631,7 +631,38 @@ almacenamiento, y detectar regresiones.
 
 ### Notas de progreso
 
-- Sin notas.
+- Fecha: 2026-09-15. **Los presupuestos existen, se miden y corren en CI.**
+  Viven en el dominio
+  ([`operational-budgets.ts`](../../packages/domain/src/operational-budgets.ts),
+  versión `operational-budgets/2026-09-15.2`) y `pnpm budget:load` los mide
+  contra una base efímera con volumen representativo —500 publicaciones, 40
+  programaciones con 240 turnos y 120 avisos acumulados— y la API real, sin
+  navegador. Medido: p95 entre 4 y 8 ms en las cinco lecturas del panel, 46 ms
+  con 25 listados en paralelo, el listado devuelve 20 de 502 y rechaza pedir más
+  de 100, 120 avisos drenados en 0,11 s, y el login corta con 429 tras cinco
+  rechazos sin errores del servidor. El presupuesto quedó en unas diez veces lo
+  medido: tolera una máquina más lenta y falla si algo se degrada un orden de
+  magnitud. Está en
+  [`PERFORMANCE-AND-COST-BUDGETS.md`](../operations/PERFORMANCE-AND-COST-BUDGETS.md).
+- **El margen aguanta una máquina más lenta**: en CI, el mismo día, p95 entre 4
+  y 18 ms, 130 ms con 25 listados en paralelo y 619 avisos por segundo, contra
+  presupuestos de 60 a 120 ms.
+- **Costo por operación atribuido**: brief US$ 0,0165, variante US$ 0,0548
+  liquidada contra US$ 0,0550 reservada, y pieza publicable US$ 0,1261 sumando
+  su brief y sus variantes. La atribución sigue el hilo revisión → brief →
+  ejecuciones → intentos, así que un gasto sin pieza que lo explique se ve.
+- **Los presupuestos de cola no se declararon de nuevo**: son los umbrales con
+  los que la salud operativa ya pide atención. Declarar otros habría dejado el
+  tablero y la medición contando historias distintas.
+- **Criterio sin cerrar**: timeout y concurrencia de render y generación están
+  configurados —`WORKER_CONCURRENCY`, timeout de OpenAI en 60 s—, pero todavía
+  no se eligieron a partir de una medición propia; el tiempo lo pone el
+  proveedor y medirlo exige gastar en él.
+- **Verificación sin hacer**: la prueba de carga sobre staging. Corre contra el
+  servidor real y sus proveedores, así que necesita autorización explícita del
+  negocio, igual que la publicación real de `P5-T09`.
+- Próximo paso exacto: pedir esa autorización, correr `pnpm budget:load` contra
+  staging con su base y comparar ahí lo medido con estos números.
 
 ### Evidencia de cierre
 
