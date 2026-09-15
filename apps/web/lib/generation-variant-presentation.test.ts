@@ -71,7 +71,9 @@ test("el estado y el origen de cada variante se leen en castellano", () => {
     generationVariantSourceLabel("deterministic"),
     "Composición de marca",
   );
-  assert.equal(generationVariantSourceLabel("generated"), "Imagen generada");
+  // Nombra el método, no el resultado: una variante descartada también es
+  // `generated` y nunca tuvo imagen.
+  assert.equal(generationVariantSourceLabel("generated"), "Imagen con IA");
   assert.equal(
     generationVariantSourceLabel("desconocido"),
     "Origen sin identificar",

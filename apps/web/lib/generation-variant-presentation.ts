@@ -45,13 +45,15 @@ export function generationRunStatusLabel(
 }
 
 /**
- * De dónde sale la imagen de una variante. La base sólo admite `generated` y
- * `deterministic`; un valor desconocido se nombra sin inventarle un origen.
+ * Cómo se produce la imagen de una variante. Nombra el método y no el
+ * resultado: una variante descartada también es `generated` y nunca tuvo
+ * imagen. La base sólo admite `generated` y `deterministic`; un valor
+ * desconocido se nombra sin inventarle un origen.
  */
 export function generationVariantSourceLabel(source: string): string {
   switch (source) {
     case "generated":
-      return "Imagen generada";
+      return "Imagen con IA";
     case "deterministic":
       return "Composición de marca";
     default:
