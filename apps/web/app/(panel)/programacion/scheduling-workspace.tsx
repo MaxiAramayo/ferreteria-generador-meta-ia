@@ -11,6 +11,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { publicationHref } from "../../../lib/panel-navigation.ts";
 import {
+  occurrenceStatusLabels,
+  scheduleStatusLabels,
+  scheduleTargetsLabel,
+} from "../../../lib/publication-schedule-presentation.ts";
+import {
   createPublicationSchedule,
   loadPublicationScheduleCalendar,
   previewPublicationScheduleUpdate,
@@ -496,7 +501,7 @@ export function SchedulingWorkspace({
             </div>
           ) : (
             <>
-              <p className="workspace-eyebrow">Snapshot aprobado</p>
+              <p className="workspace-eyebrow">Revisión aprobada</p>
               <h2>{scheduleLabel(activeEntry, publicationTitles)}</h2>
               <Link
                 className="schedule-detail-link"
@@ -515,11 +520,11 @@ export function SchedulingWorkspace({
                 </div>
                 <div>
                   <dt>Destinos</dt>
-                  <dd>{activeEntry.schedule.targets.join(", ")}</dd>
+                  <dd>{scheduleTargetsLabel(activeEntry.schedule.targets)}</dd>
                 </div>
                 <div>
                   <dt>Estado</dt>
-                  <dd>{activeEntry.schedule.status}</dd>
+                  <dd>{scheduleStatusLabels[activeEntry.schedule.status]}</dd>
                 </div>
               </dl>
               <ol className="schedule-occurrences">
@@ -535,10 +540,10 @@ export function SchedulingWorkspace({
                       )}
                     </time>
                     <span>
-                      {occurrence.status}
+                      {occurrenceStatusLabels[occurrence.status]}
                       {occurrence.dispatchRequestedAt === undefined
                         ? ""
-                        : " · job solicitado"}
+                        : " · despacho pedido"}
                     </span>
                   </li>
                 ))}

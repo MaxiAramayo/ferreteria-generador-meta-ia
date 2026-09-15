@@ -55,7 +55,7 @@ const blockMessages: Readonly<Record<PublishBlockReason, string>> =
     "no-target-available":
       "La conexión no tiene activos publicables. Revisala en Configuración.",
     "not-approved":
-      "La pieza todavía no está aprobada. Sólo se publica un snapshot aprobado.",
+      "La pieza todavía no está aprobada. Sólo se publica una revisión aprobada.",
   });
 
 function blocked(reason: PublishBlockReason): PublishGate {

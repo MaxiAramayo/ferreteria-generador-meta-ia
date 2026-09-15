@@ -95,6 +95,24 @@ export type ContentObjective = (typeof contentObjectives)[number];
 export type BrandVariant = (typeof brandVariants)[number];
 export type VisualDirection = (typeof visualDirections)[number];
 export type FactualClaimKind = (typeof factualClaimKinds)[number];
+
+/**
+ * Cómo se nombra cada tipo de afirmación en un rechazo.
+ *
+ * El motivo llega tal cual a quien revisa o edita el copy, así que no puede
+ * traer el identificador interno del tipo de hecho.
+ */
+export const factualClaimDescriptions: Readonly<
+  Record<FactualClaimKind, string>
+> = Object.freeze({
+  business_hours: "un horario",
+  location: "una ubicación",
+  price: "un precio",
+  product_attribute: "una característica del producto",
+  promotion: "una promoción",
+  service: "un servicio",
+  stock: "disponibilidad de stock",
+});
 export type CallToActionKind = (typeof callToActionKinds)[number];
 export type MissingInformationKind = (typeof missingInformationKinds)[number];
 
@@ -528,7 +546,7 @@ function assertCopyIsSupported(brief: ContentBrief): void {
         throw new ContentBriefValidationError(
           "unsupported-claim-in-copy",
           surface.field,
-          `El texto afirma ${claimKind} sin un hecho verificado que lo sustente.`,
+          `El texto menciona ${factualClaimDescriptions[claimKind]} y no hay un hecho verificado que lo sustente.`,
         );
       }
     }

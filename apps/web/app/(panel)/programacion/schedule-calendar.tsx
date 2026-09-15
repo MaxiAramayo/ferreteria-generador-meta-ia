@@ -5,6 +5,8 @@ import type {
   PublicationScheduleCalendarResponse,
 } from "@aramayo/contracts";
 
+import { occurrenceStatusLabels } from "../../../lib/publication-schedule-presentation.ts";
+
 interface ScheduleCalendarProps {
   readonly calendar: PublicationScheduleCalendarResponse;
   readonly month: Date;
@@ -65,21 +67,6 @@ function titleFor(
     publicationTitles.get(event.entry.schedule.publicationId) ??
     "Publicación aprobada"
   );
-}
-
-function occurrenceStatusLabel(
-  status: CalendarEvent["occurrence"]["status"],
-): string {
-  switch (status) {
-    case "planned":
-      return "Planificada";
-    case "cancelled":
-      return "Cancelada";
-    case "dispatched":
-      return "Despachada";
-    case "skipped":
-      return "Salteada";
-  }
 }
 
 export function ScheduleCalendar({
@@ -167,7 +154,7 @@ export function ScheduleCalendar({
                         </span>
                         <strong>{titleFor(event, publicationTitles)}</strong>
                         <small>
-                          {occurrenceStatusLabel(event.occurrence.status)} ·{" "}
+                          {occurrenceStatusLabels[event.occurrence.status]} ·{" "}
                           {event.entry.schedule.timeZone}
                         </small>
                       </button>
@@ -205,7 +192,7 @@ export function ScheduleCalendar({
               </time>
               <strong>{titleFor(event, publicationTitles)}</strong>
               <span>
-                {occurrenceStatusLabel(event.occurrence.status)} ·{" "}
+                {occurrenceStatusLabels[event.occurrence.status]} ·{" "}
                 {event.entry.schedule.timeZone}
               </span>
             </button>

@@ -36,7 +36,12 @@ import {
   selectGenerationVariant,
   shouldPollGenerationRun,
 } from "../../../lib/generation-run-api";
-import { availableGenerationVariantActions } from "../../../lib/generation-variant-presentation";
+import {
+  availableGenerationVariantActions,
+  generationRunStatusLabel,
+  generationVariantPlaceholder,
+  generationVariantSourceLabel,
+} from "../../../lib/generation-variant-presentation";
 
 /** Nombre de cada marco tal como lo elige quien revisa la variante. */
 const frameLayoutLabels: Readonly<Record<FrameLayoutId, string>> = {
@@ -279,10 +284,8 @@ function VariantCard({
     <article className="generation-variant-card" data-status={variant.status}>
       {variant.composition === null ? (
         <div className="generation-variant-placeholder">
-          <strong>{variant.status}</strong>
-          <p>
-            {variant.failure?.correction ?? "La variante todavía no terminó."}
-          </p>
+          <strong>{generationVariantPlaceholder(variant).title}</strong>
+          <p>{generationVariantPlaceholder(variant).detail}</p>
         </div>
       ) : (
         <Image
@@ -295,7 +298,8 @@ function VariantCard({
       )}
       <div>
         <p className="workspace-eyebrow">
-          Variante {variant.index + 1} · {variant.source}
+          Variante {variant.index + 1} ·{" "}
+          {generationVariantSourceLabel(variant.source)}
         </p>
         <h4>{editSummary(run)}</h4>
         <dl>
@@ -440,9 +444,7 @@ export function GenerationVariantWorkspace({
                 ? current
                 : [loaded.run, ...current],
             );
-            setNotice(
-              "Ejecución creada. El worker está preparando las variantes.",
-            );
+            setNotice("Ejecución creada. Las variantes se están preparando.");
           } else {
             setNotice(
               "La ejecución fue aceptada, pero todavía no se pudo consultar.",
@@ -898,7 +900,9 @@ export function GenerationVariantWorkspace({
             .map((run) => (
               <section key={run.id}>
                 <header>
-                  <span data-status={run.status}>{run.status}</span>
+                  <span data-status={run.status}>
+                    {generationRunStatusLabel(run.status)}
+                  </span>
                   <strong>
                     {run.edit === null
                       ? "Origen"

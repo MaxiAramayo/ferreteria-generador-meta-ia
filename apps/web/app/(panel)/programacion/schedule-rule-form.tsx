@@ -471,7 +471,7 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
       {props.kind === "move" && props.preview !== undefined ? (
         <p aria-live="polite" className="schedule-impact">
           <strong>Impacto calculado:</strong> {impactText(props.preview)} Las
-          congeladas ya tienen job u orden y no se moverán.
+          congeladas ya tienen despacho u orden y no se moverán.
         </p>
       ) : null}
 

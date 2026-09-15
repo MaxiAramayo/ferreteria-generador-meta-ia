@@ -137,7 +137,7 @@ function PublicationRow({
             type="button"
           >
             {publication.status === "generation_failed"
-              ? "Reintentar render"
+              ? "Reintentar PNG"
               : "Generar PNG"}
           </button>
         ) : null}
@@ -159,7 +159,7 @@ function PublicationRow({
             }}
             type="button"
           >
-            Aprobar snapshot
+            Aprobar revisión
           </button>
         ) : null}
         {publication.status === "approved" && canSchedule ? (
@@ -274,7 +274,7 @@ export function PublicationWorkspace({
       command: "approve" | "render",
     ): Promise<void> => {
       setCommandNotice(
-        command === "render" ? "Solicitando render…" : "Aprobando snapshot…",
+        command === "render" ? "Pidiendo el PNG…" : "Aprobando revisión…",
       );
       const result =
         command === "render"

@@ -155,7 +155,7 @@ async function selectOccurrence(page: Page): Promise<void> {
   const event = publicationOccurrence(page);
   await event.waitFor({ timeout: startupTimeoutMs });
   await event.click();
-  await page.getByText("Snapshot aprobado", { exact: true }).waitFor({
+  await page.getByText("Revisión aprobada", { exact: true }).waitFor({
     timeout: startupTimeoutMs,
   });
 }
@@ -280,7 +280,7 @@ async function main(): Promise<void> {
       );
     }
     reportCheck(
-      "el formulario crea una programación desde un snapshot aprobado",
+      "el formulario crea una programación desde una revisión aprobada",
     );
 
     const database = createDatabaseClient(databaseUrl);

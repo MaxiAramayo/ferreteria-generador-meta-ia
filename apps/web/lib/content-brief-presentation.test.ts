@@ -7,6 +7,7 @@ import {
   contentBriefDisplay,
   missingInformationLabel,
   shouldPollContentBriefRun,
+  contentBriefRunStatusLabel,
 } from "./content-brief-presentation.ts";
 
 const brief: ContentBrief = Object.freeze({
@@ -203,4 +204,11 @@ test("el pedido original encabeza la ejecución para poder reintentarlo igual", 
     display.headline,
     "Necesito una pieza para promocionar taladros percutores.",
   );
+});
+
+test("el historial nombra el estado de cada brief en castellano", () => {
+  assert.equal(contentBriefRunStatusLabel("pending"), "En curso");
+  assert.equal(contentBriefRunStatusLabel("generated"), "Generado");
+  assert.equal(contentBriefRunStatusLabel("rejected"), "Rechazado");
+  assert.equal(contentBriefRunStatusLabel("cancelled"), "Cancelado");
 });

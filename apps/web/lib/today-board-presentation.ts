@@ -3,9 +3,10 @@ import type {
   MetaConnectionResponse,
   PublicationOperationalAlertResponse,
   PublicationScheduleCalendarResponse,
-  PublicationScheduleResponse,
   PublishingReadinessResponse,
 } from "@aramayo/contracts";
+
+import { publicationTargetLabels } from "./publication-publishing-presentation.ts";
 
 /**
  * Qué muestra «Para hoy» (`/`), sin consultar a la API.
@@ -78,14 +79,6 @@ type TicketFace = Readonly<{
 const loading: Readonly<{ kind: "loading" }> = Object.freeze({
   kind: "loading",
 });
-
-const targetLabels: Readonly<
-  Record<PublicationScheduleResponse["targets"][number], string>
-> = {
-  facebook_page: "Facebook",
-  instagram_feed: "Instagram feed",
-  instagram_story: "Instagram historia",
-};
 
 const connectionHealth: Readonly<
   Record<
@@ -435,7 +428,7 @@ export function upcomingOutings(
           publicationId: entry.schedule.publicationId,
           scheduledAt: occurrence.scheduledAt,
           targets: entry.schedule.targets
-            .map((target) => targetLabels[target])
+            .map((target) => publicationTargetLabels[target])
             .join(" · "),
           timeZone: entry.schedule.timeZone,
           title: titles.get(entry.schedule.publicationId) ?? "Pieza programada",

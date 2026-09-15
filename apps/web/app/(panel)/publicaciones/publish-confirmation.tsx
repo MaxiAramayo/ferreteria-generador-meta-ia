@@ -167,7 +167,7 @@ export function PublishConfirmation({
         <>
           {detail.approved ? null : (
             <p role="alert">
-              Lo que ves no es un snapshot aprobado. No se puede publicar.
+              Lo que ves no es una revisión aprobada. No se puede publicar.
             </p>
           )}
           <figure className="publish-confirmation-preview">
@@ -208,7 +208,7 @@ export function PublishConfirmation({
         ))}
         {targetChoice.kind === "locked" ? (
           <p>
-            Estos destinos forman parte del snapshot aprobado y no se editan.
+            Estos destinos forman parte de la revisión aprobada y no se editan.
           </p>
         ) : null}
         {targetChoice.kind === "unavailable" ? (

@@ -260,14 +260,14 @@ async function publicationCommand(
           kind: "completed",
           message:
             command === "render"
-              ? "Render solicitado. El worker actualizará el estado."
-              : "Snapshot aprobado y conservado.",
+              ? "PNG pedido. El estado se actualiza solo cuando esté listo."
+              : "Revisión aprobada y conservada.",
         }
       : {
           kind: "error",
           message:
             command === "render"
-              ? "No se pudo solicitar el render. Recargá el estado."
+              ? "No se pudo pedir el PNG. Recargá el estado."
               : "No se pudo aprobar. Recargá el estado.",
         };
   } catch {

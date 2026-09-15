@@ -167,3 +167,19 @@ export function shouldPollContentBriefRun(
 ): boolean {
   return run.status === "pending";
 }
+
+/** Estado de una ejecución del brief, como se lee en el historial. */
+export function contentBriefRunStatusLabel(
+  status: ContentBriefRunResponse["status"],
+): string {
+  switch (status) {
+    case "pending":
+      return "En curso";
+    case "generated":
+      return "Generado";
+    case "rejected":
+      return "Rechazado";
+    case "cancelled":
+      return "Cancelado";
+  }
+}
