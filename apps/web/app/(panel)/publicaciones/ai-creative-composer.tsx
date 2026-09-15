@@ -23,6 +23,7 @@ import {
 import { loadConfiguration } from "../../../lib/organization-configuration-api";
 import {
   contentBriefDisplay,
+  contentBriefRunStatusLabel,
   contentBriefUsageDisplay,
   missingInformationLabel,
   shouldPollContentBriefRun,
@@ -304,7 +305,9 @@ function AttemptHistory({
                 }}
                 type="button"
               >
-                <span data-status={entry.status}>{entry.status}</span>
+                <span data-status={entry.status}>
+                  {contentBriefRunStatusLabel(entry.status)}
+                </span>
                 <strong>{entry.request}</strong>
                 <small>
                   {new Date(entry.requestedAt).toLocaleString("es-AR")} ·{" "}

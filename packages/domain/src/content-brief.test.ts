@@ -278,7 +278,7 @@ test("rechaza el mismo producto repetido", () => {
 });
 
 test("un importe en el copy exige un hecho de precio", () => {
-  expectRejection(
+  const rejection = expectRejection(
     {
       candidate: candidate({
         caption: `${CAPTION} Lo tenés a $ 45.900.`,
@@ -288,6 +288,8 @@ test("un importe en el copy exige un hecho de precio", () => {
     },
     "unsupported-claim-in-copy",
   );
+  // El motivo llega al panel: nombra el dato, no su identificador interno.
+  assert.match(rejection.message, /menciona un precio/u);
 });
 
 test("un descuento en el copy exige un hecho de promoción", () => {

@@ -232,12 +232,16 @@ tarea:
 - `P7-T01`: una revisión manual del checklist, hecha por alguien que no escribió
   el código;
 - `P5-T09` y `P6-T09`: confirmar sobre una pieza concreta —imagen, copy,
-  destinos y horario— la publicación real. El producto ya está elegido —aceite
-  sintético 5W40 x 4 litros PITTS— y staging tiene catálogo, conocimiento y
-  generación habilitada, pero **del lado técnico sí falta algo**: el brief no
-  logra atar evidencia comercial a un pedido de producto, porque le pasa al
-  catálogo la frase completa del pedido y Odoo busca por nombre literal. El
-  compositor «Promoción de producto» todavía es un marcador sin formulario.
+  destinos y horario— la publicación real. Producto —aceite sintético 5W40 x 4
+  litros PITTS—, imagen generada con IA, destinos y horario ya están elegidos,
+  y el brief sale con producto y precio verificados contra el catálogo real: la
+  búsqueda literal que lo trababa se corrigió el 2026-09-12. Faltan dos cosas
+  que no son código: el **alcance de moderación de la clave de OpenAI de
+  staging** —sin él la imagen no se genera, porque la moderación previa es
+  fail-closed— y la aprobación del copy sobre la pieza terminada. El compositor
+  «Promoción de producto» no está en ese camino; cuando se construya, el worker
+  resolverá el producto a partir del nombre o el SKU que escriba la persona, sin
+  darle a la API lectura de Odoo.
 
 `P7-T03` quedó cerrada, así que `P7-T05` ya no espera a nadie; el resto de la
 Fase 7 espera a esas dos.

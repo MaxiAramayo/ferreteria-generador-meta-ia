@@ -3,7 +3,12 @@ import test from "node:test";
 
 import type { GenerationVariantResponse } from "@aramayo/contracts";
 
-import { availableGenerationVariantActions } from "./generation-variant-presentation.ts";
+import {
+  availableGenerationVariantActions,
+  generationRunStatusLabel,
+  generationVariantPlaceholder,
+  generationVariantSourceLabel,
+} from "./generation-variant-presentation.ts";
 
 function variant(
   status: GenerationVariantResponse["status"],
@@ -56,5 +61,34 @@ test("una base generada habilita la edición visual controlada", () => {
   assert.equal(
     availableGenerationVariantActions(variant("succeeded")).has("edit-visual"),
     true,
+  );
+});
+
+test("el estado y el origen de cada variante se leen en castellano", () => {
+  assert.equal(generationRunStatusLabel("completed"), "Completa");
+  assert.equal(generationRunStatusLabel("pending"), "En cola");
+  assert.equal(
+    generationVariantSourceLabel("deterministic"),
+    "Composición de marca",
+  );
+  assert.equal(generationVariantSourceLabel("generated"), "Imagen generada");
+  assert.equal(
+    generationVariantSourceLabel("desconocido"),
+    "Origen sin identificar",
+  );
+});
+
+test("una variante descartada no se presenta como pendiente ni como falla", () => {
+  const discarded = generationVariantPlaceholder(variant("discarded"));
+  assert.equal(discarded.title, "Sin generar");
+  assert.match(discarded.detail, /no tuvo costo/u);
+  assert.doesNotMatch(discarded.detail, /todavía/u);
+  assert.equal(
+    generationVariantPlaceholder(variant("failed")).detail,
+    "Reintentá más tarde.",
+  );
+  assert.equal(
+    generationVariantPlaceholder(variant("pending")).title,
+    "En preparación",
   );
 });
