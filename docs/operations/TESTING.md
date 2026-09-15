@@ -66,8 +66,8 @@ Las pruebas unitarias nunca llaman APIs reales.
 - publicar contra adaptador sandbox;
 - mostrar éxito o fallo.
 
-Tres recorridos existen como comandos y no forman parte de `pnpm verify` porque
-levantan la vertical entera con un navegador real:
+Cuatro recorridos existen como comandos y no forman parte de `pnpm verify`
+porque levantan la vertical entera con un navegador real:
 
 - `pnpm e2e:publishing` recorre publicar por rol y por estado, el doble envío y
   la recarga durante la publicación;
@@ -80,9 +80,16 @@ levantan la vertical entera con un navegador real:
   sobre la variante, comprueba que cada marco muestre sólo sus campos, que un
   precio sin evidencia se rechace con un motivo legible, que dos clics dejen
   una sola recomposición y que la hija no registre intentos ni costo. Deja las
-  capturas y las dos piezas en `output/e2e-composition-edit/`.
+  capturas y las dos piezas en `output/e2e-composition-edit/`;
+- `pnpm e2e:navigation` recorre la barra compartida del panel: sin sesión lleva
+  al login y recuerda a qué pantalla volver; cada rol ve sólo sus secciones y
+  su «Para hoy»; desde Configuración y Cuenta se llega a las demás; en el
+  celular la página no se desborda; cerrar sesión la revoca en la API, y con la
+  API caída el panel lo dice sin mandar a iniciar sesión. Deja capturas en
+  `output/e2e-panel-navigation/`. Corre en CI junto con el de historia
+  recurrente.
 
-Los tres usan una base efímera y dobles locales de medios; ninguno contacta
+Los cuatro usan una base efímera y dobles locales de medios; ninguno contacta
 Meta ni Cloudinary, y el de marcos tampoco OpenAI.
 
 ### Visual
@@ -173,8 +180,8 @@ sirven de sonda de fugas:
   falsas, para verificar la resolución real de sus dependencias NestJS sin
   órdenes ni llamadas a proveedores;
 - cierre ordenado ante `SIGTERM` en API y worker;
-- panel que compila, renderiza su estado inicial y no expone configuración
-  privada en el bundle del cliente;
+- panel que compila, sirve su estado inicial sin esperar a la API y no expone
+  configuración privada en el bundle del cliente;
 - variable `NEXT_PUBLIC_` no declarada que impide servir el panel.
 
 El smoke no reemplaza la verificación con infraestructura real: readiness en 200

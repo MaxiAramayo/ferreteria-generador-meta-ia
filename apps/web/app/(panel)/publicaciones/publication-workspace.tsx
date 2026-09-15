@@ -9,11 +9,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { startTransition, useCallback, useEffect, useState } from "react";
 
-import { loadPublishingReadiness } from "../../lib/publication-publishing-api.ts";
+import { loadPublishingReadiness } from "../../../lib/publication-publishing-api.ts";
 import {
   publishGate,
   type PublishGate,
-} from "../../lib/publication-publishing-presentation.ts";
+} from "../../../lib/publication-publishing-presentation.ts";
 import { PublicationOrderPanel } from "./publication-order-panel.tsx";
 import { PublishConfirmation } from "./publish-confirmation.tsx";
 
@@ -24,7 +24,7 @@ import {
   requestPublicationRender,
   type PublicationPreviewResult,
   type PublicationWorkspaceLoadResult,
-} from "../../lib/publication-workspace-api";
+} from "../../../lib/publication-workspace-api";
 import { PublicationComposer } from "./publication-composer";
 
 function statusLabel(status: PublicationStatusResponse): string {
@@ -368,27 +368,6 @@ export function PublicationWorkspace({
     initial.kind === "ready" ? initial.publications.items : [];
   return (
     <main className="workspace-shell">
-      <header className="workspace-header">
-        <div>
-          <Link className="workspace-brand" href="/">
-            Aramayo
-          </Link>
-          <span>Content Platform</span>
-        </div>
-        <nav aria-label="Navegación principal">
-          <a aria-current="page" href="#publicaciones">
-            Publicaciones
-          </a>
-          <Link href="/programacion">Programación</Link>
-          <Link href="/operacion">Operación</Link>
-          <Link href="/configuracion">Configuración</Link>
-        </nav>
-        <p>
-          <span>Sesión activa</span>
-          <strong>{initial.actor.displayName}</strong>
-        </p>
-      </header>
-
       <section aria-labelledby="mesa-de-contenido" className="workspace-intro">
         <div>
           <p className="workspace-eyebrow">Mesa de contenido</p>

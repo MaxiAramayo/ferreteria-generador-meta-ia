@@ -16,11 +16,11 @@ import {
   transitionPublicationSchedule,
   updatePublicationSchedule,
   type ScheduleRuleSubmission,
-} from "../../lib/publication-schedule-api";
+} from "../../../lib/publication-schedule-api";
 import {
   loadPublicationWorkspace,
   type WorkspaceActor,
-} from "../../lib/publication-workspace-api";
+} from "../../../lib/publication-workspace-api";
 import { ScheduleCalendar } from "./schedule-calendar";
 import { ScheduleRuleForm } from "./schedule-rule-form";
 
@@ -268,27 +268,6 @@ export function SchedulingWorkspace({
 
   return (
     <main className="workspace-shell scheduling-shell">
-      <header className="workspace-header">
-        <div>
-          <Link className="workspace-brand" href="/">
-            Aramayo
-          </Link>
-          <span>Content Platform</span>
-        </div>
-        <nav aria-label="Navegación principal">
-          <Link href="/publicaciones">Publicaciones</Link>
-          <Link aria-current="page" href="/programacion">
-            Programación
-          </Link>
-          <Link href="/operacion">Operación</Link>
-          <Link href="/configuracion">Configuración</Link>
-        </nav>
-        <p>
-          <span>Sesión activa</span>
-          <strong>{state.actor.displayName}</strong>
-        </p>
-      </header>
-
       <section
         aria-labelledby="programacion"
         className="workspace-intro scheduling-intro"

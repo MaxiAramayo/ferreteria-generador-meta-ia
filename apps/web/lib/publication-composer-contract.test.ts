@@ -7,7 +7,7 @@ import {
   allowedComposerActions,
   publicationComposerVariants,
 } from "./publication-composer-contract.ts";
-import { usePublicationComposerState } from "../app/publicaciones/publication-composer-context.ts";
+import { usePublicationComposerState } from "../app/(panel)/publicaciones/publication-composer-context.ts";
 
 test("cada variante expone únicamente sus acciones válidas", () => {
   assert.deepEqual(

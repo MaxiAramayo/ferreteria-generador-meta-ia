@@ -2,12 +2,9 @@ import type {
   PublicationListResponse,
   PublicationStatusResponse,
 } from "@aramayo/contracts";
-import {
-  authorizeActor,
-  organizationRoles,
-  type AuthenticatedActor,
-  type OrganizationRole,
-} from "@aramayo/domain";
+import { authorizeActor, type AuthenticatedActor } from "@aramayo/domain";
+
+import { parseSessionActor } from "./authentication-api.ts";
 
 export type WorkspaceActor = AuthenticatedActor;
 
@@ -84,36 +81,6 @@ async function payload(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-const roles: ReadonlySet<string> = new Set(organizationRoles);
-
-function sessionActor(value: unknown): WorkspaceActor | null {
-  const session = record(value);
-  const actor = record(session?.["actor"]);
-  const actorRoles = actor?.["roles"];
-  return actor !== null &&
-    typeof actor["displayName"] === "string" &&
-    typeof actor["email"] === "string" &&
-    typeof actor["membershipId"] === "string" &&
-    typeof actor["organizationId"] === "string" &&
-    Array.isArray(actorRoles) &&
-    actorRoles.every(
-      (role): role is OrganizationRole =>
-        typeof role === "string" && roles.has(role),
-    ) &&
-    typeof actor["sessionId"] === "string" &&
-    typeof actor["userId"] === "string"
-    ? {
-        displayName: actor["displayName"],
-        email: actor["email"],
-        membershipId: actor["membershipId"],
-        organizationId: actor["organizationId"],
-        roles: actorRoles,
-        sessionId: actor["sessionId"],
-        userId: actor["userId"],
-      }
-    : null;
 }
 
 function isPublicationStatus(
@@ -214,7 +181,7 @@ export async function loadPublicationWorkspace(
       payload(sessionResponse),
       payload(publicationsResponse),
     ]);
-    const actor = sessionActor(session);
+    const actor = parseSessionActor(session);
     if (
       !sessionResponse.ok ||
       !publicationsResponse.ok ||

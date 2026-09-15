@@ -28,11 +28,11 @@ import {
   loadPublicationOrders,
   type ManualActionListResult,
   type PublicationOrderHistoryResult,
-} from "../../lib/publication-publishing-api.ts";
+} from "../../../lib/publication-publishing-api.ts";
 import {
   publicationTargetOutcome,
   visibleManualActions,
-} from "../../lib/publication-publishing-presentation.ts";
+} from "../../../lib/publication-publishing-presentation.ts";
 import { PublicationTargetResult } from "./publication-target-result.tsx";
 
 export interface PublicationOrderPanelProps {

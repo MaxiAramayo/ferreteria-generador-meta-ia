@@ -31,14 +31,14 @@ import {
   loadPublishConfirmation,
   requestPublication,
   type PublishConfirmationResult,
-} from "../../lib/publication-publishing-api.ts";
+} from "../../../lib/publication-publishing-api.ts";
 import {
   beginPublishSubmission,
   publishConfirmationTargetChoice,
   publicationTargetLabels,
   settlePublishSubmission,
   type PublishSubmission,
-} from "../../lib/publication-publishing-presentation.ts";
+} from "../../../lib/publication-publishing-presentation.ts";
 
 export interface PublishConfirmationProps {
   readonly accountName: string;

@@ -6,7 +6,7 @@ import type {
 } from "@aramayo/contracts";
 import { useMemo, useState } from "react";
 
-import type { ScheduleRuleSubmission } from "../../lib/publication-schedule-api";
+import type { ScheduleRuleSubmission } from "../../../lib/publication-schedule-api";
 
 interface RuleDraft {
   readonly effectiveFromLocalDate: string;

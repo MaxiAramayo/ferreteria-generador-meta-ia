@@ -6,7 +6,7 @@ import type {
 } from "@aramayo/contracts";
 import { startTransition, useCallback, useEffect, useState } from "react";
 
-import { loadOperationalHealth } from "../../lib/operational-health-api";
+import { loadOperationalHealth } from "../../../lib/operational-health-api";
 
 type BoardState =
   | Readonly<{ kind: "loading" }>
