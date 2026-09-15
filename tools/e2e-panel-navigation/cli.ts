@@ -336,6 +336,49 @@ async function main(): Promise<void> {
       "la editora entra a «Para hoy» con su borrador y sin Operación en la barra",
     );
 
+    // --- Crear pieza: cada flujo en su dirección ---
+    await editorPage.getByRole("link", { name: "Crear pieza" }).click();
+    await editorPage.waitForURL(`${webBaseUrl}/publicaciones/nueva`, {
+      waitUntil: "commit",
+    });
+    await waitForHeading(editorPage, "Elegí cómo nace la pieza.");
+    const flows = editorPage.getByRole("navigation", {
+      name: "Flujos para crear una pieza",
+    });
+    const currentFlow = flows.locator('a[aria-current="page"]');
+    assert.equal(await currentFlow.textContent(), "Plantilla");
+    await flows.getByRole("link", { name: "Creatividad IA" }).click();
+    await editorPage.waitForURL(
+      `${webBaseUrl}/publicaciones/nueva?flujo=creatividad-ia`,
+      { waitUntil: "commit" },
+    );
+    await editorPage
+      .getByRole("region", { name: "Compositor de creatividad con IA" })
+      .waitFor({ timeout: uiTimeoutMs });
+    await editorPage.reload({ waitUntil: "load" });
+    await waitForHeading(editorPage, "Elegí cómo nace la pieza.");
+    assert.equal(await currentFlow.textContent(), "Creatividad IA");
+    assert.equal((await navigation(editorPage)).current, "Publicaciones");
+    await editorPage
+      .getByRole("navigation", { name: "Publicaciones" })
+      .getByRole("link", { name: "Listado" })
+      .click();
+    await editorPage.waitForURL(`${webBaseUrl}/publicaciones`, {
+      waitUntil: "commit",
+    });
+    await waitForHeading(
+      editorPage,
+      "De la idea al borrador, sin saltos ocultos.",
+    );
+    assert.equal(
+      await flows.count(),
+      0,
+      "El listado volvió a mostrar el compositor.",
+    );
+    reportCheck(
+      "«Crear pieza» abre cada flujo en su dirección y recargar lo conserva",
+    );
+
     const editorBar = editorPage.getByRole("navigation", {
       name: "Secciones del panel",
     });
@@ -421,9 +464,37 @@ async function main(): Promise<void> {
       waitUntil: "commit",
     });
     await waitForHeading(schedulerPage, "Cada salida con su turno visible.");
-    await scheduler.close();
     reportCheck(
       "quien aprueba ve lo aprobado sin programar y la tarjeta lo lleva a Programación",
+    );
+
+    // Una pieza aprobada se programa desde su fila, y Programación abre con esa
+    // pieza ya elegida.
+    await schedulerPage
+      .getByRole("navigation", { name: "Secciones del panel" })
+      .getByRole("link", { name: "Publicaciones" })
+      .click();
+    await schedulerPage.waitForURL(`${webBaseUrl}/publicaciones`, {
+      waitUntil: "commit",
+    });
+    await schedulerPage
+      .locator(`#publicacion-${fixture.approvedPublicationId}`)
+      .getByRole("link", { name: "Programar" })
+      .click({ timeout: uiTimeoutMs });
+    await schedulerPage.waitForURL(
+      `${webBaseUrl}/programacion?publicacion=${fixture.approvedPublicationId}`,
+      { waitUntil: "commit" },
+    );
+    const picker = schedulerPage.getByLabel(/^Pieza aprobada/u);
+    await picker.waitFor({ timeout: uiTimeoutMs });
+    assert.equal(
+      await picker.inputValue(),
+      fixture.approvedPublicationId,
+      "Programación no abrió con la pieza elegida.",
+    );
+    await scheduler.close();
+    reportCheck(
+      "una pieza aprobada se programa desde su fila con la pieza ya elegida",
     );
 
     // --- Publicadora ---

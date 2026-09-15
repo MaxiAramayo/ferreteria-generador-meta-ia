@@ -7,8 +7,9 @@ import type {
   PreviewPublicationScheduleUpdateResponse,
 } from "@aramayo/contracts";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { publicationHref } from "../../../lib/panel-navigation.ts";
 import {
   createPublicationSchedule,
   loadPublicationScheduleCalendar,
@@ -143,7 +144,8 @@ function SchedulingStatus({
 
 export function SchedulingWorkspace({
   apiBaseUrl,
-}: Readonly<{ apiBaseUrl: string }>) {
+  initialPublicationId,
+}: Readonly<{ apiBaseUrl: string; initialPublicationId: string | null }>) {
   const [month, setMonth] = useState(() => monthStart(new Date()));
   const [state, setState] = useState<WorkspaceState>({ kind: "loading" });
   const [editor, setEditor] = useState<EditorState>({ kind: "closed" });
@@ -153,6 +155,7 @@ export function SchedulingWorkspace({
     useState<PreviewPublicationScheduleUpdateResponse>();
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({ kind: "idle" });
+  const requestedPublicationId = useRef(initialPublicationId);
 
   const reload = useCallback(async () => {
     setState({ kind: "loading" });
@@ -181,6 +184,30 @@ export function SchedulingWorkspace({
         workspace.kind === "ready"
           ? workspace.publications
           : Object.freeze({ items: [], limit: 20, page: 1, total: 0 }),
+    });
+    // Llegar desde una pieza aprobada («Programar») abre la creación con esa
+    // pieza elegida, y una sola vez: cambiar de mes no la vuelve a abrir.
+    const requested = requestedPublicationId.current;
+    if (requested === null) return;
+    requestedPublicationId.current = null;
+    const eligible =
+      workspace.kind === "ready" &&
+      workspace.publications.items.some(
+        (publication) =>
+          publication.id === requested &&
+          (publication.status === "approved" ||
+            publication.status === "scheduled"),
+      );
+    if (workspace.canSchedule && eligible) {
+      setCreatePublicationId(requested);
+      setEditor({ kind: "create" });
+      return;
+    }
+    setFeedback({
+      kind: "error",
+      message: workspace.canSchedule
+        ? "Esa pieza no está entre las aprobadas que se pueden programar."
+        : "Tu rol no permite programar piezas.",
     });
   }, [apiBaseUrl, month]);
 
@@ -471,6 +498,12 @@ export function SchedulingWorkspace({
             <>
               <p className="workspace-eyebrow">Snapshot aprobado</p>
               <h2>{scheduleLabel(activeEntry, publicationTitles)}</h2>
+              <Link
+                className="schedule-detail-link"
+                href={publicationHref(activeEntry.schedule.publicationId)}
+              >
+                Ver la pieza
+              </Link>
               <dl className="schedule-facts">
                 <div>
                   <dt>Regla</dt>

@@ -524,10 +524,10 @@ async function main(): Promise<void> {
       ].join("\n");
     };
 
-    await page.goto(`${webBaseUrl}/publicaciones`, { waitUntil: "load" });
-    await page
-      .getByRole("button", { name: "Creatividad IA" })
-      .click({ timeout: startupTimeoutMs });
+    // Cada flujo tiene su dirección: se entra directo a Creatividad IA.
+    await page.goto(`${webBaseUrl}/publicaciones/nueva?flujo=creatividad-ia`, {
+      waitUntil: "load",
+    });
     await page
       .locator(".composer-history button", { hasText: fixture.brief.request })
       .click({ timeout: 30_000 });

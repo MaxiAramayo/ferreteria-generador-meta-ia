@@ -83,7 +83,9 @@ porque levantan la vertical entera con un navegador real:
   capturas y las dos piezas en `output/e2e-composition-edit/`;
 - `pnpm e2e:navigation` recorre la barra compartida del panel: sin sesión lleva
   al login y recuerda a qué pantalla volver; cada rol ve sólo sus secciones y
-  su «Para hoy»; desde Configuración y Cuenta se llega a las demás; en el
+  su «Para hoy»; desde Configuración y Cuenta se llega a las demás; «Crear
+  pieza» abre cada flujo en su dirección y una pieza aprobada se programa desde
+  el listado ya elegida; en el
   celular la página no se desborda; cerrar sesión la revoca en la API, y con la
   API caída el panel lo dice sin mandar a iniciar sesión. Deja capturas en
   `output/e2e-panel-navigation/`. Corre en CI junto con el de historia

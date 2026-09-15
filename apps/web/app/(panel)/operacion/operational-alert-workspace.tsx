@@ -4,6 +4,7 @@ import type { PublicationOperationalAlertResponse } from "@aramayo/contracts";
 import Link from "next/link";
 import { startTransition, useCallback, useEffect, useState } from "react";
 
+import { publicationHref } from "../../../lib/panel-navigation.ts";
 import {
   loadOperationalAlerts,
   resolveOperationalAlert,
@@ -58,17 +59,23 @@ function targetLabel(
 }
 
 function actionFor(
-  safeAction: PublicationOperationalAlertResponse["safeAction"],
+  alert: PublicationOperationalAlertResponse,
 ): Readonly<{ href: string; label: string }> {
-  switch (safeAction) {
+  // Una alerta sobre una pieza lleva a esa pieza en el listado, no al
+  // principio de la página.
+  const publication =
+    alert.publicationId === undefined
+      ? "/publicaciones"
+      : publicationHref(alert.publicationId);
+  switch (alert.safeAction) {
     case "inspect-queue":
       return { href: "/programacion", label: "Revisar programación" };
     case "reconnect-meta":
       return { href: "/configuracion", label: "Revisar conexión Meta" };
     case "reconcile":
-      return { href: "/publicaciones", label: "Revisar y conciliar" };
+      return { href: publication, label: "Revisar y conciliar" };
     case "retry":
-      return { href: "/publicaciones", label: "Revisar el destino" };
+      return { href: publication, label: "Revisar el destino" };
   }
 }
 
@@ -116,7 +123,7 @@ function OperationalAlertRow({
   onResolve: (alert: PublicationOperationalAlertResponse) => void;
   pending: boolean;
 }>) {
-  const action = actionFor(alert.safeAction);
+  const action = actionFor(alert);
   return (
     <li className="operational-alert" data-severity={alert.severity}>
       <div className="operational-alert-rail">

@@ -11,8 +11,11 @@ import {
   type SyntheticEvent,
 } from "react";
 
+import Link from "next/link";
+
 import {
   allowedComposerActions,
+  composerVariantHref,
   type PublicationComposerState,
   type PublicationComposerVariant,
 } from "../../../lib/publication-composer-contract";
@@ -26,35 +29,49 @@ import {
   usePublicationComposerState,
 } from "./publication-composer-context";
 
+type ComposerDraft = Omit<PublicationComposerState, "variant">;
+
+/**
+ * El flujo no vive en el estado del compositor sino en la URL (`?flujo=`), y el
+ * provider lo recibe ya resuelto. Así un enlace, recargar o volver atrás dejan
+ * a la persona en el mismo flujo.
+ */
 function PublicationComposerProvider({
   apiBaseUrl,
   canEdit,
   canSchedule,
   children,
   onDraftSaved,
+  variant,
 }: {
   readonly apiBaseUrl: string;
   readonly canEdit: boolean;
   readonly canSchedule: boolean;
   readonly children: ReactNode;
   readonly onDraftSaved: (title: string) => void;
+  readonly variant: PublicationComposerVariant;
 }) {
-  const [state, setState] = useState<PublicationComposerState>({
+  const [draft, setState] = useState<ComposerDraft>({
     caption: "",
     format: "historia",
     layout: "historia-tip",
     mediaMode: "none",
     status: "editing",
     title: "",
-    variant: "template",
   });
+  const state = useMemo<PublicationComposerState>(
+    () => ({ ...draft, variant }),
+    [draft, variant],
+  );
   const idempotencyKey = useRef<string | null>(null);
   const stateReference = useRef(state);
   useEffect(() => {
     stateReference.current = state;
   }, [state]);
 
-  const chooseVariant = useCallback((variant: PublicationComposerVariant) => {
+  // Cambiar de flujo lo hace el enlace; acá sólo se descarta lo que era del
+  // flujo anterior: su clave de idempotencia y su aviso.
+  const chooseVariant = useCallback(() => {
     idempotencyKey.current = null;
     setState((current) => ({
       caption: current.caption,
@@ -63,7 +80,6 @@ function PublicationComposerProvider({
       mediaMode: current.mediaMode,
       status: "editing",
       title: current.title,
-      variant,
     }));
   }, []);
   const updateCaption = useCallback((caption: string) => {
@@ -221,20 +237,21 @@ function ComposerVariantNavigation() {
     { label: "Promoción de producto", value: "product-promotion" },
   ];
   return (
-    <div aria-label="Tipo de compositor" className="composer-variants">
+    <nav aria-label="Flujos para crear una pieza" className="composer-variants">
       {variants.map((variant) => (
-        <button
-          aria-pressed={state.variant === variant.value}
+        <Link
+          aria-current={state.variant === variant.value ? "page" : undefined}
+          href={composerVariantHref(variant.value)}
           key={variant.value}
           onClick={() => {
             actions.chooseVariant(variant.value);
           }}
-          type="button"
+          scroll={false}
         >
           {variant.label}
-        </button>
+        </Link>
       ))}
-    </div>
+    </nav>
   );
 }
 

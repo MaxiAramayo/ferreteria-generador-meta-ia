@@ -314,10 +314,11 @@ async function main(): Promise<void> {
         );
       }
     });
-    await page.goto(`${webBaseUrl}/publicaciones`, { waitUntil: "load" });
-    await page
-      .getByRole("button", { name: "Historia recurrente" })
-      .click({ timeout: startupTimeoutMs });
+    // Cada flujo tiene su dirección: se entra directo a Historia recurrente.
+    await page.goto(
+      `${webBaseUrl}/publicaciones/nueva?flujo=historia-recurrente`,
+      { waitUntil: "load" },
+    );
     await page
       .getByRole("button", { name: "Activar regla" })
       .waitFor({ timeout: startupTimeoutMs });

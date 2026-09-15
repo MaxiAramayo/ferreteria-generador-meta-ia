@@ -4,7 +4,19 @@ import { SchedulingWorkspace } from "./scheduling-workspace";
 
 export const dynamic = "force-dynamic";
 
-export default function SchedulingPage() {
+export default async function SchedulingPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<
+    Readonly<{ publicacion?: string | readonly string[] }>
+  >;
+}) {
   const configuration = parseWebPublicEnvironment(process.env);
-  return <SchedulingWorkspace apiBaseUrl={configuration.apiBaseUrl} />;
+  const requested = (await searchParams).publicacion;
+  return (
+    <SchedulingWorkspace
+      apiBaseUrl={configuration.apiBaseUrl}
+      initialPublicationId={typeof requested === "string" ? requested : null}
+    />
+  );
 }

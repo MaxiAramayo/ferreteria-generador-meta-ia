@@ -699,20 +699,24 @@ a {
   margin-bottom: 0.75rem;
 }
 
-.composer-variants button {
+/* Los flujos son enlaces: cada uno tiene su dirección. */
+.composer-variants a {
+  align-items: center;
   background: transparent;
   border: 1px solid var(--workspace-ink);
   color: var(--workspace-ink);
-  cursor: pointer;
-  font: inherit;
+  display: flex;
   font-size: 0.78rem;
   font-weight: 800;
+  justify-content: center;
   min-height: 3rem;
   padding: 0.6rem;
+  text-align: center;
+  text-decoration: none;
   text-transform: uppercase;
 }
 
-.composer-variants button[aria-pressed="true"] {
+.composer-variants a[aria-current="page"] {
   background: var(--workspace-ink);
   color: var(--workspace-paper);
 }
@@ -3965,4 +3969,68 @@ html:has(.panel-shell) {
     );
     scroll-padding-inline: 1.25rem;
   }
+}
+
+/* Publicaciones: listado y «Crear pieza». */
+
+.publications-subnav {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  display: flex;
+  gap: 1.75rem;
+  margin-top: 1.5rem;
+}
+
+.publications-subnav a {
+  border-bottom: 0.22rem solid transparent;
+  color: var(--workspace-ink);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 0;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.publications-subnav a[aria-current="page"] {
+  border-bottom-color: var(--workspace-rust);
+}
+
+.publication-row-actions a {
+  align-items: center;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  display: inline-flex;
+  font:
+    700 0.78rem/1 "Archivo",
+    sans-serif;
+  padding: 0.55rem 0.7rem;
+  text-decoration: none;
+}
+
+.publication-row-actions a:hover {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.publication-empty a,
+.publication-command-notice a {
+  color: var(--workspace-ink);
+  font-weight: 800;
+}
+
+/* La pieza a la que llevó una alerta o un turno. */
+.publication-list li:target {
+  background: color-mix(in srgb, var(--workspace-safety) 16%, transparent);
+  box-shadow: inset 0.3rem 0 0 var(--workspace-safety);
+}
+
+.schedule-detail-link {
+  color: var(--workspace-ink);
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  text-underline-offset: 0.25em;
 }
