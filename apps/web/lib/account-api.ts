@@ -74,7 +74,7 @@ export async function changePassword(
         message:
           typeof message === "string"
             ? message
-            : "Revisá las contraseñas: la nueva necesita al menos 12 caracteres.",
+            : "Revisá las contraseñas: la nueva necesita al menos 6 caracteres.",
       };
     }
     return {

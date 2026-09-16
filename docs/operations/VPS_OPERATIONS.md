@@ -35,6 +35,37 @@ carga, el host tenía 7,1 GiB de memoria disponible y ningún uso de swap.
 AppArmor, UFW, Docker, actualizaciones automáticas y sincronización horaria
 estaban activos.
 
+## Estado de producción verificado
+
+El 2026-09-16 producción quedó en marcha en
+`https://content.ferreteriaaramayo.com.ar`, con la API en
+`https://api.content.ferreteriaaramayo.com.ar` y certificado Let's Encrypt. El
+usuario la opera solo y decidió que use las mismas credenciales de OpenAI,
+Cloudinary, Meta y Odoo que venía probando; base, Redis y llaves de cifrado son
+propias de producción. Sólo difieren el callback OAuth, que es el de producción,
+y la carpeta de Cloudinary, `aramayo-posts/produccion`.
+
+Staging quedó **detenido, no borrado**: los dos Caddy usan `80/443` y no pueden
+correr a la vez. Sus volúmenes siguen intactos.
+
+En la app de Meta se agregaron el redirect OAuth de producción —se conservó el de
+staging—, el dominio `content.ferreteriaaramayo.com.ar`, y se apuntaron a
+producción los callbacks de desautorización y borrado de datos y las URLs de
+privacidad y términos.
+
+La base recibió el seed canónico. El usuario administrador lo crea la persona
+que opera, eligiendo email y contraseña, con
+[`tools/crear-admin.mjs`](../../infrastructure/production/tools/crear-admin.mjs):
+se instala en `/opt/aramayo-content/tools/`, se monta de sólo lectura en un
+contenedor efímero de la API y recibe la contraseña por la entrada estándar,
+nunca por argumentos ni entorno.
+
+```bash
+read -rs -p "Contraseña: " CLAVE; echo; printf '%s' "$CLAVE" | ssh ubuntu@144.217.91.115 "sudo docker compose --env-file /etc/aramayo-content/production.env --file /opt/aramayo-content/current/compose.yaml run --rm --no-deps -T -v /opt/aramayo-content/tools/crear-admin.mjs:/app/crear-admin.mjs:ro -e ADMIN_EMAIL=tu@correo -e ADMIN_NAME=Nombre --entrypoint node api /app/crear-admin.mjs"; unset CLAVE
+```
+
+Correr lo mismo con un email existente reemplaza su contraseña y lo reactiva.
+
 ## Estado staging verificado
 
 Actualización del 2026-08-31: staging ejecuta

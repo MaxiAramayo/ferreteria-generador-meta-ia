@@ -91,7 +91,7 @@ export function PasswordForm({ apiBaseUrl }: { readonly apiBaseUrl: string }) {
         autoComplete="current-password"
         id="password-current"
         maxLength={256}
-        minLength={12}
+        minLength={6}
         name="currentPassword"
         required
         type="password"
@@ -103,14 +103,13 @@ export function PasswordForm({ apiBaseUrl }: { readonly apiBaseUrl: string }) {
         autoComplete="new-password"
         id="password-new"
         maxLength={256}
-        minLength={12}
+        minLength={6}
         name="newPassword"
         required
         type="password"
       />
       <p className="login-intro" id="password-hint">
-        Al menos 12 caracteres. Una frase de varias palabras es fácil de
-        recordar y segura.
+        Al menos 6 caracteres.
       </p>
 
       <label htmlFor="password-confirmation">Repetí la contraseña nueva</label>
@@ -118,7 +117,7 @@ export function PasswordForm({ apiBaseUrl }: { readonly apiBaseUrl: string }) {
         autoComplete="new-password"
         id="password-confirmation"
         maxLength={256}
-        minLength={12}
+        minLength={6}
         name="confirmation"
         required
         type="password"

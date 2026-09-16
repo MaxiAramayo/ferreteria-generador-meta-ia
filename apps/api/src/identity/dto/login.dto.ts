@@ -18,6 +18,6 @@ export class LoginDto {
   organizationSlug?: string;
 
   @IsString()
-  @Length(12, 256)
+  @Length(6, 256)
   password!: string;
 }
