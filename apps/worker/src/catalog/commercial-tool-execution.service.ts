@@ -19,6 +19,7 @@ import {
   type CommercialToolExecutionResult,
   type CommercialToolExecutionScope,
   type CommercialToolName,
+  type PriceLookupResult,
   type SafeJsonObject,
 } from "@aramayo/domain";
 
@@ -30,6 +31,11 @@ import {
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const callIdPattern = /^[A-Za-z0-9_-]{1,160}$/u;
+/**
+ * Lo que ve el modelo cuando el pedido es para todas las sucursales: no hay una
+ * sucursal externa que nombrar, y un identificador inventado lo confundiría.
+ */
+const allLocationsScope = "todas-las-sucursales";
 const externalProductIdPattern = /^odoo-product-[1-9][0-9]*$/u;
 const externalReceiptIdPattern = /^odoo-receipt-[1-9][0-9]*$/u;
 
@@ -238,6 +244,20 @@ function safeArgumentMetadata(
 interface ExecutedTool {
   readonly observations: readonly CommercialObservation[];
   readonly value: unknown;
+}
+
+function samePriceOutcome(
+  left: PriceLookupResult,
+  right: PriceLookupResult,
+): boolean {
+  if (left.kind === "priced" && right.kind === "priced") {
+    return left.amountMinor === right.amountMinor && left.unit === right.unit;
+  }
+  return (
+    left.kind === "missing" &&
+    right.kind === "missing" &&
+    left.reason === right.reason
+  );
 }
 
 /** Un intento fallido o rechazado no observa nada y no puede sustentar nada. */
@@ -464,6 +484,9 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         };
       }
       case "get_current_price": {
+        if (this.#scope.locationId === null) {
+          return this.#priceInEveryLocation(parsed.externalProductId);
+        }
         const result = await this.#catalog.getPrice({
           externalProductId: parsed.externalProductId,
           locationId: this.#requiredExternalLocation(),
@@ -482,6 +505,9 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         };
       }
       case "get_stock_by_location": {
+        if (this.#scope.locationId === null) {
+          return this.#stockInEveryLocation(parsed.externalProductId);
+        }
         const result = await this.#catalog.getStock({
           externalProductId: parsed.externalProductId,
           locationId: this.#requiredExternalLocation(),
@@ -543,6 +569,120 @@ class EnabledCommercialToolExecutionSession implements CommercialToolExecutionSe
         "La invocación comercial no pudo auditarse.",
       );
     }
+  }
+
+  /**
+   * Precio para una pieza de todas las sucursales.
+   *
+   * Sólo hay un precio que citar si es el mismo en todas. Si difiere, o si en
+   * alguna falta, la observación queda como `varies-by-location` y no sustenta
+   * ninguna afirmación de precio: la pieza no puede prometer un número que en
+   * una sucursal es otro. Esto vale igual al generar el brief y al revalidar
+   * antes de publicar, porque los dos pasan por acá.
+   */
+  async #priceInEveryLocation(
+    externalProductId: string,
+  ): Promise<ExecutedTool> {
+    const results = await Promise.all(
+      this.#everyExternalLocation().map(async (locationId) =>
+        this.#catalog.getPrice({
+          externalProductId,
+          locationId,
+          organizationId: this.#scope.organizationId,
+        }),
+      ),
+    );
+    const [first] = results;
+    if (
+      first === undefined ||
+      !results.every((result) => samePriceOutcome(result, first))
+    ) {
+      return {
+        observations: results.map((result) =>
+          observation(
+            "price",
+            result.evidence,
+            externalProductId,
+            "varies-by-location",
+          ),
+        ),
+        value: {
+          kind: "varies-by-location",
+          locationId: allLocationsScope,
+          reason:
+            "El precio no es el mismo en todas las sucursales; no se puede citar un precio único.",
+        },
+      };
+    }
+    return {
+      observations: results.map((result) =>
+        observation("price", result.evidence, externalProductId, first.kind),
+      ),
+      value: { ...first, locationId: allLocationsScope },
+    };
+  }
+
+  /**
+   * Stock para una pieza de todas las sucursales.
+   *
+   * Se informa el menor de los stocks conocidos, que es lo único cierto para
+   * todas a la vez. Si en alguna no se conoce, no hay stock que afirmar.
+   */
+  async #stockInEveryLocation(
+    externalProductId: string,
+  ): Promise<ExecutedTool> {
+    const results = await Promise.all(
+      this.#everyExternalLocation().map(async (locationId) =>
+        this.#catalog.getStock({
+          externalProductId,
+          locationId,
+          organizationId: this.#scope.organizationId,
+        }),
+      ),
+    );
+    const known = results.flatMap((result) =>
+      result.kind === "known" ? [result] : [],
+    );
+    const [first] = known;
+    if (first === undefined || known.length !== results.length) {
+      return {
+        observations: results.map((result) =>
+          observation(
+            "stock",
+            result.evidence,
+            externalProductId,
+            "varies-by-location",
+          ),
+        ),
+        value: {
+          kind: "varies-by-location",
+          locationId: allLocationsScope,
+          reason:
+            "El stock no está informado en todas las sucursales; no se puede afirmar disponibilidad.",
+        },
+      };
+    }
+    return {
+      observations: results.map((result) =>
+        observation("stock", result.evidence, externalProductId, "known"),
+      ),
+      value: {
+        ...first,
+        locationId: allLocationsScope,
+        quantity: Math.min(...known.map((result) => result.quantity)),
+      },
+    };
+  }
+
+  #everyExternalLocation(): readonly CommercialExternalLocationId[] {
+    const locations = [...new Set(this.#locationMappings.values())];
+    if (locations.length === 0) {
+      throw new CommercialToolExecutionError(
+        "invalid-scope",
+        "No hay sucursales con mapping comercial en este ambiente.",
+      );
+    }
+    return locations;
   }
 
   #requiredExternalLocation(): CommercialExternalLocationId {

@@ -101,13 +101,13 @@ export const commercialToolDefinitions: readonly StrictCommercialToolDefinition[
     ),
     singleIdentifierTool(
       "get_current_price",
-      "Obtiene el PVP vigente para la sucursal del contexto autenticado.",
+      "Obtiene el PVP vigente para la sucursal del pedido. Si el pedido es para todas las sucursales, devuelve el precio sólo cuando es igual en todas; si no, responde varies-by-location y no hay precio que citar.",
       "externalProductId",
       externalProductId,
     ),
     singleIdentifierTool(
       "get_stock_by_location",
-      "Obtiene stock para la sucursal del contexto autenticado; cero y desconocido son distintos.",
+      "Obtiene stock para la sucursal del pedido; cero y desconocido son distintos. Si el pedido es para todas las sucursales, devuelve el menor stock entre ellas, o varies-by-location si en alguna no se conoce.",
       "externalProductId",
       externalProductId,
     ),

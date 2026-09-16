@@ -299,3 +299,39 @@ test("bloquea cambios de precio y stock desde la aprobación", async () => {
   assert.equal(stockResult.status, "blocked");
   assert.equal(stockResult.code, "prepublish-stock-changed");
 });
+
+test("una pieza para todas las sucursales revalida su precio en vez de bloquearse", async () => {
+  class RecordingCommercial extends Commercial {
+    readonly sessions: (string | null)[] = [];
+
+    override createSession(
+      input?: Readonly<{ locationId: string | null }>,
+    ): PrePublishCommercialSession {
+      this.sessions.push(input === undefined ? "sin-dato" : input.locationId);
+      return this;
+    }
+  }
+  const commercial = new RecordingCommercial();
+  const { locationId, ...withoutLocation } = job({
+    factualClaims: [
+      {
+        claimKind: "price",
+        evidenceId: "price-1",
+        externalProductId: "product-1",
+        statement: "$ 123.456,00",
+      },
+    ],
+    requiredClaims: ["price"],
+    schemaVersion: approvalPrePublishProfileSchemaVersion,
+  });
+
+  // Se le quita la sucursal a la orden base: así llega una pieza para todas.
+  assert.equal(locationId, "location-1");
+  const result = await validator({ commercial }).validate(
+    Object.freeze(withoutLocation),
+    [target("facebook_page")],
+  );
+
+  assert.equal(result.status, "ready");
+  assert.deepEqual(commercial.sessions, [null]);
+});

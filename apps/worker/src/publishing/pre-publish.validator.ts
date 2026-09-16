@@ -71,7 +71,8 @@ export interface PrePublishCommercialPort {
   createSession(
     input: Readonly<{
       actorMembershipId: string;
-      locationId: string;
+      /** `null` es una pieza para todas las sucursales. */
+      locationId: string | null;
       organizationId: string;
       runId: string;
     }>,
@@ -534,7 +535,7 @@ export class PrePublishValidator implements PrePublishValidatorPort {
     const requiresCommercial = required.has("price") || required.has("stock");
     let commercial: PrePublishCommercialSession | null = null;
     if (requiresCommercial) {
-      if (this.#commercial === null || job.locationId === undefined) {
+      if (this.#commercial === null) {
         return blocked(
           "prepublish-commercial-unavailable",
           "No se puede revalidar la información comercial de esta pieza. Creá una revisión nueva cuando la fuente esté disponible.",
@@ -543,7 +544,9 @@ export class PrePublishValidator implements PrePublishValidatorPort {
       try {
         commercial = this.#commercial.createSession({
           actorMembershipId: job.requestedByMembershipId,
-          locationId: job.locationId,
+          // Sin sucursal, la pieza es para todas: el ejecutor revalida en cada
+          // una y sólo acepta lo que vale igual para todas.
+          locationId: job.locationId ?? null,
           organizationId: job.organizationId,
           runId: job.orderId,
         });

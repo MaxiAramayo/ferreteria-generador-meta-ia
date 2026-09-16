@@ -102,7 +102,7 @@ export class PrePublishCommercialAdapter implements PrePublishCommercialPort {
   createSession(
     input: Readonly<{
       actorMembershipId: string;
-      locationId: string;
+      locationId: string | null;
       organizationId: string;
       runId: string;
     }>,

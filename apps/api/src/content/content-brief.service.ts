@@ -320,12 +320,19 @@ export class ContentBriefService {
     actor: AuthenticatedActor,
     locationId: string | null,
   ): Promise<string | null> {
-    if (locationId === null) {
-      return null;
-    }
     const configuration = await this.#configuration.findByOrganizationId(
       actor.organizationId,
     );
+    if (locationId === null) {
+      // Un pedido sin sucursal es para todas: el modelo tiene que saber cuáles
+      // son para no escribir como si hubiera una sola.
+      const names = (configuration?.locations ?? [])
+        .filter((entry) => entry.isActive)
+        .map((entry) => entry.name);
+      return names.length === 0
+        ? null
+        : `Todas las sucursales: ${names.join(" y ")}`;
+    }
     const location = configuration?.locations.find(
       (entry) => entry.id === locationId,
     );
