@@ -182,7 +182,8 @@ trabajo más viejo» cruzando su umbral. Nada se publica ni se genera.
    y no causa; seguir el runbook de dependencias.
 2. `$COMPOSE ps worker` y `$COMPOSE logs --since 30m --tail 200 worker`. Buscar
    `worker.heartbeat` y `worker.outbox.batch`: sin latidos el proceso no está
-   vivo; con latidos y sin lotes no hay trabajo disponible.
+   vivo; con latidos y sin lotes no hay trabajo disponible. Para un mensaje
+   puntual, `worker.outbox.delivery` registra su desenlace.
 3. Un mensaje en `dead_letter` agotó sus intentos y conserva su código de error.
 
 **Contención.** Si el worker está entregando cosas equivocadas, detenerlo
