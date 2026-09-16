@@ -123,6 +123,19 @@ jobs:
       - name: Extremo a extremo de historia recurrente
         run: pnpm run e2e:recurring-story
 
+      # Que reiniciar no pierda ni duplique trabajo se decide en una consulta con
+      # bloqueo de fila. Con repositorio falso esa parte no corre, y un duplicado
+      # acá es una pieza publicada dos veces en la cuenta real.
+      - name: Extremo a extremo de despacho concurrente
+        run: pnpm run e2e:dispatch
+
+      # La cola de turnos vive en Redis pero su verdad está en PostgreSQL. Estas
+      # pruebas existían sin que ningún script las corriera: comprueban que un
+      # Redis vacío se reconstruya desde la intención persistida y que una
+      # reentrega reutilice la orden en vez de crear otra.
+      - name: Integración de la cola de turnos
+        run: pnpm run queue:integration
+
       # La barra decide qué secciones ofrecer con la sesión que devuelve la API;
       # sólo con los guards de verdad se ve que lo ofrecido se puede abrir.
       - name: Extremo a extremo de navegación del panel
