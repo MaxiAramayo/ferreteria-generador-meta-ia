@@ -32,7 +32,7 @@ catalog:
   eslint-plugin-react-hooks: 7.1.1
   globals: 17.7.0
   lucide-react: 0.561.0
-  next: 16.3.4
+  next: 16.3.5
   openai: 7.1.0
   pg: 8.22.0
   playwright-core: 1.62.0
@@ -57,3 +57,13 @@ allowBuilds:
   msgpackr-extract: false
   prisma: false
   sharp: false
+
+# Dependencias transitivas con aviso alto y parche disponible. Se acotan por
+# rango para no arrastrar un salto mayor: `multer` llega con
+# `@nestjs/platform-express` —la API no expone ninguna ruta multipart, pero la
+# dependencia igual viaja—, `nanoid` la usa `postcss` al compilar el panel y
+# `brace-expansion` vive bajo ESLint.
+overrides:
+  "brace-expansion@>=4.0.0 <5.0.9": "5.0.9"
+  "multer@<2.3.0": "^2.3.0"
+  "nanoid@<3.3.18": "3.3.18"

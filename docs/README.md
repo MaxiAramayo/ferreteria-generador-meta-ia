@@ -50,6 +50,8 @@
 - [`operations/VPS_OPERATIONS.md`](operations/VPS_OPERATIONS.md): acceso SSH,
   estado verificado, mantenimiento, despliegue, rollback y acciones prohibidas.
 - [`operations/SECURITY.md`](operations/SECURITY.md)
+- [`operations/SECURITY-REVIEW-GUIDE.md`](operations/SECURITY-REVIEW-GUIDE.md):
+  cómo comprobar el threat model sin haber escrito el código.
 - [`operations/SECRETS.md`](operations/SECRETS.md): almacenamiento, cifrado y
   rotación.
 - [`operations/TESTING.md`](operations/TESTING.md)
