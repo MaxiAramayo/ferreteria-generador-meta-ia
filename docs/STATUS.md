@@ -162,12 +162,18 @@ pieza puntual.
 
 ## Próxima tarea
 
-`P7-T01` — threat model y revisión de seguridad, **en progreso**. Se empezó con
-su dependencia `P6-T09` sin cerrar, por pedido explícito del usuario y con la
-desviación registrada: lo que esa tarea agrega es evidencia de una corrida real
-de publicación, no superficie de ataque nueva. Cinco de sus seis criterios están
-cubiertos y falta sólo la revisión manual independiente del checklist, que no
-puede hacerse desde adentro de la sesión que escribió el código.
+`P6-T09` — validar programación de punta a punta, en su mitad ejecutable: el
+dispatcher reiniciado a mitad de lote y dos workers compitiendo por los mismos
+mensajes contra PostgreSQL real. Hoy esa garantía está probada con un
+repositorio falso, y es justo donde un duplicado dolería de verdad. La otra
+mitad —evidencia remota de una salida real— espera autorización de publicación.
+
+`P7-T01` — threat model y revisión de seguridad, **cerrada el 2026-09-16 con
+desviación registrada**. La guía de revisión se recorrió entera el 2026-09-15 y
+los ocho puntos dieron conformes, pero la ejecutó quien escribió el código: el
+usuario aceptó la desviación —opera solo y cada afirmación quedó verificada
+contra el sistema real— y la revisión se rehace con alguien externo si entra
+otra persona a operar o si cambia el modelo de acceso.
 
 Con `P7-T03` y `P7-T04` cerradas, **`P7-T05` —presupuestos de rendimiento y
 costo— es la única tarea de la fase sin bloqueo externo**: depende de `P7-T02` y
