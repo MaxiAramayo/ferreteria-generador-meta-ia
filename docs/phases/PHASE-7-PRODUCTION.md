@@ -16,8 +16,8 @@ antes de ampliar automatizaciones o integrar eventos del sistema comercial.
 
 ## P7-T01 — Completar threat model y revisión de seguridad
 
-- [ ] Tarea completada
-- Estado: EN PROGRESO
+- [x] Tarea completada
+- Estado: COMPLETADA con desviación registrada
 - Dependencias: `P5-T08`, `P6-T09`
 - Riesgo: Alto
 
@@ -45,7 +45,8 @@ acciones externas antes de exponer producción.
 
 - [x] Escaneo de dependencias y secretos.
 - [x] Tests de autorización/tenancy y entradas maliciosas.
-- [ ] Revisión manual independiente del checklist.
+- [x] Revisión manual del checklist, **no independiente**: desviación aceptada
+      por el usuario el 2026-09-16 (ver notas).
 
 ### Fuera de alcance
 
@@ -88,13 +89,40 @@ acciones externas antes de exponer producción.
   por organización son barridos del worker que cruzan tenants a propósito; cada
   fila que devuelven lleva su organización y la escritura posterior vuelve a
   acotar.
-- Pendiente: la revisión manual independiente del checklist. Es la única
-  verificación que no puede hacerse desde adentro de la sesión que escribió el
-  código.
+- 2026-09-15: se recorrió la [guía de revisión](../operations/SECURITY-REVIEW-GUIDE.md)
+  completa. Resultado por punto:
+
+  | Punto | Resultado | Qué se observó |
+  |---|---|---|
+  | 1. Permisos por ruta | conforme | 143 pruebas en verde; la prueba recorre las rutas compiladas y exige que cada una declare exactamente una forma de autorización |
+  | 2. Rechazo de la API | conforme | «la API rechaza a una editora aunque llame directo», con los otros seis recorridos de publicación |
+  | 3. Aislamiento | conforme | contra PostgreSQL real, con migración, reversión y reaplicación |
+  | 4. Sesión y contraseña | conforme por pruebas | cambiar la contraseña exige la actual y cierra sesiones; el límite de intentos corta antes de consultar credenciales y frena también el cambio de contraseña. Los dos pasos manuales en el panel quedaron sin ejecutar |
+  | 5. Secretos | conforme | sólo `.env.example` versionados; el smoke confirma que el bundle del cliente no contiene secretos |
+  | 6. Dependencias | conforme | 12 avisos, los cuatro paquetes de la CLI de Prisma ya registrados como excepción; ningún paquete nuevo |
+  | 7. Herramientas del modelo | conforme | organización y sucursal salen del alcance del servidor, no de los argumentos |
+  | 8. Subidas y URLs | conforme | sin rutas multipart y sin entradas que acepten una dirección |
+
+- **Desviación aceptada el 2026-09-16**: el criterio pide que la revisión la
+  haga alguien que no escribió el código, y la ejecutó quien lo escribió. El
+  usuario la aceptó explícitamente: opera el sistema solo, cada afirmación del
+  threat model quedó verificada punto por punto contra el sistema real, y una
+  revisión externa hoy cuesta más de lo que agregaría. Lo que la desviación no
+  cubre es el sesgo del autor: un error de concepción compartido entre el código
+  y su revisión no lo encontraría esta pasada. Se rehace con revisor externo si
+  entra otra persona a operar o si cambia el modelo de acceso.
+- Los dos pasos manuales del punto 4 —cambiar la contraseña desde el panel y
+  fallar el login seis veces seguidas— siguen sin ejecutarse: la sesión que
+  revisó no escribe credenciales en formularios. La afirmación que sostienen
+  está cubierta por pruebas automáticas, citadas arriba.
 
 ### Evidencia de cierre
 
-- Pendiente: falta la revisión manual independiente.
+- [`THREAT-MODEL.md`](../operations/THREAT-MODEL.md) y
+  [`SECURITY-REVIEW-GUIDE.md`](../operations/SECURITY-REVIEW-GUIDE.md), recorrida
+  entera el 2026-09-15 con los ocho puntos conformes.
+- Desviación de independencia aceptada por el usuario el 2026-09-16, con su
+  alcance y su condición de revisión escritos arriba.
 
 ## P7-T02 — Consolidar suite de calidad
 
@@ -728,7 +756,8 @@ acciones seguras, verificables y reversibles.
   token de Meta corrigió dos pasos del runbook (abajo); el de cola atascada y
   proveedor degradado resultó conforme. El detalle quedó en el registro de
   simulacros de `RUNBOOKS.md`.
-- 2026-09-15: **hallazgo del simulacro, sin resolver.**
+- 2026-09-15: **hallazgo del simulacro; decidido el 2026-09-16 dejarlo como
+  está.**
   `POST /publications/:id/publish` responde 201 aunque la conexión de Meta esté
   revocada. El panel no ofrece el control y `GET /publishing/readiness` responde
   `canPublish:false`, pero una llamada directa crea la orden igual y falla recién
@@ -736,8 +765,10 @@ acciones seguras, verificables y reversibles.
   termina detenido— pero gasta reintentos y deja la pieza en curso. Queda
   documentado como el motivo de que contener sea un paso explícito. Corregirlo
   significaría que la orden consulte la salud de la conexión, y eso acopla
-  publicar a un dato que puede estar vencido: es decisión de producto, no de
-  operación.
+  publicar a un dato que puede estar vencido: una salud degradada por una lectura
+  vieja bloquearía una publicación legítima. El usuario decidió no corregirlo y
+  que el runbook lo cubra. Se reconsidera si aparece una orden creada contra una
+  conexión caída sin que nadie la haya pedido a mano.
 - 2026-09-15: pendiente «rotar/revocar credenciales probado». El procedimiento
   está escrito en `SECRETS.md` y el orden correcto quedó en el runbook —en una
   exposición se revoca primero en el proveedor, no en el archivo de entorno—,

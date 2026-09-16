@@ -136,3 +136,8 @@ Con los ocho puntos conformes, `P7-T01` cierra: alcanza con anotar la fecha y el
 resultado en las notas de la tarea, en
 [`PHASE-7-PRODUCTION.md`](../phases/PHASE-7-PRODUCTION.md). Si alguno no
 coincide, se corrige antes de cerrar y la corrección se prueba.
+
+La recorrida del 2026-09-15 está anotada ahí, con sus ocho resultados y con la
+desviación que la acompaña: la hizo quien escribió el código, así que verificó
+las afirmaciones pero no aportó una mirada independiente. Esta guía existe para
+que esa mirada llegue después sin depender de quien la escribió.
