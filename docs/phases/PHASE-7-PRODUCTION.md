@@ -1003,6 +1003,20 @@ rollback de aplicación y migraciones compatibles.
   subida a Drive. Cero errores del worker desde el arranque; `/health`, `/ready`
   y el panel responden 200. `f4a8c91` se conserva para rollback y el disco quedó
   al 40 %.
+- 2026-09-16: producción desplegada con `5c15f82` y luego con la release que baja
+  la contraseña mínima. Los siete contenedores sanos, migraciones aplicadas,
+  `/health` y `/ready` en 200 desde el dominio público, certificado emitido y el
+  worker con OpenAI, Cloudinary y Meta habilitados. El detalle está en
+  [`VPS_OPERATIONS.md`](../operations/VPS_OPERATIONS.md).
+- 2026-09-16: **desviación decidida por el usuario**: producción usa las mismas
+  credenciales de proveedor que staging. Lo opera una sola persona y no quiere
+  sostener dos juegos. Base, Redis y llaves de cifrado sí son propias.
+- 2026-09-16: la contraseña mínima bajó de 12 a 6 caracteres, por pedido del
+  usuario. El límite de cinco intentos fallidos cada quince minutos sigue siendo
+  lo que frena a quien pruebe contraseñas.
+- 2026-09-16: el rollback no se ensayó todavía. Queda verificado que es
+  compatible: la única migración nueva desde la release anterior agrega dos
+  columnas nulables y ensancha un CHECK.
 
 ### Evidencia de cierre
 
