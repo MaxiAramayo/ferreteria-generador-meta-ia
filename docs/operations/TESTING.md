@@ -94,6 +94,25 @@ porque levantan la vertical entera con un navegador real:
 Los cuatro usan una base efímera y dobles locales de medios; ninguno contacta
 Meta ni Cloudinary, y el de marcos tampoco OpenAI.
 
+`pnpm e2e:dispatch` es de otra especie: no levanta navegador ni API, sólo la base
+efímera, y hace competir despachadores reales sobre las mismas filas. Comprueba
+que dos workers en paralelo entreguen sesenta mensajes exactamente una vez cada
+uno, que un lease vigente no se lo lleve otro, que un worker que muere a mitad de
+lote no deje el mensaje detenido, que quien perdió el lease no dé por buena su
+entrega —y que el mensaje salga de nuevo, que es la garantía real: al menos una
+vez en el transporte, y por eso la orden de publicación es idempotente— y que un
+destino que siempre falla se detenga a los doce intentos conservando su error.
+Las pruebas unitarias del despachador cubren su decisión con un repositorio
+falso; ésta cubre la concurrencia, que es donde un duplicado significaría una
+pieza publicada dos veces en la cuenta real.
+
+`pnpm queue:integration` corre las pruebas de la cola de turnos contra Redis
+real: un Redis vacío se reconstruye desde la intención persistida, y una
+reentrega reutiliza la orden en vez de crear otra. Existían desde antes sin que
+ningún script las ejecutara —el glob del worker toma `*.test.ts` y ellas son
+`*.integration.ts`—, así que desde el 2026-09-16 tienen comando propio y paso en
+CI.
+
 `pnpm budget:load` acompaña a esos recorridos en CI: mide los presupuestos de
 rendimiento y costo con volumen representativo —latencia con p95 y p99,
 paginación, backlog y recuperación del outbox, costo por operación y corte por

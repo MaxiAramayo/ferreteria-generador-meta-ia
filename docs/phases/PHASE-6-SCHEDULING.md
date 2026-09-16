@@ -904,14 +904,18 @@ y condiciones de carrera, antes de considerar el sistema automatizado.
 
 - [ ] Una publicación única sale dentro de la tolerancia acordada.
 - [ ] Una historia recurrente materializa contenido correcto.
-- [ ] Reiniciar dispatcher/worker/Redis no pierde ni duplica.
+- [x] Reiniciar dispatcher/worker/Redis no pierde ni duplica: despachador y
+      worker con `pnpm e2e:dispatch`, Redis con `pnpm queue:integration`.
 - [ ] Un cambio material previo bloquea la salida.
 - [ ] Estado local y remoto se reconcilian.
 - [ ] Las alertas permiten actuar antes o después del fallo.
 
 ### Verificación obligatoria
 
-- [ ] Ejecutar escenario normal, reinicio, fallo externo y doble worker.
+- [ ] Ejecutar escenario normal, reinicio, fallo externo y doble worker:
+      reinicio, fallo externo y doble worker quedaron cubiertos por
+      `pnpm e2e:dispatch`; falta el escenario normal contra Meta, que espera
+      autorización.
 - [ ] Verificar timestamp e IDs remotos.
 - [ ] Conservar logs correlacionados y reporte.
 
@@ -921,11 +925,40 @@ y condiciones de carrera, antes de considerar el sistema automatizado.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-09-16: la tarea se partió en dos mitades. La que necesita una publicación
+  real autorizada sigue esperando; la que no, se hizo.
+- 2026-09-16: `pnpm e2e:dispatch` prueba el despachador contra PostgreSQL real,
+  sin navegador ni API. Lo que verifica: dos workers en paralelo entregan
+  sesenta mensajes exactamente una vez cada uno; un lease vigente no se lo lleva
+  otro worker; un worker que muere a mitad de lote no deja el mensaje detenido,
+  porque otro lo reclama al vencer el lease; quien perdió el lease **no** da por
+  buena su entrega; y un destino que siempre falla se detiene a los doce intentos
+  conservando su error y deja de reclamarse. Está en CI.
+- 2026-09-16: la garantía quedó nombrada como es y no como nos gustaría: **al
+  menos una vez en el transporte, exactamente una en la confirmación**. Si la
+  entrega salió y el proceso murió antes de confirmarla, el mensaje se entrega de
+  nuevo. Lo que evita publicar dos veces no es el outbox sino la idempotencia de
+  la orden de publicación, y por eso esa idempotencia no es un detalle.
+- 2026-09-16: las pruebas de integración de la cola de turnos —«Redis vacío se
+  reconstruye desde la intención persistida» y «el consumidor procesa el job y
+  una reentrega reutiliza la orden»— existían y **ningún script las corría**: el
+  glob de `test` del worker toma `*.test.ts` y ellas son `*.integration.ts`.
+  Pasan, y son justo la mitad de Redis de este criterio y la demostración de que
+  la reentrega no crea una segunda orden. Quedaron en `pnpm queue:integration` y
+  en CI.
+- 2026-09-16: la prueba se validó contra dos regresiones intencionales. Quitarle
+  a `markDelivered` la condición de que el lease sea del worker que confirma hace
+  fallar el escenario del lease perdido; quitarle el bloqueo de fila al reclamo
+  hace que dos workers entreguen setenta veces sesenta mensajes. Quitar sólo el
+  `SKIP LOCKED` no la hace fallar, y está bien que no: sin él el segundo worker
+  espera en vez de saltear, y al desbloquearse la fila ya no cumple la condición
+  de pendiente. `SKIP LOCKED` es rendimiento, no corrección.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- Pendiente: falta la mitad remota —una publicación autorizada con su timestamp e
+  identificadores— y el bloqueo por cambio material. La mitad de concurrencia
+  está cubierta por [`e2e-dispatch`](../../tools/e2e-dispatch/cli.ts), en CI.
 
 ## Criterios de salida de Fase 6
 

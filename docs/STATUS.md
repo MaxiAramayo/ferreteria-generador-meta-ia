@@ -162,11 +162,18 @@ pieza puntual.
 
 ## Próxima tarea
 
-`P6-T09` — validar programación de punta a punta, en su mitad ejecutable: el
-dispatcher reiniciado a mitad de lote y dos workers compitiendo por los mismos
-mensajes contra PostgreSQL real. Hoy esa garantía está probada con un
-repositorio falso, y es justo donde un duplicado dolería de verdad. La otra
-mitad —evidencia remota de una salida real— espera autorización de publicación.
+`P6-T09` — validar programación de punta a punta. **La mitad ejecutable se hizo
+el 2026-09-16**: `pnpm e2e:dispatch` hace competir despachadores reales sobre las
+mismas filas de PostgreSQL y comprueba que dos workers entreguen cada mensaje
+exactamente una vez, que un lease vigente no se lo lleve otro, que un worker
+muerto a mitad de lote no deje el mensaje detenido, que quien perdió el lease no
+dé su entrega por buena, y que un destino que siempre falla se detenga a los doce
+intentos. De paso apareció que las pruebas de la cola contra Redis existían sin
+que ningún script las corriera; ahora corren. La garantía quedó nombrada como es:
+**al menos una vez en el transporte, exactamente una en la confirmación**, y lo
+que evita publicar dos veces es la idempotencia de la orden. La otra mitad
+—evidencia remota de una salida real y el bloqueo por cambio material— espera
+autorización de publicación.
 
 `P7-T01` — threat model y revisión de seguridad, **cerrada el 2026-09-16 con
 desviación registrada**. La guía de revisión se recorrió entera el 2026-09-15 y
