@@ -110,6 +110,13 @@ evidencia del brief antes de crear la ejecución hija, y admite tanto una
 variante generada como una determinista. Una misma base admite así tantos
 marcos y textos como se quieran probar sin volver a pagar la imagen.
 
+El 2026-09-15 el usuario avisó que por ahora opera el sistema solo. Dos
+consecuencias registradas: se retiró del panel «Promoción de producto» —un
+marcador sin dominio detrás, cuando una pieza de producto ya nace de
+«Creatividad IA»— y la prueba de carga sobre staging de `P7-T05` quedó como no
+aplicable, porque la carga real es una persona y lo que puede regresar ya se
+mide local y en CI.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.

@@ -2,7 +2,6 @@ export const publicationComposerVariants = [
   "template",
   "ai-creative",
   "recurring-story",
-  "product-promotion",
 ] as const;
 
 export type PublicationComposerVariant =
@@ -59,7 +58,6 @@ const actionsByVariant: Readonly<
     "accept-brief",
     "request-brief",
   ]),
-  "product-promotion": new Set<PublicationComposerAction>(),
   "recurring-story": new Set<PublicationComposerAction>(),
   template: new Set<PublicationComposerAction>([
     "edit-caption",
@@ -93,7 +91,6 @@ export const createPiecePath = "/publicaciones/nueva";
 const variantSlugs: Readonly<Record<PublicationComposerVariant, string>> =
   Object.freeze({
     "ai-creative": "creatividad-ia",
-    "product-promotion": "promocion",
     "recurring-story": "historia-recurrente",
     template: "plantilla",
   });

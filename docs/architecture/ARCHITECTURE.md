@@ -323,7 +323,10 @@ Variantes explícitas:
 - `TemplatePublicationComposer`
 - `AICreativeComposer`
 - `RecurringStoryComposer`
-- `ProductPromotionComposer`
+
+Hubo una cuarta, `ProductPromotionComposer`, que nunca tuvo dominio detrás. Se
+retiró el 2026-09-15: una pieza de producto nace de «Creatividad IA», y un flujo
+que no hace nada promete algo que el sistema no cumple.
 
 `AICreativeComposer` delega las variantes a un workspace cohesivo. La UI hace
 visibles como acciones distintas generar, cambiar imagen, cambiar datos o
