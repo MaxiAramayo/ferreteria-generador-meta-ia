@@ -107,14 +107,17 @@ function RequestForm({
             }}
             value={locationId}
           >
+            <option value="">Ambas sucursales</option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
-                {location.name}
+                Sólo {location.name}
               </option>
             ))}
           </select>
           <small>
-            El precio y el stock que cite la pieza son los de esta sucursal.
+            {locationId === ""
+              ? "La pieza sólo cita precio si es el mismo en todas las sucursales, y stock si hay en todas."
+              : "El precio y el stock que cite la pieza son los de esta sucursal."}
           </small>
         </label>
       )}
@@ -342,9 +345,9 @@ export function AICreativeComposer({
   >([]);
   const [locationId, setLocationId] = useState("");
 
-  // El precio y el stock son de una sucursal concreta, así que el pedido viaja
-  // con la suya. Sin ella el worker rechaza toda consulta comercial por alcance
-  // inválido y la pieza se queda sin dato que citar, aunque el producto exista.
+  // Casi todas las piezas son para todas las sucursales, así que ése es el
+  // valor inicial: un pedido sin sucursal consulta precio y stock en cada una y
+  // sólo cita lo que vale igual para todas. Elegir una la vuelve la única.
   useEffect(() => {
     void loadConfiguration(apiBaseUrl).then((result) => {
       if (result.kind !== "ready") {
@@ -355,7 +358,6 @@ export function AICreativeComposer({
       );
       startTransition(() => {
         setLocations(activas);
-        setLocationId((current) => current || (activas[0]?.id ?? ""));
       });
     });
   }, [apiBaseUrl]);

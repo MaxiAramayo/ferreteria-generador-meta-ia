@@ -348,3 +348,196 @@ test("un fallo de auditoría bloquea incluso un resultado comercial exitoso", as
   );
   assert.equal(catalog.calls.length, 1);
 });
+
+const rivadaviaLocationId = "10000000-0000-4000-8000-000000000005";
+
+const everyLocationCredentials: CommercialCatalogCredentials = Object.freeze({
+  ...credentials,
+  locationMappings: Object.freeze([
+    Object.freeze({
+      externalLocationId: "casa-central",
+      platformLocationId: locationId,
+    }),
+    Object.freeze({
+      externalLocationId: "rivadavia",
+      platformLocationId: rivadaviaLocationId,
+    }),
+  ]),
+});
+
+/**
+ * Catálogo con precio y stock distintos por sucursal externa, para ver qué
+ * cita una pieza que es para todas.
+ */
+class PerLocationCatalog extends RecordingCatalog {
+  readonly consulted: string[] = [];
+  prices: Readonly<Record<string, number>> = {
+    "casa-central": 10_000,
+    rivadavia: 10_000,
+  };
+  stocks: Readonly<Record<string, number | null>> = {
+    "casa-central": 5,
+    rivadavia: 2,
+  };
+
+  override getPrice(
+    query: Parameters<CommercialCatalogPort["getPrice"]>[0],
+  ): ReturnType<CommercialCatalogPort["getPrice"]> {
+    this.consulted.push(`price:${query.locationId}`);
+    return Promise.resolve({
+      amountMinor: this.prices[query.locationId] ?? 0,
+      currency: "ARS" as const,
+      evidence: evidence(),
+      kind: "priced" as const,
+      locationId: query.locationId,
+      unit: "unidad",
+    });
+  }
+
+  override getStock(
+    query: Parameters<CommercialCatalogPort["getStock"]>[0],
+  ): ReturnType<CommercialCatalogPort["getStock"]> {
+    this.consulted.push(`stock:${query.locationId}`);
+    const quantity = this.stocks[query.locationId] ?? null;
+    return Promise.resolve(
+      quantity === null
+        ? {
+            evidence: evidence(),
+            kind: "unknown" as const,
+            locationId: query.locationId,
+            reason: "stock-not-reported" as const,
+            unit: "unidad",
+          }
+        : {
+            evidence: evidence(),
+            kind: "known" as const,
+            locationId: query.locationId,
+            quantity,
+            unit: "unidad",
+          },
+    );
+  }
+}
+
+function everyLocationSession(
+  catalog: RecordingCatalog,
+  mappings: CommercialCatalogCredentials = everyLocationCredentials,
+): CommercialToolExecutionSession {
+  return new CommercialToolExecutionService(
+    catalog,
+    new RecordingAudit(),
+    mappings,
+    { ...policy, maximumCallsPerRun: 4 },
+  ).createSession({
+    actorMembershipId,
+    locationId: null,
+    organizationId,
+    runId,
+  });
+}
+
+function outputData(output: string): Readonly<Record<string, unknown>> {
+  const parsed = JSON.parse(output) as Readonly<{
+    data: Readonly<Record<string, unknown>>;
+  }>;
+  return parsed.data;
+}
+
+const priceCall = {
+  arguments: JSON.stringify({ externalProductId: "odoo-product-101" }),
+  callId: "call_price_every_location",
+  name: "get_current_price",
+} as const;
+
+const stockCall = {
+  arguments: JSON.stringify({ externalProductId: "odoo-product-101" }),
+  callId: "call_stock_every_location",
+  name: "get_stock_by_location",
+} as const;
+
+test("una pieza para todas las sucursales cita el precio si es igual en todas", async () => {
+  const catalog = new PerLocationCatalog();
+  const result = await everyLocationSession(catalog).execute(priceCall);
+
+  assert.equal(result.outcome, "success");
+  assert.deepEqual(catalog.consulted.sort(), [
+    "price:casa-central",
+    "price:rivadavia",
+  ]);
+  const data = outputData(result.output);
+  assert.equal(data["kind"], "priced");
+  assert.equal(data["amountMinor"], 10_000);
+  assert.equal(data["locationId"], "todas-las-sucursales");
+  assert.deepEqual(
+    result.observations.map((entry) => entry.resolution),
+    ["priced", "priced"],
+  );
+});
+
+test("si el precio difiere entre sucursales no queda ningún precio citable", async () => {
+  const catalog = new PerLocationCatalog();
+  catalog.prices = { "casa-central": 10_000, rivadavia: 12_000 };
+  const result = await everyLocationSession(catalog).execute(priceCall);
+
+  assert.equal(result.outcome, "success");
+  const data = outputData(result.output);
+  assert.equal(data["kind"], "varies-by-location");
+  assert.equal(Object.hasOwn(data, "amountMinor"), false);
+  // Ninguna observación dice `priced`: así ninguna sustenta un precio.
+  assert.deepEqual(
+    result.observations.map((entry) => entry.resolution),
+    ["varies-by-location", "varies-by-location"],
+  );
+});
+
+test("el stock para todas las sucursales es el menor y exige conocerlo en todas", async () => {
+  const catalog = new PerLocationCatalog();
+  const known = await everyLocationSession(catalog).execute(stockCall);
+  const data = outputData(known.output);
+  assert.equal(data["kind"], "known");
+  assert.equal(data["quantity"], 2);
+  assert.deepEqual(
+    known.observations.map((entry) => entry.resolution),
+    ["known", "known"],
+  );
+
+  const partial = new PerLocationCatalog();
+  partial.stocks = { "casa-central": 5, rivadavia: null };
+  const unknown = await everyLocationSession(partial).execute(stockCall);
+  assert.equal(outputData(unknown.output)["kind"], "varies-by-location");
+  assert.deepEqual(
+    unknown.observations.map((entry) => entry.resolution),
+    ["varies-by-location", "varies-by-location"],
+  );
+});
+
+test("una sucursal elegida sigue consultando sólo la suya", async () => {
+  const catalog = new PerLocationCatalog();
+  const single = new CommercialToolExecutionService(
+    catalog,
+    new RecordingAudit(),
+    everyLocationCredentials,
+    policy,
+  ).createSession({
+    actorMembershipId,
+    locationId: rivadaviaLocationId,
+    organizationId,
+    runId,
+  });
+  await single.execute(priceCall);
+  assert.deepEqual(catalog.consulted, ["price:rivadavia"]);
+});
+
+test("sin sucursales con mapping, una pieza para todas falla por alcance", async () => {
+  const catalog = new PerLocationCatalog();
+  await assert.rejects(
+    everyLocationSession(catalog, {
+      ...credentials,
+      locationMappings: Object.freeze([]),
+    }).execute(priceCall),
+    (cause: unknown) =>
+      cause instanceof CommercialToolExecutionError &&
+      cause.code === "invalid-scope",
+  );
+  assert.deepEqual(catalog.consulted, []);
+});

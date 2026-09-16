@@ -371,6 +371,28 @@ function harness(): Promise<ContentBriefService> {
   return serviceFor(new FakeRequests(), new FakeRuns(), new FakeDrafts());
 }
 
+test("un pedido sin sucursal nombra a todas las activas", async () => {
+  const requests = new FakeRequests();
+  const service = await serviceFor(requests, new FakeRuns(), new FakeDrafts());
+
+  await service.request(
+    actor,
+    {
+      locationId: null,
+      request: "Una pieza de horarios para las dos sucursales.",
+    },
+    idempotencyKey,
+  );
+
+  // Es para todas: el modelo tiene que saber cuáles son para no escribir como
+  // si hubiera una sola.
+  assert.equal(
+    requests.lastInput?.locationName,
+    "Todas las sucursales: Sucursal Centro",
+  );
+  assert.equal(requests.lastInput.locationId, null);
+});
+
 test("el pedido normaliza el texto y toma el alcance de la sesión", async () => {
   const requests = new FakeRequests();
   const runs = new FakeRuns();
