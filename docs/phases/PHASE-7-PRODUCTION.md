@@ -692,18 +692,18 @@ acciones seguras, verificables y reversibles.
 
 ### Criterios de aceptación
 
-- [ ] Cada runbook tiene síntomas, diagnóstico, contención, recuperación y verificación.
-- [ ] Comandos destructivos están delimitados y advertidos.
-- [ ] Existen procedimientos para pausar generación y publicación por separado.
+- [x] Cada runbook tiene síntomas, diagnóstico, contención, recuperación y verificación.
+- [x] Comandos destructivos están delimitados y advertidos.
+- [x] Existen procedimientos para pausar generación y publicación por separado.
 - [ ] Rotar/revocar credenciales está documentado y probado.
-- [ ] Se define cuándo comunicar a responsables de negocio.
+- [x] Se define cuándo comunicar a responsables de negocio.
 - [ ] Una persona distinta del autor puede ejecutar el runbook.
 
 ### Verificación obligatoria
 
-- [ ] Simulacro de token Meta revocado.
-- [ ] Simulacro de cola atascada y proveedor OpenAI degradado.
-- [ ] Revisión post-simulacro y corrección de pasos ambiguos.
+- [x] Simulacro de token Meta revocado.
+- [x] Simulacro de cola atascada y proveedor OpenAI degradado.
+- [x] Revisión post-simulacro y corrección de pasos ambiguos.
 
 ### Fuera de alcance
 
@@ -711,11 +711,51 @@ acciones seguras, verificables y reversibles.
 
 ### Notas de progreso
 
-- Sin notas.
+- 2026-09-15: `RUNBOOKS.md` pasó de lista de requisitos a runbooks operativos.
+  Cada uno tiene síntoma, diagnóstico, contención, recuperación y verificación;
+  los comandos destructivos quedaron en una tabla propia, fuera de todo paso,
+  con lo que destruye cada uno al lado.
+- 2026-09-15: los dos frenos quedaron separados y descritos por lo que hacen de
+  verdad. Apagar la política de generación **no rechaza** pedidos: los degrada a
+  composición determinista, así que deja de pagarse el proveedor y las piezas
+  siguen saliendo. Pausar programaciones frena los turnos nuevos, no lo que ya
+  está en la cola. Detener el worker frena todo, generación incluida, y por eso
+  no es el freno correcto cuando sólo hay que dejar de gastar en IA.
+- 2026-09-15: la matriz de escalamiento se escribió para un operador único: no
+  es una cadena de personas sino de decisiones, con la regla de avisar afuera
+  cuando algo que llegó a una cuenta pública pudo ser visto.
+- 2026-09-15: simulacros ejecutados sobre base efímera con la API real. El de
+  token de Meta corrigió dos pasos del runbook (abajo); el de cola atascada y
+  proveedor degradado resultó conforme. El detalle quedó en el registro de
+  simulacros de `RUNBOOKS.md`.
+- 2026-09-15: **hallazgo del simulacro, sin resolver.**
+  `POST /publications/:id/publish` responde 201 aunque la conexión de Meta esté
+  revocada. El panel no ofrece el control y `GET /publishing/readiness` responde
+  `canPublish:false`, pero una llamada directa crea la orden igual y falla recién
+  en la entrega. No corrompe ni duplica nada —el intento falla, reintenta y
+  termina detenido— pero gasta reintentos y deja la pieza en curso. Queda
+  documentado como el motivo de que contener sea un paso explícito. Corregirlo
+  significaría que la orden consulte la salud de la conexión, y eso acopla
+  publicar a un dato que puede estar vencido: es decisión de producto, no de
+  operación.
+- 2026-09-15: pendiente «rotar/revocar credenciales probado». El procedimiento
+  está escrito en `SECRETS.md` y el orden correcto quedó en el runbook —en una
+  exposición se revoca primero en el proveedor, no en el archivo de entorno—,
+  pero ensayarlo de verdad exige credenciales reales de Meta y OpenAI y una
+  rotación de llave maestra con su trabajo de reencriptado. Se ensaya junto con
+  `P7-T07`, cuando el ambiente productivo exista.
+- 2026-09-15: pendiente «una persona distinta del autor puede ejecutar el
+  runbook». Es el mismo límite que `P7-T01`: quien escribió los runbooks es
+  quien los ensayó. Lo que sí se consiguió es que cada paso esté verificado
+  contra el sistema real en vez de ser una intención.
 
 ### Evidencia de cierre
 
-- Pendiente.
+- [`RUNBOOKS.md`](../operations/RUNBOOKS.md): runbooks operativos, frenos por
+  separado, matriz de escalamiento, comandos destructivos y registro de
+  simulacros del 2026-09-15.
+- Dos criterios siguen abiertos y la tarea no cierra: la rotación de credenciales
+  ensayada y la ejecución por alguien que no escribió el runbook.
 
 ## P7-T07 — Desplegar producción y probar rollback
 

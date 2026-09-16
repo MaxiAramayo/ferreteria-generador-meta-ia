@@ -64,7 +64,9 @@
   presupuestos de latencia, cola y costo por operación, y cómo se miden.
 - [`operations/RELIABLE_OPERATIONS.md`](operations/RELIABLE_OPERATIONS.md):
   idempotencia, auditoría, outbox, leases y retención.
-- [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md)
+- [`operations/RUNBOOKS.md`](operations/RUNBOOKS.md): qué hacer cuando algo se
+  rompe —síntoma, diagnóstico, contención, recuperación y verificación—, los dos
+  frenos por separado, los comandos destructivos y el registro de simulacros.
 
 ## Regla de precedencia
 

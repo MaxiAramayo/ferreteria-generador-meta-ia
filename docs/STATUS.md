@@ -117,6 +117,16 @@ marcador sin dominio detrás, cuando una pieza de producto ya nace de
 aplicable, porque la carga real es una persona y lo que puede regresar ya se
 mide local y en CI.
 
+También el 2026-09-15 los runbooks dejaron de ser una lista de requisitos:
+cada incidente frecuente tiene síntoma, diagnóstico, contención, recuperación y
+verificación, con los comandos destructivos apartados en su propia tabla. Dos
+simulacros sobre base efímera —token de Meta revocado, cola atascada con
+proveedor degradado— corrigieron el runbook en dos puntos y dejaron un hallazgo
+abierto: publicar responde 201 aunque la conexión esté revocada, así que la
+contención es una decisión de quien opera y no una garantía del sistema.
+`P7-T06` no cierra todavía porque faltan ensayar la rotación de credenciales y
+que los runbooks los ejecute alguien que no los escribió.
+
 ## Resumen
 
 - [x] Fase documental inicial creada.
