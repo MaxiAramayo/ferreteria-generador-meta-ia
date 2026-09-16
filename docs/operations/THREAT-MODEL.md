@@ -128,11 +128,19 @@ uno se revisa de nuevo el **2026-12-09** o antes si cambia su alcance.
 
 | Aviso | Dónde vive | Por qué se acepta | Dueño |
 |---|---|---|---|
-| `multer` (3 avisos altos) | NestJS lo trae con `platform-express` | Ninguna ruta usa multipart: no hay `FileInterceptor` ni `@UploadedFile` en toda la API | rol `admin` |
 | `find-my-way`, `fast-uri`, `deepmerge-ts`, `mysql2`, `valibot` | herramientas de desarrollo de Prisma | No están en las imágenes de API, panel ni worker; la de migración corre `migrate deploy` en red privada y no usa MySQL ni el servidor de desarrollo | rol `admin` |
-| `brace-expansion` | cadena de ESLint | Sólo desarrollo | rol `admin` |
-| `nanoid`, `postcss` bajo `next` | build del panel | Se ejecutan al construir, no al servir | rol `admin` |
 | `qs` (2 moderados) | `express` | Denegación de servicio acotada; el ingreso público es Caddy y el panel es la única aplicación cliente | rol `admin` |
+
+El 2026-09-15 dejaron de ser excepción `multer`, `nanoid` y `brace-expansion`:
+los tres tenían parche y quedaron acotados por rango en `pnpm-workspace.yaml`,
+sin arrastrar un salto mayor. `multer` importaba más que los otros porque viaja
+en la imagen de la API, aunque ninguna ruta use multipart.
+
+## Cómo se revisa de nuevo
+
+[`SECURITY-REVIEW-GUIDE.md`](SECURITY-REVIEW-GUIDE.md) recorre estas mismas
+afirmaciones con comandos y resultados esperados, para que las compruebe alguien
+que no escribió el código.
 
 ## Qué sostiene esta revisión
 
