@@ -512,6 +512,11 @@ para plantilla, IA, historia recurrente y promoción de productos.
 - Responsabilidades: carga autenticada paralela de sesión y listado en cliente;
   estados de lectura explícitos; provider de compositor con contratos `state`,
   `actions` y `meta`; cuatro variantes concretas sin flags de modo.
+- 2026-09-15: las variantes pasaron de cuatro a tres. «Promoción de producto»
+  nunca tuvo dominio detrás y se mostraba como un límite explícito; con el
+  sistema operado por una sola persona, que ya pide piezas de producto por
+  «Creatividad IA», se retiró del panel en vez de dejar un flujo que no hace
+  nada. El compositor y su contrato quedaron con las tres que sí funcionan.
 - Invariantes: guardar un borrador no aprueba, programa ni publica; sólo el
   compositor por plantilla implementa persistencia en esta fase; las otras
   variantes exponen límites de UI sin simular IA, recurrencias ni catálogo.

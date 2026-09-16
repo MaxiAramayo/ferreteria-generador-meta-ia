@@ -234,7 +234,6 @@ function ComposerVariantNavigation() {
     { label: "Plantilla", value: "template" },
     { label: "Creatividad IA", value: "ai-creative" },
     { label: "Historia recurrente", value: "recurring-story" },
-    { label: "Promoción de producto", value: "product-promotion" },
   ];
   return (
     <nav aria-label="Flujos para crear una pieza" className="composer-variants">
@@ -384,28 +383,6 @@ function TemplateForm() {
   );
 }
 
-function CapabilityBoundary({
-  eyebrow,
-  title,
-  description,
-}: {
-  readonly description: string;
-  readonly eyebrow: string;
-  readonly title: string;
-}) {
-  return (
-    <section className="composer-boundary">
-      <p className="workspace-eyebrow">{eyebrow}</p>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      <p className="composer-boundary-note">
-        Este límite es intencional: no se simula una acción que todavía no está
-        conectada al dominio.
-      </p>
-    </section>
-  );
-}
-
 export function TemplatePublicationComposer() {
   return (
     <ComposerFrame>
@@ -434,18 +411,6 @@ export function RecurringStoryComposer() {
   );
 }
 
-export function ProductPromotionComposer() {
-  return (
-    <ComposerFrame>
-      <CapabilityBoundary
-        description="Precio y stock sólo aparecerán cuando exista una fuente comercial vigente y trazable."
-        eyebrow="Datos comerciales"
-        title="Promoción de producto con hechos verificados"
-      />
-    </ComposerFrame>
-  );
-}
-
 function ActiveComposer() {
   const state = usePublicationComposerState();
   switch (state.variant) {
@@ -455,8 +420,6 @@ function ActiveComposer() {
       return <AICreative />;
     case "recurring-story":
       return <RecurringStoryComposer />;
-    case "product-promotion":
-      return <ProductPromotionComposer />;
   }
 }
 

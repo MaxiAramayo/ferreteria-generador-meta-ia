@@ -658,11 +658,15 @@ almacenamiento, y detectar regresiones.
   configurados —`WORKER_CONCURRENCY`, timeout de OpenAI en 60 s—, pero todavía
   no se eligieron a partir de una medición propia; el tiempo lo pone el
   proveedor y medirlo exige gastar en él.
-- **Verificación sin hacer**: la prueba de carga sobre staging. Corre contra el
-  servidor real y sus proveedores, así que necesita autorización explícita del
-  negocio, igual que la publicación real de `P5-T09`.
-- Próximo paso exacto: pedir esa autorización, correr `pnpm budget:load` contra
-  staging con su base y comparar ahí lo medido con estos números.
+- **Verificación no aplicable, con decisión registrada**: la prueba de carga
+  sobre staging. El 2026-09-15 el usuario decidió que alcanza con lo medido:
+  opera el sistema solo, así que la carga real es una persona, y lo que cubre
+  local y CI —forma de las consultas con volumen, paginación, drenaje del
+  outbox y costo por operación— es lo que puede regresar. Queda sin hacer y
+  registrada, no escondida.
+- Próximo paso exacto: elegir por medición el timeout y la concurrencia de
+  render y generación, que es el único criterio que sigue abierto. Exige gastar
+  en el proveedor, así que se decide junto con la próxima muestra paga.
 
 ### Evidencia de cierre
 

@@ -106,11 +106,15 @@ de alertas. El corte lo aplica la política de generación al admitir la
 ejecución, así que quien opera ve el aviso antes de que una pieza sea rechazada
 por presupuesto.
 
-## Lo que falta, y por qué
+## Lo que no se mide, y por qué
 
-La verificación de `P7-T05` pide además una corrida sobre **staging** con datos
-representativos y comparar ahí costo estimado contra observado. Eso corre contra
-el servidor real y sus proveedores, así que necesita autorización explícita del
-negocio y no se hace desde una sesión de desarrollo. Lo local mide la forma de
-las consultas y el costo por operación; lo que agrega staging es la red, el
-disco real y el ruido de un host compartido.
+La verificación de `P7-T05` pedía además una corrida sobre **staging**. El
+2026-09-15 se decidió que no aplica: el sistema lo opera una sola persona, así
+que la carga real es esa, y lo que puede regresar —la forma de las consultas con
+volumen, la paginación, el drenaje del outbox y el costo por operación— ya se
+mide acá y en CI. Si algún día lo usa un equipo, la corrida sobre staging vuelve
+a tener sentido: agrega red, disco real y ruido de un host compartido.
+
+El timeout y la concurrencia de render y generación siguen elegidos por
+configuración y no por medición propia: medirlos exige pagar generaciones. Queda
+abierto como el único criterio sin cerrar de la tarea.
