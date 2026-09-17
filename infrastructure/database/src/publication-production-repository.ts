@@ -4,6 +4,7 @@ import {
   publicationRenderTopic,
   createApprovalPrePublishProfile,
   readRecurringStorySourceSnapshot,
+  recurringStorySourceToJson,
   type ApprovePublicationInput,
   type ApprovePublicationResult,
   type ContentBrief,
@@ -147,18 +148,9 @@ function persistedBriefProfile(
     ...(profile.recurringStorySource === undefined
       ? {}
       : {
-          recurringStorySource: {
-            address: profile.recurringStorySource.address,
-            capturedAt: profile.recurringStorySource.capturedAt,
-            hours: profile.recurringStorySource.hours,
-            localDate: profile.recurringStorySource.localDate,
-            locationId: profile.recurringStorySource.locationId,
-            locationName: profile.recurringStorySource.locationName,
-            locationVersion: profile.recurringStorySource.locationVersion,
-            sourceKind: profile.recurringStorySource.sourceKind,
-            sourceLabel: profile.recurringStorySource.sourceLabel,
-            sourceVersion: profile.recurringStorySource.sourceVersion,
-          },
+          recurringStorySource: recurringStorySourceToJson(
+            profile.recurringStorySource,
+          ) as Prisma.InputJsonObject,
         }),
     requiredClaims: [...profile.requiredClaims],
     schemaVersion: profile.schemaVersion,

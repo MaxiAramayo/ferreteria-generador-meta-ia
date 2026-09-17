@@ -196,6 +196,16 @@ function dayOverrideImpact(
   });
 }
 
+/**
+ * Historias que dependen de una sucursal: las suyas y las que son para todas
+ * las sucursales, que afirmaron su horario igual que las propias.
+ */
+function storiesAffectedBy(
+  locationId: string,
+): Pick<Prisma.RecurringStoryMaterializationWhereInput, "OR"> {
+  return { OR: [{ locationId }, { locationId: null }] };
+}
+
 async function countAffectedFutureStories(
   transaction: DatabaseTransactionClient,
   input: Readonly<{
@@ -207,7 +217,7 @@ async function countAffectedFutureStories(
 ): Promise<number> {
   return transaction.recurringStoryMaterialization.count({
     where: {
-      locationId: input.locationId,
+      ...storiesAffectedBy(input.locationId),
       occurrenceKey: { startsWith: `${input.localDate}T` },
       organizationId: input.organizationId,
       publication: { status: { in: invalidatablePublicationStatuses } },
@@ -226,7 +236,7 @@ async function invalidateRecurringStories(
       publication: { select: { status: true, version: true } },
     },
     where: {
-      locationId: input.locationId,
+      ...storiesAffectedBy(input.locationId),
       ...(input.localDate === undefined
         ? {}
         : { occurrenceKey: { startsWith: `${input.localDate}T` } }),

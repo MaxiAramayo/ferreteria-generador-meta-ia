@@ -76,10 +76,51 @@ const storyPreviewStyle: CSSProperties &
   aspectRatio: `${String(storyFormat.width)} / ${String(storyFormat.height)}`,
 };
 
+/**
+ * Lo que la historia va a decir, con la misma regla que el worker: un horario
+ * compartido se dice una vez y después las direcciones; si difiere, un renglón
+ * por sucursal.
+ */
+function storyPreviewLines(
+  locations: readonly LocationConfigurationResponse[],
+): readonly string[] {
+  const [first] = locations;
+  if (first === undefined) return [];
+  if (locations.length === 1) {
+    return [
+      first.openingHours || "Horario pendiente",
+      `${first.addressLine}, ${first.city}`,
+    ];
+  }
+  const shared = locations.every(
+    (location) => location.openingHours === first.openingHours,
+  );
+  if (shared && first.openingHours && locations.length < 3) {
+    return [
+      first.openingHours,
+      ...locations.map(
+        (location) =>
+          `${location.name} · ${location.addressLine}, ${location.city}`,
+      ),
+    ];
+  }
+  return locations
+    .slice(0, 3)
+    .map(
+      (location) =>
+        `${location.name} · ${location.openingHours || "Horario pendiente"}`,
+    );
+}
+
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} y ${names.at(-1) ?? ""}`;
+}
+
 function LocationStoryPreview({
-  location,
+  locations,
 }: {
-  readonly location: LocationConfigurationResponse;
+  readonly locations: readonly LocationConfigurationResponse[];
 }) {
   return (
     <aside
@@ -93,12 +134,11 @@ function LocationStoryPreview({
       <div className="story-preview-content">
         <span className="story-preview-badge">Estamos atendiendo</span>
         <strong>Ya abrimos</strong>
-        <p>{location.name}</p>
+        <p>{joinNames(locations.map((location) => location.name))}</p>
         <ul>
-          <li>{location.openingHours || "Horario pendiente"}</li>
-          <li>
-            {location.addressLine}, {location.city}
-          </li>
+          {storyPreviewLines(locations).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
         </ul>
         <span className="story-preview-cta">Consultanos por WhatsApp</span>
       </div>
@@ -174,9 +214,6 @@ export function RecurringStoryRuleComposer({
       if (!active) return;
       if (result.kind === "ready") {
         setLoadState({ kind: "ready", workspace: result.workspace });
-        setLocationId(
-          (current) => current || result.workspace.locations[0]?.id || "",
-        );
       } else {
         setLoadState(result);
       }
@@ -186,13 +223,15 @@ export function RecurringStoryRuleComposer({
     };
   }, [apiBaseUrl]);
 
-  const selectedLocation = useMemo(
+  // Vacío es «Ambas sucursales», el valor inicial: casi todas las historias
+  // son para las dos.
+  const selectedLocations = useMemo(
     () =>
       loadState.kind === "ready"
-        ? loadState.workspace.locations.find(
-            (location) => location.id === locationId,
+        ? loadState.workspace.locations.filter(
+            (location) => locationId === "" || location.id === locationId,
           )
-        : undefined,
+        : [],
     [loadState, locationId],
   );
 
@@ -212,7 +251,7 @@ export function RecurringStoryRuleComposer({
       return;
     }
     if (
-      selectedLocation === undefined ||
+      selectedLocations.length === 0 ||
       selectedWeekdays.length === 0 ||
       name.trim().length === 0
     ) {
@@ -232,7 +271,7 @@ export function RecurringStoryRuleComposer({
       idempotencyKey: idempotencyKey.current,
       leadTimeMinutes,
       localTime,
-      locationId: selectedLocation.id,
+      locationId: locationId === "" ? null : locationId,
       name: name.trim(),
       weekdays: selectedWeekdays,
     }).then((result) => {
@@ -289,10 +328,7 @@ export function RecurringStoryRuleComposer({
       </section>
     );
   }
-  if (
-    loadState.workspace.locations.length === 0 ||
-    selectedLocation === undefined
-  ) {
+  if (selectedLocations.length === 0) {
     return (
       <section className="recurring-story-state">
         <p className="workspace-eyebrow">Sin sucursales activas</p>
@@ -339,9 +375,10 @@ export function RecurringStoryRuleComposer({
               }}
               value={locationId}
             >
+              <option value="">Ambas sucursales</option>
               {loadState.workspace.locations.map((location) => (
                 <option key={location.id} value={location.id}>
-                  {location.name}
+                  Sólo {location.name}
                 </option>
               ))}
             </select>
@@ -457,7 +494,11 @@ export function RecurringStoryRuleComposer({
             role={notice?.includes("No ") ? "alert" : "status"}
           >
             {notice ??
-              `Fuente visible: sucursal v${String(selectedLocation.version)}. Se vuelve a consultar al crear cada borrador.`}
+              `Fuente visible: ${
+                selectedLocations.length === 1
+                  ? `sucursal v${String(selectedLocations[0]?.version ?? 0)}`
+                  : `${String(selectedLocations.length)} sucursales`
+              }. Se vuelve a consultar al crear cada borrador.`}
           </p>
           <button
             className="workspace-primary-action"
@@ -475,7 +516,12 @@ export function RecurringStoryRuleComposer({
                 <li key={rule.id}>
                   <strong>{rule.name}</strong>
                   <small>
-                    {rule.localTime} ·{" "}
+                    {rule.locationId === null
+                      ? "Ambas sucursales"
+                      : (loadState.workspace.locations.find(
+                          (location) => location.id === rule.locationId,
+                        )?.name ?? "Sucursal")}{" "}
+                    · {rule.localTime} ·{" "}
                     {rule.approvalPolicy === "human-each-cycle"
                       ? "revisión por ciclo"
                       : "rutina automática"}
@@ -486,7 +532,7 @@ export function RecurringStoryRuleComposer({
           </div>
         )}
       </form>
-      <LocationStoryPreview location={selectedLocation} />
+      <LocationStoryPreview locations={selectedLocations} />
     </>
   );
 }

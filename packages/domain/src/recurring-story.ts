@@ -28,7 +28,8 @@ export interface RecurringStoryRuleRecord {
   readonly id: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
-  readonly locationId: string;
+  /** `null` es una regla para todas las sucursales activas. */
+  readonly locationId: string | null;
   readonly name: string;
   readonly organizationId: string;
   readonly status: RecurringStoryRuleStatus;
@@ -65,7 +66,7 @@ export type RecurringStoryDayOverride =
       version: number;
     }>;
 
-export interface RecurringStorySourceSnapshot {
+export interface RecurringStoryLocationSourceSnapshot {
   readonly address: string;
   readonly capturedAt: string;
   readonly hours: string;
@@ -78,7 +79,38 @@ export interface RecurringStorySourceSnapshot {
   readonly sourceVersion: number;
 }
 
-export type RecurringStoryDraftResolution =
+/**
+ * Lo que una historia para todas las sucursales afirmó de cada una.
+ *
+ * `hours` es `null` cuando esa sucursal cierra el día por excepción: la
+ * historia lo dice, y un cambio en esa excepción la tiene que invalidar igual
+ * que un cambio de horario.
+ */
+export interface RecurringStoryLocationEntry {
+  readonly address: string;
+  readonly hours: string | null;
+  readonly locationId: string;
+  readonly locationName: string;
+  readonly locationVersion: number;
+  readonly sourceKind: "daily-override" | "location-configuration";
+  readonly sourceLabel: string;
+  readonly sourceVersion: number;
+}
+
+export interface RecurringStoryEveryLocationSourceSnapshot {
+  readonly capturedAt: string;
+  readonly localDate: string;
+  readonly locations: readonly RecurringStoryLocationEntry[];
+  readonly scope: "every-location";
+}
+
+export type RecurringStorySourceSnapshot =
+  | RecurringStoryEveryLocationSourceSnapshot
+  | RecurringStoryLocationSourceSnapshot;
+
+export type RecurringStoryDraftResolution<
+  TSource extends RecurringStorySourceSnapshot = RecurringStorySourceSnapshot,
+> =
   | Readonly<{
       reason: "location-closed" | "location-inactive" | "missing-hours";
       status: "blocked";
@@ -94,7 +126,7 @@ export type RecurringStoryDraftResolution =
         title: string;
       }>;
       requiresHumanApproval: boolean;
-      source: RecurringStorySourceSnapshot;
+      source: TSource;
       status: "ready";
     }>;
 
@@ -104,7 +136,8 @@ export interface CreateRecurringStoryRuleCommand {
   readonly effectiveFrom: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
-  readonly locationId: string;
+  /** `null` es una regla para todas las sucursales activas. */
+  readonly locationId: string | null;
   readonly name: string;
   readonly weekdays: readonly PublicationWeekday[];
 }
@@ -159,7 +192,7 @@ export function resolveRecurringStoryDraft(
     occurrence: PublicationOccurrencePlan;
     policy: RecurringStoryApprovalPolicy;
   }>,
-): RecurringStoryDraftResolution {
+): RecurringStoryDraftResolution<RecurringStoryLocationSourceSnapshot> {
   const localDate = recurringStoryLocalDate(input.occurrence);
   // Una excepción pertenece a una fecha civil de la sucursal. Aplicar la de
   // otro día produciría un horario equivocado en el borde de medianoche, así
@@ -225,6 +258,165 @@ export function resolveRecurringStoryDraft(
     // tiene autoridad para aprobar un horario excepcional por sí sola.
     requiresHumanApproval: input.policy === "human-each-cycle" || isOverride,
     source,
+    status: "ready",
+  });
+}
+
+export interface RecurringStoryLocationInput {
+  readonly dayOverride?: RecurringStoryDayOverride;
+  readonly location: RecurringStoryLocationSource;
+}
+
+/** Cuántos renglones muestra la historia de horario. */
+const storyItemsMaximum = 3;
+
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} y ${names.at(-1) ?? ""}`;
+}
+
+/**
+ * Historia de horario para todas las sucursales activas, en una sola pieza.
+ *
+ * Una sucursal inactiva no es parte de «todas» y se omite. Una que cierra el
+ * día por excepción se nombra como cerrada: callarla haría pensar que abre. Si
+ * todas cierran, o si a una abierta le falta el horario, no hay historia. Con
+ * el mismo horario en todas, se dice una vez y después las direcciones; si
+ * difiere, va un renglón por sucursal.
+ */
+export function resolveEveryLocationStoryDraft(
+  input: Readonly<{
+    capturedAt: string;
+    locations: readonly RecurringStoryLocationInput[];
+    occurrence: PublicationOccurrencePlan;
+    policy: RecurringStoryApprovalPolicy;
+  }>,
+): RecurringStoryDraftResolution<RecurringStoryEveryLocationSourceSnapshot> {
+  const localDate = recurringStoryLocalDate(input.occurrence);
+  for (const entry of input.locations) {
+    if (
+      entry.dayOverride !== undefined &&
+      entry.dayOverride.localDate !== localDate
+    ) {
+      throw new RangeError(
+        `La excepción del ${entry.dayOverride.localDate} no corresponde a la fecha local ${localDate}.`,
+      );
+    }
+  }
+  const active = [...input.locations]
+    .filter((entry) => entry.location.isActive)
+    .toSorted((left, right) =>
+      left.location.name.localeCompare(right.location.name, "es"),
+    );
+  if (active.length === 0) {
+    return Object.freeze({ reason: "location-inactive", status: "blocked" });
+  }
+
+  const entries: RecurringStoryLocationEntry[] = [];
+  for (const { dayOverride, location } of active) {
+    const isOverride = dayOverride !== undefined;
+    const closed = dayOverride?.status === "closed";
+    const hours = closed
+      ? null
+      : nonEmpty(
+          dayOverride?.status === "open"
+            ? dayOverride.openingHours
+            : location.openingHours,
+        );
+    if (hours === undefined) {
+      return Object.freeze({ reason: "missing-hours", status: "blocked" });
+    }
+    entries.push(
+      Object.freeze({
+        address: `${location.addressLine}, ${location.city}`,
+        hours,
+        locationId: location.id,
+        locationName: location.name,
+        locationVersion: location.version,
+        sourceKind: isOverride
+          ? ("daily-override" as const)
+          : ("location-configuration" as const),
+        sourceLabel: isOverride
+          ? dayOverride.sourceLabel
+          : "Configuración vigente de la sucursal",
+        sourceVersion: isOverride ? dayOverride.version : location.version,
+      }),
+    );
+  }
+
+  const open = entries.filter(
+    (entry): entry is RecurringStoryLocationEntry & { hours: string } =>
+      entry.hours !== null,
+  );
+  if (open.length === 0) {
+    return Object.freeze({ reason: "location-closed", status: "blocked" });
+  }
+  const closed = entries.filter((entry) => entry.hours === null);
+  const anyOverride = entries.some(
+    (entry) => entry.sourceKind === "daily-override",
+  );
+  const sharedHours = open.every((entry) => entry.hours === open[0]?.hours)
+    ? open[0]?.hours
+    : undefined;
+  const openNames = joinNames(open.map((entry) => entry.locationName));
+
+  const items =
+    sharedHours !== undefined &&
+    closed.length === 0 &&
+    open.length + 1 <= storyItemsMaximum
+      ? [
+          sharedHours,
+          ...open.map((entry) => `${entry.locationName} · ${entry.address}`),
+        ]
+      : entries
+          .map((entry) =>
+            entry.hours === null
+              ? `${entry.locationName} · Cerrada hoy`
+              : `${entry.locationName} · ${entry.hours}`,
+          )
+          .slice(0, storyItemsMaximum);
+  if (entries.length > storyItemsMaximum && items.length < entries.length) {
+    // Más sucursales que renglones: nombrar sólo algunas mentiría por omisión.
+    // No hay un motivo propio para esto y hoy son dos sucursales; se bloquea
+    // con el más cercano antes que publicar una historia incompleta.
+    return Object.freeze({ reason: "missing-hours", status: "blocked" });
+  }
+
+  const whereAndWhen =
+    sharedHours === undefined
+      ? `Hoy te esperamos ${joinNames(
+          open.map(
+            (entry) =>
+              `en ${entry.locationName} (${entry.address}): ${entry.hours}`,
+          ),
+        )}.`
+      : `Hoy te esperamos ${sharedHours} en ${joinNames(
+          open.map((entry) => entry.address),
+        )}.`;
+  const closedSentence =
+    closed.length === 0
+      ? ""
+      : ` ${joinNames(closed.map((entry) => entry.locationName))} ${
+          closed.length === 1 ? "permanece cerrada" : "permanecen cerradas"
+        } hoy.`;
+
+  return Object.freeze({
+    caption: `Ya abrimos en ${openNames}. ${whereAndWhen}${closedSentence} Consultanos por WhatsApp.`,
+    designContent: Object.freeze({
+      badge: anyOverride ? "Horario especial" : "Estamos atendiendo",
+      callToAction: "Consultanos por WhatsApp",
+      icon: "reloj" as const,
+      items: Object.freeze(items),
+      subtitle: joinNames(entries.map((entry) => entry.locationName)),
+      title: "Ya abrimos",
+    }),
+    requiresHumanApproval: input.policy === "human-each-cycle" || anyOverride,
+    source: Object.freeze({
+      capturedAt: input.capturedAt,
+      localDate,
+      locations: Object.freeze(entries),
+      scope: "every-location" as const,
+    }),
     status: "ready",
   });
 }

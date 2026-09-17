@@ -5,6 +5,7 @@ import {
   IsArray,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -30,8 +31,10 @@ export class CreateRecurringStoryRuleDto {
   @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/u)
   localTime!: string;
 
+  /** Sin sucursal, la regla es para todas las sucursales activas. */
+  @IsOptional()
   @IsUUID("4")
-  locationId!: string;
+  locationId?: string;
 
   @IsString()
   @MaxLength(180)

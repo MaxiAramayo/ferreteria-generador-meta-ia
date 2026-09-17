@@ -335,3 +335,87 @@ test("una pieza para todas las sucursales revalida su precio en vez de bloquears
   assert.equal(result.status, "ready");
   assert.deepEqual(commercial.sessions, [null]);
 });
+
+function everyLocationSource(
+  rivadaviaVersion: number,
+): Readonly<Record<string, unknown>> {
+  return {
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    localDate: "2026-09-08",
+    locations: [
+      {
+        address: "República de Siria 365, Frías",
+        hours: "Lun a sáb · 08:30 a 13:00",
+        locationId: "location-central",
+        locationName: "Casa central",
+        locationVersion: 2,
+        sourceKind: "location-configuration",
+        sourceLabel: "Configuración vigente de la sucursal",
+        sourceVersion: 2,
+      },
+      {
+        address: "Rivadavia 673, Frías",
+        hours: "Lun a sáb · 08:30 a 13:00",
+        locationId: "location-rivadavia",
+        locationName: "Sucursal Rivadavia",
+        locationVersion: rivadaviaVersion,
+        sourceKind: "location-configuration",
+        sourceLabel: "Configuración vigente de la sucursal",
+        sourceVersion: rivadaviaVersion,
+      },
+    ],
+    scope: "every-location",
+  };
+}
+
+function hoursJob(
+  approved: Readonly<Record<string, unknown>>,
+  current: Readonly<Record<string, unknown>>,
+): PublicationOrderJob {
+  const { locationId, ...base } = job({
+    factualClaims: [],
+    recurringStorySource: approved,
+    requiredClaims: ["business_hours"],
+    schemaVersion: approvalPrePublishProfileSchemaVersion,
+  });
+  assert.equal(locationId, "location-1");
+  return Object.freeze({
+    ...base,
+    recurringStoryMaterialization: Object.freeze({ sourceSnapshot: current }),
+  });
+}
+
+test("una historia para todas las sucursales sale si ninguna cambió desde la aprobación", async () => {
+  const result = await validator().validate(
+    hoursJob(everyLocationSource(5), everyLocationSource(5)),
+    [target("facebook_page")],
+  );
+
+  assert.equal(result.status, "ready");
+});
+
+test("una historia para todas se bloquea si cambió cualquiera de sus sucursales", async () => {
+  const changed = await validator().validate(
+    hoursJob(everyLocationSource(5), everyLocationSource(6)),
+    [target("facebook_page")],
+  );
+  assert.equal(changed.status, "blocked");
+  assert.equal(changed.code, "prepublish-hours-changed");
+
+  // Pasar de todas a una sola, aunque esa sola coincida, también es cambio.
+  const single = {
+    ...(
+      everyLocationSource(5)["locations"] as readonly Readonly<
+        Record<string, unknown>
+      >[]
+    )[0],
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    localDate: "2026-09-08",
+  };
+  const narrowed = await validator().validate(
+    hoursJob(everyLocationSource(5), single),
+    [target("facebook_page")],
+  );
+  assert.equal(narrowed.status, "blocked");
+  assert.equal(narrowed.code, "prepublish-hours-changed");
+});

@@ -206,6 +206,8 @@ export {
   prePublishDynamicClaimKinds,
   readApprovalPrePublishProfile,
   readRecurringStorySourceSnapshot,
+  recurringStorySourceEntries,
+  recurringStorySourceToJson,
   type ApprovalPrePublishProfile,
   type PrePublishDynamicClaimKind,
   type PrePublishFactualClaim,

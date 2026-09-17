@@ -13,7 +13,12 @@ import {
   type ContentBriefEvidenceEntry,
   type FactualClaimKind,
 } from "./content-brief.ts";
-import type { RecurringStorySourceSnapshot } from "./recurring-story.ts";
+import type {
+  RecurringStoryEveryLocationSourceSnapshot,
+  RecurringStoryLocationEntry,
+  RecurringStoryLocationSourceSnapshot,
+  RecurringStorySourceSnapshot,
+} from "./recurring-story.ts";
 
 export const approvalPrePublishProfileSchemaVersion = 1 as const;
 
@@ -69,10 +74,135 @@ function normalizedStrings(value: unknown): readonly string[] | null {
   return Object.freeze(normalized);
 }
 
+function isSourceKind(
+  value: unknown,
+): value is RecurringStoryLocationEntry["sourceKind"] {
+  return value === "daily-override" || value === "location-configuration";
+}
+
+function nonBlank(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function readLocationEntry(value: unknown): RecurringStoryLocationEntry | null {
+  if (
+    !isRecord(value) ||
+    !nonBlank(value["address"]) ||
+    !(value["hours"] === null || nonBlank(value["hours"])) ||
+    !nonBlank(value["locationId"]) ||
+    !nonBlank(value["locationName"]) ||
+    !Number.isSafeInteger(value["locationVersion"]) ||
+    !isSourceKind(value["sourceKind"]) ||
+    !nonBlank(value["sourceLabel"]) ||
+    !Number.isSafeInteger(value["sourceVersion"])
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    address: value["address"],
+    hours: value["hours"],
+    locationId: value["locationId"],
+    locationName: value["locationName"],
+    locationVersion: value["locationVersion"] as number,
+    sourceKind: value["sourceKind"],
+    sourceLabel: value["sourceLabel"],
+    sourceVersion: value["sourceVersion"] as number,
+  });
+}
+
+function readEveryLocationSnapshot(
+  value: Readonly<Record<string, unknown>>,
+): RecurringStoryEveryLocationSourceSnapshot | null {
+  const locations = value["locations"];
+  if (
+    !nonBlank(value["capturedAt"]) ||
+    !nonBlank(value["localDate"]) ||
+    !isUnknownArray(locations) ||
+    locations.length === 0
+  ) {
+    return null;
+  }
+  const entries: RecurringStoryLocationEntry[] = [];
+  for (const candidate of locations) {
+    const entry = readLocationEntry(candidate);
+    if (entry === null) return null;
+    entries.push(entry);
+  }
+  return Object.freeze({
+    capturedAt: value["capturedAt"],
+    localDate: value["localDate"],
+    locations: Object.freeze(entries),
+    scope: "every-location" as const,
+  });
+}
+
+/**
+ * Las sucursales que una fuente afirmó, en orden estable, sin importar si la
+ * historia era de una o de todas. Es la forma en que se comparan dos fuentes.
+ */
+export function recurringStorySourceEntries(
+  snapshot: RecurringStorySourceSnapshot,
+): readonly RecurringStoryLocationEntry[] {
+  if ("scope" in snapshot) {
+    return Object.freeze(
+      [...snapshot.locations].toSorted((left, right) =>
+        left.locationId.localeCompare(right.locationId),
+      ),
+    );
+  }
+  return Object.freeze([
+    Object.freeze({
+      address: snapshot.address,
+      hours: snapshot.hours,
+      locationId: snapshot.locationId,
+      locationName: snapshot.locationName,
+      locationVersion: snapshot.locationVersion,
+      sourceKind: snapshot.sourceKind,
+      sourceLabel: snapshot.sourceLabel,
+      sourceVersion: snapshot.sourceVersion,
+    }),
+  ]);
+}
+
+/** Forma persistible de la fuente; conserva la de una sola sucursal tal cual. */
+export function recurringStorySourceToJson(
+  snapshot: RecurringStorySourceSnapshot,
+): Readonly<Record<string, unknown>> {
+  if ("scope" in snapshot) {
+    return {
+      capturedAt: snapshot.capturedAt,
+      localDate: snapshot.localDate,
+      locations: snapshot.locations.map((entry) => ({ ...entry })),
+      scope: snapshot.scope,
+    };
+  }
+  return {
+    address: snapshot.address,
+    capturedAt: snapshot.capturedAt,
+    hours: snapshot.hours,
+    localDate: snapshot.localDate,
+    locationId: snapshot.locationId,
+    locationName: snapshot.locationName,
+    locationVersion: snapshot.locationVersion,
+    sourceKind: snapshot.sourceKind,
+    sourceLabel: snapshot.sourceLabel,
+    sourceVersion: snapshot.sourceVersion,
+  };
+}
+
 export function readRecurringStorySourceSnapshot(
   value: unknown,
 ): RecurringStorySourceSnapshot | null {
   if (!isRecord(value)) return null;
+  if (value["scope"] === "every-location") {
+    return readEveryLocationSnapshot(value);
+  }
+  return readLocationSnapshot(value);
+}
+
+function readLocationSnapshot(
+  value: Readonly<Record<string, unknown>>,
+): RecurringStoryLocationSourceSnapshot | null {
   const requiredText = [
     "address",
     "capturedAt",
