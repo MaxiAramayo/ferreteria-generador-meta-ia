@@ -243,5 +243,10 @@ copias diarias y el VPS las mismas cinco, dentro de la retención de siete.
    en su máquina: perderla es perder todas las copias, aunque sigan en Drive.
 2. **Confirmar el primer borrado real**: la corrida del 2026-10-11 tiene que
    retirar de `diarias` la primera copia, que cumple 30 días la noche anterior.
-3. **Activar `aramayo-backup@production.timer`** cuando exista producción
-   (`P7-T07`) y repetir allí el simulacro desde Drive.
+3. **Repetir en producción el simulacro de restauración desde Drive.** La copia
+   diaria de producción está activa desde el 2026-09-16: ese día se tomó la
+   primera a mano —cifrada, restaurada y verificada con 37 tablas, y subida a
+   Drive sin diferencias— antes de aplicar una migración, y se habilitó
+   `aramayo-backup@production.timer`. El timer de staging quedó deshabilitado
+   porque staging está detenido y su copia fallaría cada noche; su última copia
+   es la del 2026-09-16.
