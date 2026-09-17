@@ -9,7 +9,8 @@ export interface RecurringStoryRuleResponse {
   readonly id: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
-  readonly locationId: string;
+  /** `null`: la historia es para todas las sucursales activas. */
+  readonly locationId: string | null;
   readonly name: string;
   readonly status: "active" | "cancelled" | "paused";
   readonly timeZone: string;

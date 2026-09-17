@@ -363,6 +363,16 @@ async function main(): Promise<void> {
     );
 
     // --- Crear la regla desde el panel ---
+    // La mayoría de las historias son para todas las sucursales, así que el
+    // formulario arranca ahí. Este recorrido prueba el camino de una sola:
+    // el de todas lo cubren la integración de la base y el dominio.
+    const scope = page.getByLabel("Sucursal");
+    assert.equal(
+      await scope.inputValue(),
+      "",
+      "El formulario tiene que arrancar en «Ambas sucursales».",
+    );
+    await scope.selectOption({ label: `Sólo ${fixture.locationName}` });
     const tomorrow = tomorrowInLocationZone();
     for (const label of weekdayLabels) {
       const button = page.getByRole("button", { name: label, exact: true });

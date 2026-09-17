@@ -110,11 +110,22 @@ export class RecurringStoryService {
     const configuration = await this.#configuration.findByOrganizationId(
       actor.organizationId,
     );
-    const location = configuration?.locations.find(
-      (candidate) => candidate.id === input.locationId && candidate.isActive,
+    const locationId = input.locationId ?? null;
+    const scope = (configuration?.locations ?? []).filter(
+      (candidate) =>
+        candidate.isActive &&
+        (locationId === null || candidate.id === locationId),
     );
+    const [location] = scope;
     if (location === undefined) {
       throw new NotFoundException("No se encontró una sucursal activa.");
+    }
+    // Para todas las sucursales, la hora de la historia tiene que significar
+    // lo mismo en cada una.
+    if (scope.some((candidate) => candidate.timeZone !== location.timeZone)) {
+      throw new BadRequestException(
+        "Las sucursales no comparten zona horaria: elegí una para esta historia.",
+      );
     }
     const anchor = singleOccurrenceRule({
       gapPolicy: "skip",
@@ -134,7 +145,7 @@ export class RecurringStoryService {
       idempotencyKey: normalizedKey,
       leadTimeMinutes: input.leadTimeMinutes,
       localTime: input.localTime,
-      locationId: input.locationId,
+      locationId,
       name: input.name.trim(),
       occurredAt: new Date().toISOString(),
       weekdays: input.weekdays as PublicationWeekday[],

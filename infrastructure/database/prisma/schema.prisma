@@ -701,7 +701,8 @@ model LocationDayOverride {
 model RecurringStoryRule {
   id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId        String                       @map("organization_id") @db.Uuid
-  locationId            String                       @map("location_id") @db.Uuid
+  /// Nula: la regla es para todas las sucursales activas.
+  locationId            String?                      @map("location_id") @db.Uuid
   createdByMembershipId String                       @map("created_by_membership_id") @db.Uuid
   name                  String                       @db.VarChar(180)
   localTime             String                       @map("local_time") @db.Char(5)
@@ -718,7 +719,7 @@ model RecurringStoryRule {
   updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   organization     Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  location         Location                        @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  location         Location?                       @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   createdBy        OrganizationMembership          @relation(fields: [organizationId, createdByMembershipId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   materializations RecurringStoryMaterialization[]
 
@@ -735,13 +736,14 @@ model RecurringStoryMaterialization {
   id                    String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId        String                              @map("organization_id") @db.Uuid
   ruleId                String                              @map("rule_id") @db.Uuid
-  locationId            String                              @map("location_id") @db.Uuid
+  /// Nula junto con `locationVersion`: la historia es para todas las sucursales.
+  locationId            String?                             @map("location_id") @db.Uuid
   publicationId         String?                             @map("publication_id") @db.Uuid
   scheduleId            String?                             @map("schedule_id") @db.Uuid
   occurrenceKey         String                              @map("occurrence_key") @db.Char(16)
   scheduledAt           DateTime                            @map("scheduled_at") @db.Timestamptz(3)
   resolution            PublicationOccurrenceResolution     @default(exact)
-  locationVersion       Int                                 @map("location_version")
+  locationVersion       Int?                                @map("location_version")
   sourceSnapshot        Json                                @map("source_snapshot")
   requiresHumanApproval Boolean                             @map("requires_human_approval")
   status                RecurringStoryMaterializationStatus
@@ -753,7 +755,7 @@ model RecurringStoryMaterialization {
 
   organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   rule         RecurringStoryRule   @relation(fields: [organizationId, ruleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
-  location     Location             @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
+  location     Location?            @relation(fields: [organizationId, locationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   publication  Publication?         @relation(fields: [organizationId, publicationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
   schedule     PublicationSchedule? @relation(fields: [organizationId, scheduleId], references: [organizationId, id], onDelete: Restrict, onUpdate: Cascade)
 

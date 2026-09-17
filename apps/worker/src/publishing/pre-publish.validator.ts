@@ -10,6 +10,7 @@
 import {
   readApprovalPrePublishProfile,
   readRecurringStorySourceSnapshot,
+  recurringStorySourceEntries,
   validateFacebookCopy,
   validateFacebookDelivery,
   validateFacebookGeometry,
@@ -177,19 +178,33 @@ function deliveredSize(
   });
 }
 
+/**
+ * La fuente aprobada y la vigente afirman lo mismo de cada sucursal, sea una
+ * historia de una sola o de todas. Cambiar de una a todas también es cambio.
+ */
 function sameRecurringSource(left: unknown, right: unknown): boolean {
   const expected = readRecurringStorySourceSnapshot(left);
   const current = readRecurringStorySourceSnapshot(right);
   if (expected === null || current === null) return false;
+  if ("scope" in expected !== "scope" in current) return false;
+  if (expected.localDate !== current.localDate) return false;
+  const expectedEntries = recurringStorySourceEntries(expected);
+  const currentEntries = recurringStorySourceEntries(current);
   return (
-    expected.address === current.address &&
-    expected.hours === current.hours &&
-    expected.localDate === current.localDate &&
-    expected.locationId === current.locationId &&
-    expected.locationName === current.locationName &&
-    expected.locationVersion === current.locationVersion &&
-    expected.sourceKind === current.sourceKind &&
-    expected.sourceVersion === current.sourceVersion
+    expectedEntries.length === currentEntries.length &&
+    expectedEntries.every((entry, index) => {
+      const other = currentEntries[index];
+      return (
+        other !== undefined &&
+        entry.address === other.address &&
+        entry.hours === other.hours &&
+        entry.locationId === other.locationId &&
+        entry.locationName === other.locationName &&
+        entry.locationVersion === other.locationVersion &&
+        entry.sourceKind === other.sourceKind &&
+        entry.sourceVersion === other.sourceVersion
+      );
+    })
   );
 }
 

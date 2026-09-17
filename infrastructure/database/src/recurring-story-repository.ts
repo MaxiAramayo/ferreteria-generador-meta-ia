@@ -2,11 +2,16 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   planOccurrences,
+  recurringStorySourceToJson,
+  resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type CreateRecurringStoryRuleCommand,
   type CreateRecurringStoryRuleResult,
   type PublicationWeekday,
   type RecurringStoryApprovalPolicy,
+  type RecurringStoryDayOverride,
+  type RecurringStoryDraftResolution,
+  type RecurringStoryLocationSource,
   type RecurringStoryMaterializationRepository,
   type RecurringStoryRuleRecord,
   type RecurringStoryRuleRepository,
@@ -58,7 +63,7 @@ function mapRule(
     id: string;
     leadTimeMinutes: number;
     localTime: string;
-    locationId: string;
+    locationId: string | null;
     name: string;
     organizationId: string;
     status: "active" | "cancelled" | "paused";
@@ -82,6 +87,90 @@ function mapRule(
     version: row.version,
     weekdays: Object.freeze(row.weekdays as PublicationWeekday[]),
   });
+}
+
+type LocationRow = Readonly<{
+  addressLine: string;
+  brand: Readonly<{ profile: Prisma.JsonValue }>;
+  city: string;
+  id: string;
+  isActive: boolean;
+  name: string;
+  openingHours: Prisma.JsonValue;
+  organizationId: string;
+  province: string;
+  timeZone: string;
+  version: number;
+}>;
+
+type DayOverrideRow = Readonly<{
+  openingHours: string | null;
+  sourceLabel: string;
+  status: "closed" | "open";
+  version: number;
+}>;
+
+function locationSource(location: LocationRow): RecurringStoryLocationSource {
+  const hoursValue = location.openingHours;
+  const openingHours =
+    typeof hoursValue === "object" &&
+    hoursValue !== null &&
+    !Array.isArray(hoursValue) &&
+    typeof hoursValue["display"] === "string"
+      ? hoursValue["display"]
+      : undefined;
+  return {
+    addressLine: location.addressLine,
+    city: location.city,
+    id: location.id,
+    isActive: location.isActive,
+    name: location.name,
+    ...(openingHours === undefined ? {} : { openingHours }),
+    organizationId: location.organizationId,
+    province: location.province,
+    timeZone: location.timeZone,
+    version: location.version,
+  };
+}
+
+function dayOverrideSource(
+  localDate: string,
+  row: DayOverrideRow | null,
+): RecurringStoryDayOverride | undefined {
+  if (row === null) return undefined;
+  return row.status === "closed"
+    ? {
+        localDate,
+        sourceLabel: row.sourceLabel,
+        status: "closed",
+        version: row.version,
+      }
+    : {
+        localDate,
+        openingHours: row.openingHours ?? "",
+        sourceLabel: row.sourceLabel,
+        status: "open",
+        version: row.version,
+      };
+}
+
+function themeOf(
+  profile: Prisma.JsonValue,
+): "claro" | "lubricentro" | "promo" | "taller" {
+  const theme =
+    typeof profile === "object" &&
+    profile !== null &&
+    !Array.isArray(profile) &&
+    (profile["themeId"] === "taller" ||
+      profile["themeId"] === "claro" ||
+      profile["themeId"] === "promo" ||
+      profile["themeId"] === "lubricentro")
+      ? profile["themeId"]
+      : undefined;
+  if (theme === undefined) {
+    throw new Error("La marca no tiene un tema visual vigente.");
+  }
+  return theme;
 }
 
 /**
@@ -131,14 +220,21 @@ export class PrismaRecurringStoryRepository
           : Object.freeze({ status: "idempotency-conflict" });
       }
 
-      const location = await transaction.location.findFirst({
+      // Una regla para todas las sucursales toma la zona horaria que
+      // comparten las activas; si no comparten una, no hay un instante local
+      // que valga para todas.
+      const candidates = await transaction.location.findMany({
         select: { id: true, timeZone: true },
         where: {
-          id: command.locationId,
           organizationId: command.actor.organizationId,
+          ...(command.locationId === null
+            ? { isActive: true }
+            : { id: command.locationId }),
         },
       });
-      if (location === null) {
+      const timeZones = new Set(candidates.map((entry) => entry.timeZone));
+      const [location] = candidates;
+      if (location === undefined || timeZones.size !== 1) {
         return Object.freeze({ status: "location-not-found" });
       }
       const rule = await transaction.recurringStoryRule.create({
@@ -149,7 +245,7 @@ export class PrismaRecurringStoryRepository
           idempotencyKey: command.idempotencyKey,
           leadTimeMinutes: command.leadTimeMinutes,
           localTime: command.localTime,
-          locationId: location.id,
+          locationId: command.locationId,
           name: command.name,
           organizationId: command.actor.organizationId,
           requestHash: hash,
@@ -283,21 +379,7 @@ export class PrismaRecurringStoryRepository
     rule: Awaited<
       ReturnType<DatabaseClient["recurringStoryRule"]["findMany"]>
     >[number] &
-      Readonly<{
-        location: Readonly<{
-          addressLine: string;
-          brand: Readonly<{ profile: Prisma.JsonValue }>;
-          city: string;
-          id: string;
-          isActive: boolean;
-          name: string;
-          openingHours: Prisma.JsonValue;
-          organizationId: string;
-          province: string;
-          timeZone: string;
-          version: number;
-        }>;
-      }>,
+      Readonly<{ location: LocationRow | null }>,
     occurrence: Readonly<{
       occurrenceKey: string;
       resolution: "ambiguous" | "exact" | "shifted";
@@ -321,60 +403,78 @@ export class PrismaRecurringStoryRepository
           return "existing" as const;
         }
         const localDate = occurrence.occurrenceKey.slice(0, 10);
-        const dayOverride = await transaction.locationDayOverride.findUnique({
-          where: {
-            organizationId_locationId_localDate: {
-              localDate: new Date(`${localDate}T00:00:00.000Z`),
-              locationId: rule.locationId,
+        const localDateValue = new Date(`${localDate}T00:00:00.000Z`);
+        const policy = approvalPolicyFromDatabase(rule.approvalPolicy);
+
+        let resolution: RecurringStoryDraftResolution;
+        let theme: ReturnType<typeof themeOf>;
+        let scopeName: string;
+        let locationVersion: number | null;
+        if (rule.location === null) {
+          const locations = await transaction.location.findMany({
+            include: { brand: { select: { profile: true } } },
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+            where: { organizationId: rule.organizationId },
+          });
+          const overrides = await transaction.locationDayOverride.findMany({
+            where: {
+              localDate: localDateValue,
+              locationId: { in: locations.map((location) => location.id) },
               organizationId: rule.organizationId,
             },
-          },
-        });
-        const hoursValue = rule.location.openingHours;
-        const openingHours =
-          typeof hoursValue === "object" &&
-          hoursValue !== null &&
-          !Array.isArray(hoursValue) &&
-          typeof hoursValue["display"] === "string"
-            ? hoursValue["display"]
-            : undefined;
-        const resolution = resolveRecurringStoryDraft({
-          capturedAt,
-          ...(dayOverride === null
-            ? {}
-            : dayOverride.status === "closed"
-              ? {
-                  dayOverride: {
-                    localDate,
-                    sourceLabel: dayOverride.sourceLabel,
-                    status: "closed" as const,
-                    version: dayOverride.version,
-                  },
-                }
-              : {
-                  dayOverride: {
-                    localDate,
-                    openingHours: dayOverride.openingHours ?? "",
-                    sourceLabel: dayOverride.sourceLabel,
-                    status: "open" as const,
-                    version: dayOverride.version,
-                  },
-                }),
-          location: {
-            addressLine: rule.location.addressLine,
-            city: rule.location.city,
-            id: rule.location.id,
-            isActive: rule.location.isActive,
-            name: rule.location.name,
-            ...(openingHours === undefined ? {} : { openingHours }),
-            organizationId: rule.location.organizationId,
-            province: rule.location.province,
-            timeZone: rule.location.timeZone,
-            version: rule.location.version,
-          },
-          occurrence,
-          policy: approvalPolicyFromDatabase(rule.approvalPolicy),
-        });
+          });
+          const overrideByLocation = new Map(
+            overrides.map((override) => [override.locationId, override]),
+          );
+          resolution = resolveEveryLocationStoryDraft({
+            capturedAt,
+            locations: locations.map((location) => {
+              const dayOverride = dayOverrideSource(
+                localDate,
+                overrideByLocation.get(location.id) ?? null,
+              );
+              return {
+                ...(dayOverride === undefined ? {} : { dayOverride }),
+                location: locationSource(location),
+              };
+            }),
+            occurrence,
+            policy,
+          });
+          const brandSource =
+            locations.find((location) => location.isActive) ?? locations[0];
+          if (brandSource === undefined) {
+            throw new Error("La organización no tiene sucursales.");
+          }
+          theme = themeOf(brandSource.brand.profile);
+          scopeName = "Todas las sucursales";
+          locationVersion = null;
+        } else {
+          const location = rule.location;
+          const dayOverride = dayOverrideSource(
+            localDate,
+            await transaction.locationDayOverride.findUnique({
+              where: {
+                organizationId_locationId_localDate: {
+                  localDate: localDateValue,
+                  locationId: location.id,
+                  organizationId: rule.organizationId,
+                },
+              },
+            }),
+          );
+          resolution = resolveRecurringStoryDraft({
+            capturedAt,
+            ...(dayOverride === undefined ? {} : { dayOverride }),
+            location: locationSource(location),
+            occurrence,
+            policy,
+          });
+          theme = themeOf(location.brand.profile);
+          scopeName = location.name;
+          locationVersion = location.version;
+        }
+
         if (resolution.status === "blocked") {
           const status =
             resolution.reason === "location-closed"
@@ -386,7 +486,7 @@ export class PrismaRecurringStoryRepository
             data: {
               blockedReasonCode: resolution.reason,
               locationId: rule.locationId,
-              locationVersion: rule.location.version,
+              locationVersion,
               occurrenceKey: occurrence.occurrenceKey,
               organizationId: rule.organizationId,
               resolution: occurrence.resolution,
@@ -397,7 +497,7 @@ export class PrismaRecurringStoryRepository
                 capturedAt,
                 localDate,
                 locationId: rule.locationId,
-                locationVersion: rule.location.version,
+                locationVersion,
                 reason: resolution.reason,
               },
               status,
@@ -406,20 +506,6 @@ export class PrismaRecurringStoryRepository
           return "blocked" as const;
         }
 
-        const profile = rule.location.brand.profile;
-        const theme =
-          typeof profile === "object" &&
-          profile !== null &&
-          !Array.isArray(profile) &&
-          (profile["themeId"] === "taller" ||
-            profile["themeId"] === "claro" ||
-            profile["themeId"] === "promo" ||
-            profile["themeId"] === "lubricentro")
-            ? profile["themeId"]
-            : undefined;
-        if (theme === undefined) {
-          throw new Error("La marca no tiene un tema visual vigente.");
-        }
         const publicationId = randomUUID();
         const revisionId = randomUUID();
         const content = { caption: resolution.caption, products: [] };
@@ -441,7 +527,7 @@ export class PrismaRecurringStoryRepository
             organizationId: rule.organizationId,
             scheduledFor: new Date(occurrence.scheduledAt),
             timeZone: rule.timeZone,
-            title: `Ya abrimos · ${rule.location.name} · ${localDate}`,
+            title: `Ya abrimos · ${scopeName} · ${localDate}`,
           },
         });
         await transaction.publicationRevision.create({
@@ -460,7 +546,7 @@ export class PrismaRecurringStoryRepository
         await transaction.recurringStoryMaterialization.create({
           data: {
             locationId: rule.locationId,
-            locationVersion: rule.location.version,
+            locationVersion,
             occurrenceKey: occurrence.occurrenceKey,
             organizationId: rule.organizationId,
             publicationId,
@@ -468,7 +554,9 @@ export class PrismaRecurringStoryRepository
             requiresHumanApproval: resolution.requiresHumanApproval,
             ruleId: rule.id,
             scheduledAt: new Date(occurrence.scheduledAt),
-            sourceSnapshot: { ...resolution.source },
+            sourceSnapshot: recurringStorySourceToJson(
+              resolution.source,
+            ) as Prisma.InputJsonObject,
             status: "draft_created",
           },
         });
@@ -479,7 +567,7 @@ export class PrismaRecurringStoryRepository
             entityType: "publication",
             id: randomUUID(),
             metadata: {
-              locationVersion: rule.location.version,
+              locationVersion,
               occurrenceKey: occurrence.occurrenceKey,
               requiresHumanApproval: resolution.requiresHumanApproval,
               ruleId: rule.id,

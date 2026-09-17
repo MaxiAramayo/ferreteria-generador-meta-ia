@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260914000000_generation_composition_edit";
+const latestMigrationName = "20260916000000_recurring_story_every_location";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -176,6 +176,7 @@ async function verifyDatabase(): Promise<void> {
         admission_mode_exists: boolean;
         generation_lineage_exists: boolean;
         generation_composition_edit_exists: boolean;
+        recurring_story_every_location_exists: boolean;
         idempotency_table: string | null;
         knowledge_documents_table: string | null;
         audit_correlation_exists: boolean;
@@ -238,6 +239,14 @@ async function verifyDatabase(): Promise<void> {
                 AND table_name = 'generation_runs'
                 AND column_name = 'edit_layout'
             ) AS "generation_composition_edit_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'recurring_story_rules'
+                AND column_name = 'location_id'
+                AND is_nullable = 'YES'
+            ) AS "recurring_story_every_location_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -444,7 +453,7 @@ async function verifyDatabase(): Promise<void> {
       assert.equal(rollbackEvidence.retry_manual_reason_exists, true);
       assert.equal(rollbackEvidence.retry_reconciled_at_exists, true);
       // El cambio de contraseña es anterior a la migración que se revierte
-      // acá (`20260914000000_generation_composition_edit`): sus valores de
+      // acá (`20260916000000_recurring_story_every_location`): sus valores de
       // enum quedan intactos, igual que la correlación y la bandeja
       // operativa.
       assert.equal(rollbackEvidence.password_change_event_exists, true);
@@ -482,9 +491,15 @@ async function verifyDatabase(): Promise<void> {
         "meta_oauth_transactions",
       );
       assert.equal(rollbackEvidence.generation_lineage_exists, true);
-      // Esta migración es la que se está revirtiendo: el marco y el copy
-      // editables tienen que desaparecer con ella.
-      assert.equal(rollbackEvidence.generation_composition_edit_exists, false);
+      // El marco y el copy editables son anteriores a la migración que se
+      // revierte acá: siguen en pie.
+      assert.equal(rollbackEvidence.generation_composition_edit_exists, true);
+      // Esta migración es la que se está revirtiendo: la regla vuelve a exigir
+      // una sucursal.
+      assert.equal(
+        rollbackEvidence.recurring_story_every_location_exists,
+        false,
+      );
       assert.equal(rollbackEvidence.admission_mode_exists, true);
       assert.equal(
         rollbackEvidence.generation_attempts_table,

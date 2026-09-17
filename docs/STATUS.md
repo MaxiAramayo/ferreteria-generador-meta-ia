@@ -160,6 +160,17 @@ con cada flujo en su propia dirección, y las secciones se enlazan: una pieza
 aprobada se programa desde el listado ya elegida, y alertas y turnos llevan a la
 pieza puntual.
 
+El 2026-09-16 las piezas pasaron a ser **para ambas sucursales por defecto**,
+porque casi todo lo que se publica vale para las dos. En «Creatividad IA», un
+pedido sin sucursal consulta precio y stock en cada una y sólo deja citar lo que
+vale para todas: el precio si es el mismo, el menor de los stocks si se conoce en
+todas; la revalidación antes de publicar hace lo mismo. En la historia
+recurrente, una regla sin sucursal hace **una sola historia** con el horario y
+la dirección de cada una —un renglón por sucursal si los horarios difieren, y la
+que cierra por excepción aparece como cerrada— y cae si cambia cualquiera de
+ellas. La regla y su materialización admiten sucursal nula desde la migración
+`20260916000000_recurring_story_every_location`.
+
 ## Próxima tarea
 
 `P6-T09` — validar programación de punta a punta. **La mitad ejecutable se hizo

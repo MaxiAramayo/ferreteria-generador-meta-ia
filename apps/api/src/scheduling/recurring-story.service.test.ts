@@ -11,7 +11,7 @@ import type {
   RecurringStoryRuleRecord,
   RecurringStoryRuleRepository,
 } from "@aramayo/domain";
-import { ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 
 import { RecurringStoryService } from "./recurring-story.service.ts";
 
@@ -73,8 +73,10 @@ const storedRule: RecurringStoryRuleRecord = {
 };
 
 class FakeConfiguration implements OrganizationConfigurationRepository {
+  current: OrganizationConfiguration = configuration;
+
   findByOrganizationId(): Promise<OrganizationConfiguration | null> {
-    return Promise.resolve(configuration);
+    return Promise.resolve(this.current);
   }
   updateBrand(): Promise<ConfigurationMutationResult> {
     throw new Error("not used");
@@ -170,4 +172,54 @@ test("el workspace expone la capacidad automática sin ampliar permisos", async 
       .canUseAutomaticApproval,
     true,
   );
+});
+
+const centralLocation = {
+  ...primaryLocation,
+  addressLine: "República de Siria 365",
+  id: "10000000-0000-4000-8000-000000000004",
+  name: "Casa central",
+} as const;
+
+test("sin sucursal, la regla es para todas las activas", async () => {
+  const rules = new FakeRules();
+  const configurations = new FakeConfiguration();
+  configurations.current = {
+    ...configuration,
+    locations: [primaryLocation, centralLocation],
+  };
+  const service = new RecurringStoryService(rules, configurations);
+  const { locationId, ...everyLocation } = submission;
+  assert.equal(locationId, primaryLocation.id);
+
+  const result = await service.create(
+    actor(["approver"]),
+    everyLocation,
+    "rule-idempotency-every",
+  );
+
+  assert.equal(result.status, "created");
+  assert.equal(rules.input?.locationId, null);
+  assert.equal(rules.input.effectiveFrom, "2026-09-08T11:30:00.000Z");
+});
+
+test("una regla para todas exige que las sucursales compartan zona horaria", async () => {
+  const rules = new FakeRules();
+  const configurations = new FakeConfiguration();
+  configurations.current = {
+    ...configuration,
+    locations: [
+      primaryLocation,
+      { ...centralLocation, timeZone: "America/Argentina/Salta" },
+    ],
+  };
+  const service = new RecurringStoryService(rules, configurations);
+  const { locationId, ...everyLocation } = submission;
+  assert.equal(locationId, primaryLocation.id);
+
+  await assert.rejects(
+    service.create(actor(["approver"]), everyLocation, "rule-idempotency-zone"),
+    BadRequestException,
+  );
+  assert.equal(rules.input, undefined);
 });

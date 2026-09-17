@@ -11,7 +11,8 @@ export interface RecurringStoryRuleSubmission {
   readonly idempotencyKey: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
-  readonly locationId: string;
+  /** `null`: la regla es para todas las sucursales activas. */
+  readonly locationId: string | null;
   readonly name: string;
   readonly weekdays: readonly number[];
 }
@@ -85,7 +86,8 @@ function rule(value: unknown): RecurringStoryRuleResponse | null {
     typeof candidate["id"] === "string" &&
     typeof candidate["leadTimeMinutes"] === "number" &&
     typeof candidate["localTime"] === "string" &&
-    typeof candidate["locationId"] === "string" &&
+    (typeof candidate["locationId"] === "string" ||
+      candidate["locationId"] === null) &&
     typeof candidate["name"] === "string" &&
     (candidate["status"] === "active" ||
       candidate["status"] === "paused" ||
@@ -201,7 +203,9 @@ export async function saveRecurringStoryRule(
           effectiveFromLocalDate: submission.effectiveFromLocalDate,
           leadTimeMinutes: submission.leadTimeMinutes,
           localTime: submission.localTime,
-          locationId: submission.locationId,
+          ...(submission.locationId === null
+            ? {}
+            : { locationId: submission.locationId }),
           name: submission.name,
           weekdays: submission.weekdays,
         }),

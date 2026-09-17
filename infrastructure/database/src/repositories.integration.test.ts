@@ -10,6 +10,7 @@ import {
   pendingPublicationTargets,
   publicationOccurrenceDispatchTopic,
   publicationOrderStatus,
+  readRecurringStorySourceSnapshot,
   singleOccurrenceRule,
   transitionPublication,
   type GenerationRunRecord,
@@ -8389,6 +8390,214 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   assert.equal(invalidated.status, "invalidated");
   assert.equal(publication.status, "validation_failed");
   assert.equal(occurrence.status, "cancelled");
+});
+
+test("una regla para todas las sucursales hace una sola historia y cae si cambia cualquiera", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const centralId = randomUUID();
+  const rivadaviaId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo todas",
+      id: organizationId,
+      legalName: "Aramayo todas",
+      slug: `every-location-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de todas",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "editor", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "taller" },
+    },
+  });
+  for (const [id, name, addressLine] of [
+    [centralId, "Casa central", "República de Siria 365"],
+    [rivadaviaId, "Sucursal Rivadavia", "Rivadavia 673"],
+  ] as const) {
+    await database.location.create({
+      data: {
+        addressLine,
+        brandId,
+        city: "Frías",
+        id,
+        name,
+        openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+        organizationId,
+        province: "Santiago del Estero",
+      },
+    });
+  }
+  const actor = {
+    displayName: "Responsable de todas",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "editor", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  const createdRule = await recurring.create({
+    actor,
+    approvalPolicy: "human-each-cycle",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `every-location-${randomUUID()}`,
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId: null,
+    name: "Apertura en todas",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    weekdays: [2],
+  });
+  assert.equal(createdRule.status, "created");
+  assert.equal(createdRule.rule.locationId, null);
+
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+  const materialization =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  assert.equal(materialization.status, "draft_created");
+  assert.equal(materialization.locationId, null);
+  assert.equal(materialization.locationVersion, null);
+  const snapshot = readRecurringStorySourceSnapshot(
+    materialization.sourceSnapshot,
+  );
+  assert.ok(snapshot !== null && "scope" in snapshot);
+  assert.deepEqual(
+    snapshot.locations.map((entry) => entry.locationName),
+    ["Casa central", "Sucursal Rivadavia"],
+  );
+  assert.ok(materialization.publicationId);
+  const draft = await database.publication.findUniqueOrThrow({
+    include: { revisions: true },
+    where: { id: materialization.publicationId },
+  });
+  assert.equal(draft.locationId, null);
+  assert.match(draft.title, /Todas las sucursales/u);
+  const design = JSON.stringify(draft.revisions[0]?.designDocument);
+  assert.match(design, /República de Siria 365/u);
+  assert.match(design, /Rivadavia 673/u);
+
+  const production = new PrismaPublicationProductionRepository(database);
+  const renderRequest = await production.requestRender({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId: materialization.publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:request-render",
+    ),
+  });
+  assert.equal(renderRequest.status, "accepted");
+  const renderJob = await production.findRenderJob(
+    organizationId,
+    materialization.publicationId,
+    renderRequest.revisionId,
+  );
+  assert.ok(renderJob);
+  const mediaAssetId = randomUUID();
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 128n,
+      checksumSha256: "d".repeat(64),
+      height: 1920,
+      id: mediaAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: `${renderRequest.revisionId}.png`,
+      ownerMembershipId: membershipId,
+      secureUrl: "https://media.example.invalid/every-location.png",
+      status: "available",
+      storageKey: `render/${mediaAssetId}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+  assert.deepEqual(
+    await production.completeRender(renderJob, {
+      byteSize: "128",
+      checksumSha256: "d".repeat(64),
+      height: 1920,
+      mediaAssetId,
+      mimeType: "image/png",
+      renderedAt: "2026-09-07T12:01:00.000Z",
+      secureUrl: "https://media.example.invalid/every-location.png",
+      storageVersion: 1,
+      width: 1080,
+    }),
+    { status: "completed", version: 3 },
+  );
+  // Aprobar persiste la fuente para todas en el perfil previo a publicar.
+  const approval = await production.approve({
+    actorMembershipId: membershipId,
+    expectedVersion: 3,
+    organizationId,
+    publicationId: materialization.publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:approve",
+    ),
+  });
+  assert.equal(approval.status, "scheduled");
+
+  // Cambiar una sola de las sucursales invalida la historia de todas.
+  const configuration = new PrismaOrganizationConfigurationRepository(database);
+  await configuration.updateLocation({
+    actorMembershipId: membershipId,
+    changedAt: "2026-09-07T12:02:00.000Z",
+    locationId: centralId,
+    organizationId,
+    update: normalizeLocationConfigurationUpdate({
+      actor,
+      addressLine: "República de Siria 365",
+      city: "Frías",
+      isActive: true,
+      locationId: centralId,
+      name: "Casa central",
+      openingHours: "Lun a sáb · 09:00 a 13:00",
+      province: "Santiago del Estero",
+      timeZone: "America/Argentina/Cordoba",
+      version: 1,
+    }),
+  });
+  const invalidated =
+    await database.recurringStoryMaterialization.findUniqueOrThrow({
+      where: { id: materialization.id },
+    });
+  assert.equal(invalidated.status, "invalidated");
 });
 
 test("feriado, horario especial, cierre y dato faltante se materializan sin adivinar", async () => {
