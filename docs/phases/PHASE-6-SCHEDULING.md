@@ -1041,8 +1041,9 @@ humano sobre una salida a Instagram.
 
 ### Evidencia de cierre
 
-- Sin commit todavía. La regresión visual incorpora las tres líneas base de
-  apertura y actualiza el contexto visible de localidad de los marcos vigentes.
+- Commit `5f36aa9` (`feat(scheduling): rotate branded opening stories`). La
+  regresión visual incorpora las tres líneas base de apertura y actualiza el
+  contexto visible de localidad de los marcos vigentes.
 
 ## Criterios de salida de Fase 6
 

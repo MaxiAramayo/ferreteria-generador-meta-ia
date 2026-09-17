@@ -182,6 +182,13 @@ publicación remota sin snapshot, cuenta, destino y horario confirmados. El E2E
 actual confirma que activar una regla por sí solo no publica; la publicación
 sigue después de materializar, renderizar, aprobar y programar.
 
+La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
+el 2026-09-17 tras publicar sus imágenes linux/amd64 en
+[GitHub Actions](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/35230874348).
+La migración `20260917000000_recurring_story_design_rotation` terminó con éxito;
+web, API y worker quedaron sanos y los endpoints públicos `/health` y `/ready`
+respondieron `200` por HTTPS. La release anterior permanece como rollback.
+
 `P6-T09` — validar programación de punta a punta. **La mitad ejecutable se hizo
 el 2026-09-16**: `pnpm e2e:dispatch` hace competir despachadores reales sobre las
 mismas filas de PostgreSQL y comprueba que dos workers entreguen cada mensaje
