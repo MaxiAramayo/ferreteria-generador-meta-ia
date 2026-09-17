@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260916000000_recurring_story_every_location";
+const latestMigrationName = "20260917000000_recurring_story_design_rotation";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -494,11 +494,11 @@ async function verifyDatabase(): Promise<void> {
       // El marco y el copy editables son anteriores a la migración que se
       // revierte acá: siguen en pie.
       assert.equal(rollbackEvidence.generation_composition_edit_exists, true);
-      // Esta migración es la que se está revirtiendo: la regla vuelve a exigir
-      // una sucursal.
+      // La rotación visual se revierte sin modificar el alcance de sucursal,
+      // que pertenece a una migración anterior.
       assert.equal(
         rollbackEvidence.recurring_story_every_location_exists,
-        false,
+        true,
       );
       assert.equal(rollbackEvidence.admission_mode_exists, true);
       assert.equal(

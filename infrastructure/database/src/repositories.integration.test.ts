@@ -8260,6 +8260,39 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   });
   assert.equal(createdRule.status, "created");
 
+  const designRotation = [
+    "cartel",
+    "locales",
+    "horario",
+    "cartel",
+    "locales",
+    "horario",
+    "cartel",
+  ] as const;
+  const designRotationIdempotencyKey = `recurring-design-${randomUUID()}`;
+  const designUpdate = await recurring.updateDesignRotation({
+    actor,
+    designRotation,
+    expectedVersion: createdRule.rule.version,
+    idempotencyKey: designRotationIdempotencyKey,
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    ruleId: createdRule.rule.id,
+  });
+  assert.equal(designUpdate.status, "updated");
+  assert.equal(designUpdate.rule.version, createdRule.rule.version + 1);
+  assert.deepEqual(designUpdate.rule.designRotation, designRotation);
+
+  const repeatedDesignUpdate = await recurring.updateDesignRotation({
+    actor,
+    designRotation,
+    expectedVersion: createdRule.rule.version,
+    idempotencyKey: designRotationIdempotencyKey,
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    ruleId: createdRule.rule.id,
+  });
+  assert.equal(repeatedDesignUpdate.status, "updated");
+  assert.equal(repeatedDesignUpdate.rule.version, designUpdate.rule.version);
+
   assert.deepEqual(
     await recurring.materializeDue({
       at: "2026-09-07T12:00:00.000Z",
@@ -8278,6 +8311,46 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   assert.match(
     JSON.stringify(materialization.sourceSnapshot),
     /Rivadavia 673/u,
+  );
+  const recurringRevision = await database.publicationRevision.findFirstOrThrow(
+    {
+      where: {
+        organizationId,
+        publicationId: materialization.publicationId,
+      },
+    },
+  );
+  assert.match(
+    JSON.stringify(recurringRevision.designDocument),
+    /"layout":"historia-apertura-locales"/u,
+  );
+
+  const futureDesignUpdate = await recurring.updateDesignRotation({
+    actor,
+    designRotation: [
+      "cartel",
+      "cartel",
+      "cartel",
+      "cartel",
+      "cartel",
+      "cartel",
+      "cartel",
+    ],
+    expectedVersion: designUpdate.rule.version,
+    idempotencyKey: `recurring-design-future-${randomUUID()}`,
+    occurredAt: "2026-09-07T12:01:00.000Z",
+    ruleId: createdRule.rule.id,
+  });
+  assert.equal(futureDesignUpdate.status, "updated");
+  const immutableRecurringRevision =
+    await database.publicationRevision.findUniqueOrThrow({
+      where: {
+        organizationId_id: { id: recurringRevision.id, organizationId },
+      },
+    });
+  assert.match(
+    JSON.stringify(immutableRecurringRevision.designDocument),
+    /"layout":"historia-apertura-locales"/u,
   );
 
   const production = new PrismaPublicationProductionRepository(database);

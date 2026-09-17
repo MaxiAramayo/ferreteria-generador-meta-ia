@@ -73,6 +73,9 @@ function documentFor(
   if (spec.requiredFields.includes("subtitle")) {
     content["subtitle"] = "Con el producto adecuado se resuelve en el día.";
   }
+  if (spec.requiredFields.includes("callToAction")) {
+    content["callToAction"] = "Consultanos por WhatsApp";
+  }
 
   const result = parseDesignDocument({
     content,

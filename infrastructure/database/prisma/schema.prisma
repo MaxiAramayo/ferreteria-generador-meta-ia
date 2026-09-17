@@ -291,6 +291,14 @@ enum RecurringStoryRuleStatus {
   @@map("recurring_story_rule_status")
 }
 
+enum RecurringStoryDesignVariant {
+  cartel  @map("cartel")
+  horario @map("horario")
+  locales @map("locales")
+
+  @@map("recurring_story_design_variant")
+}
+
 enum LocationDayStatus {
   open   @map("open")
   closed @map("closed")
@@ -711,9 +719,12 @@ model RecurringStoryRule {
   leadTimeMinutes       Int                          @map("lead_time_minutes")
   effectiveFrom         DateTime                     @map("effective_from") @db.Timestamptz(3)
   approvalPolicy        RecurringStoryApprovalPolicy @map("approval_policy")
+  designRotation        RecurringStoryDesignVariant[] @default([cartel, horario, locales, cartel, horario, locales, cartel]) @map("design_rotation")
   status                RecurringStoryRuleStatus     @default(active)
   idempotencyKey        String                       @map("idempotency_key") @db.VarChar(128)
   requestHash           String                       @map("request_hash") @db.Char(64)
+  lastDesignRotationIdempotencyKey String?           @map("last_design_rotation_idempotency_key") @db.VarChar(128)
+  lastDesignRotationRequestHash    String?           @map("last_design_rotation_request_hash") @db.Char(64)
   version               Int                          @default(1)
   createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)

@@ -45,6 +45,30 @@ const technicalScene: MediaCapacity = { maximum: 1, minimum: 1 };
 
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
+    "historia-apertura-cartel": specFor(
+      "historia-apertura-cartel",
+      "historia",
+      ["historia"],
+      ["title", "items", "callToAction"],
+      ["badge", "subtitle", "icon"],
+      noMedia,
+    ),
+    "historia-apertura-horario": specFor(
+      "historia-apertura-horario",
+      "historia",
+      ["historia"],
+      ["title", "items", "callToAction"],
+      ["badge", "subtitle", "icon"],
+      noMedia,
+    ),
+    "historia-apertura-locales": specFor(
+      "historia-apertura-locales",
+      "historia",
+      ["historia"],
+      ["title", "items", "callToAction"],
+      ["badge", "subtitle", "icon"],
+      noMedia,
+    ),
     "combo-kit": specFor(
       "combo-kit",
       "publicacion",

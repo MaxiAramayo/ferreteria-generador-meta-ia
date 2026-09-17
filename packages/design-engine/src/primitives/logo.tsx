@@ -110,6 +110,8 @@ export function AramayoMark({
 }
 
 export interface LogoProps {
+  /** Localidad factual de la pieza; no todas las marcas operan en la misma. */
+  readonly locality?: string | undefined;
   readonly markColor?: string | undefined;
   readonly showDescriptor?: boolean | undefined;
   readonly size?: number | undefined;
@@ -119,6 +121,7 @@ export interface LogoProps {
 }
 
 export function Logo({
+  locality,
   markColor,
   showDescriptor = true,
   size = 64,
@@ -180,7 +183,9 @@ export function Logo({
               textTransform: "uppercase",
             }}
           >
-            {variant === "familia" ? descriptor : "Frías · Santiago del Estero"}
+            {variant === "familia"
+              ? descriptor
+              : (locality ?? "Frías · Santiago del Estero")}
           </span>
         </span>
       ) : null}

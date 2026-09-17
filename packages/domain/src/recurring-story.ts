@@ -12,6 +12,73 @@ export const recurringStoryApprovalPolicies = Object.freeze([
 export type RecurringStoryApprovalPolicy =
   (typeof recurringStoryApprovalPolicies)[number];
 
+/** Las tres composiciones aprobadas para comunicar una apertura. */
+export const recurringStoryDesignVariants = Object.freeze([
+  "cartel",
+  "horario",
+  "locales",
+] as const);
+
+export type RecurringStoryDesignVariant =
+  (typeof recurringStoryDesignVariants)[number];
+
+/** El orden es lunes a domingo, aun cuando la rutina normal omita el domingo. */
+export const defaultRecurringStoryDesignRotation = Object.freeze([
+  "cartel",
+  "horario",
+  "locales",
+  "cartel",
+  "horario",
+  "locales",
+  "cartel",
+] as const satisfies readonly RecurringStoryDesignVariant[]);
+
+export const recurringStoryDesignRotationLength = 7;
+
+const recurringStoryDesignVariantSet: ReadonlySet<string> = new Set(
+  recurringStoryDesignVariants,
+);
+
+export function isRecurringStoryDesignVariant(
+  value: unknown,
+): value is RecurringStoryDesignVariant {
+  return typeof value === "string" && recurringStoryDesignVariantSet.has(value);
+}
+
+export function assertRecurringStoryDesignRotation(
+  rotation: readonly RecurringStoryDesignVariant[],
+): void {
+  if (
+    rotation.length !== recurringStoryDesignRotationLength ||
+    rotation.some((variant) => !isRecurringStoryDesignVariant(variant))
+  ) {
+    throw new RangeError(
+      "La rotación debe indicar un diseño de apertura válido para cada día de la semana.",
+    );
+  }
+}
+
+export function openingStoryLayoutFor(
+  occurrenceKey: string,
+  rotation: readonly RecurringStoryDesignVariant[],
+):
+  | "historia-apertura-cartel"
+  | "historia-apertura-horario"
+  | "historia-apertura-locales" {
+  assertRecurringStoryDesignRotation(rotation);
+  const localDate = occurrenceKey.slice(0, 10);
+  const date = new Date(`${localDate}T12:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) {
+    throw new RangeError("La ocurrencia no tiene una fecha civil válida.");
+  }
+  const mondayIndex = (date.getUTCDay() + 6) % 7;
+  const variant = rotation[mondayIndex];
+  if (variant === undefined) {
+    throw new RangeError("No hay diseño para el día de la ocurrencia.");
+  }
+  return `historia-apertura-${variant}`;
+}
+
 export const recurringStoryRuleStatuses = Object.freeze([
   "active",
   "paused",
@@ -24,6 +91,7 @@ export type RecurringStoryRuleStatus =
 export interface RecurringStoryRuleRecord {
   readonly approvalPolicy: RecurringStoryApprovalPolicy;
   readonly createdByMembershipId: string;
+  readonly designRotation: readonly RecurringStoryDesignVariant[];
   readonly effectiveFrom: string;
   readonly id: string;
   readonly leadTimeMinutes: number;
@@ -133,6 +201,7 @@ export type RecurringStoryDraftResolution<
 export interface CreateRecurringStoryRuleCommand {
   readonly actor: AuthenticatedActor;
   readonly approvalPolicy: RecurringStoryApprovalPolicy;
+  readonly designRotation?: readonly RecurringStoryDesignVariant[];
   readonly effectiveFrom: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
@@ -153,6 +222,20 @@ export interface RecurringStoryRuleRepository {
       Readonly<{ idempotencyKey: string; occurredAt: string }>,
   ): Promise<CreateRecurringStoryRuleResult>;
   list(organizationId: string): Promise<readonly RecurringStoryRuleRecord[]>;
+  updateDesignRotation(
+    command: Readonly<{
+      actor: AuthenticatedActor;
+      designRotation: readonly RecurringStoryDesignVariant[];
+      expectedVersion: number;
+      idempotencyKey: string;
+      occurredAt: string;
+      ruleId: string;
+    }>,
+  ): Promise<
+    | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
+    | Readonly<{ status: "not-found" }>
+    | Readonly<{ status: "version-conflict" }>
+  >;
 }
 
 export interface RecurringStoryMaterializationRepository {

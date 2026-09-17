@@ -8,9 +8,11 @@ import type {
   CreateRecurringStoryRuleResult,
   OrganizationConfiguration,
   OrganizationConfigurationRepository,
+  RecurringStoryDesignVariant,
   RecurringStoryRuleRecord,
   RecurringStoryRuleRepository,
 } from "@aramayo/domain";
+import { defaultRecurringStoryDesignRotation } from "@aramayo/domain";
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 
 import { RecurringStoryService } from "./recurring-story.service.ts";
@@ -59,6 +61,7 @@ function actor(roles: AuthenticatedActor["roles"]): AuthenticatedActor {
 const storedRule: RecurringStoryRuleRecord = {
   approvalPolicy: "human-each-cycle",
   createdByMembershipId: "membership-1",
+  designRotation: defaultRecurringStoryDesignRotation,
   effectiveFrom: "2026-09-08T11:30:00.000Z",
   id: "rule-1",
   leadTimeMinutes: 120,
@@ -91,6 +94,9 @@ class FakeRules implements RecurringStoryRuleRepository {
     | (CreateRecurringStoryRuleCommand &
         Readonly<{ idempotencyKey: string; occurredAt: string }>)
     | undefined;
+  designRotationInput:
+    | Parameters<RecurringStoryRuleRepository["updateDesignRotation"]>[0]
+    | undefined;
 
   create(
     input: CreateRecurringStoryRuleCommand &
@@ -102,6 +108,20 @@ class FakeRules implements RecurringStoryRuleRepository {
 
   list(): Promise<readonly RecurringStoryRuleRecord[]> {
     return Promise.resolve([storedRule]);
+  }
+
+  updateDesignRotation(
+    input: Parameters<RecurringStoryRuleRepository["updateDesignRotation"]>[0],
+  ): Promise<
+    | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
+    | Readonly<{ status: "not-found" }>
+    | Readonly<{ status: "version-conflict" }>
+  > {
+    this.designRotationInput = input;
+    return Promise.resolve({
+      rule: { ...storedRule, designRotation: input.designRotation, version: 2 },
+      status: "updated",
+    });
   }
 }
 
@@ -156,6 +176,38 @@ test("la política automática exige administrador y aprobador", async () => {
     "rule-idempotency-3",
   );
   assert.equal(automaticRules.input?.approvalPolicy, "automatic-routine");
+});
+
+test("actualiza la rotación de una regla con control de versión", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+  const designRotation: RecurringStoryDesignVariant[] = [
+    "locales",
+    "horario",
+    "cartel",
+    "locales",
+    "horario",
+    "cartel",
+    "locales",
+  ];
+
+  const result = await service.updateDesignRotation(
+    actor(["approver"]),
+    storedRule.id,
+    { designRotation, expectedVersion: storedRule.version },
+    "rule-design-idempotency-1",
+  );
+
+  assert.equal(result.status, "updated");
+  assert.equal(result.rule.version, 2);
+  assert.ok(rules.designRotationInput);
+  const capturedDesignRotationInput = rules.designRotationInput;
+  assert.deepEqual(capturedDesignRotationInput.designRotation, designRotation);
+  assert.equal(capturedDesignRotationInput.expectedVersion, storedRule.version);
+  assert.equal(
+    capturedDesignRotationInput.idempotencyKey,
+    "rule-design-idempotency-1",
+  );
 });
 
 test("el workspace expone la capacidad automática sin ampliar permisos", async () => {

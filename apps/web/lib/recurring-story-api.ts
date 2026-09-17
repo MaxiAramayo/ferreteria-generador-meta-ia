@@ -1,12 +1,14 @@
 import type {
   LocationConfigurationResponse,
   RecurringStoryApprovalPolicyResponse,
+  RecurringStoryDesignVariantResponse,
   RecurringStoryRuleResponse,
   RecurringStoryWorkspaceResponse,
 } from "@aramayo/contracts";
 
 export interface RecurringStoryRuleSubmission {
   readonly approvalPolicy: RecurringStoryApprovalPolicyResponse;
+  readonly designRotation: readonly RecurringStoryDesignVariantResponse[];
   readonly effectiveFromLocalDate: string;
   readonly idempotencyKey: string;
   readonly leadTimeMinutes: number;
@@ -15,6 +17,13 @@ export interface RecurringStoryRuleSubmission {
   readonly locationId: string | null;
   readonly name: string;
   readonly weekdays: readonly number[];
+}
+
+export interface RecurringStoryDesignRotationSubmission {
+  readonly designRotation: readonly RecurringStoryDesignVariantResponse[];
+  readonly expectedVersion: number;
+  readonly idempotencyKey: string;
+  readonly ruleId: string;
 }
 
 export type RecurringStoryWorkspaceResult =
@@ -26,6 +35,24 @@ export type RecurringStorySaveResult =
   | Readonly<{ kind: "forbidden" }>
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
+
+export type RecurringStoryDesignRotationSaveResult =
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>
+  | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
+
+function designRotation(
+  value: unknown,
+): readonly RecurringStoryDesignVariantResponse[] | null {
+  return Array.isArray(value) &&
+    value.length === 7 &&
+    value.every(
+      (variant) =>
+        variant === "cartel" || variant === "horario" || variant === "locales",
+    )
+    ? value
+    : null;
+}
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -79,10 +106,12 @@ function location(value: unknown): LocationConfigurationResponse | null {
 function rule(value: unknown): RecurringStoryRuleResponse | null {
   const candidate = record(value);
   const weekdays = candidate?.["weekdays"];
+  const rotation = candidate?.["designRotation"];
   return candidate !== null &&
     (candidate["approvalPolicy"] === "human-each-cycle" ||
       candidate["approvalPolicy"] === "automatic-routine") &&
     typeof candidate["effectiveFrom"] === "string" &&
+    designRotation(rotation) !== null &&
     typeof candidate["id"] === "string" &&
     typeof candidate["leadTimeMinutes"] === "number" &&
     typeof candidate["localTime"] === "string" &&
@@ -100,6 +129,7 @@ function rule(value: unknown): RecurringStoryRuleResponse | null {
     )
     ? {
         approvalPolicy: candidate["approvalPolicy"],
+        designRotation: designRotation(rotation) ?? [],
         effectiveFrom: candidate["effectiveFrom"],
         id: candidate["id"],
         leadTimeMinutes: candidate["leadTimeMinutes"],
@@ -200,6 +230,7 @@ export async function saveRecurringStoryRule(
       {
         body: JSON.stringify({
           approvalPolicy: submission.approvalPolicy,
+          designRotation: submission.designRotation,
           effectiveFromLocalDate: submission.effectiveFromLocalDate,
           leadTimeMinutes: submission.leadTimeMinutes,
           localTime: submission.localTime,
@@ -237,6 +268,55 @@ export async function saveRecurringStoryRule(
     return {
       kind: "error",
       message: "No se pudo conectar con la API para guardar la regla.",
+    };
+  }
+}
+
+export async function saveRecurringStoryDesignRotation(
+  apiBaseUrl: string,
+  submission: RecurringStoryDesignRotationSubmission,
+): Promise<RecurringStoryDesignRotationSaveResult> {
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) return { kind: "forbidden" };
+    const response = await fetch(
+      new URL(
+        `scheduling/recurring-stories/${submission.ruleId}/design-rotation`,
+        apiBaseUrl,
+      ),
+      {
+        body: JSON.stringify({
+          designRotation: submission.designRotation,
+          expectedVersion: submission.expectedVersion,
+        }),
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "idempotency-key": submission.idempotencyKey,
+          "x-csrf-token": csrf,
+        },
+        method: "PATCH",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const body = record(await payload(response));
+    const parsed = rule(body?.["rule"]);
+    return response.ok && body?.["status"] === "updated" && parsed !== null
+      ? { kind: "saved", rule: parsed }
+      : {
+          kind: "error",
+          message:
+            typeof body?.["message"] === "string"
+              ? body["message"]
+              : "No se pudieron guardar los diseños de la regla.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "No se pudo conectar con la API para guardar los diseños.",
     };
   }
 }

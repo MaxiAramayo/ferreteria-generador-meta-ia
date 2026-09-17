@@ -950,7 +950,9 @@ a {
 }
 
 .recurring-weekdays,
-.recurring-policy {
+.recurring-policy,
+.recurring-design-rotation,
+.recurring-rule-design-editor {
   border: 0;
   margin: 0;
   padding: 0;
@@ -977,6 +979,46 @@ a {
 .recurring-weekdays button[aria-pressed="true"] {
   background: var(--workspace-ink);
   color: var(--workspace-paper);
+}
+
+.recurring-design-rotation {
+  border-block: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 30%, transparent);
+  padding-block: 1rem;
+}
+
+.recurring-design-rotation > p,
+.recurring-rule-design-editor > p {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0.45rem 0 0;
+  text-transform: none;
+}
+
+.recurring-design-rotation > div,
+.recurring-rule-design-editor > div:first-of-type {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-top: 0.75rem;
+}
+
+.recurring-design-rotation label,
+.recurring-rule-design-editor label {
+  color: var(--workspace-muted);
+  font-size: 0.65rem;
+}
+
+.recurring-design-rotation label span {
+  color: var(--workspace-ink);
+}
+
+.recurring-design-rotation select,
+.recurring-rule-design-editor select {
+  font-size: 0.78rem;
+  min-height: 2.5rem;
+  padding-inline: 0.45rem;
 }
 
 .recurring-policy {
@@ -1085,9 +1127,49 @@ a {
 }
 
 .recurring-rule-list li {
+  align-items: start;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.recurring-rule-list li > strong,
+.recurring-rule-list li > small {
+  min-width: 0;
+}
+
+.recurring-rule-list li > button,
+.recurring-rule-design-actions button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    800 0.7rem/1 "Archivo",
+    sans-serif;
+  min-height: 2.35rem;
+  padding: 0.55rem 0.7rem;
+  text-transform: uppercase;
+}
+
+.recurring-rule-design-editor {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 25%, transparent);
+  grid-column: 1 / -1;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+}
+
+.recurring-rule-design-actions {
   display: flex;
   gap: 0.6rem;
-  justify-content: space-between;
+  justify-content: flex-end;
+  margin-top: 0.8rem;
+}
+
+.recurring-rule-design-actions button:last-child {
+  background: var(--workspace-rust);
+  color: var(--workspace-paper);
 }
 
 /*
@@ -1110,6 +1192,27 @@ a {
   overflow: hidden;
   position: relative;
   width: 20rem;
+}
+
+.recurring-story-preview[data-design="horario"] {
+  background:
+    radial-gradient(
+      circle at 50% 54%,
+      rgba(255, 178, 0, 0.24) 0 25%,
+      transparent 25%
+    ),
+    var(--workspace-ink);
+}
+
+.recurring-story-preview[data-design="locales"] {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(230, 59, 30, 0.18) 0 49%,
+      transparent 49% 51%,
+      rgba(255, 178, 0, 0.15) 51%
+    ),
+    var(--workspace-ink);
 }
 
 .story-safe-guide {
@@ -1145,6 +1248,46 @@ a {
   padding-inline: var(--story-safe-left) var(--story-safe-right);
 }
 
+.story-preview-brand {
+  align-items: center;
+  color: var(--workspace-paper);
+  display: flex;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.story-preview-brand svg {
+  color: var(--workspace-rust);
+  flex: none;
+}
+
+.story-preview-brand > span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.story-preview-brand strong {
+  font:
+    900 0.76rem/0.9 "Saira Condensed",
+    sans-serif;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.story-preview-brand small,
+.story-preview-design {
+  color: var(--workspace-safety);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.story-preview-design {
+  margin-top: 0.35rem;
+}
+
 .story-preview-badge {
   align-self: flex-start;
   background: var(--workspace-safety);
@@ -1163,6 +1306,22 @@ a {
   line-height: 0.78;
   margin-top: 1rem;
   text-transform: uppercase;
+}
+
+.recurring-story-preview[data-design="horario"]
+  .story-preview-content
+  > strong {
+  font-size: clamp(2.8rem, 6vw, 4.2rem);
+  text-align: center;
+}
+
+.recurring-story-preview[data-design="horario"] .story-preview-badge {
+  align-self: center;
+}
+
+.recurring-story-preview[data-design="locales"] .story-preview-content ul {
+  border-left: 0;
+  padding-left: 0;
 }
 
 .story-preview-content > p {
@@ -1891,6 +2050,11 @@ a {
   .recurring-policy,
   .recurring-flow {
     grid-template-columns: 1fr;
+  }
+
+  .recurring-design-rotation > div,
+  .recurring-rule-design-editor > div:first-of-type {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .recurring-flow li + li {

@@ -1,6 +1,8 @@
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty,
+  ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsIn,
@@ -18,6 +20,14 @@ import {
 export class CreateRecurringStoryRuleDto {
   @IsIn(["human-each-cycle", "automatic-routine"])
   approvalPolicy!: "automatic-routine" | "human-each-cycle";
+
+  /** Orden lunes a domingo de las composiciones de apertura. */
+  @IsOptional()
+  @ArrayMaxSize(7)
+  @ArrayMinSize(7)
+  @IsArray()
+  @IsIn(["cartel", "horario", "locales"], { each: true })
+  designRotation?: ("cartel" | "horario" | "locales")[];
 
   @Matches(/^\d{4}-\d{2}-\d{2}$/u)
   effectiveFromLocalDate!: string;

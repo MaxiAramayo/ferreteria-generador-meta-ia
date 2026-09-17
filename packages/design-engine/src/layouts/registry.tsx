@@ -45,6 +45,11 @@ import {
   ProblemaSolucion,
   ProductoPrecio,
 } from "./catalog-pieces.tsx";
+import {
+  HistoriaAperturaCartel,
+  HistoriaAperturaHorario,
+  HistoriaAperturaLocales,
+} from "./opening-stories.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
 import {
   EppSeguridad,
@@ -71,6 +76,9 @@ export type LayoutComponent = (props: LayoutProps) => ReactElement;
 const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
   Object.freeze({
     "banner-marca": BannerMarca,
+    "historia-apertura-cartel": HistoriaAperturaCartel,
+    "historia-apertura-horario": HistoriaAperturaHorario,
+    "historia-apertura-locales": HistoriaAperturaLocales,
     "combo-kit": ComboKit,
     "composicion-banda-superior": ComposicionBandaSuperior,
     "composicion-circulo-central": ComposicionCirculoCentral,

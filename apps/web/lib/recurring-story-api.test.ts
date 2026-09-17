@@ -3,12 +3,22 @@ import test from "node:test";
 
 import {
   loadRecurringStoryWorkspace,
+  saveRecurringStoryDesignRotation,
   saveRecurringStoryRule,
 } from "./recurring-story-api.ts";
 
 const apiBaseUrl = "https://api.example.invalid/";
 const rule = {
   approvalPolicy: "human-each-cycle",
+  designRotation: [
+    "cartel",
+    "horario",
+    "locales",
+    "cartel",
+    "horario",
+    "locales",
+    "cartel",
+  ],
   effectiveFrom: "2026-09-08T11:30:00.000Z",
   id: "rule-1",
   leadTimeMinutes: 120,
@@ -70,6 +80,15 @@ test("guarda con CSRF e idempotencia sin enviar una orden de publicación", asyn
 
   const result = await saveRecurringStoryRule(apiBaseUrl, {
     approvalPolicy: "human-each-cycle",
+    designRotation: [
+      "cartel",
+      "horario",
+      "locales",
+      "cartel",
+      "horario",
+      "locales",
+      "cartel",
+    ],
     effectiveFromLocalDate: "2026-09-08",
     idempotencyKey: "recurring-rule-123",
     leadTimeMinutes: 120,
@@ -100,5 +119,73 @@ test("un contrato incompleto falla cerrado", async (context) => {
   assert.deepEqual(await loadRecurringStoryWorkspace(apiBaseUrl), {
     kind: "error",
     message: "La API devolvió reglas recurrentes que el panel no puede usar.",
+  });
+});
+
+test("actualiza la rotación con versión, CSRF e idempotencia", async (context) => {
+  const originalFetch = globalThis.fetch;
+  const calls: {
+    body?: string;
+    headers: Headers;
+    method?: string;
+    path: string;
+  }[] = [];
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = (input, init): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    calls.push({
+      headers: new Headers(init?.headers),
+      path: url.pathname,
+      ...(typeof init?.body === "string" ? { body: init.body } : {}),
+      ...(init?.method === undefined ? {} : { method: init.method }),
+    });
+    return Promise.resolve(
+      url.pathname === "/auth/csrf"
+        ? Response.json({ csrfToken: "csrf-safe" })
+        : Response.json({ rule: { ...rule, version: 2 }, status: "updated" }),
+    );
+  };
+
+  const result = await saveRecurringStoryDesignRotation(apiBaseUrl, {
+    designRotation: [
+      "locales",
+      "horario",
+      "cartel",
+      "locales",
+      "horario",
+      "cartel",
+      "locales",
+    ],
+    expectedVersion: 1,
+    idempotencyKey: "recurring-design-rotation-123",
+    ruleId: "rule-1",
+  });
+
+  assert.equal(result.kind, "saved");
+  assert.deepEqual(
+    calls.map((call) => call.path),
+    ["/auth/csrf", "/scheduling/recurring-stories/rule-1/design-rotation"],
+  );
+  const updateCall = calls[1];
+  assert.ok(updateCall);
+  assert.equal(updateCall.method, "PATCH");
+  assert.equal(
+    updateCall.headers.get("idempotency-key"),
+    "recurring-design-rotation-123",
+  );
+  assert.equal(updateCall.headers.get("x-csrf-token"), "csrf-safe");
+  assert.deepEqual(JSON.parse(updateCall.body ?? "{}"), {
+    designRotation: [
+      "locales",
+      "horario",
+      "cartel",
+      "locales",
+      "horario",
+      "cartel",
+      "locales",
+    ],
+    expectedVersion: 1,
   });
 });

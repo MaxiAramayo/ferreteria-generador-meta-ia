@@ -123,7 +123,12 @@ export function LocalHeader({
         zIndex: 10,
       }}
     >
-      <Logo size={76} tone={theme.tone} variant={theme.brand} />
+      <Logo
+        locality={context.brand.city}
+        size={76}
+        tone={theme.tone}
+        variant={theme.brand}
+      />
       <div
         style={{
           backgroundColor: locationBackground,

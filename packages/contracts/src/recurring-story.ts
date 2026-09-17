@@ -3,8 +3,13 @@ import type { LocationConfigurationResponse } from "./organization-configuration
 export type RecurringStoryApprovalPolicyResponse =
   "automatic-routine" | "human-each-cycle";
 
+export type RecurringStoryDesignVariantResponse =
+  "cartel" | "horario" | "locales";
+
 export interface RecurringStoryRuleResponse {
   readonly approvalPolicy: RecurringStoryApprovalPolicyResponse;
+  /** Orden lunes a domingo de los diseños de apertura. */
+  readonly designRotation: readonly RecurringStoryDesignVariantResponse[];
   readonly effectiveFrom: string;
   readonly id: string;
   readonly leadTimeMinutes: number;
@@ -27,4 +32,9 @@ export interface RecurringStoryWorkspaceResponse {
 export interface CreateRecurringStoryRuleResponse {
   readonly rule: RecurringStoryRuleResponse;
   readonly status: "created";
+}
+
+export interface UpdateRecurringStoryDesignRotationResponse {
+  readonly rule: RecurringStoryRuleResponse;
+  readonly status: "updated";
 }

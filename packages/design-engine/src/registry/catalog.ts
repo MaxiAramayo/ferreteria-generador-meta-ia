@@ -21,6 +21,9 @@ export const CATALOG_STATUS: Readonly<Record<LayoutId, CatalogStatus>> =
   Object.freeze({
     "banner-marca": "current",
     "combo-kit": "current",
+    "historia-apertura-cartel": "current",
+    "historia-apertura-horario": "current",
+    "historia-apertura-locales": "current",
     "carrusel-bienvenida-datos": "retired",
     "carrusel-bienvenida-locales": "retired",
     "carrusel-bienvenida-portada": "retired",

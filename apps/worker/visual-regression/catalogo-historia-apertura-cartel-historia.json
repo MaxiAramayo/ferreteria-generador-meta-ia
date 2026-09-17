@@ -1,10 +1,10 @@
 {
-  "id": "catalogo-historia-surtido-real-historia",
+  "id": "catalogo-historia-apertura-cartel-historia",
   "format": "historia",
   "fonts": [
     "Archivo 400 normal",
-    "Archivo 500 normal",
     "Archivo 600 normal",
+    "Archivo 700 normal",
     "Archivo 800 normal",
     "Saira Condensed 800 normal",
     "Saira Condensed 900 normal"
@@ -27,21 +27,16 @@
     "          @164,314 168×11 span «Frías, Santiago del Estero» 1 línea · font-size 11px · font-weight 600 · line-height 11px · text-transform uppercase · opacity 0.7",
     "      @783,251 225×73 div · background-color rgb(230, 59, 30) · border-radius 16px",
     "        @819,251 153×72 span[data-locality-label] «EN FRÍAS» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 46px · font-weight 900 · letter-spacing 0.4px · line-height 41.4px · text-transform uppercase",
-    "    @72,354 936×50 div",
-    "      @72,354 361×50 span «Producto destacado» 1 línea · color rgb(230, 59, 30) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 255, 255) · border-radius 9999px",
-    "    @72,432 936×560 div · overflow-x hidden · overflow-y hidden · border-radius 28px",
-    "      @72,432 936×560 img imagen assets/stock-herramientas-electricas.jpg 1400×2100 · object-fit cover · overflow-x clip · overflow-y clip",
-    "    @72,1020 936×159 div",
-    "      @72,1020 900×61 h1 «Taladro percutor 650 W» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
-    "      @72,1097 850×82 p «Consultá modelos disponibles, accesorios y mechas para cada trabajo.» 2 líneas · color rgba(255, 255, 255, 0.76) · font-size 31px · font-weight 500 · line-height 40.92px",
-    "    @72,1454 936×117 div",
-    "      @72,1482 226×89 div[data-price][data-role=precio]",
-    "        @72,1482 226×61 div «$ 24.500» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 68px · font-weight 800 · line-height 61.2px · text-transform uppercase",
-    "        @72,1547 226×24 div «Válido hasta el sábado» 1 línea · color rgba(255, 255, 255, 0.76) · font-size 22px · font-weight 600",
-    "      @773,1511 235×60 div[data-cta][data-role=cta] «Consultá stock» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · line-height 28px · text-align center · text-transform uppercase · background-color rgb(246, 241, 234) · border-radius 9999px",
-    "    @72,1591 936×29 div",
-    "      @72,1591 936×29 div · color rgba(255, 255, 255, 0.76) · font-size 26px · font-weight 600 · z-index 10",
-    "        @72,1591 266×29 span «República de Siria 365» 1 línea · line-height 28.6px",
-    "        @853,1592 155×28 span «3854 403534» 1 línea"
+    "    @72,711 936×572 div",
+    "      @72,711 361×50 span «Producto destacado» 1 línea · color rgb(230, 59, 30) · font-size 24px · font-weight 800 · text-transform uppercase · background-color rgb(255, 255, 255) · border-radius 9999px",
+    "      @72,797 820×360 h1 «Taladro percutor 650 W» 3 líneas · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 150px · font-weight 900 · line-height 120px · text-transform uppercase",
+    "      @72,1158 915×86 span «Consultá modelos disponibles, accesorios y mechas para cada trabajo.» 2 líneas · color rgba(255, 255, 255, 0.76) · font-size 38px · font-weight 600 · line-height 44.84px",
+    "    @72,1282 936×338 div[data-panel] · background-color rgba(246, 241, 234, 0.9) · border 1px solid rgba(255, 255, 255, 0.22) · border-radius 28px",
+    "      @109,1319 862×138 div[data-opening-details]",
+    "        @109,1319 862×35 div «Taladro percutor» 1 línea · font-size 32px · font-weight 700 · line-height 35.2px · border 0 / 0 / 0 / 8px solid rgb(28, 26, 25)",
+    "        @109,1371 862×35 div «Juego de mechas» 1 línea · font-size 32px · font-weight 700 · line-height 35.2px · border 0 / 0 / 0 / 8px solid rgb(28, 26, 25)",
+    "        @109,1422 862×35 div «Maletín de transporte» 1 línea · font-size 32px · font-weight 700 · line-height 35.2px · border 0 / 0 / 0 / 8px solid rgb(28, 26, 25)",
+    "      @109,1485 862×98 div",
+    "        @109,1485 353×98 div[data-cta][data-role=cta] «Consultá stock» 1 línea · color rgb(28, 26, 25) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 42px · font-weight 800 · line-height 42px · text-align center · text-transform uppercase · background-color rgb(246, 241, 234) · border-radius 9999px"
   ]
 }

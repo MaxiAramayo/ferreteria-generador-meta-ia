@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-15
+Actualizado: 2026-09-17
 
 ## Fase activa
 
@@ -172,6 +172,15 @@ ellas. La regla y su materialización admiten sucursal nula desde la migración
 `20260916000000_recurring_story_every_location`.
 
 ## Próxima tarea
+
+`P5-T09` — publicar una pieza real de Instagram con una conexión Meta sana,
+snapshot aprobado, cuenta y horario confirmados por el usuario. `P6-T10` quedó
+completa el 2026-09-17: la rutina de apertura de lunes a sábado ya tiene tres
+diseños deterministas de marca, editor versionado y recorrido claro hasta la
+publicación. No autoriza una
+publicación remota sin snapshot, cuenta, destino y horario confirmados. El E2E
+actual confirma que activar una regla por sí solo no publica; la publicación
+sigue después de materializar, renderizar, aprobar y programar.
 
 `P6-T09` — validar programación de punta a punta. **La mitad ejecutable se hizo
 el 2026-09-16**: `pnpm e2e:dispatch` hace competir despachadores reales sobre las

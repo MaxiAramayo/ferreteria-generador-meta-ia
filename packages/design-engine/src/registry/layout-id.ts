@@ -37,6 +37,9 @@ export type CarouselLayoutId =
   | "carrusel-lubricentro-turno";
 
 export type StoryLayoutId =
+  | "historia-apertura-cartel"
+  | "historia-apertura-horario"
+  | "historia-apertura-locales"
   | "historia-ficha-variantes"
   | "historia-guia-aplicacion"
   | "historia-producto-precio"

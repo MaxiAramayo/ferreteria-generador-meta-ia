@@ -960,9 +960,93 @@ y condiciones de carrera, antes de considerar el sistema automatizado.
   identificadores— y el bloqueo por cambio material. La mitad de concurrencia
   está cubierta por [`e2e-dispatch`](../../tools/e2e-dispatch/cli.ts), en CI.
 
+## P6-T10 — Historias de apertura con identidad y rotación visual
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P6-T04`, `P6-T05`
+- Riesgo: Alto
+
+### Objetivo
+
+Permitir configurar, revisar y publicar historias recurrentes de apertura de
+Ferretería Aramayo sin repetir una composición genérica ni perder el control
+humano sobre una salida a Instagram.
+
+### Entregables
+
+- Tres diseños deterministas de apertura, compatibles con horario, sucursal y
+  CTA, con firma visual Aramayo.
+- Identidad de marca centralizada para que el logo, el nombre y la localidad
+  salgan del contexto de marca, no de textos copiados por cada layout.
+- Rotación de diseño por día de la regla, editable con control de versión.
+- Editor de reglas existentes que aplica cambios sólo a borradores futuros.
+- Recorrido claro desde la regla hasta la aprobación, programación y
+  confirmación de publicación de Instagram.
+
+### Criterios de aceptación
+
+- [x] Una historia de apertura lleva logo e identidad de Ferretería Aramayo en
+      una zona segura y legible.
+- [x] La localidad se deriva de la sucursal o alcance real; no se escribe
+      «Frías» como dato fijo.
+- [x] La regla admite una rotación explícita entre tres diseños de apertura,
+      sin ofrecer layouts retirados o incompatibles.
+- [x] Editar la regla usa compare-and-swap, deja auditoría y no cambia piezas
+      aprobadas, programadas ni publicadas.
+- [x] La pantalla explica que activar no publica y muestra el paso que falta
+      para publicar en Instagram.
+- [x] De lunes a sábado, una regla con rutina automática crea la historia,
+      conserva las validaciones factuales y programa solamente la ocurrencia
+      aprobada.
+
+### Verificación obligatoria
+
+- [x] Pruebas de dominio de selección semanal, cambio de versión e
+      inmutabilidad de materializaciones existentes.
+- [x] Integración PostgreSQL de edición, auditoría y aislamiento por
+      organización.
+- [x] E2E regla → borrador rotado → render → aprobación → programación, con
+      Chrome real y doble de Meta.
+- [x] Regresión visual de las tres historias en el camino real de render.
+- [x] `pnpm verify:plan`, pruebas afectadas y revisión visual a tamaño story.
+
+### Fuera de alcance
+
+- Publicar una pieza real sin confirmar el snapshot, cuenta, destino y horario
+  concretos.
+- Usar imágenes generadas o no aprobadas como fondo de una historia de apertura.
+
+### Notas de progreso
+
+- Fecha: 2026-09-17.
+- Estado real: completada. Activar una regla no crea ni publica una pieza;
+  materializar, renderizar y aprobar sí producen la programación de una
+  ocurrencia. La salida remota queda sujeta a la conexión Meta, al snapshot
+  aprobado y a la autorización operativa.
+- Decisión visual: las tres variantes serán deterministas y se alternarán de
+  forma explícita de lunes a sábado. Todas incorporan la firma de Ferretería
+  Aramayo; la ciudad se deriva del contexto factual. No se incorporan fotos ni
+  fondos inventados a esta rutina informativa.
+- Archivos previstos: catálogo, registro y layouts del motor; contrato y
+  dominio de reglas recurrentes; migración y repositorio Prisma; API de edición;
+  cliente y compositor web; E2E y regresión visual; `ADR-030`.
+- Verificaciones ejecutadas: `pnpm test`, `pnpm db:test`, `pnpm lint`, `pnpm
+  typecheck`, `pnpm smoke`, `pnpm e2e:recurring-story`,
+  `pnpm visual:regression` y `pnpm verify:plan`, en verde, 2026-09-17.
+- Implementación actual: tres marcos deterministas (`cartel`, `horario` y
+  `locales`), rotación semanal explícita y edición con CAS, idempotencia y
+  auditoría. El render toma logo, nombre y localidad del contexto de marca;
+  esta rutina no incorpora imagen generativa.
+
+### Evidencia de cierre
+
+- Sin commit todavía. La regresión visual incorpora las tres líneas base de
+  apertura y actualiza el contexto visible de localidad de los marcos vigentes.
+
 ## Criterios de salida de Fase 6
 
-- [ ] `P6-T01` a `P6-T09` están completas.
+- [ ] `P6-T01` a `P6-T10` están completas.
 - [ ] Programaciones sobreviven reinicios sin pérdidas ni duplicados.
 - [ ] Historias recurrentes respetan horario, ubicación y excepciones.
 - [ ] Validación previa bloquea contenido inválido o vencido.

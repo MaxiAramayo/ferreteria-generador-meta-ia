@@ -2,8 +2,10 @@ import type {
   CreateRecurringStoryRuleResponse,
   RecurringStoryRuleResponse,
   RecurringStoryWorkspaceResponse,
+  UpdateRecurringStoryDesignRotationResponse,
 } from "@aramayo/contracts";
 import {
+  defaultRecurringStoryDesignRotation,
   authorizeActor,
   singleOccurrenceRule,
   type AuthenticatedActor,
@@ -26,10 +28,12 @@ import {
   RECURRING_STORY_RULE_REPOSITORY,
 } from "../database/database.tokens.ts";
 import type { CreateRecurringStoryRuleDto } from "./dto/create-recurring-story-rule.dto.ts";
+import type { UpdateRecurringStoryDesignRotationDto } from "./dto/update-recurring-story-design-rotation.dto.ts";
 
 function response(rule: RecurringStoryRuleRecord): RecurringStoryRuleResponse {
   return Object.freeze({
     approvalPolicy: rule.approvalPolicy,
+    designRotation: rule.designRotation,
     effectiveFrom: rule.effectiveFrom,
     id: rule.id,
     leadTimeMinutes: rule.leadTimeMinutes,
@@ -141,6 +145,8 @@ export class RecurringStoryService {
     const result = await this.#rules.create({
       actor,
       approvalPolicy: input.approvalPolicy,
+      designRotation:
+        input.designRotation ?? defaultRecurringStoryDesignRotation,
       effectiveFrom: anchor.effectiveFrom,
       idempotencyKey: normalizedKey,
       leadTimeMinutes: input.leadTimeMinutes,
@@ -163,5 +169,40 @@ export class RecurringStoryService {
       case "location-not-found":
         throw new NotFoundException("No se encontró la sucursal.");
     }
+  }
+
+  async updateDesignRotation(
+    actor: AuthenticatedActor,
+    ruleId: string,
+    input: UpdateRecurringStoryDesignRotationDto,
+    idempotencyKey?: string,
+  ): Promise<UpdateRecurringStoryDesignRotationResponse> {
+    const normalizedKey = idempotencyKey?.trim();
+    if (
+      normalizedKey === undefined ||
+      normalizedKey.length < 8 ||
+      normalizedKey.length > 128
+    ) {
+      throw new BadRequestException(
+        "El encabezado Idempotency-Key es obligatorio y debe ser válido.",
+      );
+    }
+    const result = await this.#rules.updateDesignRotation({
+      actor,
+      designRotation: input.designRotation,
+      expectedVersion: input.expectedVersion,
+      idempotencyKey: normalizedKey,
+      occurredAt: new Date().toISOString(),
+      ruleId,
+    });
+    if (result.status === "not-found") {
+      throw new NotFoundException("No se encontró la regla recurrente.");
+    }
+    if (result.status === "version-conflict") {
+      throw new ConflictException(
+        "La regla cambió. Recargá antes de guardar los diseños.",
+      );
+    }
+    return Object.freeze({ rule: response(result.rule), status: "updated" });
   }
 }

@@ -7,6 +7,9 @@ import {
   recurringStorySourceToJson,
 } from "./pre-publish-validation.ts";
 import {
+  assertRecurringStoryDesignRotation,
+  defaultRecurringStoryDesignRotation,
+  openingStoryLayoutFor,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type RecurringStoryLocationSource,
@@ -34,6 +37,43 @@ const occurrence = {
   resolution: "exact" as const,
   scheduledAt: "2026-09-08T11:00:00.000Z",
 };
+
+test("la apertura rota por fecha civil de lunes a domingo", () => {
+  assert.equal(
+    openingStoryLayoutFor(
+      "2026-09-14T08:30",
+      defaultRecurringStoryDesignRotation,
+    ),
+    "historia-apertura-cartel",
+  );
+  assert.equal(
+    openingStoryLayoutFor(
+      "2026-09-15T08:30",
+      defaultRecurringStoryDesignRotation,
+    ),
+    "historia-apertura-horario",
+  );
+  assert.equal(
+    openingStoryLayoutFor(
+      "2026-09-16T08:30",
+      defaultRecurringStoryDesignRotation,
+    ),
+    "historia-apertura-locales",
+  );
+  assert.equal(
+    openingStoryLayoutFor(
+      "2026-09-20T08:30",
+      defaultRecurringStoryDesignRotation,
+    ),
+    "historia-apertura-cartel",
+  );
+});
+
+test("la rotación exige siete diseños válidos", () => {
+  assert.throws(() => {
+    assertRecurringStoryDesignRotation(["cartel", "horario"]);
+  }, RangeError);
+});
 
 test("materializa una historia normal citando la versión de sucursal", () => {
   const result = resolveRecurringStoryDraft({

@@ -2,14 +2,19 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   planOccurrences,
+  assertRecurringStoryDesignRotation,
+  defaultRecurringStoryDesignRotation,
+  openingStoryLayoutFor,
   recurringStorySourceToJson,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type CreateRecurringStoryRuleCommand,
+  type AuthenticatedActor,
   type CreateRecurringStoryRuleResult,
   type PublicationWeekday,
   type RecurringStoryApprovalPolicy,
   type RecurringStoryDayOverride,
+  type RecurringStoryDesignVariant,
   type RecurringStoryDraftResolution,
   type RecurringStoryLocationSource,
   type RecurringStoryMaterializationRepository,
@@ -28,6 +33,9 @@ function requestHash(command: CreateRecurringStoryRuleCommand): string {
   return sha256(
     JSON.stringify({
       approvalPolicy: command.approvalPolicy,
+      designRotation: [
+        ...(command.designRotation ?? defaultRecurringStoryDesignRotation),
+      ],
       effectiveFrom: command.effectiveFrom,
       leadTimeMinutes: command.leadTimeMinutes,
       localTime: command.localTime,
@@ -59,6 +67,7 @@ function mapRule(
   row: Readonly<{
     approvalPolicy: "automatic_routine" | "human_each_cycle";
     createdByMembershipId: string;
+    designRotation: readonly RecurringStoryDesignVariant[];
     effectiveFrom: Date;
     id: string;
     leadTimeMinutes: number;
@@ -75,6 +84,7 @@ function mapRule(
   return Object.freeze({
     approvalPolicy: approvalPolicyFromDatabase(row.approvalPolicy),
     createdByMembershipId: row.createdByMembershipId,
+    designRotation: Object.freeze([...row.designRotation]),
     effectiveFrom: row.effectiveFrom.toISOString(),
     id: row.id,
     leadTimeMinutes: row.leadTimeMinutes,
@@ -204,6 +214,9 @@ export class PrismaRecurringStoryRepository
     command: CreateRecurringStoryRuleCommand &
       Readonly<{ idempotencyKey: string; occurredAt: string }>,
   ): Promise<CreateRecurringStoryRuleResult> {
+    const designRotation =
+      command.designRotation ?? defaultRecurringStoryDesignRotation;
+    assertRecurringStoryDesignRotation(designRotation);
     const hash = requestHash(command);
     return this.#database.$transaction(async (transaction) => {
       const existing = await transaction.recurringStoryRule.findUnique({
@@ -241,6 +254,7 @@ export class PrismaRecurringStoryRepository
         data: {
           approvalPolicy: approvalPolicyToDatabase(command.approvalPolicy),
           createdByMembershipId: command.actor.membershipId,
+          designRotation: [...designRotation],
           effectiveFrom: new Date(command.effectiveFrom),
           idempotencyKey: command.idempotencyKey,
           leadTimeMinutes: command.leadTimeMinutes,
@@ -261,6 +275,7 @@ export class PrismaRecurringStoryRepository
           id: randomUUID(),
           metadata: {
             approvalPolicy: command.approvalPolicy,
+            designRotation: [...designRotation],
             leadTimeMinutes: command.leadTimeMinutes,
             locationId: command.locationId,
             weekdays: [...command.weekdays],
@@ -284,6 +299,79 @@ export class PrismaRecurringStoryRepository
       where: { organizationId },
     });
     return Object.freeze(rows.map(mapRule));
+  }
+
+  async updateDesignRotation(
+    command: Readonly<{
+      actor: AuthenticatedActor;
+      designRotation: readonly RecurringStoryDesignVariant[];
+      expectedVersion: number;
+      idempotencyKey: string;
+      occurredAt: string;
+      ruleId: string;
+    }>,
+  ): Promise<
+    | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
+    | Readonly<{ status: "not-found" }>
+    | Readonly<{ status: "version-conflict" }>
+  > {
+    assertRecurringStoryDesignRotation(command.designRotation);
+    const hash = sha256(
+      JSON.stringify({
+        designRotation: [...command.designRotation],
+        expectedVersion: command.expectedVersion,
+        organizationId: command.actor.organizationId,
+        ruleId: command.ruleId,
+      }),
+    );
+    return this.#database.$transaction(async (transaction) => {
+      const existing = await transaction.recurringStoryRule.findUnique({
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      if (existing === null) return Object.freeze({ status: "not-found" });
+      if (
+        existing.lastDesignRotationIdempotencyKey === command.idempotencyKey &&
+        existing.lastDesignRotationRequestHash === hash
+      ) {
+        return Object.freeze({ rule: mapRule(existing), status: "updated" });
+      }
+      if (existing.version !== command.expectedVersion) {
+        return Object.freeze({ status: "version-conflict" });
+      }
+      const rule = await transaction.recurringStoryRule.update({
+        data: {
+          designRotation: [...command.designRotation],
+          lastDesignRotationIdempotencyKey: command.idempotencyKey,
+          lastDesignRotationRequestHash: hash,
+          version: { increment: 1 },
+        },
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          actorMembershipId: command.actor.membershipId,
+          entityId: rule.id,
+          entityType: "recurring_story_rule",
+          id: randomUUID(),
+          metadata: { designRotation: [...command.designRotation] },
+          occurredAt: new Date(command.occurredAt),
+          operation: "scheduling.recurring-story:design-rotation:update",
+          organizationId: command.actor.organizationId,
+          outcome: "success",
+        },
+      });
+      return Object.freeze({ rule: mapRule(rule), status: "updated" });
+    });
   }
 
   async materializeDue(
@@ -512,7 +600,10 @@ export class PrismaRecurringStoryRepository
         const designDocument = {
           content: resolution.designContent,
           format: "historia",
-          layout: "historia-tip",
+          layout: openingStoryLayoutFor(
+            occurrence.occurrenceKey,
+            rule.designRotation,
+          ),
           media: [],
           schemaVersion: 1,
           slug: `story-${rule.id.slice(0, 8)}-${localDate.replaceAll("-", "")}`,

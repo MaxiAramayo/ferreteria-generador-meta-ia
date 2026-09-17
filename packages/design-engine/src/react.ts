@@ -80,6 +80,11 @@ export {
   HistoriaSurtidoReal,
 } from "./layouts/commercial-stories.tsx";
 export {
+  HistoriaAperturaCartel,
+  HistoriaAperturaHorario,
+  HistoriaAperturaLocales,
+} from "./layouts/opening-stories.tsx";
+export {
   footerBranch,
   mediaAt,
   type LayoutBrandProfile,
