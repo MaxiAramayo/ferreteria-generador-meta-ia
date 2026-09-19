@@ -598,7 +598,11 @@ async function completeDraftMutation(
   }
 }
 
-function prismaJson(value: unknown, path = "document"): Prisma.InputJsonValue {
+/** Convierte un documento a JSON de Prisma validando cada valor, sin afirmar. */
+export function prismaJson(
+  value: unknown,
+  path = "document",
+): Prisma.InputJsonValue {
   switch (typeof value) {
     case "boolean":
     case "string":

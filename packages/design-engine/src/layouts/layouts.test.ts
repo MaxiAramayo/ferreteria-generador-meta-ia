@@ -167,6 +167,10 @@ test("cada layout migrado compone dentro de las dimensiones de su formato", () =
       html.includes(`height:${String(format.height)}px`),
       `${layout} no usa el alto de su formato.`,
     );
+    // La imagen propia se publica tal cual: no compone texto.
+    if (layout === "historia-apertura-imagen") {
+      continue;
+    }
     assert.ok(
       html.includes("Piso de taller"),
       `${layout} no compone el título recibido.`,
@@ -175,6 +179,12 @@ test("cada layout migrado compone dentro de las dimensiones de su formato", () =
 });
 
 test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitrarias", () => {
+  const openingLayouts = new Set<LayoutId>([
+    "historia-apertura-cartel",
+    "historia-apertura-horario",
+    "historia-apertura-imagen",
+    "historia-apertura-locales",
+  ]);
   for (const layout of migratedLayouts) {
     const html = markupFor(layout);
 
@@ -187,8 +197,148 @@ test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitraria
     }
 
     assert.ok(
-      !html.includes("background-image"),
+      openingLayouts.has(layout) || !html.includes("background-image"),
       `${layout} usa una imagen de fondo en lugar de componer con primitivas.`,
+    );
+    if (openingLayouts.has(layout)) {
+      assert.ok(
+        !html.includes("url("),
+        `${layout} no puede cargar un fondo externo: su trama debe ser determinista.`,
+      );
+    }
+  }
+});
+
+function openingDocument(
+  layout: LayoutId,
+  overrides: Record<string, unknown> = {},
+): DesignDocument {
+  return documentFor(layout, {
+    content: {
+      badge: "Abierto hoy",
+      callToAction: "Escribinos",
+      greeting: "Buen día, Frías",
+      items: [
+        "Casa Central · República de Siria 365",
+        "Sucursal · Rivadavia 673",
+      ],
+      subtitle: "Nuestros dos locales ya están atendiendo.",
+      title: "¡Ya abrimos!",
+      validity: "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
+    },
+    theme: "promo",
+    ...overrides,
+  });
+}
+
+function openingMarkup(document: DesignDocument): string {
+  return renderToStaticMarkup(
+    createElement(DesignPiece, { context, document }),
+  );
+}
+
+const openingCompositions: readonly LayoutId[] = [
+  "historia-apertura-cartel",
+  "historia-apertura-horario",
+  "historia-apertura-locales",
+];
+
+test("cada apertura compone marca, saludo, estado, datos y contacto", () => {
+  for (const layout of openingCompositions) {
+    const html = openingMarkup(openingDocument(layout));
+
+    assert.match(html, /data-logo=""/u, `${layout} no lleva la marca.`);
+    assert.ok(html.includes("Buen día, Frías"), `${layout} sin saludo.`);
+    assert.ok(html.includes("Abierto hoy"), `${layout} sin estado.`);
+    assert.ok(html.includes("¡Ya abrimos!"), `${layout} sin titular.`);
+    assert.ok(
+      html.includes("República de Siria 365") && html.includes("Rivadavia 673"),
+      `${layout} no muestra las sucursales.`,
+    );
+    assert.ok(
+      html.includes("08:30 a 13:00 / 16:30 a 20:30"),
+      `${layout} no muestra el horario.`,
+    );
+    assert.ok(
+      html.includes("Escribinos") && html.includes(context.brand.phone),
+      `${layout} no muestra el contacto.`,
+    );
+    // La foto viene del documento, nunca de una ruta propia del layout.
+    assert.ok(
+      html.includes(
+        'src="https://panel.example/media/stock-herramientas-electricas.jpg"',
+      ),
+      `${layout} no compone la foto del documento.`,
+    );
+  }
+});
+
+test("una apertura sin saludo ancla la localidad del perfil", () => {
+  const document = openingDocument("historia-apertura-cartel");
+  const { greeting, ...withoutGreeting } = document.content;
+  assert.equal(greeting, "Buen día, Frías");
+  const html = openingMarkup({ ...document, content: withoutGreeting });
+
+  assert.ok(html.includes("En Frías"));
+});
+
+test("una apertura sin foto muestra la marca en lugar de inventar una", () => {
+  for (const layout of openingCompositions) {
+    const html = openingMarkup(openingDocument(layout, { media: [] }));
+
+    assert.match(html, /data-photo-fallback=""/u, layout);
+    assert.ok(!html.includes("<img"), `${layout} dibujó una imagen.`);
+  }
+});
+
+test("el acento verde pinta la etiqueta y el botón, no el resto", () => {
+  const brand = openingMarkup(openingDocument("historia-apertura-cartel"));
+  const green = openingMarkup(
+    openingDocument("historia-apertura-cartel", {
+      content: {
+        ...openingDocument("historia-apertura-cartel").content,
+        accent: "verde",
+      },
+    }),
+  );
+  const verde = "background-color:#1e7d3f";
+
+  assert.ok(!brand.includes(verde));
+  assert.equal(green.split(verde).length - 1, 2);
+});
+
+test("la imagen propia ocupa el lienzo y no le agrega texto", () => {
+  const html = openingMarkup(
+    openingDocument("historia-apertura-imagen", {
+      content: { title: "¡Ya abrimos!" },
+    }),
+  );
+
+  assert.match(html, /data-opening-own-image=""/u);
+  assert.match(html, /<img/u);
+  assert.ok(!html.includes("¡Ya abrimos!"));
+  assert.ok(!html.includes("data-logo"));
+  assert.ok(!html.includes("data-cta"));
+});
+
+test("un saludo o un horario que no entran se rechazan con su ruta", () => {
+  const base = openingDocument("historia-apertura-cartel");
+
+  for (const [field, budget] of [
+    ["greeting", TEXT_BUDGET.greeting],
+    ["validity", TEXT_BUDGET.validity],
+  ] as const) {
+    const document = {
+      ...base,
+      content: { ...base.content, [field]: "a".repeat(budget + 1) },
+    };
+
+    assert.throws(
+      () => openingMarkup(document),
+      (error: unknown) =>
+        error instanceof DesignEngineError &&
+        error.failure.stage === "content" &&
+        error.failure.issues.some(({ path }) => path === `content.${field}`),
     );
   }
 });

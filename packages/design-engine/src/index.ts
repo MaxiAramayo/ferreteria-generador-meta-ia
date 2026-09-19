@@ -69,6 +69,11 @@ export {
   isPublishable,
   type CatalogStatus,
 } from "./registry/catalog.ts";
+export {
+  ACCENT_NAMES,
+  isAccentName,
+  type AccentName,
+} from "./registry/accents.ts";
 export { ICON_NAMES, isIconName, type IconName } from "./registry/icons.ts";
 export type {
   BannerLayoutId,
@@ -115,10 +120,6 @@ export {
   supportsFormat,
 } from "./registry/layouts.ts";
 export { BRAND_ASSETS, type BrandAsset } from "./assets/asset-library.ts";
-export {
-  assetFileUrl,
-  designEngineAssetsUrl,
-} from "./assets/asset-location.ts";
 export {
   describeReference,
   findBrandAsset,
@@ -187,6 +188,7 @@ export {
   type DesignIssueCode,
 } from "./validation/issues.ts";
 export {
+  isInlineImageDataUrl,
   parseDesignDocument,
   type DesignDocumentParseResult,
 } from "./validation/parse-document.ts";

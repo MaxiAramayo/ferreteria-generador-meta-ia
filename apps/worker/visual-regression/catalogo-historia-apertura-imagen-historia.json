@@ -1,0 +1,11 @@
+{
+  "id": "catalogo-historia-apertura-imagen-historia",
+  "format": "historia",
+  "fonts": [],
+  "nodes": [
+    "@0,0 1080×1920 div[data-card][data-format=historia][data-safe-area={\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}][data-theme=promo] · color rgb(255, 255, 255) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(230, 59, 30) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1920 div[data-opening-own-image]",
+    "    @0,0 1080×1920 div[class=opening-photo] · overflow-x hidden · overflow-y hidden",
+    "      @0,0 1080×1920 img imagen assets/stock-herramientas-electricas.jpg 1400×2100 · object-fit cover · overflow-x clip · overflow-y clip"
+  ]
+}

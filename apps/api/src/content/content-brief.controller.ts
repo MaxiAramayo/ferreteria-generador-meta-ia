@@ -22,6 +22,7 @@ import {
   CurrentSession,
   RequirePermission,
 } from "../identity/identity.decorators.ts";
+import { draftDesignSubmission } from "./draft-design-submission.ts";
 import { ContentBriefService } from "./content-brief.service.ts";
 import {
   AcceptContentBriefDto,
@@ -101,7 +102,7 @@ export class ContentBriefController {
     return this.#service.accept(
       session.actor,
       runId,
-      body.design,
+      draftDesignSubmission(body.design),
       idempotencyKey,
     );
   }

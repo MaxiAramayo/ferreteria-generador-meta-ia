@@ -39,6 +39,7 @@ export type CarouselLayoutId =
 export type StoryLayoutId =
   | "historia-apertura-cartel"
   | "historia-apertura-horario"
+  | "historia-apertura-imagen"
   | "historia-apertura-locales"
   | "historia-ficha-variantes"
   | "historia-guia-aplicacion"

@@ -1,10 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import {
+  openingStoryDesignDocument,
   planOccurrences,
-  assertRecurringStoryDesignRotation,
-  defaultRecurringStoryDesignRotation,
-  openingStoryLayoutFor,
   recurringStorySourceToJson,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
@@ -12,36 +10,65 @@ import {
   type AuthenticatedActor,
   type CreateRecurringStoryRuleResult,
   type PublicationWeekday,
+  type RecurringStoryAccent,
   type RecurringStoryApprovalPolicy,
   type RecurringStoryDayOverride,
   type RecurringStoryDesignVariant,
   type RecurringStoryDraftResolution,
   type RecurringStoryLocationSource,
   type RecurringStoryMaterializationRepository,
+  type RecurringStoryPhoto,
   type RecurringStoryRuleRecord,
   type RecurringStoryRuleRepository,
+  type RecurringStoryTheme,
 } from "@aramayo/domain";
 
 import type { DatabaseClient } from "./client.ts";
 import { Prisma } from "./generated/prisma/client.ts";
+import { prismaJson } from "./publication-draft-repository.ts";
 
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Huella de la foto para las comparaciones idempotentes: el pedido se compara
+ * sin volver a serializar cientos de kilobytes en cada clave.
+ */
+function photoFingerprint(photo: RecurringStoryPhoto | null): string | null {
+  return photo === null
+    ? null
+    : sha256(JSON.stringify([photo.alt, photo.dataUrl, photo.focusY]));
+}
+
+function photoColumns(photo: RecurringStoryPhoto | null): Readonly<{
+  photoAlt: string | null;
+  photoDataUrl: string | null;
+  photoFocusY: number | null;
+}> {
+  return photo === null
+    ? { photoAlt: null, photoDataUrl: null, photoFocusY: null }
+    : {
+        photoAlt: photo.alt,
+        photoDataUrl: photo.dataUrl,
+        photoFocusY: photo.focusY,
+      };
+}
+
 function requestHash(command: CreateRecurringStoryRuleCommand): string {
   return sha256(
     JSON.stringify({
+      accent: command.accent ?? "marca",
       approvalPolicy: command.approvalPolicy,
-      designRotation: [
-        ...(command.designRotation ?? defaultRecurringStoryDesignRotation),
-      ],
+      designVariant: command.designVariant ?? "cartel",
       effectiveFrom: command.effectiveFrom,
       leadTimeMinutes: command.leadTimeMinutes,
       localTime: command.localTime,
       locationId: command.locationId,
       name: command.name,
       organizationId: command.actor.organizationId,
+      photo: photoFingerprint(command.photo ?? null),
+      theme: command.theme ?? "taller",
       weekdays: [...command.weekdays].sort((left, right) => left - right),
     }),
   );
@@ -63,11 +90,31 @@ function approvalPolicyFromDatabase(
     : "human-each-cycle";
 }
 
+function mapPhoto(
+  row: Readonly<{
+    photoAlt: string | null;
+    photoDataUrl: string | null;
+    photoFocusY: number | null;
+  }>,
+): RecurringStoryPhoto | null {
+  // El CHECK de la tabla guarda la foto entera o nada.
+  return row.photoDataUrl === null ||
+    row.photoAlt === null ||
+    row.photoFocusY === null
+    ? null
+    : Object.freeze({
+        alt: row.photoAlt,
+        dataUrl: row.photoDataUrl,
+        focusY: row.photoFocusY,
+      });
+}
+
 function mapRule(
   row: Readonly<{
+    accent: RecurringStoryAccent;
     approvalPolicy: "automatic_routine" | "human_each_cycle";
     createdByMembershipId: string;
-    designRotation: readonly RecurringStoryDesignVariant[];
+    designVariant: RecurringStoryDesignVariant;
     effectiveFrom: Date;
     id: string;
     leadTimeMinutes: number;
@@ -75,16 +122,21 @@ function mapRule(
     locationId: string | null;
     name: string;
     organizationId: string;
+    photoAlt: string | null;
+    photoDataUrl: string | null;
+    photoFocusY: number | null;
     status: "active" | "cancelled" | "paused";
+    theme: RecurringStoryTheme;
     timeZone: string;
     version: number;
     weekdays: readonly number[];
   }>,
 ): RecurringStoryRuleRecord {
   return Object.freeze({
+    accent: row.accent,
     approvalPolicy: approvalPolicyFromDatabase(row.approvalPolicy),
     createdByMembershipId: row.createdByMembershipId,
-    designRotation: Object.freeze([...row.designRotation]),
+    designVariant: row.designVariant,
     effectiveFrom: row.effectiveFrom.toISOString(),
     id: row.id,
     leadTimeMinutes: row.leadTimeMinutes,
@@ -92,7 +144,9 @@ function mapRule(
     locationId: row.locationId,
     name: row.name,
     organizationId: row.organizationId,
+    photo: mapPhoto(row),
     status: row.status,
+    theme: row.theme,
     timeZone: row.timeZone,
     version: row.version,
     weekdays: Object.freeze(row.weekdays as PublicationWeekday[]),
@@ -164,25 +218,6 @@ function dayOverrideSource(
       };
 }
 
-function themeOf(
-  profile: Prisma.JsonValue,
-): "claro" | "lubricentro" | "promo" | "taller" {
-  const theme =
-    typeof profile === "object" &&
-    profile !== null &&
-    !Array.isArray(profile) &&
-    (profile["themeId"] === "taller" ||
-      profile["themeId"] === "claro" ||
-      profile["themeId"] === "promo" ||
-      profile["themeId"] === "lubricentro")
-      ? profile["themeId"]
-      : undefined;
-  if (theme === undefined) {
-    throw new Error("La marca no tiene un tema visual vigente.");
-  }
-  return theme;
-}
-
 /**
  * Reglas que puede recorrer una pasada.
  *
@@ -214,9 +249,10 @@ export class PrismaRecurringStoryRepository
     command: CreateRecurringStoryRuleCommand &
       Readonly<{ idempotencyKey: string; occurredAt: string }>,
   ): Promise<CreateRecurringStoryRuleResult> {
-    const designRotation =
-      command.designRotation ?? defaultRecurringStoryDesignRotation;
-    assertRecurringStoryDesignRotation(designRotation);
+    const accent = command.accent ?? "marca";
+    const designVariant = command.designVariant ?? "cartel";
+    const photo = command.photo ?? null;
+    const theme = command.theme ?? "taller";
     const hash = requestHash(command);
     return this.#database.$transaction(async (transaction) => {
       const existing = await transaction.recurringStoryRule.findUnique({
@@ -252,9 +288,12 @@ export class PrismaRecurringStoryRepository
       }
       const rule = await transaction.recurringStoryRule.create({
         data: {
+          accent,
           approvalPolicy: approvalPolicyToDatabase(command.approvalPolicy),
           createdByMembershipId: command.actor.membershipId,
-          designRotation: [...designRotation],
+          designRotation: Array.from({ length: 7 }, () => designVariant),
+          designVariant,
+          ...photoColumns(photo),
           effectiveFrom: new Date(command.effectiveFrom),
           idempotencyKey: command.idempotencyKey,
           leadTimeMinutes: command.leadTimeMinutes,
@@ -263,6 +302,7 @@ export class PrismaRecurringStoryRepository
           name: command.name,
           organizationId: command.actor.organizationId,
           requestHash: hash,
+          theme,
           timeZone: location.timeZone,
           weekdays: [...command.weekdays],
         },
@@ -273,11 +313,15 @@ export class PrismaRecurringStoryRepository
           entityId: rule.id,
           entityType: "recurring_story_rule",
           id: randomUUID(),
+          // La auditoría nombra la foto por su huella, nunca por sus bytes.
           metadata: {
+            accent,
             approvalPolicy: command.approvalPolicy,
-            designRotation: [...designRotation],
+            designVariant,
             leadTimeMinutes: command.leadTimeMinutes,
             locationId: command.locationId,
+            photo: photoFingerprint(photo),
+            theme,
             weekdays: [...command.weekdays],
           },
           occurredAt: new Date(command.occurredAt),
@@ -301,27 +345,33 @@ export class PrismaRecurringStoryRepository
     return Object.freeze(rows.map(mapRule));
   }
 
-  async updateDesignRotation(
+  async updateVisualStyle(
     command: Readonly<{
+      accent: RecurringStoryAccent;
       actor: AuthenticatedActor;
-      designRotation: readonly RecurringStoryDesignVariant[];
+      designVariant: RecurringStoryDesignVariant;
       expectedVersion: number;
       idempotencyKey: string;
       occurredAt: string;
+      photo: RecurringStoryPhoto | null;
       ruleId: string;
+      theme: RecurringStoryTheme;
     }>,
   ): Promise<
     | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
     | Readonly<{ status: "not-found" }>
     | Readonly<{ status: "version-conflict" }>
   > {
-    assertRecurringStoryDesignRotation(command.designRotation);
+    const photo = photoFingerprint(command.photo);
     const hash = sha256(
       JSON.stringify({
-        designRotation: [...command.designRotation],
+        accent: command.accent,
+        designVariant: command.designVariant,
         expectedVersion: command.expectedVersion,
         organizationId: command.actor.organizationId,
+        photo,
         ruleId: command.ruleId,
+        theme: command.theme,
       }),
     );
     return this.#database.$transaction(async (transaction) => {
@@ -335,8 +385,8 @@ export class PrismaRecurringStoryRepository
       });
       if (existing === null) return Object.freeze({ status: "not-found" });
       if (
-        existing.lastDesignRotationIdempotencyKey === command.idempotencyKey &&
-        existing.lastDesignRotationRequestHash === hash
+        existing.lastVisualStyleIdempotencyKey === command.idempotencyKey &&
+        existing.lastVisualStyleRequestHash === hash
       ) {
         return Object.freeze({ rule: mapRule(existing), status: "updated" });
       }
@@ -345,9 +395,16 @@ export class PrismaRecurringStoryRepository
       }
       const rule = await transaction.recurringStoryRule.update({
         data: {
-          designRotation: [...command.designRotation],
-          lastDesignRotationIdempotencyKey: command.idempotencyKey,
-          lastDesignRotationRequestHash: hash,
+          accent: command.accent,
+          designRotation: Array.from(
+            { length: 7 },
+            () => command.designVariant,
+          ),
+          designVariant: command.designVariant,
+          lastVisualStyleIdempotencyKey: command.idempotencyKey,
+          lastVisualStyleRequestHash: hash,
+          ...photoColumns(command.photo),
+          theme: command.theme,
           version: { increment: 1 },
         },
         where: {
@@ -363,9 +420,14 @@ export class PrismaRecurringStoryRepository
           entityId: rule.id,
           entityType: "recurring_story_rule",
           id: randomUUID(),
-          metadata: { designRotation: [...command.designRotation] },
+          metadata: {
+            accent: command.accent,
+            designVariant: command.designVariant,
+            photo,
+            theme: command.theme,
+          },
           occurredAt: new Date(command.occurredAt),
-          operation: "scheduling.recurring-story:design-rotation:update",
+          operation: "scheduling.recurring-story:visual-style:update",
           organizationId: command.actor.organizationId,
           outcome: "success",
         },
@@ -389,6 +451,9 @@ export class PrismaRecurringStoryRepository
       include: {
         location: { include: { brand: { select: { profile: true } } } },
       },
+      // El barrido corre cada minuto: la foto se lee sólo al crear un
+      // borrador, no para descubrir que no hay nada nuevo.
+      omit: { photoAlt: true, photoDataUrl: true, photoFocusY: true },
       orderBy: [{ effectiveFrom: "asc" }, { id: "asc" }],
       take: ruleScanMaximum,
       where: {
@@ -464,9 +529,12 @@ export class PrismaRecurringStoryRepository
   }
 
   async #materialize(
-    rule: Awaited<
-      ReturnType<DatabaseClient["recurringStoryRule"]["findMany"]>
-    >[number] &
+    rule: Omit<
+      Awaited<
+        ReturnType<DatabaseClient["recurringStoryRule"]["findMany"]>
+      >[number],
+      "photoAlt" | "photoDataUrl" | "photoFocusY"
+    > &
       Readonly<{ location: LocationRow | null }>,
     occurrence: Readonly<{
       occurrenceKey: string;
@@ -493,9 +561,27 @@ export class PrismaRecurringStoryRepository
         const localDate = occurrence.occurrenceKey.slice(0, 10);
         const localDateValue = new Date(`${localDate}T00:00:00.000Z`);
         const policy = approvalPolicyFromDatabase(rule.approvalPolicy);
+        // El estilo se lee junto, dentro de la transacción: un cambio de
+        // estilo entre el barrido y este borrador no puede mezclar el diseño
+        // de antes con la foto de después.
+        const style = await transaction.recurringStoryRule.findUniqueOrThrow({
+          select: {
+            accent: true,
+            designVariant: true,
+            photoAlt: true,
+            photoDataUrl: true,
+            photoFocusY: true,
+            theme: true,
+          },
+          where: {
+            organizationId_id: {
+              id: rule.id,
+              organizationId: rule.organizationId,
+            },
+          },
+        });
 
         let resolution: RecurringStoryDraftResolution;
-        let theme: ReturnType<typeof themeOf>;
         let scopeName: string;
         let locationVersion: number | null;
         if (rule.location === null) {
@@ -516,6 +602,7 @@ export class PrismaRecurringStoryRepository
           );
           resolution = resolveEveryLocationStoryDraft({
             capturedAt,
+            designVariant: style.designVariant,
             locations: locations.map((location) => {
               const dayOverride = dayOverrideSource(
                 localDate,
@@ -529,12 +616,6 @@ export class PrismaRecurringStoryRepository
             occurrence,
             policy,
           });
-          const brandSource =
-            locations.find((location) => location.isActive) ?? locations[0];
-          if (brandSource === undefined) {
-            throw new Error("La organización no tiene sucursales.");
-          }
-          theme = themeOf(brandSource.brand.profile);
           scopeName = "Todas las sucursales";
           locationVersion = null;
         } else {
@@ -554,11 +635,11 @@ export class PrismaRecurringStoryRepository
           resolution = resolveRecurringStoryDraft({
             capturedAt,
             ...(dayOverride === undefined ? {} : { dayOverride }),
+            designVariant: style.designVariant,
             location: locationSource(location),
             occurrence,
             policy,
           });
-          theme = themeOf(location.brand.profile);
           scopeName = location.name;
           locationVersion = location.version;
         }
@@ -597,18 +678,15 @@ export class PrismaRecurringStoryRepository
         const publicationId = randomUUID();
         const revisionId = randomUUID();
         const content = { caption: resolution.caption, products: [] };
-        const designDocument = {
+        const designDocument = openingStoryDesignDocument({
+          accent: style.accent,
           content: resolution.designContent,
-          format: "historia",
-          layout: openingStoryLayoutFor(
-            occurrence.occurrenceKey,
-            rule.designRotation,
-          ),
-          media: [],
-          schemaVersion: 1,
-          slug: `story-${rule.id.slice(0, 8)}-${localDate.replaceAll("-", "")}`,
-          theme,
-        };
+          designVariant: style.designVariant,
+          localDate,
+          photo: mapPhoto(style),
+          ruleId: rule.id,
+          theme: style.theme,
+        });
         const contentHash = sha256(JSON.stringify({ content, designDocument }));
         await transaction.publication.create({
           data: {
@@ -626,7 +704,7 @@ export class PrismaRecurringStoryRepository
             content,
             contentHash,
             createdByMembershipId: rule.createdByMembershipId,
-            designDocument,
+            designDocument: prismaJson(designDocument),
             id: revisionId,
             organizationId: rule.organizationId,
             publicationId,

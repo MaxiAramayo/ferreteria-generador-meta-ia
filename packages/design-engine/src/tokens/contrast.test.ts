@@ -13,6 +13,7 @@ import {
   themeFor,
   withAlpha,
 } from "../../dist/index.js";
+import { openingAccentColors } from "../../dist/react.js";
 
 /**
  * El contraste de la capa determinista se demuestra, no se supone. Estas
@@ -83,4 +84,23 @@ test("cada color de acción supera el umbral de texto normal", () => {
 test("un color con forma desconocida se rechaza en lugar de degradarse a negro", () => {
   assert.throws(() => parseColor("rojo"), TypeError);
   assert.throws(() => parseColor("#abc"), TypeError);
+});
+
+test("la etiqueta y el botón de una apertura se leen con cada acento", () => {
+  // En el teléfono la historia se ve a un tercio: la etiqueta de 31 px del
+  // lienzo son 11 px en pantalla, así que se exige el umbral de texto normal.
+  for (const themeId of ["taller", "claro", "promo"] as const) {
+    for (const accent of ["marca", "senal", "verde"] as const) {
+      const colors = openingAccentColors(themeFor(themeId), accent);
+
+      assert.ok(
+        meetsContrast(colors.pillText, colors.pillBackground),
+        `La etiqueta ${accent} sobre ${themeId} no llega al umbral.`,
+      );
+      assert.ok(
+        meetsContrast(colors.ctaText, colors.ctaBackground),
+        `El botón ${accent} sobre ${themeId} no llega al umbral.`,
+      );
+    }
+  }
 });

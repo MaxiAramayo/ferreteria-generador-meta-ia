@@ -43,6 +43,16 @@ const photoPair: MediaCapacity = { maximum: 2, minimum: 0 };
 const mosaic: MediaCapacity = { maximum: 6, minimum: 0 };
 const technicalScene: MediaCapacity = { maximum: 1, minimum: 1 };
 
+/** Lo que una historia de apertura admite además de título, datos y CTA. */
+const openingOptionalFields: readonly ContentFieldKey[] = [
+  "accent",
+  "badge",
+  "greeting",
+  "icon",
+  "subtitle",
+  "validity",
+];
+
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
     "historia-apertura-cartel": specFor(
@@ -50,24 +60,35 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       "historia",
       ["historia"],
       ["title", "items", "callToAction"],
-      ["badge", "subtitle", "icon"],
-      noMedia,
+      openingOptionalFields,
+      singlePhoto,
     ),
     "historia-apertura-horario": specFor(
       "historia-apertura-horario",
       "historia",
       ["historia"],
       ["title", "items", "callToAction"],
-      ["badge", "subtitle", "icon"],
-      noMedia,
+      openingOptionalFields,
+      singlePhoto,
+    ),
+    // La imagen propia se publica tal cual y no dibuja texto; admite los mismos
+    // campos que las otras aperturas para que volver a un diseño no pierda el
+    // horario ni las direcciones que ya trae el borrador.
+    "historia-apertura-imagen": specFor(
+      "historia-apertura-imagen",
+      "historia",
+      ["historia"],
+      ["title"],
+      ["items", "callToAction", ...openingOptionalFields],
+      { maximum: 1, minimum: 1 },
     ),
     "historia-apertura-locales": specFor(
       "historia-apertura-locales",
       "historia",
       ["historia"],
       ["title", "items", "callToAction"],
-      ["badge", "subtitle", "icon"],
-      noMedia,
+      openingOptionalFields,
+      singlePhoto,
     ),
     "combo-kit": specFor(
       "combo-kit",

@@ -74,7 +74,10 @@ porque levantan la vertical entera con un navegador real:
 - `pnpm e2e:recurring-story` recorre regla → borrador → aprobación → ocurrencia:
   activa la regla desde el panel, comprueba que eso no cree ninguna pieza,
   materializa con el servicio del worker, renderiza con el Chromium del worker,
-  aprueba por HTTP y verifica la ocurrencia planificada sin orden;
+  aprueba por HTTP y verifica la ocurrencia planificada sin orden. Desde
+  `P6-T12` también sube una foto real desde el panel, elige el acento verde,
+  comprueba que «Imagen propia» sin imagen no se active y que editar el
+  borrador conserve la foto hasta el render;
 - `pnpm e2e:composition-edit` recorre «Cambiar marco y textos» (`ADR-029`): el
   panel pide un lote que el worker resuelve determinista, abre el formulario
   sobre la variante, comprueba que cada marco muestre sólo sus campos, que un
@@ -121,13 +124,14 @@ rate limit— y falla si algo se sale del presupuesto. Está en
 
 ### Visual
 
-`pnpm visual:regression` renderiza 86 piezas por el mismo camino que el worker
+`pnpm visual:regression` renderiza 90 piezas por el mismo camino que el worker
 —documento por `file://`, fuentes y activos locales, recorte de
 `[data-card]`— y compara lo que el navegador compuso contra la línea base
 versionada en `apps/worker/visual-regression/`:
 
 - **catálogo**: cada pieza vigente en cada formato que declara —feed,
-  cuadrado, historia, banner y portada destacada—, 26 piezas;
+  cuadrado, historia, banner y portada destacada—, 30 piezas, incluidas las
+  cuatro historias de apertura con foto;
 - **perfil**: los seis perfiles visuales en los tres formatos que componen,
   con los briefs y los fondos sintéticos de `P4-T08`, 18 piezas;
 - **determinista**: las doce piezas de composición —las tres de región y los
@@ -358,7 +362,7 @@ las capas caras se reservan para lo que ninguna otra puede probar.
 | Configuración, contratos, observabilidad y salud | 29 | Bordes de entorno, correlación y redacción |
 | Integración | 75 | Aislamiento entre organizaciones, transacciones y concurrencia real sobre PostgreSQL |
 | Extremo a extremo | 3 suites | La cadena completa con Chrome real: regla, borrador, aprobación, ocurrencia y excepción |
-| Regresión visual | 86 piezas | Lo que el navegador compone en cada formato, perfil y tema aprobados |
+| Regresión visual | 90 piezas | Lo que el navegador compone en cada formato, perfil y tema aprobados |
 | Smoke de procesos | 14 comprobaciones | Arranque, readiness, cierre ordenado y ausencia de secretos |
 
 **Integración y extremo a extremo son ahora una compuerta de CI.** Corrían sólo

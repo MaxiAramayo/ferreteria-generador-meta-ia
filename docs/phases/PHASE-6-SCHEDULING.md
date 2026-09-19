@@ -1045,9 +1045,203 @@ humano sobre una salida a Instagram.
   regresión visual incorpora las tres líneas base de apertura y actualiza el
   contexto visible de localidad de los marcos vigentes.
 
+## P6-T11 — Simplificar estilos y editar borradores de apertura
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P6-T10`
+- Riesgo: Alto
+
+### Objetivo
+
+Convertir cada regla de apertura en una historia con un estilo propio y un
+conjunto de días, y permitir revisar el documento real antes de aprobarlo.
+
+### Restricciones e invariantes
+
+- Una regla selecciona sus días; no rota diseños por día.
+- Las revisiones aprobadas, programadas y publicadas son inmutables.
+- El copy y el marco sólo se editan en un borrador; guardar agrega una revisión
+  y exige renderizar otra vez antes de aprobar.
+- Los colores, fondos y posiciones se limitan a layouts y temas aprobados de
+  Ferretería Aramayo; nunca salen de las zonas seguras.
+- Activar, renderizar, aprobar, programar y publicar siguen siendo acciones
+  separadas.
+
+### Entregables
+
+- Estilo singular por regla con variante y tema aprobados.
+- Selector visual y previsualización mediante el componente real del motor.
+- Fondo determinista de marca en las tres variantes de apertura.
+- Editor de borrador recurrente para copy, marco/posición y tema antes de la
+  aprobación.
+
+### Criterios de aceptación
+
+- [x] Una regla se aplica a todos sus días seleccionados; dos reglas pueden
+      cubrir grupos distintos de días sin rotación diaria.
+- [x] La interfaz no ofrece ni acepta una secuencia semanal de diseños.
+- [x] La vista previa coincide estructuralmente con el documento que renderiza
+      el worker y muestra fondo, marca, zona segura y contenido factual.
+- [x] Antes de aprobar, quien tiene permiso puede guardar copy, marco y tema en
+      una nueva revisión de borrador.
+- [x] Un cambio visual o de copy no modifica revisiones aprobadas ni publica.
+- [x] Los temas disponibles conservan la identidad de Ferretería Aramayo y la
+      localidad sigue derivándose de la fuente factual.
+
+### Verificación obligatoria
+
+- [x] Dominio, contrato, API y PostgreSQL: estilo singular, CAS, idempotencia y
+      compatibilidad con reglas existentes.
+- [x] E2E en navegador: regla con lunes a miércoles, vista previa real,
+      materialización, edición, render y aprobación.
+- [x] Regresión visual de los tres marcos y temas disponibles.
+- [x] `pnpm verify:plan`, pruebas afectadas y revisión visual mobile.
+
+### Fuera de alcance
+
+- Publicar o programar una historia de Instagram: la edición conserva la
+  aprobación humana, el snapshot y la confirmación operativa existentes.
+- Crear fondos con IA o exponer un editor libre de colores, tipografías o zonas
+  seguras fuera del sistema de diseño aprobado.
+
+### Notas de progreso
+
+- Fecha: 2026-09-18.
+- Estado real: completada localmente. Cada regla guarda un marco y tema únicos; conserva las
+  siete posiciones legadas sólo como compatibilidad reversible de migración.
+- Decisión visual: las tres composiciones deterministas reciben un fondo propio
+  de trama/chapa, anillos o columnas. El panel y el editor montan el mismo
+  `DesignPiece` que renderiza el worker; no hay una maqueta CSS paralela ni se
+  autorizaron imágenes IA.
+- Módulos: `recurring-story` define intención y estilo; el repositorio
+  materializa el documento; el compositor de reglas y el editor de publicación
+  muestran la composición real; guardar una edición usa la revisión append-only
+  de borradores existente.
+- Verificaciones ejecutadas: `pnpm test`, `pnpm build`, `pnpm lint`, `pnpm
+  typecheck`, `pnpm db:test`, `pnpm e2e:recurring-story`, `pnpm
+  visual:regression`, `pnpm format:check` y `pnpm verify:plan`, en verde el
+  2026-09-18. La revisión visual se hizo a tamaño story sobre las tres piezas
+  cuyo fondo cambió.
+- Próximo paso exacto: revisar el cambio en el árbol local y decidir cuándo se
+  versiona y despliega; esta tarea no publicó ni programó una historia remota.
+
+### Evidencia de cierre
+
+- Evidencia local: migración aplicada desde base vacía, revertida por `down.sql`
+  y reaplicada; el E2E comprobó edición append-only, render, aprobación y
+  cancelación ante feriado. Se versiona junto con `P6-T12`, que la continúa en
+  los mismos archivos; no hubo despliegue ni publicación remota.
+
+## P6-T12 — Rediseñar las aperturas con foto propia
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P6-T11`
+- Riesgo: Alto
+
+### Objetivo
+
+Que la historia de apertura se vea como el cartel del local —fondo de marca,
+titular enorme, una foto real y una franja con horario, sucursales y contacto—
+y que quien opera pueda poner su propia foto o publicar tal cual una historia
+que armó afuera, en vez de elegir sólo entre los diseños del sistema.
+
+### Restricciones e invariantes
+
+- Horario, direcciones y teléfono los escribe siempre el sistema desde la
+  fuente factual; la foto no dibuja datos.
+- La imagen propia se publica tal cual y su borrador siempre pide aprobación
+  humana, aunque la regla sea automática.
+- Todo texto con datos se apoya en una franja que mide al menos 4,5:1.
+- Cambiar la foto o el estilo de una regla sólo afecta borradores futuros; las
+  revisiones aprobadas, programadas y publicadas siguen inmutables.
+- La paleta de marca sigue siendo el punto de partida; el verde es una opción
+  y no el acento por defecto.
+
+### Entregables
+
+- Tres composiciones con foto —`cartel`, `horario` y `locales`— y
+  `historia-apertura-imagen`, que publica la imagen tal cual.
+- Foto propia por regla, preparada en el navegador (achicada, JPEG, sin
+  metadatos) y embebida en cada borrador; sin foto propia, la foto del local.
+- Acento de etiqueta y botón (`marca`, `senal`, `verde`) y saludo según la hora
+  de publicación.
+- Copy de apertura: «¡Ya abrimos!», «Abierto hoy», mensaje, sucursales por calle
+  y horario en su propio renglón.
+- Vista previa del panel armada con las mismas funciones del dominio que el
+  borrador real, y editor de borrador que cambia foto, color, saludo y horario.
+- Migración reversible `20260918120000_recurring_story_photo` y `ADR-030`
+  enmendado.
+
+### Criterios de aceptación
+
+- [x] Las tres composiciones muestran marca, saludo, estado, titular, foto,
+      sucursales, horario y contacto dentro de la zona segura de historia.
+- [x] Una regla guarda una foto propia o vuelve a la del local; el borrador la
+      lleva embebida y editarlo no la pierde.
+- [x] «Imagen propia» sin imagen no se puede activar ni guardar, y su borrador
+      siempre exige aprobación humana.
+- [x] Una foto cuyos bytes no corresponden al tipo que declara se rechaza al
+      guardarla, no al renderizar.
+- [x] La etiqueta y el botón miden al menos 4,5:1 con cada tema y acento.
+- [x] La etiqueta dice «Abierto hoy», cierto todo el día aunque la historia
+      siga visible durante el cierre del mediodía.
+
+### Verificación obligatoria
+
+- [x] Motor: estructura de las cuatro aperturas, foto del documento, acento,
+      saludo, presupuestos de texto, firma de bytes embebidos y contraste por
+      tema y acento.
+- [x] Dominio, API y PostgreSQL: copy, saludo, aprobación de la imagen propia,
+      validación de la foto, límites de cuerpo, `CHECK` de la base, migración y
+      `down.sql`.
+- [x] E2E en navegador: foto subida, acento verde, imagen propia sin imagen,
+      materialización con foto, edición que la conserva, render en Chromium,
+      aprobación y programación.
+- [x] Regresión visual: cambian sólo las cuatro aperturas.
+- [x] `pnpm verify`, `pnpm db:test`, `pnpm e2e:recurring-story`,
+      `pnpm visual:regression` y revisión visual del panel en escritorio y
+      teléfono.
+
+### Fuera de alcance
+
+- Guardar la foto en Cloudinary como `MediaAsset`: queda como paso siguiente si
+  la copia por borrador pesa o si entra otra persona a operar (`ADR-030`).
+- Leer o verificar el texto de una imagen propia.
+- Publicar o programar una historia remota.
+
+### Notas de progreso
+
+- Fecha: 2026-09-19.
+- Estado real: completada. Pedido del usuario del 2026-09-18 con una historia de
+  referencia: la mascota del local en el mostrador, fondo rojo y WhatsApp.
+- Decisiones del usuario: subir ambas cosas —foto dentro del diseño e historia
+  completa tal cual—, mantener la paleta de marca con el verde como opción y
+  usar «Abierto hoy» en vez de «Abierto ahora».
+- Decisión técnica: la foto va embebida en la regla y en cada borrador, no en
+  Cloudinary; el costo y el disparador para revisarlo están en `ADR-030`.
+- Hallazgos: el E2E encontró que guardar un borrador con foto respondía 500
+  porque la respuesta idempotente tenía un tope de 128 KB, que pasó a 4 MB; la
+  revisión en teléfono encontró un campo de archivo oculto que desbordaba la
+  página por una regla de ancho del formulario.
+- Verificaciones ejecutadas: pruebas del motor, dominio, API y panel,
+  `pnpm db:test`, `pnpm e2e:recurring-story`, `pnpm visual:regression`,
+  `pnpm lint`, `pnpm typecheck` y `pnpm verify`, en verde el 2026-09-19.
+
+### Evidencia de cierre
+
+- Rama `feat/aperturas-con-foto`, junto con `P6-T11`.
+- `pnpm db:test`: migración desde base vacía, integración, reversión con
+  `down.sql` y reaplicación completas.
+- `pnpm e2e:recurring-story`: doce comprobaciones en Chrome real, incluidas la
+  foto subida, el acento, la imagen propia sin imagen y la edición que conserva
+  la foto hasta el render.
+- `pnpm visual:regression`: 90 piezas; cambiaron sólo las cuatro aperturas.
+
 ## Criterios de salida de Fase 6
 
-- [ ] `P6-T01` a `P6-T10` están completas.
+- [ ] `P6-T01` a `P6-T12` están completas.
 - [ ] Programaciones sobreviven reinicios sin pérdidas ni duplicados.
 - [ ] Historias recurrentes respetan horario, ubicación y excepciones.
 - [ ] Validación previa bloquea contenido inválido o vencido.

@@ -82,7 +82,9 @@ export {
 export {
   HistoriaAperturaCartel,
   HistoriaAperturaHorario,
+  HistoriaAperturaImagen,
   HistoriaAperturaLocales,
+  openingAccentColors,
 } from "./layouts/opening-stories.tsx";
 export {
   footerBranch,

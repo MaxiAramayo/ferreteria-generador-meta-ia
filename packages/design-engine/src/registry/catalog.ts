@@ -23,6 +23,7 @@ export const CATALOG_STATUS: Readonly<Record<LayoutId, CatalogStatus>> =
     "combo-kit": "current",
     "historia-apertura-cartel": "current",
     "historia-apertura-horario": "current",
+    "historia-apertura-imagen": "current",
     "historia-apertura-locales": "current",
     "carrusel-bienvenida-datos": "retired",
     "carrusel-bienvenida-locales": "retired",

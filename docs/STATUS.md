@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-17
+Actualizado: 2026-09-19
 
 ## Fase activa
 
@@ -174,13 +174,24 @@ ellas. La regla y su materialización admiten sucursal nula desde la migración
 ## Próxima tarea
 
 `P5-T09` — publicar una pieza real de Instagram con una conexión Meta sana,
-snapshot aprobado, cuenta y horario confirmados por el usuario. `P6-T10` quedó
-completa el 2026-09-17: la rutina de apertura de lunes a sábado ya tiene tres
-diseños deterministas de marca, editor versionado y recorrido claro hasta la
-publicación. No autoriza una
-publicación remota sin snapshot, cuenta, destino y horario confirmados. El E2E
-actual confirma que activar una regla por sí solo no publica; la publicación
+snapshot aprobado, cuenta y horario confirmados por el usuario. `P6-T11` cerró
+el 2026-09-18: cada regla usa un estilo único para sus días elegidos y el
+borrador recurrente se edita y previsualiza antes de aprobar. Pasaron la
+migración reversible, las pruebas, el E2E y la regresión visual. No autoriza
+una publicación remota sin snapshot, cuenta, destino y horario confirmados. El
+E2E actual confirma que activar una regla por sí solo no publica; la publicación
 sigue después de materializar, renderizar, aprobar y programar.
+
+`P6-T12` cerró el 2026-09-19, a pedido del usuario: las aperturas se rediseñaron
+como el cartel del local —rojo de marca, «¡Ya abrimos!», una foto real, las
+sucursales y el botón de WhatsApp— y cada regla admite una foto propia, como la
+mascota en el mostrador, o una «Imagen propia» que se publica tal cual y siempre
+pide aprobación humana. La foto se prepara en el navegador y viaja embebida en
+cada borrador; el horario, las direcciones y el teléfono los sigue escribiendo
+el sistema desde la fuente factual. El costo de guardar la foto así y cuándo
+revisarlo están en [`ADR-030`](architecture/decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md).
+Se versiona junto con `P6-T11` y necesita la migración
+`20260918120000_recurring_story_photo` al desplegar.
 
 La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
 el 2026-09-17 tras publicar sus imágenes linux/amd64 en

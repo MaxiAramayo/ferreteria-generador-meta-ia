@@ -8,11 +8,9 @@ import type {
   CreateRecurringStoryRuleResult,
   OrganizationConfiguration,
   OrganizationConfigurationRepository,
-  RecurringStoryDesignVariant,
   RecurringStoryRuleRecord,
   RecurringStoryRuleRepository,
 } from "@aramayo/domain";
-import { defaultRecurringStoryDesignRotation } from "@aramayo/domain";
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 
 import { RecurringStoryService } from "./recurring-story.service.ts";
@@ -59,9 +57,10 @@ function actor(roles: AuthenticatedActor["roles"]): AuthenticatedActor {
 }
 
 const storedRule: RecurringStoryRuleRecord = {
+  accent: "marca",
   approvalPolicy: "human-each-cycle",
   createdByMembershipId: "membership-1",
-  designRotation: defaultRecurringStoryDesignRotation,
+  designVariant: "cartel",
   effectiveFrom: "2026-09-08T11:30:00.000Z",
   id: "rule-1",
   leadTimeMinutes: 120,
@@ -69,7 +68,9 @@ const storedRule: RecurringStoryRuleRecord = {
   locationId: primaryLocation.id,
   name: "Apertura",
   organizationId: configuration.id,
+  photo: null,
   status: "active",
+  theme: "taller",
   timeZone: "America/Argentina/Cordoba",
   version: 1,
   weekdays: [1, 2, 3, 4, 5, 6],
@@ -94,8 +95,8 @@ class FakeRules implements RecurringStoryRuleRepository {
     | (CreateRecurringStoryRuleCommand &
         Readonly<{ idempotencyKey: string; occurredAt: string }>)
     | undefined;
-  designRotationInput:
-    | Parameters<RecurringStoryRuleRepository["updateDesignRotation"]>[0]
+  visualStyleInput:
+    | Parameters<RecurringStoryRuleRepository["updateVisualStyle"]>[0]
     | undefined;
 
   create(
@@ -110,16 +111,21 @@ class FakeRules implements RecurringStoryRuleRepository {
     return Promise.resolve([storedRule]);
   }
 
-  updateDesignRotation(
-    input: Parameters<RecurringStoryRuleRepository["updateDesignRotation"]>[0],
+  updateVisualStyle(
+    input: Parameters<RecurringStoryRuleRepository["updateVisualStyle"]>[0],
   ): Promise<
     | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
     | Readonly<{ status: "not-found" }>
     | Readonly<{ status: "version-conflict" }>
   > {
-    this.designRotationInput = input;
+    this.visualStyleInput = input;
     return Promise.resolve({
-      rule: { ...storedRule, designRotation: input.designRotation, version: 2 },
+      rule: {
+        ...storedRule,
+        designVariant: input.designVariant,
+        theme: input.theme,
+        version: 2,
+      },
       status: "updated",
     });
   }
@@ -178,34 +184,33 @@ test("la política automática exige administrador y aprobador", async () => {
   assert.equal(automaticRules.input?.approvalPolicy, "automatic-routine");
 });
 
-test("actualiza la rotación de una regla con control de versión", async () => {
+test("actualiza el estilo de una regla con control de versión", async () => {
   const rules = new FakeRules();
   const service = new RecurringStoryService(rules, new FakeConfiguration());
-  const designRotation: RecurringStoryDesignVariant[] = [
-    "locales",
-    "horario",
-    "cartel",
-    "locales",
-    "horario",
-    "cartel",
-    "locales",
-  ];
-
-  const result = await service.updateDesignRotation(
+  const result = await service.updateVisualStyle(
     actor(["approver"]),
     storedRule.id,
-    { designRotation, expectedVersion: storedRule.version },
+    {
+      accent: "verde",
+      designVariant: "locales",
+      expectedVersion: storedRule.version,
+      photo: null,
+      theme: "promo",
+    },
     "rule-design-idempotency-1",
   );
 
   assert.equal(result.status, "updated");
   assert.equal(result.rule.version, 2);
-  assert.ok(rules.designRotationInput);
-  const capturedDesignRotationInput = rules.designRotationInput;
-  assert.deepEqual(capturedDesignRotationInput.designRotation, designRotation);
-  assert.equal(capturedDesignRotationInput.expectedVersion, storedRule.version);
+  assert.ok(rules.visualStyleInput);
+  const capturedVisualStyleInput = rules.visualStyleInput;
+  assert.equal(capturedVisualStyleInput.designVariant, "locales");
+  assert.equal(capturedVisualStyleInput.theme, "promo");
+  assert.equal(capturedVisualStyleInput.accent, "verde");
+  assert.equal(capturedVisualStyleInput.photo, null);
+  assert.equal(capturedVisualStyleInput.expectedVersion, storedRule.version);
   assert.equal(
-    capturedDesignRotationInput.idempotencyKey,
+    capturedVisualStyleInput.idempotencyKey,
     "rule-design-idempotency-1",
   );
 });
@@ -274,4 +279,104 @@ test("una regla para todas exige que las sucursales compartan zona horaria", asy
     BadRequestException,
   );
   assert.equal(rules.input, undefined);
+});
+
+// Cabecera real de un JPEG (FF D8 FF E0): el motor la reconoce como tal.
+const jpegPhoto = {
+  alt: " Nuestra gata en el mostrador ",
+  dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusY: 40,
+};
+
+test("una regla guarda su foto propia y su acento", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+
+  await service.create(
+    actor(["approver"]),
+    {
+      ...submission,
+      accent: "verde",
+      designVariant: "imagen",
+      photo: jpegPhoto,
+    },
+    "rule-idempotency-photo",
+  );
+
+  assert.equal(rules.input?.accent, "verde");
+  assert.equal(rules.input.designVariant, "imagen");
+  assert.deepEqual(rules.input.photo, {
+    ...jpegPhoto,
+    alt: "Nuestra gata en el mostrador",
+  });
+});
+
+test("la imagen propia sin imagen y una foto falsa se rechazan antes de guardar", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+
+  await assert.rejects(
+    service.create(
+      actor(["approver"]),
+      { ...submission, designVariant: "imagen" },
+      "rule-idempotency-own-image",
+    ),
+    BadRequestException,
+  );
+  // Los bytes de un JPEG declarados como PNG no son una foto que el render
+  // pueda decodificar.
+  await assert.rejects(
+    service.create(
+      actor(["approver"]),
+      {
+        ...submission,
+        photo: {
+          ...jpegPhoto,
+          dataUrl: jpegPhoto.dataUrl.replace("image/jpeg", "image/png"),
+        },
+      },
+      "rule-idempotency-fake-photo",
+    ),
+    BadRequestException,
+  );
+  await assert.rejects(
+    service.updateVisualStyle(
+      actor(["approver"]),
+      storedRule.id,
+      {
+        accent: "marca",
+        designVariant: "imagen",
+        expectedVersion: storedRule.version,
+        photo: null,
+        theme: "promo",
+      },
+      "rule-design-idempotency-own-image",
+    ),
+    BadRequestException,
+  );
+  assert.equal(rules.input, undefined);
+  assert.equal(rules.visualStyleInput, undefined);
+});
+
+test("cambiar el estilo exige decir qué pasa con la foto", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+  const withoutPhoto = {
+    accent: "marca" as const,
+    designVariant: "cartel" as const,
+    expectedVersion: storedRule.version,
+    theme: "promo" as const,
+  };
+
+  await assert.rejects(
+    service.updateVisualStyle(
+      actor(["approver"]),
+      storedRule.id,
+      // Un cliente viejo que no conoce la foto no puede borrarla sin querer.
+      withoutPhoto,
+      "rule-design-idempotency-missing-photo",
+    ),
+    BadRequestException,
+  );
+  assert.equal(rules.visualStyleInput, undefined);
 });

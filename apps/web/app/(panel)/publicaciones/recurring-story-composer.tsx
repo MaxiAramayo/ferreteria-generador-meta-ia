@@ -1,29 +1,54 @@
 "use client";
 
 import type {
-  LocationConfigurationResponse,
+  RecurringStoryAccentResponse,
   RecurringStoryApprovalPolicyResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryPhotoPayload,
   RecurringStoryRuleResponse,
+  RecurringStoryThemeResponse,
   RecurringStoryWorkspaceResponse,
 } from "@aramayo/contracts";
-import { FORMATS } from "@aramayo/design-engine";
-import { AramayoMark } from "@aramayo/design-engine/react";
 import {
   startTransition,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type SyntheticEvent,
 } from "react";
 
+import { openingStoryPreviewDocument } from "../../../lib/opening-story-preview.ts";
 import {
   loadRecurringStoryWorkspace,
-  saveRecurringStoryDesignRotation,
+  saveRecurringStoryVisualStyle,
   saveRecurringStoryRule,
 } from "../../../lib/recurring-story-api.ts";
+import {
+  OpeningStoryPreview,
+  OpeningStoryStyleControls,
+  openingStoryThemes,
+  openingStoryVariantLabel,
+} from "./opening-story-style-controls.tsx";
+
+interface VisualStyle {
+  readonly accent: RecurringStoryAccentResponse;
+  readonly designVariant: RecurringStoryDesignVariantResponse;
+  readonly photo: RecurringStoryPhotoPayload | null;
+  readonly theme: RecurringStoryThemeResponse;
+}
+
+const ownImageMissing =
+  "Subí la imagen que querés publicar: «Imagen propia» no tiene otra cosa que mostrar.";
+
+function styleCaption(style: VisualStyle): string {
+  const theme =
+    openingStoryThemes.find((candidate) => candidate.value === style.theme)
+      ?.label ?? "";
+  return style.designVariant === "imagen"
+    ? "Imagen propia · se publica tal cual"
+    : `${openingStoryVariantLabel(style.designVariant)} · ${theme}`;
+}
 
 type LoadState =
   | Readonly<{ kind: "loading" }>
@@ -41,25 +66,6 @@ const weekdays = Object.freeze([
   { label: "D", longLabel: "Domingo", value: 7 },
 ]);
 
-const designVariants = Object.freeze([
-  { label: "Cartel de apertura", value: "cartel" },
-  { label: "Horario en foco", value: "horario" },
-  { label: "Guía de sucursales", value: "locales" },
-] as const satisfies readonly {
-  readonly label: string;
-  readonly value: RecurringStoryDesignVariantResponse;
-}[]);
-
-const defaultDesignRotation = Object.freeze([
-  "cartel",
-  "horario",
-  "locales",
-  "cartel",
-  "horario",
-  "locales",
-  "cartel",
-] as const satisfies readonly RecurringStoryDesignVariantResponse[]);
-
 function nextLocalDate(): string {
   const date = new Date();
   date.setDate(date.getDate() + 1);
@@ -67,141 +73,6 @@ function nextLocalDate(): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-// El formato y sus zonas seguras tienen una única definición en el motor de
-// diseño. La vista previa las traduce a porcentajes en lugar de repetir
-// márgenes propios que podrían desincronizarse del render real.
-const storyFormat = FORMATS.historia;
-
-function safeAreaPercentage(value: number, total: number): string {
-  return `${((value / total) * 100).toFixed(4)}%`;
-}
-
-const storyPreviewStyle: CSSProperties &
-  Record<`--story-safe-${string}`, string> = {
-  "--story-safe-bottom": safeAreaPercentage(
-    storyFormat.safeArea.bottom,
-    storyFormat.height,
-  ),
-  "--story-safe-left": safeAreaPercentage(
-    storyFormat.safeArea.left,
-    storyFormat.width,
-  ),
-  "--story-safe-right": safeAreaPercentage(
-    storyFormat.safeArea.right,
-    storyFormat.width,
-  ),
-  "--story-safe-top": safeAreaPercentage(
-    storyFormat.safeArea.top,
-    storyFormat.height,
-  ),
-  aspectRatio: `${String(storyFormat.width)} / ${String(storyFormat.height)}`,
-};
-
-/**
- * Lo que la historia va a decir, con la misma regla que el worker: un horario
- * compartido se dice una vez y después las direcciones; si difiere, un renglón
- * por sucursal.
- */
-function storyPreviewLines(
-  locations: readonly LocationConfigurationResponse[],
-): readonly string[] {
-  const [first] = locations;
-  if (first === undefined) return [];
-  if (locations.length === 1) {
-    return [
-      first.openingHours || "Horario pendiente",
-      `${first.addressLine}, ${first.city}`,
-    ];
-  }
-  const shared = locations.every(
-    (location) => location.openingHours === first.openingHours,
-  );
-  if (shared && first.openingHours && locations.length < 3) {
-    return [
-      first.openingHours,
-      ...locations.map(
-        (location) =>
-          `${location.name} · ${location.addressLine}, ${location.city}`,
-      ),
-    ];
-  }
-  return locations
-    .slice(0, 3)
-    .map(
-      (location) =>
-        `${location.name} · ${location.openingHours || "Horario pendiente"}`,
-    );
-}
-
-function joinNames(names: readonly string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} y ${names.at(-1) ?? ""}`;
-}
-
-function rotationIndexForDate(localDate: string): number {
-  const date = new Date(`${localDate}T12:00:00.000Z`);
-  return (date.getUTCDay() + 6) % 7;
-}
-
-function designLabel(variant: RecurringStoryDesignVariantResponse): string {
-  return (
-    designVariants.find((candidate) => candidate.value === variant)?.label ??
-    "Diseño de apertura"
-  );
-}
-
-function rotationForRule(
-  rule: RecurringStoryRuleResponse,
-): readonly RecurringStoryDesignVariantResponse[] {
-  return rule.designRotation.length === 7
-    ? rule.designRotation
-    : defaultDesignRotation;
-}
-
-function LocationStoryPreview({
-  design,
-  locations,
-}: {
-  readonly design: RecurringStoryDesignVariantResponse;
-  readonly locations: readonly LocationConfigurationResponse[];
-}) {
-  const city = locations[0]?.city ?? "la sucursal";
-  return (
-    <aside
-      aria-label={`Vista previa en zona segura de ${storyFormat.label}`}
-      className="recurring-story-preview"
-      data-design={design}
-      style={storyPreviewStyle}
-    >
-      <span className="story-safe-guide story-safe-guide-top">
-        Zona segura superior
-      </span>
-      <div className="story-preview-content">
-        <div className="story-preview-brand">
-          <AramayoMark size={48} />
-          <span>
-            <strong>Ferretería Aramayo</strong>
-            <small>En {city}</small>
-          </span>
-        </div>
-        <span className="story-preview-badge">Estamos atendiendo</span>
-        <strong>Ya abrimos</strong>
-        <span className="story-preview-design">{designLabel(design)}</span>
-        <p>{joinNames(locations.map((location) => location.name))}</p>
-        <ul>
-          {storyPreviewLines(locations).map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <span className="story-preview-cta">Consultanos por WhatsApp</span>
-      </div>
-      <span className="story-safe-guide story-safe-guide-bottom">
-        Zona segura inferior
-      </span>
-    </aside>
-  );
 }
 
 function MaterializationRail({
@@ -262,18 +133,25 @@ export function RecurringStoryRuleComposer({
   ]);
   const [approvalPolicy, setApprovalPolicy] =
     useState<RecurringStoryApprovalPolicyResponse>("human-each-cycle");
-  const [designRotation, setDesignRotation] = useState<
-    readonly RecurringStoryDesignVariantResponse[]
-  >(defaultDesignRotation);
+  // El rojo de marca es el del cartel del local: el punto de partida.
+  const [style, setStyle] = useState<VisualStyle>({
+    accent: "marca",
+    designVariant: "cartel",
+    photo: null,
+    theme: "promo",
+  });
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [editingRotation, setEditingRotation] = useState<
-    readonly RecurringStoryDesignVariantResponse[]
-  >(defaultDesignRotation);
+  const [editingVisualStyle, setEditingVisualStyle] = useState<VisualStyle>({
+    accent: "marca",
+    designVariant: "cartel",
+    photo: null,
+    theme: "promo",
+  });
   const [saving, setSaving] = useState(false);
   const [savingRuleId, setSavingRuleId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const idempotencyKey = useRef<string | null>(null);
-  const rotationIdempotencyKey = useRef<string | null>(null);
+  const visualStyleIdempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -311,16 +189,14 @@ export function RecurringStoryRuleComposer({
     );
   }
 
-  function chooseDesign(
-    weekdayIndex: number,
-    variant: RecurringStoryDesignVariantResponse,
-  ): void {
+  function changeStyle(change: Partial<VisualStyle>): void {
     idempotencyKey.current = null;
-    setDesignRotation((current) =>
-      current.map((currentVariant, index) =>
-        index === weekdayIndex ? variant : currentVariant,
-      ),
-    );
+    setStyle((current) => ({ ...current, ...change }));
+  }
+
+  function changeEditingStyle(change: Partial<VisualStyle>): void {
+    visualStyleIdempotencyKey.current = null;
+    setEditingVisualStyle((current) => ({ ...current, ...change }));
   }
 
   function submit(event: SyntheticEvent<HTMLFormElement>): void {
@@ -339,20 +215,27 @@ export function RecurringStoryRuleComposer({
       );
       return;
     }
+    if (style.designVariant === "imagen" && style.photo === null) {
+      setNotice(ownImageMissing);
+      return;
+    }
     idempotencyKey.current ??= crypto.randomUUID();
     setSaving(true);
     setNotice(
       "Guardando la regla; todavía no se crea ni publica una historia…",
     );
     void saveRecurringStoryRule(apiBaseUrl, {
+      accent: style.accent,
       approvalPolicy,
-      designRotation,
+      designVariant: style.designVariant,
       effectiveFromLocalDate,
       idempotencyKey: idempotencyKey.current,
       leadTimeMinutes,
       localTime,
       locationId: locationId === "" ? null : locationId,
       name: name.trim(),
+      photo: style.photo,
+      theme: style.theme,
       weekdays: selectedWeekdays,
     }).then((result) => {
       startTransition(() => {
@@ -384,39 +267,54 @@ export function RecurringStoryRuleComposer({
     });
   }
 
-  function beginDesignEdit(rule: RecurringStoryRuleResponse): void {
-    rotationIdempotencyKey.current = null;
-    setEditingRotation(rotationForRule(rule));
+  function beginVisualStyleEdit(rule: RecurringStoryRuleResponse): void {
+    visualStyleIdempotencyKey.current = null;
+    setEditingVisualStyle({
+      accent: rule.accent,
+      designVariant: rule.designVariant,
+      photo: rule.photo,
+      theme: rule.theme,
+    });
     setEditingRuleId(rule.id);
     setNotice(
-      "El cambio de diseño se aplicará a borradores futuros; no modifica historias ya aprobadas o publicadas.",
+      "El cambio de estilo se aplicará a borradores futuros; no modifica historias ya aprobadas o publicadas.",
     );
   }
 
-  function saveDesignEdit(rule: RecurringStoryRuleResponse): void {
+  function saveVisualStyleEdit(rule: RecurringStoryRuleResponse): void {
     if (!canSchedule) {
-      setNotice("La sesión no permite cambiar los diseños de esta regla.");
+      setNotice("La sesión no permite cambiar el estilo de esta regla.");
       return;
     }
-    rotationIdempotencyKey.current ??= crypto.randomUUID();
+    if (
+      editingVisualStyle.designVariant === "imagen" &&
+      editingVisualStyle.photo === null
+    ) {
+      setNotice(ownImageMissing);
+      return;
+    }
+    visualStyleIdempotencyKey.current ??= crypto.randomUUID();
     setSavingRuleId(rule.id);
-    void saveRecurringStoryDesignRotation(apiBaseUrl, {
-      designRotation: editingRotation,
+    void saveRecurringStoryVisualStyle(apiBaseUrl, {
+      accent: editingVisualStyle.accent,
+      designVariant: editingVisualStyle.designVariant,
       expectedVersion: rule.version,
-      idempotencyKey: rotationIdempotencyKey.current,
+      idempotencyKey: visualStyleIdempotencyKey.current,
+      photo: editingVisualStyle.photo,
       ruleId: rule.id,
+      theme: editingVisualStyle.theme,
     }).then((result) => {
       startTransition(() => {
         setSavingRuleId(null);
         if (result.kind !== "saved") {
           setNotice(
             result.kind === "forbidden"
-              ? "La sesión no permite cambiar los diseños de esta regla."
+              ? "La sesión no permite cambiar el estilo de esta regla."
               : result.message,
           );
           return;
         }
-        rotationIdempotencyKey.current = null;
+        visualStyleIdempotencyKey.current = null;
         setLoadState((current) =>
           current.kind !== "ready"
             ? current
@@ -432,7 +330,7 @@ export function RecurringStoryRuleComposer({
         );
         setEditingRuleId(null);
         setNotice(
-          `Diseños de “${result.rule.name}” actualizados. Los próximos borradores usarán la nueva semana visual.`,
+          `Estilo de “${result.rule.name}” actualizado. Los próximos borradores usarán esta composición.`,
         );
       });
     });
@@ -476,13 +374,11 @@ export function RecurringStoryRuleComposer({
     <>
       <form className="recurring-story-form" noValidate onSubmit={submit}>
         <div>
-          <p className="workspace-eyebrow">
-            Regla editorial · {storyFormat.ratio}
-          </p>
-          <h2>Convertí una rutina en borradores verificables.</h2>
+          <p className="workspace-eyebrow">Historia recurrente · Instagram</p>
+          <h2>Definí el ritmo. Elegí el look. Revisá cada historia.</h2>
           <p>
-            La regla consulta el horario y la dirección al materializar. Un
-            cierre, feriado o dato faltante bloquea la pieza.
+            Esta regla prepara un borrador para los días elegidos. Nunca publica
+            sola: antes podés ajustar texto, datos, marco y color en cada fecha.
           </p>
         </div>
         <label>
@@ -502,6 +398,7 @@ export function RecurringStoryRuleComposer({
           <label>
             Sucursal
             <select
+              data-testid="recurring-story-location"
               disabled={!canSchedule || saving}
               onChange={(event) => {
                 idempotencyKey.current = null;
@@ -580,39 +477,26 @@ export function RecurringStoryRuleComposer({
             ))}
           </div>
         </fieldset>
-        <fieldset className="recurring-design-rotation">
-          <legend>Diseño de apertura por día</legend>
-          <p>
-            La alternancia es determinista: el mismo día siempre genera el mismo
-            diseño. Domingo queda sin historia mientras no lo selecciones
-            arriba.
-          </p>
-          <div>
-            {weekdays.map((weekday, weekdayIndex) => (
-              <label key={weekday.value}>
-                <span>{weekday.longLabel}</span>
-                <select
-                  aria-label={`Diseño de ${weekday.longLabel}`}
-                  disabled={!canSchedule || saving}
-                  onChange={(event) => {
-                    chooseDesign(
-                      weekdayIndex,
-                      event.currentTarget
-                        .value as RecurringStoryDesignVariantResponse,
-                    );
-                  }}
-                  value={designRotation[weekdayIndex]}
-                >
-                  {designVariants.map((variant) => (
-                    <option key={variant.value} value={variant.value}>
-                      {variant.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <OpeningStoryStyleControls
+          accent={style.accent}
+          designVariant={style.designVariant}
+          disabled={!canSchedule || saving}
+          inputName="new-recurring-story"
+          onAccentChange={(accent) => {
+            changeStyle({ accent });
+          }}
+          onDesignVariantChange={(designVariant) => {
+            changeStyle({ designVariant });
+          }}
+          onPhotoChange={(photo) => {
+            changeStyle({ photo });
+          }}
+          onThemeChange={(theme) => {
+            changeStyle({ theme });
+          }}
+          photo={style.photo}
+          theme={style.theme}
+        />
         <fieldset className="recurring-policy">
           <legend>Política de aprobación</legend>
           <label>
@@ -696,49 +580,49 @@ export function RecurringStoryRuleComposer({
                   <button
                     disabled={!canSchedule || savingRuleId === rule.id}
                     onClick={() => {
-                      beginDesignEdit(rule);
+                      beginVisualStyleEdit(rule);
                     }}
                     type="button"
                   >
-                    Cambiar diseños
+                    Cambiar estilo
                   </button>
                   {editingRuleId !== rule.id ? null : (
                     <fieldset className="recurring-rule-design-editor">
-                      <legend>Semana visual de {rule.name}</legend>
-                      <div>
-                        {weekdays.map((weekday, weekdayIndex) => (
-                          <label key={weekday.value}>
-                            {weekday.longLabel}
-                            <select
-                              aria-label={`Diseño de ${weekday.longLabel}`}
-                              disabled={savingRuleId === rule.id}
-                              onChange={(event) => {
-                                rotationIdempotencyKey.current = null;
-                                setEditingRotation((current) =>
-                                  current.map((currentVariant, index) =>
-                                    index === weekdayIndex
-                                      ? (event.currentTarget
-                                          .value as RecurringStoryDesignVariantResponse)
-                                      : currentVariant,
-                                  ),
-                                );
-                              }}
-                              value={editingRotation[weekdayIndex]}
-                            >
-                              {designVariants.map((variant) => (
-                                <option
-                                  key={variant.value}
-                                  value={variant.value}
-                                >
-                                  {variant.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ))}
-                      </div>
+                      <legend>Estilo de {rule.name}</legend>
+                      <OpeningStoryStyleControls
+                        accent={editingVisualStyle.accent}
+                        designVariant={editingVisualStyle.designVariant}
+                        disabled={savingRuleId === rule.id}
+                        inputName={`rule-${rule.id}`}
+                        onAccentChange={(accent) => {
+                          changeEditingStyle({ accent });
+                        }}
+                        onDesignVariantChange={(designVariant) => {
+                          changeEditingStyle({ designVariant });
+                        }}
+                        onPhotoChange={(photo) => {
+                          changeEditingStyle({ photo });
+                        }}
+                        onThemeChange={(theme) => {
+                          changeEditingStyle({ theme });
+                        }}
+                        photo={editingVisualStyle.photo}
+                        theme={editingVisualStyle.theme}
+                      />
+                      <OpeningStoryPreview
+                        caption={styleCaption(editingVisualStyle)}
+                        preview={openingStoryPreviewDocument({
+                          ...editingVisualStyle,
+                          localDate: nextLocalDate(),
+                          localTime: rule.localTime,
+                          locationId: rule.locationId,
+                          locations: loadState.workspace.locations,
+                        })}
+                      />
                       <p>
                         Sólo impacta los borradores que se creen desde ahora.
+                        Las historias aprobadas, programadas o publicadas no se
+                        modifican.
                       </p>
                       <div className="recurring-rule-design-actions">
                         <button
@@ -753,13 +637,13 @@ export function RecurringStoryRuleComposer({
                         <button
                           disabled={savingRuleId === rule.id}
                           onClick={() => {
-                            saveDesignEdit(rule);
+                            saveVisualStyleEdit(rule);
                           }}
                           type="button"
                         >
                           {savingRuleId === rule.id
                             ? "Guardando…"
-                            : "Guardar diseños"}
+                            : "Guardar estilo"}
                         </button>
                       </div>
                     </fieldset>
@@ -770,11 +654,15 @@ export function RecurringStoryRuleComposer({
           </div>
         )}
       </form>
-      <LocationStoryPreview
-        design={
-          designRotation[rotationIndexForDate(nextLocalDate())] ?? "cartel"
-        }
-        locations={selectedLocations}
+      <OpeningStoryPreview
+        caption={styleCaption(style)}
+        preview={openingStoryPreviewDocument({
+          ...style,
+          localDate: effectiveFromLocalDate,
+          localTime,
+          locationId: locationId === "" ? null : locationId,
+          locations: loadState.workspace.locations,
+        })}
       />
     </>
   );

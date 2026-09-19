@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260917000000_recurring_story_design_rotation";
+const latestMigrationName = "20260918120000_recurring_story_photo";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -207,6 +207,11 @@ async function verifyDatabase(): Promise<void> {
         schedules_table: string | null;
         recurring_story_rules_table: string | null;
         recurring_story_materializations_table: string | null;
+        recurring_story_accent_exists: boolean;
+        recurring_story_own_image_exists: boolean;
+        recurring_story_photo_exists: boolean;
+        recurring_story_theme_exists: boolean;
+        recurring_story_visual_style_exists: boolean;
         location_day_overrides_table: string | null;
         recurring_story_policy_type: string | null;
       }>(
@@ -376,6 +381,29 @@ async function verifyDatabase(): Promise<void> {
               SELECT 1
               FROM information_schema.columns
               WHERE table_schema = 'public'
+                AND table_name = 'recurring_story_rules'
+                AND column_name = 'design_variant'
+            ) AS "recurring_story_visual_style_exists",
+            to_regtype('public.recurring_story_theme') IS NOT NULL AS "recurring_story_theme_exists",
+            to_regtype('public.recurring_story_accent') IS NOT NULL AS "recurring_story_accent_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'recurring_story_rules'
+                AND column_name = 'photo_data_url'
+            ) AS "recurring_story_photo_exists",
+            EXISTS (
+              SELECT 1
+              FROM pg_enum
+              JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+              WHERE pg_type.typname = 'recurring_story_design_variant'
+                AND pg_enum.enumlabel = 'imagen'
+            ) AS "recurring_story_own_image_exists",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
                 AND table_name = 'publication_schedule_occurrences'
                 AND column_name = 'dispatch_outbox_event_id'
             ) AS "schedule_dispatch_event_exists",
@@ -494,8 +522,14 @@ async function verifyDatabase(): Promise<void> {
       // El marco y el copy editables son anteriores a la migración que se
       // revierte acá: siguen en pie.
       assert.equal(rollbackEvidence.generation_composition_edit_exists, true);
-      // La rotación visual se revierte sin modificar el alcance de sucursal,
-      // que pertenece a una migración anterior.
+      // Revertir la foto propia quita la foto, el acento y la imagen propia,
+      // y deja en pie el estilo singular y el tema, que pertenecen a
+      // `20260917120000_recurring_story_visual_style`.
+      assert.equal(rollbackEvidence.recurring_story_photo_exists, false);
+      assert.equal(rollbackEvidence.recurring_story_accent_exists, false);
+      assert.equal(rollbackEvidence.recurring_story_own_image_exists, false);
+      assert.equal(rollbackEvidence.recurring_story_visual_style_exists, true);
+      assert.equal(rollbackEvidence.recurring_story_theme_exists, true);
       assert.equal(
         rollbackEvidence.recurring_story_every_location_exists,
         true,

@@ -8187,6 +8187,130 @@ test("un bloqueo previo no oculta un desenlace remoto que sigue en duda", async 
   );
 });
 
+const recurringStoryPhotoFixture = Object.freeze({
+  alt: "Nuestra gata en el mostrador",
+  // Cabecera real de un JPEG: la base guarda la foto, el motor la decodifica.
+  dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusY: 40,
+});
+
+test("la imagen propia exige su imagen y siempre pide aprobación humana", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo imagen propia",
+      id: organizationId,
+      legalName: "Aramayo imagen propia",
+      slug: `own-image-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable de la imagen",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "editor", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "promo" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "República de Siria 365",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  const actor = {
+    displayName: "Responsable de la imagen",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "editor", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+  const recurring = new PrismaRecurringStoryRepository(database);
+  const created = await recurring.create({
+    accent: "verde",
+    actor,
+    approvalPolicy: "automatic-routine",
+    designVariant: "imagen",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `own-image-${randomUUID()}`,
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId,
+    name: "Apertura con imagen propia",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    photo: recurringStoryPhotoFixture,
+    theme: "promo",
+    weekdays: [2],
+  });
+  assert.equal(created.status, "created");
+  assert.equal(created.rule.designVariant, "imagen");
+
+  // La base no acepta una imagen propia sin imagen, aunque el pedido saltee
+  // la validación del dominio.
+  await assert.rejects(
+    database.recurringStoryRule.update({
+      data: { photoAlt: null, photoDataUrl: null, photoFocusY: null },
+      where: { organizationId_id: { id: created.rule.id, organizationId } },
+    }),
+  );
+  // Ni una foto que no sea JPEG o PNG en base64.
+  await assert.rejects(
+    database.recurringStoryRule.update({
+      data: { photoDataUrl: "data:image/svg+xml;base64,PHN2Zz4=" },
+      where: { organizationId_id: { id: created.rule.id, organizationId } },
+    }),
+  );
+
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+  const materialization =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  // Una rutina automática no aprueba lo que el sistema no puede leer.
+  assert.equal(materialization.requiresHumanApproval, true);
+  assert.ok(materialization.publicationId);
+  const revision = await database.publicationRevision.findFirstOrThrow({
+    where: { organizationId, publicationId: materialization.publicationId },
+  });
+  const document = JSON.stringify(revision.designDocument);
+  assert.match(document, /"layout":"historia-apertura-imagen"/u);
+  assert.ok(document.includes(recurringStoryPhotoFixture.dataUrl));
+});
+
 test("una regla recurrente materializa, aprueba y crea una ocurrencia sin publicar", async () => {
   const organizationId = randomUUID();
   const userId = randomUUID();
@@ -8260,38 +8384,50 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   });
   assert.equal(createdRule.status, "created");
 
-  const designRotation = [
-    "cartel",
-    "locales",
-    "horario",
-    "cartel",
-    "locales",
-    "horario",
-    "cartel",
-  ] as const;
-  const designRotationIdempotencyKey = `recurring-design-${randomUUID()}`;
-  const designUpdate = await recurring.updateDesignRotation({
+  assert.equal(createdRule.rule.accent, "marca");
+  assert.equal(createdRule.rule.photo, null);
+
+  const visualStyleIdempotencyKey = `recurring-style-${randomUUID()}`;
+  const designUpdate = await recurring.updateVisualStyle({
+    accent: "verde",
     actor,
-    designRotation,
+    designVariant: "locales",
     expectedVersion: createdRule.rule.version,
-    idempotencyKey: designRotationIdempotencyKey,
+    idempotencyKey: visualStyleIdempotencyKey,
     occurredAt: "2026-09-07T12:00:00.000Z",
+    photo: recurringStoryPhotoFixture,
     ruleId: createdRule.rule.id,
+    theme: "promo",
   });
   assert.equal(designUpdate.status, "updated");
   assert.equal(designUpdate.rule.version, createdRule.rule.version + 1);
-  assert.deepEqual(designUpdate.rule.designRotation, designRotation);
+  assert.equal(designUpdate.rule.designVariant, "locales");
+  assert.equal(designUpdate.rule.theme, "promo");
+  assert.equal(designUpdate.rule.accent, "verde");
+  assert.deepEqual(designUpdate.rule.photo, recurringStoryPhotoFixture);
 
-  const repeatedDesignUpdate = await recurring.updateDesignRotation({
+  const repeatedDesignUpdate = await recurring.updateVisualStyle({
+    accent: "verde",
     actor,
-    designRotation,
+    designVariant: "locales",
     expectedVersion: createdRule.rule.version,
-    idempotencyKey: designRotationIdempotencyKey,
+    idempotencyKey: visualStyleIdempotencyKey,
     occurredAt: "2026-09-07T12:00:00.000Z",
+    photo: recurringStoryPhotoFixture,
     ruleId: createdRule.rule.id,
+    theme: "promo",
   });
   assert.equal(repeatedDesignUpdate.status, "updated");
   assert.equal(repeatedDesignUpdate.rule.version, designUpdate.rule.version);
+  // La auditoría nombra la foto por su huella: sus bytes no se copian.
+  const styleAudit = await database.auditEvent.findFirstOrThrow({
+    where: {
+      entityId: createdRule.rule.id,
+      operation: "scheduling.recurring-story:visual-style:update",
+      organizationId,
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(styleAudit.metadata), /data:image/u);
 
   assert.deepEqual(
     await recurring.materializeDue({
@@ -8324,22 +8460,25 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
     JSON.stringify(recurringRevision.designDocument),
     /"layout":"historia-apertura-locales"/u,
   );
+  // La foto de la regla viaja embebida en el borrador, con su encuadre, y el
+  // acento elegido acompaña al copy.
+  const materializedDocument = JSON.stringify(recurringRevision.designDocument);
+  assert.ok(materializedDocument.includes(recurringStoryPhotoFixture.dataUrl));
+  assert.match(materializedDocument, /"source":"inline"/u);
+  assert.match(materializedDocument, /"focus":\{"x":50,"y":40\}/u);
+  assert.match(materializedDocument, /"accent":"verde"/u);
+  assert.match(materializedDocument, /"title":"¡Ya abrimos!"/u);
 
-  const futureDesignUpdate = await recurring.updateDesignRotation({
+  const futureDesignUpdate = await recurring.updateVisualStyle({
+    accent: "marca",
     actor,
-    designRotation: [
-      "cartel",
-      "cartel",
-      "cartel",
-      "cartel",
-      "cartel",
-      "cartel",
-      "cartel",
-    ],
+    designVariant: "cartel",
     expectedVersion: designUpdate.rule.version,
     idempotencyKey: `recurring-design-future-${randomUUID()}`,
     occurredAt: "2026-09-07T12:01:00.000Z",
+    photo: null,
     ruleId: createdRule.rule.id,
+    theme: "taller",
   });
   assert.equal(futureDesignUpdate.status, "updated");
   const immutableRecurringRevision =
@@ -8351,6 +8490,12 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   assert.match(
     JSON.stringify(immutableRecurringRevision.designDocument),
     /"layout":"historia-apertura-locales"/u,
+  );
+  // Quitar la foto de la regla no se la quita al borrador ya creado.
+  assert.ok(
+    JSON.stringify(immutableRecurringRevision.designDocument).includes(
+      recurringStoryPhotoFixture.dataUrl,
+    ),
   );
 
   const production = new PrismaPublicationProductionRepository(database);

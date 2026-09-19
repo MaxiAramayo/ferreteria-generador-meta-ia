@@ -37,6 +37,7 @@ import {
   type PublicationWorkspaceLoadResult,
 } from "../../../lib/publication-workspace-api";
 import { PublicationsSubnav } from "./publications-subnav";
+import { RecurringStoryDraftEditor } from "./recurring-story-draft-editor";
 
 function statusLabel(status: PublicationStatusResponse): string {
   switch (status) {
@@ -75,6 +76,7 @@ function PublicationRow({
   canSchedule,
   gate,
   onApprove,
+  onEdit,
   onHistory,
   onPreview,
   onPublish,
@@ -86,6 +88,7 @@ function PublicationRow({
   readonly canSchedule: boolean;
   readonly gate: PublishGate;
   readonly onApprove: (publication: PublicationSummaryResponse) => void;
+  readonly onEdit: (publication: PublicationSummaryResponse) => void;
   readonly onHistory: (publication: PublicationSummaryResponse) => void;
   readonly onPreview: (publication: PublicationSummaryResponse) => void;
   readonly onPublish: (publication: PublicationSummaryResponse) => void;
@@ -130,16 +133,28 @@ function PublicationRow({
         {(publication.status === "draft" ||
           publication.status === "generation_failed") &&
         canEdit ? (
-          <button
-            onClick={() => {
-              onRender(publication);
-            }}
-            type="button"
-          >
-            {publication.status === "generation_failed"
-              ? "Reintentar PNG"
-              : "Generar PNG"}
-          </button>
+          <>
+            {publication.status === "draft" ? (
+              <button
+                onClick={() => {
+                  onEdit(publication);
+                }}
+                type="button"
+              >
+                Editar borrador
+              </button>
+            ) : null}
+            <button
+              onClick={() => {
+                onRender(publication);
+              }}
+              type="button"
+            >
+              {publication.status === "generation_failed"
+                ? "Reintentar PNG"
+                : "Generar PNG"}
+            </button>
+          </>
         ) : null}
         {(publication.status === "ready_for_review" ||
           publication.status === "approved") && (
@@ -263,6 +278,9 @@ export function PublicationWorkspace({
     useState<PublicationSummaryResponse | null>(null);
   const [inspecting, setInspecting] =
     useState<PublicationSummaryResponse | null>(null);
+  const [editing, setEditing] = useState<PublicationSummaryResponse | null>(
+    null,
+  );
   const anchoredToLink = useRef(false);
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
@@ -441,6 +459,9 @@ export function PublicationWorkspace({
                 onApprove={(selected) => {
                   void runCommand(selected, "approve");
                 }}
+                onEdit={(selected) => {
+                  setEditing(selected);
+                }}
                 onHistory={(selected) => {
                   setConfirming(null);
                   setInspecting(selected);
@@ -495,6 +516,18 @@ export function PublicationWorkspace({
             actor={initial.actor}
             apiBaseUrl={apiBaseUrl}
             publicationId={inspecting.id}
+          />
+        )}
+        {editing === null ? null : (
+          <RecurringStoryDraftEditor
+            apiBaseUrl={apiBaseUrl}
+            onClose={() => {
+              setEditing(null);
+            }}
+            onSaved={() => {
+              reload();
+            }}
+            publicationId={editing.id}
           />
         )}
         {commandNotice === null ? null : (

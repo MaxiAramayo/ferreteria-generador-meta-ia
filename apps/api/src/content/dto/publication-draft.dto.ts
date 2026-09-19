@@ -18,6 +18,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import {
+  ACCENT_NAMES,
   DESIGN_SCHEMA_VERSION,
   FORMAT_IDS,
   ICON_NAMES,
@@ -54,6 +55,10 @@ export class PublicationDraftContentDto {
 
 export class DraftDesignContentDto {
   @IsOptional()
+  @IsIn(ACCENT_NAMES)
+  declare accent?: string;
+
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(240)
@@ -76,6 +81,12 @@ export class DraftDesignContentDto {
   @MinLength(1)
   @MaxLength(240)
   declare category?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(240)
+  declare greeting?: string;
 
   @IsOptional()
   @IsIn(ICON_NAMES)
@@ -148,13 +159,27 @@ export class DraftMediaInputDto {
   @IsIn(["contain", "cover"])
   declare fit?: "contain" | "cover";
 
+  /** Foto de la biblioteca aprobada de marca, por su identificador. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9][a-z0-9/_-]{2,127}$/u)
+  declare brandAssetId?: string;
+
+  /** Foto embebida en lugar de un activo guardado (`ADR-030`). */
+  @IsOptional()
+  @IsString()
+  @Matches(/^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/u)
+  @MaxLength(3_000_000)
+  declare dataUrl?: string;
+
   @IsOptional()
   @ValidateNested()
   @Type(() => DraftMediaFocusDto)
   declare focus?: DraftMediaFocusDto;
 
+  @IsOptional()
   @IsUUID("4")
-  declare mediaAssetId: string;
+  declare mediaAssetId?: string;
 
   @IsOptional()
   @IsNumber()

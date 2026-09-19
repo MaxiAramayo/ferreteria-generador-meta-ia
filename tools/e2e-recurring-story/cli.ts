@@ -35,6 +35,7 @@
 
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { Pool } from "pg";
@@ -323,50 +324,76 @@ async function main(): Promise<void> {
       .getByRole("button", { name: "Activar regla" })
       .waitFor({ timeout: startupTimeoutMs });
 
-    // --- La vista previa respeta el formato y sus zonas seguras ---
+    // --- La vista previa monta el mismo documento del motor ---
     const format = FORMATS.historia;
-    const preview = page.getByRole("complementary");
+    const preview = page.locator('[data-card][data-format="historia"]');
     const previewBox = await preview.boundingBox();
-    const topGuide = await page.getByText("Zona segura superior").boundingBox();
-    const bottomGuide = await page
-      .getByText("Zona segura inferior")
-      .boundingBox();
-    assert.ok(previewBox && topGuide && bottomGuide, "Falta la vista previa.");
-    const measurements = [
-      {
-        expected: format.width / format.height,
-        measured: previewBox.width / previewBox.height,
-        name: "relación de aspecto",
-      },
-      {
-        expected: format.safeArea.top / format.height,
-        measured: topGuide.height / previewBox.height,
-        name: "zona segura superior",
-      },
-      {
-        expected: format.safeArea.bottom / format.height,
-        measured: bottomGuide.height / previewBox.height,
-        name: "zona segura inferior",
-      },
-    ];
-    for (const measurement of measurements) {
-      assert.ok(
-        Math.abs(measurement.measured - measurement.expected) < 0.01,
-        `La vista previa no respeta la ${measurement.name}: esperaba ${measurement.expected.toFixed(4)} y midió ${measurement.measured.toFixed(4)}.`,
-      );
-    }
+    assert.ok(previewBox, "Falta la vista previa real.");
+    assert.ok(
+      Math.abs(
+        previewBox.width / previewBox.height - format.width / format.height,
+      ) < 0.01,
+      "La vista previa del motor no respeta la relación de historia.",
+    );
+    assert.deepEqual(
+      JSON.parse((await preview.getAttribute("data-safe-area")) ?? "{}"),
+      format.safeArea,
+      "La vista previa tiene que declarar las zonas seguras del motor.",
+    );
     await preview
       .getByText(fixture.openingHours, { exact: false })
       .waitFor({ timeout: 10_000 });
     reportCheck(
-      "la vista previa usa el formato historia, sus zonas seguras y el horario vigente",
+      "la vista previa usa el documento real de historia, sus zonas seguras y el horario vigente",
+    );
+
+    // --- La imagen propia sin imagen no se activa ---
+    await page.getByText("Imagen propia", { exact: true }).click();
+    await page
+      .getByText("Subí la imagen que querés publicar para verla acá.")
+      .waitFor({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Activar regla" }).click();
+    await page
+      .getByText("«Imagen propia» no tiene otra cosa que mostrar", {
+        exact: false,
+      })
+      .waitFor({ timeout: 10_000 });
+    await page.getByText("Cartel de apertura", { exact: true }).click();
+    reportCheck("la imagen propia sin imagen no deja activar la regla");
+
+    // --- Una foto propia se prepara en el navegador y entra a la pieza ---
+    // Es una foto real del local: el render de más abajo la decodifica.
+    const photoBytes = await readFile(
+      fileURLToPath(
+        new URL(
+          "../../packages/design-engine/assets/brand/local-aramayo.jpg",
+          import.meta.url,
+        ),
+      ),
+    );
+    await page.getByLabel("Subir foto").setInputFiles({
+      buffer: photoBytes,
+      mimeType: "image/jpeg",
+      name: "mascota.jpg",
+    });
+    await preview
+      .locator('img[src^="data:image/jpeg;base64,"]')
+      .waitFor({ timeout: 30_000 });
+    await page.getByText("Verde", { exact: true }).click();
+    await preview
+      .locator(
+        '[data-cta][style*="background-color:#1e7d3f"], [data-cta][style*="rgb(30, 125, 63)"]',
+      )
+      .waitFor({ timeout: 10_000 });
+    reportCheck(
+      "la foto subida y el acento verde aparecen en la vista previa real antes de guardar",
     );
 
     // --- Crear la regla desde el panel ---
     // La mayoría de las historias son para todas las sucursales, así que el
     // formulario arranca ahí. Este recorrido prueba el camino de una sola:
     // el de todas lo cubren la integración de la base y el dominio.
-    const scope = page.getByLabel("Sucursal");
+    const scope = page.getByTestId("recurring-story-location");
     assert.equal(
       await scope.inputValue(),
       "",
@@ -399,6 +426,18 @@ async function main(): Promise<void> {
       assert.equal(rule.leadTimeMinutes, leadTimeMinutes);
       assert.equal(rule.timeZone, locationTimeZone);
       assert.equal(rule.approvalPolicy, "human_each_cycle");
+      assert.equal(rule.designVariant, "cartel");
+      // El rojo de marca es el punto de partida de una regla nueva.
+      assert.equal(rule.theme, "promo");
+      assert.equal(rule.accent, "verde");
+      assert.ok(
+        rule.photoDataUrl?.startsWith("data:image/jpeg;base64,") === true,
+        "La regla tiene que guardar la foto preparada como JPEG.",
+      );
+      assert.ok(
+        rule.photoDataUrl.length < photoBytes.byteLength * 2,
+        "La foto se guarda achicada y recodificada, no el archivo original.",
+      );
       assert.equal(
         await database.publication.count({
           where: { organizationId: fixture.organizationId },
@@ -447,8 +486,66 @@ async function main(): Promise<void> {
         1,
         "El borrador debe nacer versionado.",
       );
+      const materializedRevision =
+        await database.publicationRevision.findFirstOrThrow({
+          where: { organizationId: fixture.organizationId, publicationId },
+        });
+      const materializedDocument = JSON.stringify(
+        materializedRevision.designDocument,
+      );
+      assert.ok(
+        materializedDocument.includes(rule.photoDataUrl),
+        "El borrador tiene que llevar la foto de la regla.",
+      );
+      assert.match(materializedDocument, /"accent":"verde"/u);
       reportCheck(
-        "el worker materializa un borrador versionado que cita dirección, horario y versión de sucursal",
+        "el worker materializa un borrador versionado que cita dirección, horario y versión de sucursal, con la foto y el color de la regla",
+      );
+
+      // --- El borrador se puede ajustar antes de pedir el PNG ---
+      await page.goto(`${webBaseUrl}/publicaciones`, { waitUntil: "load" });
+      const editButton = page.getByRole("button", { name: "Editar borrador" });
+      await editButton.waitFor({ timeout: startupTimeoutMs });
+      await editButton.click();
+      await page
+        .getByRole("heading", { name: "Editá lo que verá tu cliente." })
+        .waitFor({ timeout: startupTimeoutMs });
+      await page.getByLabel("Titular").fill("¡Abrimos temprano!");
+      await page.getByText("Horario en foco", { exact: true }).click();
+      await page.getByText("Claro", { exact: true }).click();
+      const saveDraftResponse = page.waitForResponse(
+        (response) =>
+          response.url() === `${apiBaseUrl}publications/${publicationId}` &&
+          response.request().method() === "PATCH",
+      );
+      await page.getByRole("button", { name: "Guardar revisión" }).click();
+      assert.equal(
+        (await saveDraftResponse).status(),
+        200,
+        "El ajuste del borrador no fue confirmado.",
+      );
+      const revised = await database.publication.findUniqueOrThrow({
+        include: { revisions: { orderBy: { revisionNumber: "desc" } } },
+        where: { id: publicationId },
+      });
+      assert.equal(revised.version, 2);
+      assert.equal(revised.revisions.length, 2);
+      assert.match(
+        JSON.stringify(revised.revisions[0]?.designDocument),
+        /"layout":"historia-apertura-horario"/u,
+      );
+      assert.match(
+        JSON.stringify(revised.revisions[0]?.designDocument),
+        /"theme":"claro"/u,
+      );
+      assert.ok(
+        JSON.stringify(revised.revisions[0]?.designDocument).includes(
+          rule.photoDataUrl,
+        ),
+        "Editar el borrador no puede perder la foto.",
+      );
+      reportCheck(
+        "la edición guarda otra revisión con copy, marco y tema, conserva la foto y no aprueba ni publica",
       );
 
       // --- Render de la pieza, sin proveedores externos ---
@@ -456,7 +553,7 @@ async function main(): Promise<void> {
         page,
         apiBaseUrl,
         `publications/${publicationId}/render`,
-        { expectedVersion: 1 },
+        { expectedVersion: 2 },
       );
       assert.equal(renderResponse.status, 201, "El render no fue aceptado.");
       const revisionId = fieldFrom(renderResponse.body, "revisionId");
@@ -532,7 +629,7 @@ async function main(): Promise<void> {
             select: { status: true, version: true },
             where: { id: publicationId },
           });
-          rendered = state.status === "ready_for_review" && state.version === 3;
+          rendered = state.status === "ready_for_review" && state.version === 4;
           if (rendered) {
             const reviewed =
               await database.publicationRevision.findUniqueOrThrow({
@@ -552,7 +649,7 @@ async function main(): Promise<void> {
         page,
         apiBaseUrl,
         `publications/${publicationId}/approve`,
-        { expectedVersion: 3 },
+        { expectedVersion: 4 },
       );
       assert.equal(approval.status, 201, "La aprobación fue rechazada.");
       assert.equal(

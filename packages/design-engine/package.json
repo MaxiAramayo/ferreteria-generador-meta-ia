@@ -12,6 +12,14 @@
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
     },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "default": "./dist/validation.js"
+    },
+    "./asset-location": {
+      "types": "./dist/assets/asset-location.d.ts",
+      "default": "./dist/assets/asset-location.js"
+    },
     "./assets/*": "./assets/*",
     "./package.json": "./package.json"
   },

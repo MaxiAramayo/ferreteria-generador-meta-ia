@@ -295,8 +295,27 @@ enum RecurringStoryDesignVariant {
   cartel  @map("cartel")
   horario @map("horario")
   locales @map("locales")
+  /// Publica tal cual la imagen propia de la regla (`ADR-030`).
+  imagen  @map("imagen")
 
   @@map("recurring_story_design_variant")
+}
+
+/// Color de la etiqueta de estado y del botón de una apertura.
+enum RecurringStoryAccent {
+  marca @map("marca")
+  senal @map("senal")
+  verde @map("verde")
+
+  @@map("recurring_story_accent")
+}
+
+enum RecurringStoryTheme {
+  taller @map("taller")
+  claro  @map("claro")
+  promo  @map("promo")
+
+  @@map("recurring_story_theme")
 }
 
 enum LocationDayStatus {
@@ -719,12 +738,21 @@ model RecurringStoryRule {
   leadTimeMinutes       Int                          @map("lead_time_minutes")
   effectiveFrom         DateTime                     @map("effective_from") @db.Timestamptz(3)
   approvalPolicy        RecurringStoryApprovalPolicy @map("approval_policy")
+  designVariant         RecurringStoryDesignVariant  @default(cartel) @map("design_variant")
   designRotation        RecurringStoryDesignVariant[] @default([cartel, horario, locales, cartel, horario, locales, cartel]) @map("design_rotation")
+  theme                 RecurringStoryTheme          @default(taller)
+  accent                RecurringStoryAccent         @default(marca)
+  /// Foto propia embebida como `data:`; nula usa la foto del local.
+  photoDataUrl          String?                      @map("photo_data_url") @db.Text
+  photoAlt              String?                      @map("photo_alt") @db.VarChar(160)
+  photoFocusY           Int?                         @map("photo_focus_y") @db.SmallInt
   status                RecurringStoryRuleStatus     @default(active)
   idempotencyKey        String                       @map("idempotency_key") @db.VarChar(128)
   requestHash           String                       @map("request_hash") @db.Char(64)
   lastDesignRotationIdempotencyKey String?           @map("last_design_rotation_idempotency_key") @db.VarChar(128)
   lastDesignRotationRequestHash    String?           @map("last_design_rotation_request_hash") @db.Char(64)
+  lastVisualStyleIdempotencyKey    String?           @map("last_visual_style_idempotency_key") @db.VarChar(128)
+  lastVisualStyleRequestHash       String?           @map("last_visual_style_request_hash") @db.Char(64)
   version               Int                          @default(1)
   createdAt             DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
