@@ -48,6 +48,7 @@ import {
 import {
   HistoriaAperturaCartel,
   HistoriaAperturaHorario,
+  HistoriaAperturaImagen,
   HistoriaAperturaLocales,
 } from "./opening-stories.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
@@ -78,6 +79,7 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "banner-marca": BannerMarca,
     "historia-apertura-cartel": HistoriaAperturaCartel,
     "historia-apertura-horario": HistoriaAperturaHorario,
+    "historia-apertura-imagen": HistoriaAperturaImagen,
     "historia-apertura-locales": HistoriaAperturaLocales,
     "combo-kit": ComboKit,
     "composicion-banda-superior": ComposicionBandaSuperior,
@@ -144,9 +146,11 @@ export function isLayoutMigrated(layoutId: LayoutId): boolean {
  * que no entra se rechaza con la ruta del campo, y quien edita decide.
  */
 export const TEXT_BUDGET = Object.freeze({
+  greeting: 26,
   items: 60,
   subtitle: 150,
   title: 90,
+  validity: 90,
 });
 
 export function assertTextFits(document: DesignDocument): void {
@@ -162,6 +166,20 @@ export function assertTextFits(document: DesignDocument): void {
     content.subtitle.length > TEXT_BUDGET.subtitle
   ) {
     issues.push({ code: "too-long", path: "content.subtitle" });
+  }
+
+  if (
+    content.greeting !== undefined &&
+    content.greeting.length > TEXT_BUDGET.greeting
+  ) {
+    issues.push({ code: "too-long", path: "content.greeting" });
+  }
+
+  if (
+    content.validity !== undefined &&
+    content.validity.length > TEXT_BUDGET.validity
+  ) {
+    issues.push({ code: "too-long", path: "content.validity" });
   }
 
   for (const [index, item] of (content.items ?? []).entries()) {
@@ -198,9 +216,14 @@ export function DesignPiece({
   const format = formatFor(document.format);
   const theme = themeFor(document.theme);
   const Layout = layoutComponentFor(document.layout);
+  // Las aperturas dibujan su propia trama de cartel (`ADR-030`).
   const withoutBackdrop: ReadonlySet<string> = new Set([
     "banner-marca",
     "destacada-cover",
+    "historia-apertura-cartel",
+    "historia-apertura-horario",
+    "historia-apertura-imagen",
+    "historia-apertura-locales",
   ]);
   const backdrop = !withoutBackdrop.has(document.layout);
 

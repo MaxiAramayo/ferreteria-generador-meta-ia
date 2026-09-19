@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  reliableOperationLimits,
   ReliableOperationValidationError,
   validateAuditMetadata,
+  validateIdempotencyResponse,
   validateOutboxTopic,
   validateReliableOperationName,
   validateSha256,
@@ -76,5 +78,27 @@ test("rechaza nombres ambiguos y hashes que no son hexadecimales", () => {
   assert.throws(
     () => validateSha256("not-a-hash", "requestHash"),
     ReliableOperationValidationError,
+  );
+});
+
+test("la respuesta idempotente admite un borrador con su foto embebida y no más", () => {
+  // Una foto propia de 3 MB en base64, como la que acepta la API.
+  const withPhoto: SafeJsonObject = {
+    designDocument: {
+      media: [{ dataUrl: `data:image/jpeg;base64,${"A".repeat(3_000_000)}` }],
+    },
+  };
+  assert.equal(validateIdempotencyResponse(withPhoto), withPhoto);
+
+  assert.throws(
+    () =>
+      validateIdempotencyResponse({
+        text: "x".repeat(
+          reliableOperationLimits.idempotencyResponseBytesMaximum,
+        ),
+      }),
+    (cause: unknown) =>
+      cause instanceof ReliableOperationValidationError &&
+      cause.code === "payload-too-large",
   );
 });

@@ -1,14 +1,18 @@
 import type {
   LocationConfigurationResponse,
+  RecurringStoryAccentResponse,
   RecurringStoryApprovalPolicyResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryPhotoPayload,
   RecurringStoryRuleResponse,
+  RecurringStoryThemeResponse,
   RecurringStoryWorkspaceResponse,
 } from "@aramayo/contracts";
 
 export interface RecurringStoryRuleSubmission {
+  readonly accent: RecurringStoryAccentResponse;
   readonly approvalPolicy: RecurringStoryApprovalPolicyResponse;
-  readonly designRotation: readonly RecurringStoryDesignVariantResponse[];
+  readonly designVariant: RecurringStoryDesignVariantResponse;
   readonly effectiveFromLocalDate: string;
   readonly idempotencyKey: string;
   readonly leadTimeMinutes: number;
@@ -16,14 +20,21 @@ export interface RecurringStoryRuleSubmission {
   /** `null`: la regla es para todas las sucursales activas. */
   readonly locationId: string | null;
   readonly name: string;
+  /** `null`: la historia usa la foto del local. */
+  readonly photo: RecurringStoryPhotoPayload | null;
+  readonly theme: RecurringStoryThemeResponse;
   readonly weekdays: readonly number[];
 }
 
-export interface RecurringStoryDesignRotationSubmission {
-  readonly designRotation: readonly RecurringStoryDesignVariantResponse[];
+/** El estilo se reemplaza entero, foto incluida. */
+export interface RecurringStoryVisualStyleSubmission {
+  readonly accent: RecurringStoryAccentResponse;
+  readonly designVariant: RecurringStoryDesignVariantResponse;
   readonly expectedVersion: number;
   readonly idempotencyKey: string;
+  readonly photo: RecurringStoryPhotoPayload | null;
   readonly ruleId: string;
+  readonly theme: RecurringStoryThemeResponse;
 }
 
 export type RecurringStoryWorkspaceResult =
@@ -36,23 +47,53 @@ export type RecurringStorySaveResult =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
 
-export type RecurringStoryDesignRotationSaveResult =
+export type RecurringStoryVisualStyleSaveResult =
   | Readonly<{ kind: "forbidden" }>
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
 
-function designRotation(
+function designVariant(
   value: unknown,
-): readonly RecurringStoryDesignVariantResponse[] | null {
-  return Array.isArray(value) &&
-    value.length === 7 &&
-    value.every(
-      (variant) =>
-        variant === "cartel" || variant === "horario" || variant === "locales",
-    )
+): RecurringStoryDesignVariantResponse | null {
+  return value === "cartel" ||
+    value === "horario" ||
+    value === "locales" ||
+    value === "imagen"
     ? value
     : null;
 }
+
+function accent(value: unknown): RecurringStoryAccentResponse | null {
+  return value === "marca" || value === "senal" || value === "verde"
+    ? value
+    : null;
+}
+
+/** `undefined`: la respuesta no trae una foto válida ni `null`. */
+function photo(value: unknown): RecurringStoryPhotoPayload | null | undefined {
+  if (value === null) return null;
+  const candidate = record(value);
+  return candidate !== null &&
+    typeof candidate["alt"] === "string" &&
+    typeof candidate["dataUrl"] === "string" &&
+    /^data:image\/(?:jpeg|png);base64,/u.test(candidate["dataUrl"]) &&
+    typeof candidate["focusY"] === "number"
+    ? {
+        alt: candidate["alt"],
+        dataUrl: candidate["dataUrl"],
+        focusY: candidate["focusY"],
+      }
+    : undefined;
+}
+
+function theme(value: unknown): RecurringStoryThemeResponse | null {
+  return value === "taller" || value === "claro" || value === "promo"
+    ? value
+    : null;
+}
+
+const photoTooLargeMessage =
+  "La foto es demasiado pesada. Probá con otra o recortala antes de subirla.";
 
 function record(value: unknown): Readonly<Record<string, unknown>> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -106,12 +147,16 @@ function location(value: unknown): LocationConfigurationResponse | null {
 function rule(value: unknown): RecurringStoryRuleResponse | null {
   const candidate = record(value);
   const weekdays = candidate?.["weekdays"];
-  const rotation = candidate?.["designRotation"];
+  const visualVariant = candidate?.["designVariant"];
+  const rulePhoto = photo(candidate?.["photo"]);
+  const ruleAccent = accent(candidate?.["accent"]);
   return candidate !== null &&
+    ruleAccent !== null &&
+    rulePhoto !== undefined &&
     (candidate["approvalPolicy"] === "human-each-cycle" ||
       candidate["approvalPolicy"] === "automatic-routine") &&
     typeof candidate["effectiveFrom"] === "string" &&
-    designRotation(rotation) !== null &&
+    designVariant(visualVariant) !== null &&
     typeof candidate["id"] === "string" &&
     typeof candidate["leadTimeMinutes"] === "number" &&
     typeof candidate["localTime"] === "string" &&
@@ -122,21 +167,25 @@ function rule(value: unknown): RecurringStoryRuleResponse | null {
       candidate["status"] === "paused" ||
       candidate["status"] === "cancelled") &&
     typeof candidate["timeZone"] === "string" &&
+    theme(candidate["theme"]) !== null &&
     typeof candidate["version"] === "number" &&
     Array.isArray(weekdays) &&
     weekdays.every(
       (weekday) => typeof weekday === "number" && weekday >= 1 && weekday <= 7,
     )
     ? {
+        accent: ruleAccent,
         approvalPolicy: candidate["approvalPolicy"],
-        designRotation: designRotation(rotation) ?? [],
+        designVariant: designVariant(visualVariant) ?? "cartel",
         effectiveFrom: candidate["effectiveFrom"],
         id: candidate["id"],
         leadTimeMinutes: candidate["leadTimeMinutes"],
         localTime: candidate["localTime"],
         locationId: candidate["locationId"],
         name: candidate["name"],
+        photo: rulePhoto,
         status: candidate["status"],
+        theme: theme(candidate["theme"]) ?? "taller",
         timeZone: candidate["timeZone"],
         version: candidate["version"],
         weekdays,
@@ -229,8 +278,9 @@ export async function saveRecurringStoryRule(
       new URL("scheduling/recurring-stories", apiBaseUrl),
       {
         body: JSON.stringify({
+          accent: submission.accent,
           approvalPolicy: submission.approvalPolicy,
-          designRotation: submission.designRotation,
+          designVariant: submission.designVariant,
           effectiveFromLocalDate: submission.effectiveFromLocalDate,
           leadTimeMinutes: submission.leadTimeMinutes,
           localTime: submission.localTime,
@@ -238,6 +288,8 @@ export async function saveRecurringStoryRule(
             ? {}
             : { locationId: submission.locationId }),
           name: submission.name,
+          ...(submission.photo === null ? {} : { photo: submission.photo }),
+          theme: submission.theme,
           weekdays: submission.weekdays,
         }),
         credentials: "include",
@@ -252,6 +304,9 @@ export async function saveRecurringStoryRule(
     );
     if (response.status === 401 || response.status === 403) {
       return { kind: "forbidden" };
+    }
+    if (response.status === 413) {
+      return { kind: "error", message: photoTooLargeMessage };
     }
     const body = record(await payload(response));
     const parsed = rule(body?.["rule"]);
@@ -272,22 +327,25 @@ export async function saveRecurringStoryRule(
   }
 }
 
-export async function saveRecurringStoryDesignRotation(
+export async function saveRecurringStoryVisualStyle(
   apiBaseUrl: string,
-  submission: RecurringStoryDesignRotationSubmission,
-): Promise<RecurringStoryDesignRotationSaveResult> {
+  submission: RecurringStoryVisualStyleSubmission,
+): Promise<RecurringStoryVisualStyleSaveResult> {
   try {
     const csrf = await csrfToken(apiBaseUrl);
     if (csrf === null) return { kind: "forbidden" };
     const response = await fetch(
       new URL(
-        `scheduling/recurring-stories/${submission.ruleId}/design-rotation`,
+        `scheduling/recurring-stories/${submission.ruleId}/visual-style`,
         apiBaseUrl,
       ),
       {
         body: JSON.stringify({
-          designRotation: submission.designRotation,
+          accent: submission.accent,
+          designVariant: submission.designVariant,
           expectedVersion: submission.expectedVersion,
+          photo: submission.photo,
+          theme: submission.theme,
         }),
         credentials: "include",
         headers: {
@@ -302,6 +360,9 @@ export async function saveRecurringStoryDesignRotation(
     if (response.status === 401 || response.status === 403) {
       return { kind: "forbidden" };
     }
+    if (response.status === 413) {
+      return { kind: "error", message: photoTooLargeMessage };
+    }
     const body = record(await payload(response));
     const parsed = rule(body?.["rule"]);
     return response.ok && body?.["status"] === "updated" && parsed !== null
@@ -311,12 +372,12 @@ export async function saveRecurringStoryDesignRotation(
           message:
             typeof body?.["message"] === "string"
               ? body["message"]
-              : "No se pudieron guardar los diseños de la regla.",
+              : "No se pudo guardar el estilo de la regla.",
         };
   } catch {
     return {
       kind: "error",
-      message: "No se pudo conectar con la API para guardar los diseños.",
+      message: "No se pudo conectar con la API para guardar el estilo.",
     };
   }
 }

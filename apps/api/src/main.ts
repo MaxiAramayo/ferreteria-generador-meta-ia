@@ -10,6 +10,10 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 
 import { AppModule } from "./app.module.ts";
+import {
+  limitJsonBodies,
+  photoJsonBodyLimitBytes,
+} from "./lifecycle/json-body-limit.ts";
 import { apiLog } from "./observability/api-log.ts";
 import {
   correlationHeader,
@@ -48,6 +52,9 @@ async function bootstrap(): Promise<void> {
   );
 
   application.set("trust proxy", configuration.trustProxyHops);
+  // Antes del analizador: el límite por ruta se decide sin leer el cuerpo.
+  application.use(limitJsonBodies);
+  application.useBodyParser("json", { limit: photoJsonBodyLimitBytes });
   // Antes que CORS y que los guards: un preflight rechazado y un 401 también
   // pertenecen a la solicitud que los provocó.
   application.use(createCorrelationMiddleware(apiLog));

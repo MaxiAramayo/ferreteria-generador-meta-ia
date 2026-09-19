@@ -1,4 +1,5 @@
 import type { FormatId } from "../formats/formats.ts";
+import type { AccentName } from "../registry/accents.ts";
 import type { IconName } from "../registry/icons.ts";
 import type { LayoutId } from "../registry/layout-id.ts";
 import type { ThemeId } from "../themes/themes.ts";
@@ -62,12 +63,16 @@ export interface MediaAsset {
 }
 
 export interface DesignContent {
+  /** Color de la etiqueta de estado y del botón; sin él decide el tema. */
+  readonly accent?: AccentName;
   readonly badge?: string;
   readonly branch?: string;
   readonly callToAction?: string;
   readonly category?: string;
   /** Aclaración comercial visible, por ejemplo «Imagen ilustrativa». */
   readonly disclaimer?: string;
+  /** Saludo breve del encabezado, por ejemplo «Buen día, Frías». */
+  readonly greeting?: string;
   readonly icon?: IconName;
   readonly items?: readonly string[];
   readonly phone?: string;

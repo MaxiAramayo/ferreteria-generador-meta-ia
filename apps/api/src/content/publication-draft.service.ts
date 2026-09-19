@@ -11,6 +11,8 @@ import type {
 import {
   DESIGN_SCHEMA_VERSION,
   describeIssues,
+  findBrandAsset,
+  isInlineImageDataUrl,
   parseDesignDocument,
   type DesignDocument,
   type MediaFit,
@@ -20,6 +22,7 @@ import {
   authorizeActor,
   normalizePublicationDraftContent,
   PublicationDraftValidationError,
+  recurringStoryPhotoLimits,
   type AuthenticatedActor,
   type MediaAssetRecord,
   type MediaAssetRepository,
@@ -52,19 +55,40 @@ export interface DraftProductSubmission {
   readonly reference: string;
 }
 
-export interface DraftMediaSubmission {
+interface DraftMediaSubmissionBase {
   readonly alt: string;
   readonly fit?: MediaFit;
   readonly focus?: MediaFocus;
-  readonly mediaAssetId: string;
   readonly zoom?: number;
 }
 
+/**
+ * Un medio es un activo controlado de la organización, una foto aprobada de la
+ * biblioteca de marca o una foto embebida.
+ *
+ * Las dos últimas existen por la historia de apertura (`ADR-030`): guardar una
+ * edición del borrador tiene que conservar la foto del local o la foto propia
+ * sin pasar por Cloudinary.
+ */
+export type DraftMediaSubmission =
+  | (DraftMediaSubmissionBase &
+      Readonly<{ brandAssetId?: never; dataUrl?: never; mediaAssetId: string }>)
+  | (DraftMediaSubmissionBase &
+      Readonly<{ brandAssetId?: never; dataUrl: string; mediaAssetId?: never }>)
+  | (DraftMediaSubmissionBase &
+      Readonly<{
+        brandAssetId: string;
+        dataUrl?: never;
+        mediaAssetId?: never;
+      }>);
+
 export interface DraftDesignContentSubmission {
+  readonly accent?: string;
   readonly badge?: string;
   readonly branch?: string;
   readonly callToAction?: string;
   readonly category?: string;
+  readonly greeting?: string;
   readonly icon?: string;
   readonly items?: readonly string[];
   readonly phone?: string;
@@ -495,8 +519,30 @@ export class PublicationDraftService {
       throw cause;
     }
 
-    const mediaAssetIds = submission.design.media.map(
-      (media) => media.mediaAssetId,
+    for (const media of submission.design.media) {
+      if (
+        media.dataUrl !== undefined &&
+        (media.dataUrl.length > recurringStoryPhotoLimits.dataUrlMaximum ||
+          !isInlineImageDataUrl(media.dataUrl))
+      ) {
+        throw new BadRequestException({
+          field: "design.media",
+          message:
+            "La foto tiene que ser JPEG o PNG y no superar el tamaño permitido.",
+        });
+      }
+      if (
+        media.brandAssetId !== undefined &&
+        findBrandAsset(media.brandAssetId) === undefined
+      ) {
+        throw new BadRequestException({
+          field: "design.media",
+          message: "La foto no pertenece a la biblioteca aprobada de la marca.",
+        });
+      }
+    }
+    const mediaAssetIds = submission.design.media.flatMap((media) =>
+      media.mediaAssetId === undefined ? [] : [media.mediaAssetId],
     );
     if (new Set(mediaAssetIds).size !== mediaAssetIds.length) {
       throw new BadRequestException({
@@ -520,6 +566,24 @@ export class PublicationDraftService {
       format: submission.design.format,
       layout: submission.design.layout,
       media: submission.design.media.map((media) => {
+        const framing = {
+          alt: media.alt,
+          ...(media.fit === undefined ? {} : { fit: media.fit }),
+          ...(media.focus === undefined ? {} : { focus: media.focus }),
+          ...(media.zoom === undefined ? {} : { zoom: media.zoom }),
+        };
+        if (media.brandAssetId !== undefined) {
+          return {
+            ...framing,
+            reference: { assetId: media.brandAssetId, source: "brand-library" },
+          };
+        }
+        if (media.mediaAssetId === undefined) {
+          return {
+            ...framing,
+            reference: { dataUrl: media.dataUrl, source: "inline" },
+          };
+        }
         const asset = mediaById.get(media.mediaAssetId);
         if (asset === undefined) {
           throw new NotFoundException(
@@ -527,14 +591,11 @@ export class PublicationDraftService {
           );
         }
         return {
-          alt: media.alt,
-          ...(media.fit === undefined ? {} : { fit: media.fit }),
-          ...(media.focus === undefined ? {} : { focus: media.focus }),
+          ...framing,
           reference: {
             source: "remote",
             url: controlledMediaUrl(asset),
           },
-          ...(media.zoom === undefined ? {} : { zoom: media.zoom }),
         };
       }),
       schemaVersion: submission.design.schemaVersion,
@@ -561,6 +622,11 @@ export class PublicationDraftService {
           content,
           designDocument: parsedDesign.document,
           media: submission.design.media.map((media) => {
+            // La foto embebida o de la marca ya está nombrada en el
+            // documento, que forma parte de la huella.
+            if (media.mediaAssetId === undefined) {
+              return { documented: true };
+            }
             const asset = mediaById.get(media.mediaAssetId);
             if (asset === undefined) {
               throw new NotFoundException(
@@ -585,13 +651,19 @@ export class PublicationDraftService {
       ...(submission.locationId === undefined
         ? {}
         : { locationId: submission.locationId }),
+      // Sólo un activo controlado se vincula a la revisión: la foto embebida
+      // vive dentro del documento y no tiene ciclo de vida propio que proteger.
       media: Object.freeze(
-        submission.design.media.map((media, index) =>
-          Object.freeze({
-            alt: media.alt.trim(),
-            mediaAssetId: media.mediaAssetId,
-            slot: `media-${String(index).padStart(2, "0")}`,
-          }),
+        submission.design.media.flatMap((media, index) =>
+          media.mediaAssetId === undefined
+            ? []
+            : [
+                Object.freeze({
+                  alt: media.alt.trim(),
+                  mediaAssetId: media.mediaAssetId,
+                  slot: `media-${String(index).padStart(2, "0")}`,
+                }),
+              ],
         ),
       ),
       organizationId: actor.organizationId,

@@ -7,12 +7,15 @@ import {
   recurringStorySourceToJson,
 } from "./pre-publish-validation.ts";
 import {
-  assertRecurringStoryDesignRotation,
-  defaultRecurringStoryDesignRotation,
+  openingStoryDesignDocument,
+  openingStoryGreeting,
   openingStoryLayoutFor,
+  recurringStoryPhotoLimits,
+  recurringStoryStyleIssue,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type RecurringStoryLocationSource,
+  type RecurringStoryPhoto,
 } from "./recurring-story.ts";
 
 const locationWithoutHours: RecurringStoryLocationSource = {
@@ -38,41 +41,11 @@ const occurrence = {
   scheduledAt: "2026-09-08T11:00:00.000Z",
 };
 
-test("la apertura rota por fecha civil de lunes a domingo", () => {
-  assert.equal(
-    openingStoryLayoutFor(
-      "2026-09-14T08:30",
-      defaultRecurringStoryDesignRotation,
-    ),
-    "historia-apertura-cartel",
-  );
-  assert.equal(
-    openingStoryLayoutFor(
-      "2026-09-15T08:30",
-      defaultRecurringStoryDesignRotation,
-    ),
-    "historia-apertura-horario",
-  );
-  assert.equal(
-    openingStoryLayoutFor(
-      "2026-09-16T08:30",
-      defaultRecurringStoryDesignRotation,
-    ),
-    "historia-apertura-locales",
-  );
-  assert.equal(
-    openingStoryLayoutFor(
-      "2026-09-20T08:30",
-      defaultRecurringStoryDesignRotation,
-    ),
-    "historia-apertura-cartel",
-  );
-});
-
-test("la rotación exige siete diseños válidos", () => {
-  assert.throws(() => {
-    assertRecurringStoryDesignRotation(["cartel", "horario"]);
-  }, RangeError);
+test("la apertura conserva el diseño elegido por la regla", () => {
+  assert.equal(openingStoryLayoutFor("cartel"), "historia-apertura-cartel");
+  assert.equal(openingStoryLayoutFor("horario"), "historia-apertura-horario");
+  assert.equal(openingStoryLayoutFor("locales"), "historia-apertura-locales");
+  assert.equal(openingStoryLayoutFor("imagen"), "historia-apertura-imagen");
 });
 
 test("materializa una historia normal citando la versión de sucursal", () => {
@@ -88,6 +61,18 @@ test("materializa una historia normal citando la versión de sucursal", () => {
   assert.equal(result.source.sourceKind, "location-configuration");
   assert.equal(result.requiresHumanApproval, true);
   assert.match(result.caption, /Rivadavia 673/u);
+  assert.deepEqual(result.designContent, {
+    badge: "Abierto hoy",
+    callToAction: "Escribinos",
+    greeting: "Buen día, Frías",
+    icon: "reloj",
+    items: ["Casa Central · Rivadavia 673"],
+    // Una sucursal sola no promete lubricentro: puede no tenerlo.
+    subtitle:
+      "Casa Central ya está atendiendo. Vení a buscar lo que necesitás para tu casa o tu oficio.",
+    title: "¡Ya abrimos!",
+    validity: "de 8:00 a 12:30 y de 16:30 a 20:30",
+  });
 });
 
 test("un feriado cerrado bloquea la afirmación Ya abrimos", () => {
@@ -271,15 +256,19 @@ test("una historia para todas con el mismo horario lo dice una vez y nombra cada
 
   assert.equal(result.status, "ready");
   assert.deepEqual(result.designContent.items, [
-    "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
-    "Casa central · República de Siria 365, Frías",
-    "Sucursal Rivadavia · Rivadavia 673, Frías",
+    "Casa central · República de Siria 365",
+    "Sucursal Rivadavia · Rivadavia 673",
   ]);
   assert.equal(
-    result.designContent.subtitle,
-    "Casa central y Sucursal Rivadavia",
+    result.designContent.validity,
+    "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
   );
-  assert.equal(result.designContent.badge, "Estamos atendiendo");
+  assert.equal(
+    result.designContent.subtitle,
+    "Nuestros dos locales ya están atendiendo. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+  );
+  assert.equal(result.designContent.badge, "Abierto hoy");
+  assert.equal(result.designContent.greeting, "Buen día, Frías");
   assert.equal(result.requiresHumanApproval, false);
   assert.match(result.caption, /Casa central y Sucursal Rivadavia/u);
   assert.match(
@@ -320,6 +309,14 @@ test("con horarios distintos va un renglón por sucursal", () => {
     "Casa central · Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
     "Sucursal Rivadavia · Lun a vie · 09:00 a 18:00",
   ]);
+  // Sin un horario común, no hay renglón de horario aparte.
+  assert.equal(result.designContent.validity, undefined);
+  // Si abren a horas distintas, «ya están atendiendo» sería falso para la que
+  // abre más tarde: la historia dice que hoy se atiende.
+  assert.equal(
+    result.designContent.subtitle,
+    "Hoy atendemos en nuestros dos locales. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+  );
   assert.match(
     result.caption,
     /en Sucursal Rivadavia \(Rivadavia 673, Frías\): Lun a vie/u,
@@ -346,10 +343,20 @@ test("una sucursal cerrada por excepción se nombra cerrada y la historia pide r
   });
 
   assert.equal(result.status, "ready");
+  // La abierta muestra su calle y su horario va en el renglón de horario; la
+  // cerrada se nombra cerrada.
   assert.deepEqual(result.designContent.items, [
-    "Casa central · Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
+    "Casa central · República de Siria 365",
     "Sucursal Rivadavia · Cerrada hoy",
   ]);
+  assert.equal(
+    result.designContent.validity,
+    "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
+  );
+  assert.equal(
+    result.designContent.subtitle,
+    "Casa central ya está atendiendo. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+  );
   assert.equal(result.designContent.badge, "Horario especial");
   assert.equal(result.requiresHumanApproval, true);
   assert.match(result.caption, /Ya abrimos en Casa central\./u);
@@ -416,7 +423,10 @@ test("una sucursal inactiva no es parte de todas", () => {
   });
 
   assert.equal(result.status, "ready");
-  assert.equal(result.designContent.subtitle, "Casa central");
+  assert.match(
+    result.designContent.subtitle,
+    /^Casa central ya está atendiendo\./u,
+  );
   assert.deepEqual(
     result.source.locations.map((entry) => entry.locationId),
     ["location-central"],
@@ -474,5 +484,182 @@ test("la fuente para todas se persiste y se relee igual que la de una sucursal",
       scope: "every-location",
     }),
     null,
+  );
+});
+
+test("el saludo sigue la hora de publicación y cede la localidad si no entra", () => {
+  assert.equal(
+    openingStoryGreeting("2026-09-08T08:30", "Frías"),
+    "Buen día, Frías",
+  );
+  assert.equal(
+    openingStoryGreeting("2026-09-08T16:30", "Frías"),
+    "Buenas tardes, Frías",
+  );
+  assert.equal(
+    openingStoryGreeting("2026-09-08T20:00", "Frías"),
+    "Buenas noches, Frías",
+  );
+  assert.equal(
+    openingStoryGreeting("2026-09-08T11:59", "Santiago del Estero"),
+    "Buen día",
+  );
+  assert.equal(openingStoryGreeting("2026-09-08T09:00", null), "Buen día");
+});
+
+test("sucursales de localidades distintas se saludan sin nombrar ninguna", () => {
+  const result = resolveEveryLocationStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    locations: [
+      { location: centralLocation },
+      { location: { ...rivadaviaLocation, city: "Loreto" } },
+    ],
+    occurrence,
+    policy: "automatic-routine",
+  });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.designContent.greeting, "Buen día");
+});
+
+test("la imagen propia siempre vuelve a revisión humana", () => {
+  const single = resolveRecurringStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    designVariant: "imagen",
+    location,
+    occurrence,
+    policy: "automatic-routine",
+  });
+  const every = resolveEveryLocationStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    designVariant: "imagen",
+    locations: [{ location: centralLocation }, { location: rivadaviaLocation }],
+    occurrence,
+    policy: "automatic-routine",
+  });
+  const routine = resolveEveryLocationStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    designVariant: "cartel",
+    locations: [{ location: centralLocation }, { location: rivadaviaLocation }],
+    occurrence,
+    policy: "automatic-routine",
+  });
+
+  assert.equal(single.status === "ready" && single.requiresHumanApproval, true);
+  assert.equal(every.status === "ready" && every.requiresHumanApproval, true);
+  assert.equal(
+    routine.status === "ready" && routine.requiresHumanApproval,
+    false,
+  );
+});
+
+const jpegPhoto: RecurringStoryPhoto = {
+  alt: "Nuestra gata en el mostrador",
+  dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusY: 40,
+};
+
+test("un estilo de apertura valida su foto y exige una para la imagen propia", () => {
+  assert.equal(
+    recurringStoryStyleIssue({ designVariant: "cartel", photo: null }),
+    null,
+  );
+  assert.equal(
+    recurringStoryStyleIssue({ designVariant: "imagen", photo: null }),
+    "photo-required",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({ designVariant: "imagen", photo: jpegPhoto }),
+    null,
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: { ...jpegPhoto, dataUrl: "data:image/svg+xml;base64,PHN2Zz4=" },
+    }),
+    "photo-type-invalid",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: {
+        ...jpegPhoto,
+        dataUrl: `data:image/jpeg;base64,${"A".repeat(recurringStoryPhotoLimits.dataUrlMaximum)}`,
+      },
+    }),
+    "photo-too-large",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: { ...jpegPhoto, alt: "  " },
+    }),
+    "photo-alt-invalid",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: { ...jpegPhoto, focusY: 101 },
+    }),
+    "photo-focus-invalid",
+  );
+});
+
+test("el documento usa la foto de la regla o, sin ella, la del local", () => {
+  const resolution = resolveEveryLocationStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    locations: [{ location: centralLocation }, { location: rivadaviaLocation }],
+    occurrence,
+    policy: "automatic-routine",
+  });
+  assert.equal(resolution.status, "ready");
+
+  const withoutPhoto = openingStoryDesignDocument({
+    accent: "marca",
+    content: resolution.designContent,
+    designVariant: "cartel",
+    localDate: "2026-09-08",
+    photo: null,
+    ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
+    theme: "promo",
+  });
+  assert.equal(withoutPhoto.layout, "historia-apertura-cartel");
+  assert.equal(withoutPhoto.slug, "story-0f5ee2d4-20260908");
+  assert.deepEqual(withoutPhoto.media[0]?.["reference"], {
+    assetId: "brand/interior-herramientas",
+    source: "brand-library",
+  });
+  assert.equal(withoutPhoto.content.accent, "marca");
+
+  const withPhoto = openingStoryDesignDocument({
+    accent: "verde",
+    content: resolution.designContent,
+    designVariant: "imagen",
+    localDate: "2026-09-08",
+    photo: jpegPhoto,
+    ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
+    theme: "promo",
+  });
+  assert.equal(withPhoto.layout, "historia-apertura-imagen");
+  assert.deepEqual(withPhoto.media[0], {
+    alt: "Nuestra gata en el mostrador",
+    fit: "cover",
+    focus: { x: 50, y: 40 },
+    reference: { dataUrl: jpegPhoto.dataUrl, source: "inline" },
+    zoom: 1,
+  });
+
+  assert.throws(
+    () =>
+      openingStoryDesignDocument({
+        accent: "marca",
+        content: resolution.designContent,
+        designVariant: "imagen",
+        localDate: "2026-09-08",
+        photo: null,
+        ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
+        theme: "promo",
+      }),
+    RangeError,
   );
 });

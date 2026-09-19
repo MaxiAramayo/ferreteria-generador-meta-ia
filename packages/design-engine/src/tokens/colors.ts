@@ -23,6 +23,12 @@ export const COLORS = Object.freeze({
   safety: "#ffb200",
   safetyDeep: "#e59400",
   steel: "#6e6a66",
+  /**
+   * Verde de «abierto» y de contacto (`ADR-030`). No es un color de marca: sólo
+   * lo pinta la etiqueta de estado y el botón de una apertura cuando quien
+   * opera lo elige. El blanco encima mide 5,17:1.
+   */
+  verde: "#1e7d3f",
   white: "#ffffff",
 });
 

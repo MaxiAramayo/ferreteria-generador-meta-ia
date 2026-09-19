@@ -27,6 +27,7 @@ import type {
   ReliableMutationContext,
 } from "@aramayo/domain";
 import {
+  BadRequestException,
   ConflictException,
   NotFoundException,
   ValidationPipe,
@@ -440,6 +441,107 @@ test("el servicio rechaza medios fuera del scope antes de persistir", async () =
     NotFoundException,
   );
   assert.equal(repository.lastCreateInput, undefined);
+});
+
+test("una foto embebida viaja en el documento y no se vincula como activo", async () => {
+  const repository = new InMemoryPublicationDraftRepository();
+  const service = await serviceFor(
+    repository,
+    new InMemoryMediaAssetRepository(),
+  );
+  // Cabecera real de un JPEG (FF D8 FF E0).
+  const dataUrl = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD";
+  const base = submission();
+
+  const created = await service.create(
+    actor,
+    {
+      ...base,
+      design: {
+        ...base.design,
+        media: [
+          {
+            alt: "Nuestra gata en el mostrador",
+            dataUrl,
+            focus: { x: 50, y: 40 },
+          },
+        ],
+      },
+    },
+    idempotencyKey,
+  );
+
+  assert.deepEqual(created.latestRevision.designDocument.media[0]?.reference, {
+    dataUrl,
+    source: "inline",
+  });
+  assert.deepEqual(repository.lastCreateInput?.media, []);
+
+  // Los bytes de un JPEG declarados como PNG no pasan.
+  await assert.rejects(
+    service.create(
+      actor,
+      {
+        ...base,
+        design: {
+          ...base.design,
+          media: [
+            {
+              alt: "Nuestra gata en el mostrador",
+              dataUrl: dataUrl.replace("image/jpeg", "image/png"),
+            },
+          ],
+        },
+      },
+      randomUUID(),
+    ),
+    BadRequestException,
+  );
+});
+
+test("una foto de la marca se nombra por su identificador aprobado", async () => {
+  const repository = new InMemoryPublicationDraftRepository();
+  const service = await serviceFor(
+    repository,
+    new InMemoryMediaAssetRepository(),
+  );
+  const base = submission();
+
+  const created = await service.create(
+    actor,
+    {
+      ...base,
+      design: {
+        ...base.design,
+        media: [
+          {
+            alt: "Pared de herramientas del local",
+            brandAssetId: "brand/interior-herramientas",
+          },
+        ],
+      },
+    },
+    idempotencyKey,
+  );
+  assert.deepEqual(created.latestRevision.designDocument.media[0]?.reference, {
+    assetId: "brand/interior-herramientas",
+    source: "brand-library",
+  });
+
+  await assert.rejects(
+    service.create(
+      actor,
+      {
+        ...base,
+        design: {
+          ...base.design,
+          media: [{ alt: "Foto ajena", brandAssetId: "brand/no-existe" }],
+        },
+      },
+      randomUUID(),
+    ),
+    BadRequestException,
+  );
 });
 
 test("el servicio representa una edición con versión vencida como conflicto", async () => {

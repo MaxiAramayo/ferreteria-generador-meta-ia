@@ -1,8 +1,6 @@
 import { Type } from "class-transformer";
 import {
   ArrayNotEmpty,
-  ArrayMaxSize,
-  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsIn,
@@ -15,19 +13,23 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from "class-validator";
 
+import { RecurringStoryPhotoDto } from "./recurring-story-photo.dto.ts";
+
 export class CreateRecurringStoryRuleDto {
+  @IsOptional()
+  @IsIn(["marca", "senal", "verde"])
+  accent?: "marca" | "senal" | "verde";
+
   @IsIn(["human-each-cycle", "automatic-routine"])
   approvalPolicy!: "automatic-routine" | "human-each-cycle";
 
-  /** Orden lunes a domingo de las composiciones de apertura. */
+  /** Composición para todos los días seleccionados de esta regla. */
   @IsOptional()
-  @ArrayMaxSize(7)
-  @ArrayMinSize(7)
-  @IsArray()
-  @IsIn(["cartel", "horario", "locales"], { each: true })
-  designRotation?: ("cartel" | "horario" | "locales")[];
+  @IsIn(["cartel", "horario", "locales", "imagen"])
+  designVariant?: "cartel" | "horario" | "imagen" | "locales";
 
   @Matches(/^\d{4}-\d{2}-\d{2}$/u)
   effectiveFromLocalDate!: string;
@@ -50,6 +52,16 @@ export class CreateRecurringStoryRuleDto {
   @MaxLength(180)
   @MinLength(1)
   name!: string;
+
+  /** Sin foto, la historia usa la foto del local. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecurringStoryPhotoDto)
+  photo?: RecurringStoryPhotoDto;
+
+  @IsOptional()
+  @IsIn(["taller", "claro", "promo"])
+  theme?: "taller" | "claro" | "promo";
 
   @ArrayNotEmpty()
   @ArrayUnique()

@@ -22,11 +22,13 @@ export type LayoutFamily =
  * generador congelado, traducidos al vocabulario de la plataforma.
  */
 export type ContentFieldKey =
+  | "accent"
   | "badge"
   | "branch"
   | "callToAction"
   | "category"
   | "disclaimer"
+  | "greeting"
   | "icon"
   | "items"
   | "phone"

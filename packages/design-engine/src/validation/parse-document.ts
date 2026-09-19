@@ -11,6 +11,7 @@ import {
   type MediaFit,
 } from "../contracts/document.ts";
 import { isFormatId, type FormatId } from "../formats/formats.ts";
+import { isAccentName } from "../registry/accents.ts";
 import { isIconName } from "../registry/icons.ts";
 import type { LayoutId } from "../registry/layout-id.ts";
 import type { ContentFieldKey, LayoutSpec } from "../registry/layout-spec.ts";
@@ -54,11 +55,13 @@ const mediaKeys: ReadonlySet<string> = new Set([
 ]);
 
 const contentFieldKeys: readonly ContentFieldKey[] = [
+  "accent",
   "badge",
   "branch",
   "callToAction",
   "category",
   "disclaimer",
+  "greeting",
   "icon",
   "items",
   "phone",
@@ -72,7 +75,7 @@ const contentFieldKeys: readonly ContentFieldKey[] = [
 const knownContentFields: ReadonlySet<string> = new Set(contentFieldKeys);
 
 const textFieldKeys: readonly ContentFieldKey[] = contentFieldKeys.filter(
-  (key) => key !== "icon" && key !== "items",
+  (key) => key !== "accent" && key !== "icon" && key !== "items",
 );
 
 const assetIdPattern = /^[a-z0-9][a-z0-9/_-]{2,127}$/u;
@@ -89,6 +92,50 @@ const inlineDataUrlPattern = new RegExp(
   `^data:(?:${inlineAssetLimits.mimeTypes.join("|")});base64,[A-Za-z0-9+/]+={0,2}$`,
   "u",
 );
+
+/**
+ * Firma de los primeros bytes de cada tipo aprobado.
+ *
+ * El tipo declarado en el `data:` lo escribe quien arma el documento; desde que
+ * el panel deja subir una foto propia (`ADR-030`), ya no es siempre el motor.
+ * Un tipo aprobado sin firma declarada acá falla cerrado.
+ */
+const inlineSignatures: ReadonlyMap<string, readonly number[]> = new Map([
+  ["image/jpeg", [0xff, 0xd8, 0xff]],
+  ["image/png", [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+]);
+
+/**
+ * Una foto embebida que el motor aceptaría: tipo aprobado, base64, tamaño y
+ * bytes que corresponden al tipo declarado. Sirve para rechazar una foto
+ * propia al guardarla, en vez de descubrirla recién al renderizar.
+ */
+export function isInlineImageDataUrl(dataUrl: string): boolean {
+  return (
+    dataUrl.length <= inlineAssetLimits.dataUrlMaximum &&
+    inlineDataUrlPattern.test(dataUrl) &&
+    inlineSignatureMatches(dataUrl)
+  );
+}
+
+function inlineSignatureMatches(dataUrl: string): boolean {
+  const separator = dataUrl.indexOf(";base64,");
+  const signature = inlineSignatures.get(dataUrl.slice(5, separator));
+
+  if (separator < 0 || signature === undefined) {
+    return false;
+  }
+
+  const payloadStart = separator + ";base64,".length;
+  let head: string;
+  try {
+    head = atob(dataUrl.slice(payloadStart, payloadStart + 12));
+  } catch {
+    return false;
+  }
+
+  return signature.every((byte, index) => head.charCodeAt(index) === byte);
+}
 
 function asRecord(
   value: unknown,
@@ -237,7 +284,10 @@ function parseAssetReference(
 
     // El tipo se comprueba contra la lista aprobada y no contra «cualquier
     // imagen»: un `data:` con SVG ejecutaría scripts dentro del render.
-    if (!inlineDataUrlPattern.test(dataUrl)) {
+    if (
+      !inlineDataUrlPattern.test(dataUrl) ||
+      !inlineSignatureMatches(dataUrl)
+    ) {
       issues.push(issue("invalid-format", `${path}.dataUrl`));
       return undefined;
     }
@@ -407,6 +457,15 @@ function parseContent(
     }
   }
 
+  let accent: DesignContent["accent"];
+  if (record["accent"] !== undefined && allowedFields.has("accent")) {
+    if (isAccentName(record["accent"])) {
+      accent = record["accent"];
+    } else {
+      issues.push(issue("invalid-value", "content.accent"));
+    }
+  }
+
   let items: readonly string[] | undefined;
   if (record["items"] !== undefined && allowedFields.has("items")) {
     items = readItems(record["items"], "content.items", issues);
@@ -420,6 +479,7 @@ function parseContent(
 
   return Object.freeze({
     ...Object.fromEntries(texts),
+    ...(accent === undefined ? {} : { accent }),
     ...(icon === undefined ? {} : { icon }),
     ...(items === undefined ? {} : { items }),
     title,

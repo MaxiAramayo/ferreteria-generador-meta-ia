@@ -65,6 +65,10 @@ afirmación de disponibilidad sin dato que la respalde.
 | `historia-surtido-real` | Mostrar una categoría existente en el local sin afirmar stock completo | Foto propia, subcategorías, precio/condición, Frías | Mandar foto o medida |
 | `historia-ficha-variantes` | Comparar medidas/modelos con lectura móvil | Una escena coherente, 2 a 6 rótulos factuales | Mandar foto o medida |
 | `historia-guia-aplicacion` | Explicar tres pasos para elegir o aplicar una categoría | Foto real, hasta 3 pasos verificados | Traer la pieza o consultar |
+| `historia-apertura-cartel` | Avisar que el local abrió, con la foto de lado a lado | Foto real, saludo, estado, sucursales, horario vigente | Escribir por WhatsApp |
+| `historia-apertura-horario` | La apertura con el horario del día como protagonista | Foto real como esfera de reloj, horario vigente, sucursales | Escribir por WhatsApp |
+| `historia-apertura-locales` | La apertura cuando importan las sucursales | Foto real impresa, una chapa por sucursal, horario vigente | Escribir por WhatsApp |
+| `historia-apertura-imagen` | Publicar tal cual una historia armada afuera | La imagen subida por quien opera; siempre con aprobación humana | El que traiga la imagen |
 
 ### Cuadrado (1080×1080)
 

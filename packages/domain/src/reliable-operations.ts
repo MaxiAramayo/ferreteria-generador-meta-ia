@@ -4,7 +4,12 @@ export const reliableOperationLimits = Object.freeze({
   auditMetadataBytesMaximum: 16_384,
   auditMetadataDepthMaximum: 5,
   auditMetadataKeysMaximum: 64,
-  idempotencyResponseBytesMaximum: 131_072,
+  /**
+   * Un borrador de apertura puede llevar su foto propia embebida (`ADR-030`):
+   * hasta 3 MB en base64 más el documento. El tope acompaña al límite de la API
+   * para esas rutas; cualquier otra respuesta sigue siendo chica.
+   */
+  idempotencyResponseBytesMaximum: 4_194_304,
   idempotencyResponseDepthMaximum: 10,
   idempotencyResponseKeysMaximum: 512,
   operationNameMaximum: 120,

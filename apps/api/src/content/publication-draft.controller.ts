@@ -23,6 +23,7 @@ import {
   CurrentSession,
   RequirePermission,
 } from "../identity/identity.decorators.ts";
+import { draftDesignSubmission } from "./draft-design-submission.ts";
 import {
   CreatePublicationDraftDto,
   PublicationListQueryDto,
@@ -46,23 +47,7 @@ function createSubmission(
         reference: product.reference,
       })),
     },
-    design: {
-      content: input.design.content,
-      format: input.design.format,
-      layout: input.design.layout,
-      media: input.design.media.map((media) => ({
-        alt: media.alt,
-        ...(media.fit === undefined ? {} : { fit: media.fit }),
-        ...(media.focus === undefined
-          ? {}
-          : { focus: { x: media.focus.x, y: media.focus.y } }),
-        mediaAssetId: media.mediaAssetId,
-        ...(media.zoom === undefined ? {} : { zoom: media.zoom }),
-      })),
-      schemaVersion: input.design.schemaVersion,
-      slug: input.design.slug,
-      theme: input.design.theme,
-    },
+    design: draftDesignSubmission(input.design),
     ...(input.locationId === undefined ? {} : { locationId: input.locationId }),
     title: input.title,
   };

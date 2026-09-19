@@ -12,31 +12,123 @@ export const recurringStoryApprovalPolicies = Object.freeze([
 export type RecurringStoryApprovalPolicy =
   (typeof recurringStoryApprovalPolicies)[number];
 
-/** Las tres composiciones aprobadas para comunicar una apertura. */
+/**
+ * Composiciones aprobadas para comunicar una apertura.
+ *
+ * `imagen` no es una composición: publica tal cual la imagen que subió quien
+ * opera. El sistema no puede leer lo que esa imagen afirma, así que su borrador
+ * siempre pide aprobación humana (`ADR-030`).
+ */
 export const recurringStoryDesignVariants = Object.freeze([
   "cartel",
   "horario",
   "locales",
+  "imagen",
 ] as const);
 
 export type RecurringStoryDesignVariant =
   (typeof recurringStoryDesignVariants)[number];
 
-/** El orden es lunes a domingo, aun cuando la rutina normal omita el domingo. */
-export const defaultRecurringStoryDesignRotation = Object.freeze([
-  "cartel",
-  "horario",
-  "locales",
-  "cartel",
-  "horario",
-  "locales",
-  "cartel",
-] as const satisfies readonly RecurringStoryDesignVariant[]);
+/** Temas permitidos para una apertura de Ferretería Aramayo. */
+export const recurringStoryThemes = Object.freeze([
+  "taller",
+  "claro",
+  "promo",
+] as const);
 
-export const recurringStoryDesignRotationLength = 7;
+export type RecurringStoryTheme = (typeof recurringStoryThemes)[number];
+
+/**
+ * Color de la etiqueta de estado y del botón. `marca` deja decidir al tema;
+ * los otros dos son elecciones explícitas de quien opera.
+ */
+export const recurringStoryAccents = Object.freeze([
+  "marca",
+  "senal",
+  "verde",
+] as const);
+
+export type RecurringStoryAccent = (typeof recurringStoryAccents)[number];
+
+/**
+ * Foto propia de una regla.
+ *
+ * Viaja embebida como `data:` porque el render no sale a la red y la revisión
+ * aprobada tiene que poder recomponerse igual; el costo es que cada borrador
+ * guarda su copia (`ADR-030`). `focusY` es el encuadre vertical, de 0 a 100.
+ */
+export interface RecurringStoryPhoto {
+  readonly alt: string;
+  readonly dataUrl: string;
+  readonly focusY: number;
+}
+
+export const recurringStoryPhotoLimits = Object.freeze({
+  altMaximum: 160,
+  /**
+   * Una foto de 1080×1920 en JPEG de calidad 0,86 ronda los 600 KB, unos
+   * 800.000 caracteres en base64. Tres millones dejan margen sin admitir que
+   * un archivo cualquiera termine en cada borrador.
+   */
+  dataUrlMaximum: 3_000_000,
+  focusMaximum: 100,
+  focusMinimum: 0,
+});
+
+export type RecurringStoryStyleIssue =
+  | "photo-alt-invalid"
+  | "photo-focus-invalid"
+  | "photo-too-large"
+  | "photo-type-invalid"
+  | "photo-required";
+
+const photoDataUrlPattern = /^data:image\/(?:jpeg|png);base64,/u;
+
+/**
+ * Límites de negocio de un estilo de apertura.
+ *
+ * Los bytes los vuelve a comprobar el motor al validar el documento; acá se
+ * decide lo que es regla de la apertura: la imagen propia necesita su imagen y
+ * la foto no puede ser un archivo arbitrario.
+ */
+export function recurringStoryStyleIssue(
+  style: Readonly<{
+    designVariant: RecurringStoryDesignVariant;
+    photo: RecurringStoryPhoto | null;
+  }>,
+): RecurringStoryStyleIssue | null {
+  const { photo } = style;
+  if (photo === null) {
+    return style.designVariant === "imagen" ? "photo-required" : null;
+  }
+  const alt = photo.alt.trim();
+  if (alt.length === 0 || alt.length > recurringStoryPhotoLimits.altMaximum) {
+    return "photo-alt-invalid";
+  }
+  if (
+    !Number.isInteger(photo.focusY) ||
+    photo.focusY < recurringStoryPhotoLimits.focusMinimum ||
+    photo.focusY > recurringStoryPhotoLimits.focusMaximum
+  ) {
+    return "photo-focus-invalid";
+  }
+  if (!photoDataUrlPattern.test(photo.dataUrl)) {
+    return "photo-type-invalid";
+  }
+  if (photo.dataUrl.length > recurringStoryPhotoLimits.dataUrlMaximum) {
+    return "photo-too-large";
+  }
+  return null;
+}
 
 const recurringStoryDesignVariantSet: ReadonlySet<string> = new Set(
   recurringStoryDesignVariants,
+);
+const recurringStoryAccentSet: ReadonlySet<string> = new Set(
+  recurringStoryAccents,
+);
+const recurringStoryThemeSet: ReadonlySet<string> = new Set(
+  recurringStoryThemes,
 );
 
 export function isRecurringStoryDesignVariant(
@@ -45,37 +137,27 @@ export function isRecurringStoryDesignVariant(
   return typeof value === "string" && recurringStoryDesignVariantSet.has(value);
 }
 
-export function assertRecurringStoryDesignRotation(
-  rotation: readonly RecurringStoryDesignVariant[],
-): void {
-  if (
-    rotation.length !== recurringStoryDesignRotationLength ||
-    rotation.some((variant) => !isRecurringStoryDesignVariant(variant))
-  ) {
-    throw new RangeError(
-      "La rotación debe indicar un diseño de apertura válido para cada día de la semana.",
-    );
-  }
+export function isRecurringStoryTheme(
+  value: unknown,
+): value is RecurringStoryTheme {
+  return typeof value === "string" && recurringStoryThemeSet.has(value);
 }
 
-export function openingStoryLayoutFor(
-  occurrenceKey: string,
-  rotation: readonly RecurringStoryDesignVariant[],
-):
+export function isRecurringStoryAccent(
+  value: unknown,
+): value is RecurringStoryAccent {
+  return typeof value === "string" && recurringStoryAccentSet.has(value);
+}
+
+export type OpeningStoryLayout =
   | "historia-apertura-cartel"
   | "historia-apertura-horario"
-  | "historia-apertura-locales" {
-  assertRecurringStoryDesignRotation(rotation);
-  const localDate = occurrenceKey.slice(0, 10);
-  const date = new Date(`${localDate}T12:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) {
-    throw new RangeError("La ocurrencia no tiene una fecha civil válida.");
-  }
-  const mondayIndex = (date.getUTCDay() + 6) % 7;
-  const variant = rotation[mondayIndex];
-  if (variant === undefined) {
-    throw new RangeError("No hay diseño para el día de la ocurrencia.");
-  }
+  | "historia-apertura-imagen"
+  | "historia-apertura-locales";
+
+export function openingStoryLayoutFor(
+  variant: RecurringStoryDesignVariant,
+): OpeningStoryLayout {
   return `historia-apertura-${variant}`;
 }
 
@@ -89,9 +171,10 @@ export type RecurringStoryRuleStatus =
   (typeof recurringStoryRuleStatuses)[number];
 
 export interface RecurringStoryRuleRecord {
+  readonly accent: RecurringStoryAccent;
   readonly approvalPolicy: RecurringStoryApprovalPolicy;
   readonly createdByMembershipId: string;
-  readonly designRotation: readonly RecurringStoryDesignVariant[];
+  readonly designVariant: RecurringStoryDesignVariant;
   readonly effectiveFrom: string;
   readonly id: string;
   readonly leadTimeMinutes: number;
@@ -100,7 +183,10 @@ export interface RecurringStoryRuleRecord {
   readonly locationId: string | null;
   readonly name: string;
   readonly organizationId: string;
+  /** `null`: la historia usa la foto del local de la biblioteca de marca. */
+  readonly photo: RecurringStoryPhoto | null;
   readonly status: RecurringStoryRuleStatus;
+  readonly theme: RecurringStoryTheme;
   readonly timeZone: string;
   readonly version: number;
   readonly weekdays: readonly PublicationWeekday[];
@@ -185,29 +271,42 @@ export type RecurringStoryDraftResolution<
     }>
   | Readonly<{
       caption: string;
-      designContent: Readonly<{
-        badge: string;
-        callToAction: string;
-        icon: "reloj";
-        items: readonly string[];
-        subtitle: string;
-        title: string;
-      }>;
+      designContent: OpeningStoryContent;
       requiresHumanApproval: boolean;
       source: TSource;
       status: "ready";
     }>;
 
+/**
+ * Texto que la historia afirma, derivado de la fuente factual.
+ *
+ * Los renglones nombran cada sucursal con su calle; el horario va aparte en
+ * `validity` cuando es el mismo para todas, y dentro de cada renglón cuando no.
+ */
+export interface OpeningStoryContent {
+  readonly badge: string;
+  readonly callToAction: string;
+  readonly greeting: string;
+  readonly icon: "reloj";
+  readonly items: readonly string[];
+  readonly subtitle: string;
+  readonly title: string;
+  readonly validity?: string;
+}
+
 export interface CreateRecurringStoryRuleCommand {
+  readonly accent?: RecurringStoryAccent;
   readonly actor: AuthenticatedActor;
   readonly approvalPolicy: RecurringStoryApprovalPolicy;
-  readonly designRotation?: readonly RecurringStoryDesignVariant[];
+  readonly designVariant?: RecurringStoryDesignVariant;
   readonly effectiveFrom: string;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
   /** `null` es una regla para todas las sucursales activas. */
   readonly locationId: string | null;
   readonly name: string;
+  readonly photo?: RecurringStoryPhoto | null;
+  readonly theme?: RecurringStoryTheme;
   readonly weekdays: readonly PublicationWeekday[];
 }
 
@@ -222,14 +321,18 @@ export interface RecurringStoryRuleRepository {
       Readonly<{ idempotencyKey: string; occurredAt: string }>,
   ): Promise<CreateRecurringStoryRuleResult>;
   list(organizationId: string): Promise<readonly RecurringStoryRuleRecord[]>;
-  updateDesignRotation(
+  updateVisualStyle(
     command: Readonly<{
+      accent: RecurringStoryAccent;
       actor: AuthenticatedActor;
-      designRotation: readonly RecurringStoryDesignVariant[];
+      designVariant: RecurringStoryDesignVariant;
       expectedVersion: number;
       idempotencyKey: string;
       occurredAt: string;
+      /** El estilo se reemplaza entero: `null` vuelve a la foto del local. */
+      photo: RecurringStoryPhoto | null;
       ruleId: string;
+      theme: RecurringStoryTheme;
     }>,
   ): Promise<
     | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
@@ -267,10 +370,84 @@ export function recurringStoryLocalDate(
   return occurrence.occurrenceKey.slice(0, 10);
 }
 
+/** Voz de la historia: la misma que usa el negocio en su cartel. */
+const openingTitle = "¡Ya abrimos!";
+const openingCallToAction = "Escribinos";
+const greetingMaximum = 26;
+
+/**
+ * Saludo según la hora civil de la publicación, con la localidad cuando entra.
+ *
+ * La historia se publica a la hora de la regla: «Buen día» a las 8:30 y
+ * «Buenas tardes» a las 16:30. Una localidad larga se omite antes que partir
+ * el saludo.
+ */
+export function openingStoryGreeting(
+  occurrenceKey: string,
+  city: string | null,
+): string {
+  const hour = Number(occurrenceKey.slice(11, 13));
+  const greeting =
+    hour < 12 ? "Buen día" : hour < 20 ? "Buenas tardes" : "Buenas noches";
+  const withCity = city === null ? greeting : `${greeting}, ${city}`;
+  return withCity.length <= greetingMaximum ? withCity : greeting;
+}
+
+const numberWords: ReadonlyMap<number, string> = new Map([
+  [2, "dos"],
+  [3, "tres"],
+]);
+
+/**
+ * Mensaje de la historia.
+ *
+ * «Ya están atendiendo» sólo es cierto a la hora de la publicación si todas
+ * abren a la misma hora; con horarios distintos, la historia dice que hoy se
+ * atiende, que es cierto todo el día. «Tu auto» sólo se promete cuando habla de
+ * todas las sucursales: el negocio completo tiene lubricentro, pero una
+ * sucursal sola quizás no.
+ */
+function openingMessage(
+  openNames: readonly string[],
+  scope: "every-location" | "single-location",
+  sameOpeningHours: boolean,
+): string {
+  const [onlyName] = openNames;
+  const count = numberWords.get(openNames.length) ?? String(openNames.length);
+  const who =
+    openNames.length === 1 && onlyName !== undefined
+      ? `${onlyName} ya está atendiendo.`
+      : sameOpeningHours
+        ? `Nuestros ${count} locales ya están atendiendo.`
+        : `Hoy atendemos en nuestros ${count} locales.`;
+  const what =
+    scope === "every-location"
+      ? "Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto."
+      : "Vení a buscar lo que necesitás para tu casa o tu oficio.";
+  const message = `${who} ${what}`;
+  // El motor rechaza un mensaje de más de 150 caracteres; un nombre largo de
+  // sucursal no puede dejar la historia sin componer.
+  return message.length <= 150 ? message : `Ya estamos atendiendo. ${what}`;
+}
+
+function approvalRequired(
+  policy: RecurringStoryApprovalPolicy,
+  isOverride: boolean,
+  designVariant: RecurringStoryDesignVariant,
+): boolean {
+  // Una excepción siempre vuelve a revisión humana: una regla automática no
+  // tiene autoridad para aprobar un horario excepcional por sí sola. La imagen
+  // propia tampoco: el sistema no puede leer lo que afirma.
+  return (
+    policy === "human-each-cycle" || isOverride || designVariant === "imagen"
+  );
+}
+
 export function resolveRecurringStoryDraft(
   input: Readonly<{
     capturedAt: string;
     dayOverride?: RecurringStoryDayOverride;
+    designVariant?: RecurringStoryDesignVariant;
     location: RecurringStoryLocationSource;
     occurrence: PublicationOccurrencePlan;
     policy: RecurringStoryApprovalPolicy;
@@ -330,16 +507,25 @@ export function resolveRecurringStoryDraft(
   return Object.freeze({
     caption: `Ya abrimos en ${input.location.name}. Hoy te esperamos ${hours} en ${address}. Consultanos por WhatsApp.`,
     designContent: Object.freeze({
-      badge: isOverride ? "Horario especial" : "Estamos atendiendo",
-      callToAction: "Consultanos por WhatsApp",
+      badge: isOverride ? "Horario especial" : "Abierto hoy",
+      callToAction: openingCallToAction,
+      greeting: openingStoryGreeting(
+        input.occurrence.occurrenceKey,
+        input.location.city,
+      ),
       icon: "reloj" as const,
-      items: Object.freeze([hours, address]),
-      subtitle: input.location.name,
-      title: "Ya abrimos",
+      items: Object.freeze([
+        `${input.location.name} · ${input.location.addressLine}`,
+      ]),
+      subtitle: openingMessage([input.location.name], "single-location", true),
+      title: openingTitle,
+      validity: hours,
     }),
-    // Una excepción siempre vuelve a revisión humana: una regla automática no
-    // tiene autoridad para aprobar un horario excepcional por sí sola.
-    requiresHumanApproval: input.policy === "human-each-cycle" || isOverride,
+    requiresHumanApproval: approvalRequired(
+      input.policy,
+      isOverride,
+      input.designVariant ?? "cartel",
+    ),
     source,
     status: "ready",
   });
@@ -364,12 +550,13 @@ function joinNames(names: readonly string[]): string {
  * Una sucursal inactiva no es parte de «todas» y se omite. Una que cierra el
  * día por excepción se nombra como cerrada: callarla haría pensar que abre. Si
  * todas cierran, o si a una abierta le falta el horario, no hay historia. Con
- * el mismo horario en todas, se dice una vez y después las direcciones; si
- * difiere, va un renglón por sucursal.
+ * el mismo horario en todas, se dice una vez y cada renglón nombra una calle;
+ * si difiere, cada renglón lleva el horario de su sucursal.
  */
 export function resolveEveryLocationStoryDraft(
   input: Readonly<{
     capturedAt: string;
+    designVariant?: RecurringStoryDesignVariant;
     locations: readonly RecurringStoryLocationInput[];
     occurrence: PublicationOccurrencePlan;
     policy: RecurringStoryApprovalPolicy;
@@ -396,6 +583,7 @@ export function resolveEveryLocationStoryDraft(
   }
 
   const entries: RecurringStoryLocationEntry[] = [];
+  const addressLines = new Map<string, string>();
   for (const { dayOverride, location } of active) {
     const isOverride = dayOverride !== undefined;
     const closed = dayOverride?.status === "closed";
@@ -409,6 +597,7 @@ export function resolveEveryLocationStoryDraft(
     if (hours === undefined) {
       return Object.freeze({ reason: "missing-hours", status: "blocked" });
     }
+    addressLines.set(location.id, location.addressLine);
     entries.push(
       Object.freeze({
         address: `${location.addressLine}, ${location.city}`,
@@ -434,6 +623,12 @@ export function resolveEveryLocationStoryDraft(
   if (open.length === 0) {
     return Object.freeze({ reason: "location-closed", status: "blocked" });
   }
+  if (entries.length > storyItemsMaximum) {
+    // Más sucursales que renglones: nombrar sólo algunas mentiría por omisión.
+    // No hay un motivo propio para esto y hoy son dos sucursales; se bloquea
+    // con el más cercano antes que publicar una historia incompleta.
+    return Object.freeze({ reason: "missing-hours", status: "blocked" });
+  }
   const closed = entries.filter((entry) => entry.hours === null);
   const anyOverride = entries.some(
     (entry) => entry.sourceKind === "daily-override",
@@ -442,28 +637,15 @@ export function resolveEveryLocationStoryDraft(
     ? open[0]?.hours
     : undefined;
   const openNames = joinNames(open.map((entry) => entry.locationName));
-
-  const items =
-    sharedHours !== undefined &&
-    closed.length === 0 &&
-    open.length + 1 <= storyItemsMaximum
-      ? [
-          sharedHours,
-          ...open.map((entry) => `${entry.locationName} · ${entry.address}`),
-        ]
-      : entries
-          .map((entry) =>
-            entry.hours === null
-              ? `${entry.locationName} · Cerrada hoy`
-              : `${entry.locationName} · ${entry.hours}`,
-          )
-          .slice(0, storyItemsMaximum);
-  if (entries.length > storyItemsMaximum && items.length < entries.length) {
-    // Más sucursales que renglones: nombrar sólo algunas mentiría por omisión.
-    // No hay un motivo propio para esto y hoy son dos sucursales; se bloquea
-    // con el más cercano antes que publicar una historia incompleta.
-    return Object.freeze({ reason: "missing-hours", status: "blocked" });
-  }
+  const items = entries.map((entry) =>
+    entry.hours === null
+      ? `${entry.locationName} · Cerrada hoy`
+      : sharedHours === undefined
+        ? `${entry.locationName} · ${entry.hours}`
+        : `${entry.locationName} · ${addressLines.get(entry.locationId) ?? entry.address}`,
+  );
+  const cities = new Set(active.map((entry) => entry.location.city));
+  const [sharedCity] = cities.size === 1 ? [...cities] : [];
 
   const whereAndWhen =
     sharedHours === undefined
@@ -486,14 +668,27 @@ export function resolveEveryLocationStoryDraft(
   return Object.freeze({
     caption: `Ya abrimos en ${openNames}. ${whereAndWhen}${closedSentence} Consultanos por WhatsApp.`,
     designContent: Object.freeze({
-      badge: anyOverride ? "Horario especial" : "Estamos atendiendo",
-      callToAction: "Consultanos por WhatsApp",
+      badge: anyOverride ? "Horario especial" : "Abierto hoy",
+      callToAction: openingCallToAction,
+      greeting: openingStoryGreeting(
+        input.occurrence.occurrenceKey,
+        sharedCity ?? null,
+      ),
       icon: "reloj" as const,
       items: Object.freeze(items),
-      subtitle: joinNames(entries.map((entry) => entry.locationName)),
-      title: "Ya abrimos",
+      subtitle: openingMessage(
+        open.map((entry) => entry.locationName),
+        "every-location",
+        sharedHours !== undefined,
+      ),
+      title: openingTitle,
+      ...(sharedHours === undefined ? {} : { validity: sharedHours }),
     }),
-    requiresHumanApproval: input.policy === "human-each-cycle" || anyOverride,
+    requiresHumanApproval: approvalRequired(
+      input.policy,
+      anyOverride,
+      input.designVariant ?? "cartel",
+    ),
     source: Object.freeze({
       capturedAt: input.capturedAt,
       localDate,
@@ -501,5 +696,75 @@ export function resolveEveryLocationStoryDraft(
       scope: "every-location" as const,
     }),
     status: "ready",
+  });
+}
+
+/** Foto del local que usa una regla sin foto propia. */
+export const openingStoryDefaultPhoto = Object.freeze({
+  alt: "Pared de herramientas de Ferretería Aramayo",
+  assetId: "brand/interior-herramientas",
+});
+
+/**
+ * Documento de diseño de una historia de apertura.
+ *
+ * Es el único lugar que junta el copy resuelto con el estilo de la regla: el
+ * repositorio lo persiste tal cual y el worker lo valida con el motor antes de
+ * renderizar. Sin foto propia se usa la del local; la imagen propia no puede
+ * quedarse sin la suya.
+ */
+export function openingStoryDesignDocument(
+  input: Readonly<{
+    accent: RecurringStoryAccent;
+    content: OpeningStoryContent;
+    designVariant: RecurringStoryDesignVariant;
+    localDate: string;
+    photo: RecurringStoryPhoto | null;
+    ruleId: string;
+    theme: RecurringStoryTheme;
+  }>,
+): Readonly<{
+  content: OpeningStoryContent & Readonly<{ accent: RecurringStoryAccent }>;
+  format: "historia";
+  layout: OpeningStoryLayout;
+  media: readonly Readonly<Record<string, unknown>>[];
+  schemaVersion: 1;
+  slug: string;
+  theme: RecurringStoryTheme;
+}> {
+  if (input.designVariant === "imagen" && input.photo === null) {
+    throw new RangeError("La imagen propia necesita la imagen de la regla.");
+  }
+  const media =
+    input.photo === null
+      ? Object.freeze({
+          alt: openingStoryDefaultPhoto.alt,
+          fit: "cover",
+          focus: Object.freeze({ x: 50, y: 50 }),
+          reference: Object.freeze({
+            assetId: openingStoryDefaultPhoto.assetId,
+            source: "brand-library",
+          }),
+          zoom: 1,
+        })
+      : Object.freeze({
+          alt: input.photo.alt,
+          fit: "cover",
+          focus: Object.freeze({ x: 50, y: input.photo.focusY }),
+          reference: Object.freeze({
+            dataUrl: input.photo.dataUrl,
+            source: "inline",
+          }),
+          zoom: 1,
+        });
+
+  return Object.freeze({
+    content: Object.freeze({ ...input.content, accent: input.accent }),
+    format: "historia",
+    layout: openingStoryLayoutFor(input.designVariant),
+    media: Object.freeze([media]),
+    schemaVersion: 1,
+    slug: `story-${input.ruleId.slice(0, 8)}-${input.localDate.replaceAll("-", "")}`,
+    theme: input.theme,
   });
 }

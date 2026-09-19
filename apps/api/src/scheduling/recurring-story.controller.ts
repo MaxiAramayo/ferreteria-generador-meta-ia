@@ -1,7 +1,7 @@
 import type {
   CreateRecurringStoryRuleResponse,
   RecurringStoryWorkspaceResponse,
-  UpdateRecurringStoryDesignRotationResponse,
+  UpdateRecurringStoryVisualStyleResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
@@ -19,7 +19,7 @@ import {
   RequirePermission,
 } from "../identity/identity.decorators.ts";
 import { CreateRecurringStoryRuleDto } from "./dto/create-recurring-story-rule.dto.ts";
-import { UpdateRecurringStoryDesignRotationDto } from "./dto/update-recurring-story-design-rotation.dto.ts";
+import { UpdateRecurringStoryVisualStyleDto } from "./dto/update-recurring-story-visual-style.dto.ts";
 import { RecurringStoryService } from "./recurring-story.service.ts";
 
 @Controller("scheduling/recurring-stories")
@@ -48,15 +48,15 @@ export class RecurringStoryController {
     return this.#service.create(session.actor, input, idempotencyKey);
   }
 
-  @Patch(":ruleId/design-rotation")
+  @Patch(":ruleId/visual-style")
   @RequirePermission("content:schedule")
-  updateDesignRotation(
+  updateVisualStyle(
     @CurrentSession() session: AuthenticatedSessionRecord,
     @Param("ruleId") ruleId: string,
-    @Body() input: UpdateRecurringStoryDesignRotationDto,
+    @Body() input: UpdateRecurringStoryVisualStyleDto,
     @Headers("idempotency-key") idempotencyKey?: string,
-  ): Promise<UpdateRecurringStoryDesignRotationResponse> {
-    return this.#service.updateDesignRotation(
+  ): Promise<UpdateRecurringStoryVisualStyleResponse> {
+    return this.#service.updateVisualStyle(
       session.actor,
       ruleId,
       input,

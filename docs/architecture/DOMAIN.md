@@ -286,7 +286,11 @@ diagnóstico seguro y referencias suficientes para reconciliar el estado.
 Regla que materializa publicaciones futuras. No publica directamente.
 
 La regla conserva sucursal, hora civil, zona, días, anticipación, vigencia y
-política de aprobación (`human-each-cycle` o `automatic-routine`). Cada
+política de aprobación (`human-each-cycle` o `automatic-routine`), además de su
+estilo: composición, tema, acento y una foto propia opcional. La composición
+«imagen propia» publica tal cual la foto de la regla y su borrador siempre
+exige aprobación humana, porque el sistema no puede leer lo que la imagen
+afirma ([`ADR-030`](decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md)). Cada
 ocurrencia dentro de la ventana de anticipación produce una materialización
 identificada por `organización + regla + clave de ocurrencia`, con la misma
 clave civil de [`ADR-023`](decisions/ADR-023-OCCURRENCE-CIVIL-IDENTITY.md).

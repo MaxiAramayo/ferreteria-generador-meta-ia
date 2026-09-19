@@ -365,6 +365,103 @@ test("un activo embebido se acepta sólo como mapa de bits en base64", () => {
   );
 });
 
+test("un activo embebido tiene que ser del tipo que declara", () => {
+  const document = validDocument();
+  // Cabecera real de un JPEG: FF D8 FF E0.
+  const jpegBytes = "/9j/4AAQSkZJRgABAQAAAQABAAD";
+
+  const accepted = parseDesignDocument({
+    ...document,
+    media: [
+      {
+        alt: "Foto subida desde el panel",
+        reference: {
+          dataUrl: `data:image/jpeg;base64,${jpegBytes}`,
+          source: "inline",
+        },
+      },
+    ],
+  });
+  assert.ok(accepted.ok);
+
+  // Los mismos bytes declarados como PNG no entran: desde que el panel deja
+  // subir una foto, el tipo lo escribe alguien de afuera del motor.
+  assertIssue(
+    parseInvalid({
+      ...document,
+      media: [
+        {
+          alt: "Foto subida desde el panel",
+          reference: {
+            dataUrl: `data:image/png;base64,${jpegBytes}`,
+            source: "inline",
+          },
+        },
+      ],
+    }),
+    "media[0].reference.dataUrl",
+    "invalid-format",
+  );
+});
+
+test("la apertura admite acento y saludo, y otro layout no", () => {
+  const opening = {
+    content: {
+      accent: "verde",
+      callToAction: "Escribinos",
+      greeting: "Buen día, Frías",
+      items: ["Casa Central · República de Siria 365"],
+      title: "¡Ya abrimos!",
+      validity: "Lun a sáb · 08:30 a 13:00",
+    },
+    format: "historia",
+    layout: "historia-apertura-cartel",
+    media: [],
+    schemaVersion: DESIGN_SCHEMA_VERSION,
+    slug: "apertura-con-acento",
+    theme: "promo",
+  };
+  const accepted = parseDesignDocument(opening);
+
+  assert.ok(accepted.ok);
+  assert.equal(accepted.document.content.accent, "verde");
+  assert.equal(accepted.document.content.greeting, "Buen día, Frías");
+
+  assertIssue(
+    parseInvalid({
+      ...opening,
+      content: { ...opening.content, accent: "fucsia" },
+    }),
+    "content.accent",
+    "invalid-value",
+  );
+
+  const document = validDocument();
+  const content = document["content"];
+  assert.ok(typeof content === "object" && content !== null);
+  assertIssue(
+    parseInvalid({ ...document, content: { ...content, accent: "verde" } }),
+    "content.accent",
+    "field-not-supported",
+  );
+});
+
+test("la imagen propia exige su imagen", () => {
+  assertIssue(
+    parseInvalid({
+      content: { title: "¡Ya abrimos!" },
+      format: "historia",
+      layout: "historia-apertura-imagen",
+      media: [],
+      schemaVersion: DESIGN_SCHEMA_VERSION,
+      slug: "imagen-propia-vacia",
+      theme: "promo",
+    }),
+    "media",
+    "missing",
+  );
+});
+
 test("un activo sin texto alternativo no se acepta", () => {
   const document = validDocument();
 

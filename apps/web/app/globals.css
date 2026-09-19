@@ -450,7 +450,9 @@ a {
   --workspace-paper: #f6f1ea;
   --workspace-cream: #e7e2db;
   --workspace-rust: #e63b1e;
+  --workspace-rust-deep: #b62a12;
   --workspace-safety: #ffb200;
+  --workspace-verde: #1e7d3f;
   background:
     linear-gradient(90deg, var(--workspace-rust) 0 0.4rem, transparent 0),
     var(--workspace-paper);
@@ -951,7 +953,7 @@ a {
 
 .recurring-weekdays,
 .recurring-policy,
-.recurring-design-rotation,
+.recurring-visual-style,
 .recurring-rule-design-editor {
   border: 0;
   margin: 0;
@@ -981,13 +983,53 @@ a {
   color: var(--workspace-paper);
 }
 
-.recurring-design-rotation {
+.recurring-visual-style {
   border-block: 1px solid
     color-mix(in srgb, var(--workspace-ink) 30%, transparent);
+  display: grid;
+  gap: 0.75rem;
   padding-block: 1rem;
 }
 
-.recurring-design-rotation > p,
+.recurring-visual-style > p {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: -0.35rem 0 0;
+  text-transform: none;
+}
+
+.recurring-style-options {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recurring-style-options label {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 35%, transparent);
+  cursor: pointer;
+  display: flex;
+  gap: 0.45rem;
+  min-height: 3.2rem;
+  padding: 0.55rem;
+  text-transform: none;
+}
+
+.recurring-style-options label:has(input:checked) {
+  border-color: var(--workspace-rust);
+  box-shadow: inset 0.25rem 0 0 var(--workspace-rust);
+}
+
+.recurring-style-options span {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.recurring-theme-picker {
+  max-width: 22rem;
+}
+
 .recurring-rule-design-editor > p {
   color: var(--workspace-muted);
   font-size: 0.82rem;
@@ -996,25 +1038,18 @@ a {
   text-transform: none;
 }
 
-.recurring-design-rotation > div,
 .recurring-rule-design-editor > div:first-of-type {
   display: grid;
   gap: 0.65rem;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0.75rem;
 }
 
-.recurring-design-rotation label,
 .recurring-rule-design-editor label {
   color: var(--workspace-muted);
   font-size: 0.65rem;
 }
 
-.recurring-design-rotation label span {
-  color: var(--workspace-ink);
-}
-
-.recurring-design-rotation select,
 .recurring-rule-design-editor select {
   font-size: 0.78rem;
   min-height: 2.5rem;
@@ -1172,182 +1207,37 @@ a {
   color: var(--workspace-paper);
 }
 
-/*
- * La relación de aspecto y las cuatro zonas seguras llegan como variables
- * inline desde `FORMATS.historia`. El motor de diseño es la única fuente de
- * esas medidas y la vista previa no puede redeclararlas.
- */
-.recurring-story-preview {
+/* La previsualización monta el mismo DesignPiece del worker. Se escala el
+ * canvas de 1080×1920, no se dibuja una segunda maqueta con CSS del panel. */
+.recurring-story-engine-preview {
   align-self: center;
-  background:
-    linear-gradient(155deg, transparent 62%, rgba(255, 178, 0, 0.18) 62%),
-    var(--workspace-ink);
+  background: var(--workspace-ink);
   color: var(--workspace-paper);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   margin: 2rem auto;
-  max-height: 42rem;
   max-width: calc(100% - 3rem);
   overflow: hidden;
-  position: relative;
   width: 20rem;
 }
 
-.recurring-story-preview[data-design="horario"] {
-  background:
-    radial-gradient(
-      circle at 50% 54%,
-      rgba(255, 178, 0, 0.24) 0 25%,
-      transparent 25%
-    ),
-    var(--workspace-ink);
-}
-
-.recurring-story-preview[data-design="locales"] {
-  background:
-    linear-gradient(
-      90deg,
-      rgba(230, 59, 30, 0.18) 0 49%,
-      transparent 49% 51%,
-      rgba(255, 178, 0, 0.15) 51%
-    ),
-    var(--workspace-ink);
-}
-
-.story-safe-guide {
-  border-color: rgba(246, 241, 234, 0.28);
-  color: rgba(246, 241, 234, 0.55);
-  display: flex;
-  flex: none;
-  font-size: 0.52rem;
-  justify-content: center;
-  letter-spacing: 0.08em;
-  padding-inline: var(--story-safe-left) var(--story-safe-right);
-  text-transform: uppercase;
-}
-
-.story-safe-guide-top {
-  align-items: flex-end;
-  border-bottom: 1px dashed;
-  height: var(--story-safe-top);
-  padding-bottom: 0.3rem;
-}
-
-.story-safe-guide-bottom {
-  align-items: flex-start;
-  border-top: 1px dashed;
-  height: var(--story-safe-bottom);
-  padding-top: 0.3rem;
-}
-
-.story-preview-content {
-  display: flex;
-  flex-direction: column;
+.recurring-story-engine-scale {
+  height: 35.5556rem;
   overflow: hidden;
-  padding-inline: var(--story-safe-left) var(--story-safe-right);
+  position: relative;
 }
 
-.story-preview-brand {
-  align-items: center;
-  color: var(--workspace-paper);
-  display: flex;
-  gap: 0.45rem;
-  margin-bottom: 1rem;
+.recurring-story-engine-scale > [data-card] {
+  transform: scale(0.2962963);
+  transform-origin: top left;
 }
 
-.story-preview-brand svg {
-  color: var(--workspace-rust);
-  flex: none;
-}
-
-.story-preview-brand > span {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.story-preview-brand strong {
-  font:
-    900 0.76rem/0.9 "Saira Condensed",
-    sans-serif;
-  letter-spacing: 0.04em;
+.recurring-story-engine-preview > p {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-paper) 25%, transparent);
+  color: color-mix(in srgb, var(--workspace-paper) 76%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.35;
   margin: 0;
-  text-transform: uppercase;
-}
-
-.story-preview-brand small,
-.story-preview-design {
-  color: var(--workspace-safety);
-  font-size: 0.52rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.story-preview-design {
-  margin-top: 0.35rem;
-}
-
-.story-preview-badge {
-  align-self: flex-start;
-  background: var(--workspace-safety);
-  color: var(--workspace-ink);
-  font-size: 0.58rem;
-  font-weight: 900;
-  padding: 0.4rem 0.55rem;
-  text-transform: uppercase;
-}
-
-.story-preview-content strong {
-  font-family: "Saira Condensed", "Archivo", sans-serif;
-  font-size: clamp(3.2rem, 7vw, 5rem);
-  font-weight: 900;
-  letter-spacing: -0.055em;
-  line-height: 0.78;
-  margin-top: 1rem;
-  text-transform: uppercase;
-}
-
-.recurring-story-preview[data-design="horario"]
-  .story-preview-content
-  > strong {
-  font-size: clamp(2.8rem, 6vw, 4.2rem);
-  text-align: center;
-}
-
-.recurring-story-preview[data-design="horario"] .story-preview-badge {
-  align-self: center;
-}
-
-.recurring-story-preview[data-design="locales"] .story-preview-content ul {
-  border-left: 0;
-  padding-left: 0;
-}
-
-.story-preview-content > p {
-  color: var(--workspace-safety);
-  font-weight: 800;
-  margin: 0.8rem 0 0;
-  text-transform: uppercase;
-}
-
-.story-preview-content ul {
-  border-left: 0.25rem solid var(--workspace-rust);
-  display: grid;
-  font-size: 0.8rem;
-  gap: 0.45rem;
-  list-style: none;
-  margin: 1.3rem 0;
-  padding-left: 0.8rem;
-}
-
-.story-preview-cta {
-  border: 1px solid var(--workspace-safety);
-  font-size: 0.62rem;
-  font-weight: 800;
-  padding: 0.55rem;
-  text-align: center;
-  text-transform: uppercase;
+  padding: 0.65rem 0.8rem;
 }
 
 .recurring-story-state {
@@ -2052,9 +1942,8 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .recurring-design-rotation > div,
   .recurring-rule-design-editor > div:first-of-type {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .recurring-flow li + li {
@@ -2321,6 +2210,747 @@ a {
   margin: 1.25rem 0 0;
   max-width: 28rem;
   padding: 0.75rem;
+}
+
+.recurring-draft-editor {
+  background: var(--workspace-paper);
+  border: 1px solid var(--workspace-ink);
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.recurring-draft-editor h2 {
+  font-family: "Saira Condensed", "Archivo", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  margin: 0.2rem 0;
+}
+
+.recurring-draft-editor > div:first-child > p:last-child {
+  color: var(--workspace-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.recurring-draft-editor label,
+.recurring-draft-editor legend {
+  display: grid;
+  font-size: 0.74rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.recurring-draft-editor input,
+.recurring-draft-editor select,
+.recurring-draft-editor textarea {
+  background: var(--workspace-paper);
+  border: 1px solid var(--workspace-ink);
+  border-radius: 0;
+  color: var(--workspace-ink);
+  font:
+    500 0.95rem/1.3 "Archivo",
+    system-ui,
+    sans-serif;
+  padding: 0.65rem 0.75rem;
+  width: 100%;
+}
+
+.recurring-draft-editor textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.recurring-draft-editor-grid,
+.recurring-draft-items {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.recurring-draft-items {
+  border: 0;
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 25%, transparent);
+  margin: 0;
+  padding: 1rem 0 0;
+}
+
+/* Cada renglón nombra una sucursal con su calle: se lee entero, uno por fila. */
+.recurring-draft-items.recurring-draft-fieldset {
+  display: block;
+}
+
+.recurring-draft-items .recurring-draft-editor-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.recurring-draft-items legend {
+  padding: 0;
+}
+
+.recurring-draft-editor-actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.recurring-draft-editor-actions button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    800 0.75rem/1 "Archivo",
+    sans-serif;
+  min-height: 2.6rem;
+  padding: 0.65rem 0.85rem;
+  text-transform: uppercase;
+}
+
+.recurring-draft-editor-actions button:last-child {
+  background: var(--workspace-rust);
+  color: var(--workspace-paper);
+}
+
+/* Estudio visual de historias recurrentes.
+ * Los controles no dibujan un PNG alternativo: sólo explican la composición.
+ * La previsualización contigua siempre monta el mismo DesignPiece del render. */
+.recurring-story-form {
+  gap: 1.5rem;
+}
+
+.recurring-story-form > div:first-child {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  padding-bottom: 1.2rem;
+}
+
+.recurring-story-form > div:first-child > h2 {
+  font-size: clamp(2.05rem, 3.5vw, 3.25rem);
+  max-width: 14ch;
+}
+
+.opening-style-controls {
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 22%, transparent);
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: clamp(0.9rem, 2vw, 1.25rem);
+}
+
+.opening-style-controls > legend {
+  background: var(--workspace-paper);
+  color: var(--workspace-ink);
+  padding-inline: 0.35rem;
+}
+
+.opening-style-controls-intro {
+  color: var(--workspace-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: -0.2rem 0 0;
+  max-width: 60ch;
+  text-transform: none;
+}
+
+.opening-layout-gallery {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.opening-layout-option,
+.opening-theme-option {
+  cursor: pointer;
+  display: grid !important;
+  letter-spacing: normal !important;
+  min-width: 0;
+  position: relative;
+  text-transform: none !important;
+}
+
+.opening-layout-option {
+  align-content: start;
+  background: color-mix(
+    in srgb,
+    var(--workspace-paper) 90%,
+    var(--workspace-safety)
+  );
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  gap: 0.65rem;
+  min-height: 14.5rem;
+  padding: 0.6rem;
+}
+
+.opening-layout-option:has(input:checked),
+.opening-theme-option:has(input:checked) {
+  border-color: var(--workspace-rust);
+  box-shadow: inset 0 0 0 2px var(--workspace-rust);
+}
+
+.opening-layout-option:focus-within,
+.opening-theme-option:focus-within {
+  outline: 3px solid var(--workspace-safety);
+  outline-offset: 2px;
+}
+
+.opening-layout-option input,
+.opening-theme-option input {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+/* Dibujos de cada composición: marca arriba, titular, foto y botón. Explican
+ * dónde vive la foto; la pieza real es la vista previa contigua. */
+.opening-layout-illustration {
+  background: var(--workspace-rust);
+  display: block;
+  height: 8.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.opening-layout-illustration::before {
+  background: var(--workspace-paper);
+  content: "";
+  height: 0.32rem;
+  left: 0.55rem;
+  position: absolute;
+  top: 0.55rem;
+  width: 2.6rem;
+}
+
+.opening-layout-illustration i {
+  display: block;
+  position: absolute;
+}
+
+/* Titular. */
+.opening-layout-illustration i:nth-child(1) {
+  background: var(--workspace-paper);
+  height: 0.62rem;
+  left: 0.55rem;
+  top: 1.3rem;
+  width: 72%;
+}
+
+/* Foto. */
+.opening-layout-illustration i:nth-child(2) {
+  background: linear-gradient(
+    140deg,
+    #d2c2ab 0 35%,
+    #8a7d6f 36% 62%,
+    #3a3734 63%
+  );
+}
+
+/* Botón de contacto. */
+.opening-layout-illustration i:nth-child(3) {
+  background: var(--workspace-paper);
+  bottom: 0.5rem;
+  height: 0.8rem;
+  left: 0.55rem;
+  right: 0.55rem;
+}
+
+.opening-layout-illustration--cartel::after {
+  background: var(--workspace-rust-deep);
+  bottom: 0;
+  content: "";
+  height: 2.9rem;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.opening-layout-illustration--cartel i:nth-child(2) {
+  border-radius: 45% 55% 0 0 / 0.45rem 0.6rem 0 0;
+  height: 2.5rem;
+  left: 0;
+  right: 0;
+  top: 2.3rem;
+}
+
+.opening-layout-illustration--cartel i:nth-child(3) {
+  z-index: 1;
+}
+
+.opening-layout-illustration--horario i:nth-child(1) {
+  left: 18%;
+  top: 4.9rem;
+  width: 64%;
+}
+
+.opening-layout-illustration--horario i:nth-child(2) {
+  border: 0.18rem solid var(--workspace-paper);
+  border-radius: 50%;
+  height: 3.1rem;
+  left: calc(50% - 1.55rem);
+  outline: 0.14rem dashed
+    color-mix(in srgb, var(--workspace-paper) 80%, transparent);
+  outline-offset: 0.2rem;
+  top: 1.25rem;
+  width: 3.1rem;
+}
+
+.opening-layout-illustration--locales i:nth-child(1) {
+  height: 1.3rem;
+  width: 42%;
+}
+
+.opening-layout-illustration--locales i:nth-child(2) {
+  border: 0.2rem solid var(--workspace-paper);
+  border-bottom-width: 0.55rem;
+  height: 3.3rem;
+  right: 0.6rem;
+  top: 1.1rem;
+  transform: rotate(6deg);
+  width: 2.7rem;
+}
+
+.opening-layout-illustration--locales i:nth-child(3) {
+  bottom: 1.6rem;
+  box-shadow:
+    0 0.95rem 0 var(--workspace-paper),
+    0 0 0 0.12rem var(--workspace-rust-deep);
+  height: 0.7rem;
+}
+
+.opening-layout-illustration--imagen {
+  background: linear-gradient(
+    165deg,
+    #d2c2ab 0 30%,
+    #8a7d6f 31% 64%,
+    #3a3734 65%
+  );
+}
+
+.opening-layout-illustration--imagen::before,
+.opening-layout-illustration--imagen i:nth-child(1),
+.opening-layout-illustration--imagen i:nth-child(3) {
+  display: none;
+}
+
+.opening-layout-illustration--imagen i:nth-child(2) {
+  background: none;
+  border: 0.14rem dashed var(--workspace-paper);
+  inset: 0.55rem;
+}
+
+.opening-layout-option-copy,
+.opening-theme-option > span:last-child {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.opening-layout-option strong,
+.opening-theme-option strong {
+  color: var(--workspace-ink);
+  font-size: 0.85rem;
+  line-height: 1.15;
+}
+
+.opening-layout-option small,
+.opening-theme-option small {
+  color: var(--workspace-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.32;
+}
+
+.opening-theme-options {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.opening-theme-option {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  gap: 0.65rem;
+  grid-template-columns: 2.8rem minmax(0, 1fr);
+  min-height: 5.25rem;
+  padding: 0.55rem;
+}
+
+.opening-theme-swatch {
+  background: var(--workspace-ink);
+  display: grid;
+  gap: 0.2rem;
+  height: 3.6rem;
+  padding: 0.35rem;
+}
+
+.opening-theme-swatch i:first-child {
+  background: var(--workspace-safety);
+  block-size: 65%;
+}
+
+.opening-theme-swatch i:last-child {
+  background: var(--workspace-rust);
+  block-size: 35%;
+}
+
+.opening-theme-option[data-theme="claro"] .opening-theme-swatch {
+  background: var(--workspace-paper);
+  border: 1px solid var(--workspace-ink);
+}
+
+.opening-theme-option[data-theme="promo"] .opening-theme-swatch {
+  background: var(--workspace-rust);
+}
+
+.opening-theme-option[data-theme="promo"] .opening-theme-swatch i:first-child {
+  background: var(--workspace-paper);
+}
+
+.opening-theme-option[data-theme="promo"] .opening-theme-swatch i:last-child {
+  background: var(--workspace-ink);
+}
+
+/* Foto de la historia: miniatura, carga y encuadre. */
+.opening-photo-control {
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  padding: 0.7rem;
+}
+
+.opening-photo-thumb {
+  aspect-ratio: 3 / 4;
+  background: var(--workspace-cream);
+  overflow: hidden;
+}
+
+.opening-photo-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.opening-photo-thumb-empty {
+  align-items: center;
+  border: 2px dashed color-mix(in srgb, var(--workspace-ink) 30%, transparent);
+  color: var(--workspace-muted);
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 800;
+  height: 100%;
+  justify-content: center;
+}
+
+.opening-photo-copy {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.opening-photo-copy > strong {
+  color: var(--workspace-ink);
+  font-size: 0.9rem;
+}
+
+.opening-photo-copy > small {
+  color: var(--workspace-muted);
+  font-size: 0.78rem;
+  line-height: 1.38;
+  text-transform: none;
+}
+
+.opening-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.opening-photo-upload,
+.opening-photo-actions button {
+  align-items: center;
+  border: 1px solid var(--workspace-ink);
+  cursor: pointer;
+  display: inline-flex !important;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: normal !important;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  text-transform: none !important;
+}
+
+.opening-photo-upload {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.opening-photo-upload[data-disabled="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.opening-photo-actions button {
+  background: transparent;
+  color: var(--workspace-ink);
+}
+
+/* Oculto pero accesible. La especificidad le gana al ancho completo que los
+ * formularios del panel dan a cualquier input, que lo sacaba de la página. */
+.opening-photo-control .opening-photo-actions input.opening-photo-input {
+  block-size: 1px;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  margin: -1px;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+}
+
+.opening-photo-control:focus-within .opening-photo-upload {
+  outline: 3px solid var(--workspace-safety);
+  outline-offset: 2px;
+}
+
+.opening-photo-focus {
+  display: grid !important;
+  font-size: 0.78rem !important;
+  gap: 0.3rem;
+}
+
+.opening-photo-focus input {
+  accent-color: var(--workspace-rust);
+  min-height: 2.75rem;
+}
+
+.opening-photo-status {
+  color: var(--workspace-rust-deep);
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0;
+  min-height: 1em;
+  text-transform: none;
+}
+
+.opening-accent-options {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.opening-accent-swatch {
+  background: var(--workspace-rust);
+  border: 0.5rem solid var(--workspace-rust);
+  box-shadow: inset 0 0 0 0.55rem var(--workspace-paper);
+  display: block;
+  height: 3.6rem;
+}
+
+.opening-accent-option[data-accent="senal"] .opening-accent-swatch {
+  box-shadow: inset 0 0 0 0.55rem var(--workspace-safety);
+}
+
+.opening-accent-option[data-accent="verde"] .opening-accent-swatch {
+  box-shadow: inset 0 0 0 0.55rem var(--workspace-verde);
+}
+
+.recurring-story-preview-empty {
+  align-items: center;
+  aspect-ratio: 9 / 16;
+  background: var(--workspace-rust);
+  color: var(--workspace-paper);
+  display: flex;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.recurring-draft-own-image-note {
+  background: color-mix(
+    in srgb,
+    var(--workspace-paper) 88%,
+    var(--workspace-safety)
+  );
+  border-left: 0.3rem solid var(--workspace-safety);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  text-transform: none;
+}
+
+.recurring-draft-editor-actions p {
+  color: var(--workspace-rust-deep);
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: none;
+}
+
+.recurring-story-engine-preview {
+  align-self: start;
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.55rem 0.55rem 0
+    color-mix(in srgb, var(--workspace-safety) 72%, transparent);
+  margin: clamp(1.25rem, 4vw, 2rem) auto;
+  width: min(22rem, calc(100% - 2rem));
+}
+
+.recurring-story-preview-heading {
+  align-items: center;
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 800;
+  justify-content: space-between;
+  letter-spacing: 0.08em;
+  padding: 0.65rem 0.8rem;
+  text-transform: uppercase;
+}
+
+.recurring-story-preview-heading small {
+  color: color-mix(in srgb, var(--workspace-paper) 68%, transparent);
+  font-size: inherit;
+  font-weight: 700;
+}
+
+.recurring-story-engine-preview > p {
+  background: var(--workspace-ink);
+}
+
+.recurring-rule-design-editor > .recurring-story-engine-preview {
+  margin-inline: 0;
+  width: min(16rem, 100%);
+}
+
+.recurring-rule-design-editor .opening-layout-gallery {
+  grid-template-columns: repeat(2, minmax(7rem, 1fr));
+}
+
+.recurring-rule-design-editor .opening-theme-options,
+.recurring-rule-design-editor .opening-accent-options {
+  grid-template-columns: repeat(3, minmax(7rem, 1fr));
+}
+
+.recurring-rule-design-editor .opening-layout-option {
+  min-height: 12.5rem;
+}
+
+.recurring-draft-editor {
+  gap: 1.35rem;
+}
+
+.recurring-draft-editor-workbench {
+  align-items: start;
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+}
+
+.recurring-draft-editor-fields {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.recurring-draft-fieldset {
+  border: 0;
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 25%, transparent);
+  margin: 0;
+  padding: 1rem 0 0;
+}
+
+.recurring-draft-fieldset > legend {
+  padding: 0;
+}
+
+.recurring-draft-fieldset > p {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0.3rem 0 0.85rem;
+  text-transform: none;
+}
+
+.recurring-draft-full-field {
+  grid-column: 1 / -1;
+}
+
+.recurring-draft-caption {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 25%, transparent);
+  padding-top: 1rem;
+}
+
+.recurring-draft-live-preview {
+  margin: 0;
+  position: sticky;
+  top: 1rem;
+}
+
+@media (max-width: 68rem) {
+  .recurring-draft-editor-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .recurring-draft-live-preview {
+    margin-inline: auto;
+    position: static;
+  }
+}
+
+@media (max-width: 62rem) {
+  .opening-layout-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 38rem) {
+  .opening-layout-gallery,
+  .opening-theme-options,
+  .opening-accent-options,
+  .recurring-rule-design-editor .opening-layout-gallery,
+  .recurring-rule-design-editor .opening-theme-options,
+  .recurring-rule-design-editor .opening-accent-options {
+    grid-template-columns: 1fr;
+  }
+
+  .opening-photo-control {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+
+  .opening-layout-option {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    min-height: 8.75rem;
+  }
+
+  .opening-layout-illustration {
+    height: 7.5rem;
+  }
+
+  .recurring-draft-editor-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .publication-render-preview img {
@@ -3580,7 +4210,9 @@ a {
   --workspace-paper: #f6f1ea;
   --workspace-cream: #e7e2db;
   --workspace-rust: #e63b1e;
+  --workspace-rust-deep: #b62a12;
   --workspace-safety: #ffb200;
+  --workspace-verde: #1e7d3f;
   background:
     linear-gradient(90deg, var(--workspace-rust) 0 0.4rem, transparent 0),
     var(--workspace-paper);

@@ -18,8 +18,9 @@ import { COLORS } from "./colors.ts";
  * la huella en el mismo commit, que es exactamente la revisión que faltaba.
  */
 
+// `verde` entró con `ADR-030` para la etiqueta y el botón de una apertura.
 const approvedPaletteFingerprint =
-  "bf70d43635924c89b14a5d09eba164025664a3e7954991723097d3d0aba6a79d";
+  "676f03d176e55c90c21b1ca881b2c5c5adfb83b1114a7189c8906c156f814a2a";
 
 test("la paleta aprobada conserva su huella", () => {
   const canonical = Object.entries(COLORS)
