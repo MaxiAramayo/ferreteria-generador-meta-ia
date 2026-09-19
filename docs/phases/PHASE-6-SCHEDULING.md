@@ -1231,7 +1231,10 @@ que armó afuera, en vez de elegir sólo entre los diseños del sistema.
 
 ### Evidencia de cierre
 
-- Rama `feat/aperturas-con-foto`, junto con `P6-T11`.
+- Commit `439276f` (PR #79), junto con `P6-T11`.
+- Aprobación visual: el usuario aprobó las tres composiciones —`cartel`,
+  `horario` y `locales`— el 2026-09-19, sobre los renders del motor real con la
+  foto de la mascota.
 - `pnpm db:test`: migración desde base vacía, integración, reversión con
   `down.sql` y reaplicación completas.
 - `pnpm e2e:recurring-story`: doce comprobaciones en Chrome real, incluidas la

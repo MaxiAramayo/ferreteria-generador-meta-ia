@@ -190,8 +190,9 @@ pide aprobación humana. La foto se prepara en el navegador y viaja embebida en
 cada borrador; el horario, las direcciones y el teléfono los sigue escribiendo
 el sistema desde la fuente factual. El costo de guardar la foto así y cuándo
 revisarlo están en [`ADR-030`](architecture/decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md).
-Se versiona junto con `P6-T11` y necesita la migración
-`20260918120000_recurring_story_photo` al desplegar.
+Se versionó junto con `P6-T11` (`439276f`) y necesita la migración
+`20260918120000_recurring_story_photo` al desplegar. El usuario aprobó las tres
+composiciones el mismo día, sobre los renders del motor real.
 
 La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
 el 2026-09-17 tras publicar sus imágenes linux/amd64 en
