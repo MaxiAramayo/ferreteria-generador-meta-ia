@@ -145,7 +145,7 @@ const legacyFrames: readonly StoryOption<RecurringStoryDesignVariantResponse>[] 
  * Marcos a mostrar: los de la historia y, sólo si la regla todavía lo usa, el
  * marco anterior con el que nació.
  */
-export function recurringStoryFrames(
+function recurringStoryFrames(
   kind: RecurringStoryKindResponse,
   current: RecurringStoryDesignVariantResponse,
 ): readonly StoryOption<RecurringStoryDesignVariantResponse>[] {
@@ -199,15 +199,6 @@ export function openingStoryVariantLabel(
     ...legacyFrames,
   ].find((candidate) => candidate.value === variant);
   return known?.label ?? "Marco de la historia";
-}
-
-export function recurringStoryKindLabel(
-  kind: RecurringStoryKindResponse,
-): string {
-  return (
-    recurringStoryKinds.find((candidate) => candidate.value === kind)?.label ??
-    "Historia"
-  );
 }
 
 /**
