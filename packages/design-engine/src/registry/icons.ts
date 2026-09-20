@@ -28,6 +28,7 @@ export type IconName =
   | "reloj"
   | "repuestos"
   | "rubros"
+  | "sanitarios"
   | "seguridad"
   | "sucursales"
   | "tag"
@@ -52,6 +53,7 @@ export const ICON_NAMES: readonly IconName[] = Object.freeze([
   "productos",
   "repuestos",
   "rubros",
+  "sanitarios",
   "promo",
   "pagos",
   "reloj",

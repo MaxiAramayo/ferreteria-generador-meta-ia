@@ -9,7 +9,7 @@ import { Pool } from "pg";
 const repositoryDirectory = fileURLToPath(
   new URL("../../../", import.meta.url),
 );
-const latestMigrationName = "20260918120000_recurring_story_photo";
+const latestMigrationName = "20260919120000_recurring_story_lubricentro_frames";
 const downMigrationPath = fileURLToPath(
   new URL(
     `../prisma/migrations/${latestMigrationName}/down.sql`,
@@ -208,8 +208,11 @@ async function verifyDatabase(): Promise<void> {
         recurring_story_rules_table: string | null;
         recurring_story_materializations_table: string | null;
         recurring_story_accent_exists: boolean;
+        recurring_story_frames_exist: boolean;
+        recurring_story_kind_exists: boolean;
         recurring_story_own_image_exists: boolean;
         recurring_story_photo_exists: boolean;
+        recurring_story_photo_zoom_exists: boolean;
         recurring_story_theme_exists: boolean;
         recurring_story_visual_style_exists: boolean;
         location_day_overrides_table: string | null;
@@ -386,6 +389,21 @@ async function verifyDatabase(): Promise<void> {
             ) AS "recurring_story_visual_style_exists",
             to_regtype('public.recurring_story_theme') IS NOT NULL AS "recurring_story_theme_exists",
             to_regtype('public.recurring_story_accent') IS NOT NULL AS "recurring_story_accent_exists",
+            to_regtype('public.recurring_story_kind') IS NOT NULL AS "recurring_story_kind_exists",
+            EXISTS (
+              SELECT 1
+              FROM pg_enum
+              JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+              WHERE pg_type.typname = 'recurring_story_design_variant'
+                AND pg_enum.enumlabel = 'esquina'
+            ) AS "recurring_story_frames_exist",
+            EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'recurring_story_rules'
+                AND column_name = 'photo_zoom'
+            ) AS "recurring_story_photo_zoom_exists",
             EXISTS (
               SELECT 1
               FROM information_schema.columns
@@ -522,12 +540,16 @@ async function verifyDatabase(): Promise<void> {
       // El marco y el copy editables son anteriores a la migración que se
       // revierte acá: siguen en pie.
       assert.equal(rollbackEvidence.generation_composition_edit_exists, true);
-      // Revertir la foto propia quita la foto, el acento y la imagen propia,
-      // y deja en pie el estilo singular y el tema, que pertenecen a
-      // `20260917120000_recurring_story_visual_style`.
-      assert.equal(rollbackEvidence.recurring_story_photo_exists, false);
-      assert.equal(rollbackEvidence.recurring_story_accent_exists, false);
-      assert.equal(rollbackEvidence.recurring_story_own_image_exists, false);
+      // Revertir los marcos quita la historia del lubricentro, los marcos
+      // nuevos y el encuadre, y deja en pie la foto propia, el acento y la
+      // imagen propia, que pertenecen a
+      // `20260918120000_recurring_story_photo`.
+      assert.equal(rollbackEvidence.recurring_story_kind_exists, false);
+      assert.equal(rollbackEvidence.recurring_story_frames_exist, false);
+      assert.equal(rollbackEvidence.recurring_story_photo_zoom_exists, false);
+      assert.equal(rollbackEvidence.recurring_story_photo_exists, true);
+      assert.equal(rollbackEvidence.recurring_story_accent_exists, true);
+      assert.equal(rollbackEvidence.recurring_story_own_image_exists, true);
       assert.equal(rollbackEvidence.recurring_story_visual_style_exists, true);
       assert.equal(rollbackEvidence.recurring_story_theme_exists, true);
       assert.equal(

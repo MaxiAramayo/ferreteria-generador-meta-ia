@@ -1242,9 +1242,109 @@ que armó afuera, en vez de elegir sólo entre los diseños del sistema.
   la foto hasta el render.
 - `pnpm visual:regression`: 90 piezas; cambiaron sólo las cuatro aperturas.
 
+## P6-T13 — Historia del lubricentro y marcos con encuadre
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P6-T12`
+- Riesgo: Alto
+
+### Objetivo
+
+Que la rutina recurrente también recuerde el servicio de lubricentro algunos
+días, que la apertura ordene lo que muestra por jerarquía y que quien opera
+pueda cambiar el marco de la historia y mover la foto cuando queda cortada, sin
+pedir un diseño nuevo por cada imagen.
+
+### Restricciones e invariantes
+
+- Horario, direcciones y teléfono los escribe siempre el sistema desde la
+  fuente factual; la foto no dibuja datos.
+- El lubricentro funciona únicamente en casa central: su regla nombra una
+  sucursal concreta y nunca «todas».
+- Cambiar de historia cambia marcos y paleta: la ferretería no usa la del
+  lubricentro ni al revés.
+- El encuadre es parte de la foto: se guarda con ella y se recompone igual en el
+  borrador y en el render.
+- Cambiar marco, foto o encuadre de una regla sólo afecta borradores futuros.
+
+### Entregables
+
+- Historia `lubricentro` en dominio, API, base y panel, con su copy aprobado
+  (`KN-002`, `KN-004`) y su paleta grafito y amarillo.
+- Marcos intercambiables por historia: `cartel`/`ventana` (foto al medio),
+  `placa`, `esquina` e `imagen`, con identificadores
+  `historia-<historia>-<marco>`.
+- Encuadre de la foto (`focusX`, `focusY`, `zoom`) editable arrastrando la foto
+  sobre la vista previa real, con barra de acercamiento, botón «Centrar» y
+  flechas del teclado.
+- Apertura con la jerarquía del dueño: rubros con ícono, diferenciales en chico,
+  sucursales con horario y botón grande; sin la etiqueta «Abierto hoy».
+- Migración reversible `20260919120000_recurring_story_lubricentro_frames` y
+  `ADR-030` enmendado.
+
+### Criterios de aceptación
+
+- [x] Una regla del lubricentro sin sucursal, con un marco de la apertura o con
+      la paleta de la ferretería se rechaza antes de guardarse.
+- [x] Cada marco compone los mismos datos en distinta zona del lienzo y ninguno
+      deja texto fuera de la zona segura.
+- [x] El encuadre elegido en el panel es el que renderiza el worker.
+- [x] Una regla que nació con `horario` o `locales` se sigue componiendo, con la
+      plantilla estable.
+- [x] La apertura muestra rubros, diferenciales, sucursales, horario y botón sin
+      la etiqueta de estado.
+
+### Verificación obligatoria
+
+- [x] Motor: estructura de los marcos de las dos historias, presupuestos de
+      texto de rubros y diferenciales, y foto del documento.
+- [x] Dominio, API y PostgreSQL: copy de cada historia, marcos por historia,
+      validación del encuadre, `CHECK` de sucursal del lubricentro, migración y
+      `down.sql`.
+- [x] Panel: vista previa con las mismas funciones del dominio, arrastre del
+      encuadre y lectura de una regla del lubricentro.
+- [x] `pnpm verify`, `pnpm db:test`, `pnpm e2e:recurring-story` y
+      `pnpm visual:regression`.
+
+### Fuera de alcance
+
+- Publicar o programar una historia remota.
+- Recortar la foto en el navegador: el encuadre se resuelve con marco, posición
+  y acercamiento.
+
+### Notas de progreso
+
+- Fecha: 2026-09-19.
+- Estado real: completada. Pedido del usuario del 2026-09-19, con dos fotos del
+  lubricentro —una camioneta en la fosa y una moto en el cambio de aceite— y la
+  jerarquía escrita para «Ya abrimos».
+- Decisiones del usuario: los tres marcos del lubricentro, los mismos marcos
+  para la apertura, la dirección en vez del nombre de la sucursal, y mover la
+  foto arrastrándola con una barra para acercar.
+- Hallazgos: la pieza de catálogo `historia-turno-lubricentro` quedó intacta —la
+  usan otras publicaciones— y los marcos nuevos llevan identificadores propios;
+  el motor rechaza una lista de renglones vacía, así que el lubricentro no
+  declara `items`. El E2E encontró dos cosas que ninguna prueba unitaria podía
+  ver: arrastrar sobre la foto disparaba el arrastre nativo de la imagen y el
+  navegador cancelaba el gesto a los dos píxeles, y el transporte de la API
+  rechazaba los rubros y los diferenciales por no estar declarados.
+- Verificaciones ejecutadas: `pnpm verify`, `pnpm db:test`,
+  `pnpm e2e:recurring-story` —catorce comprobaciones en Chrome real, con el
+  encuadre arrastrado— y `pnpm visual:regression`, en verde el 2026-09-20.
+  Revisión visual del panel en escritorio y teléfono, sin desborde horizontal.
+
+### Evidencia de cierre
+
+- Aprobación visual: el usuario aprobó los tres marcos del lubricentro y los de
+  la apertura el 2026-09-19, sobre renders del motor real con sus fotos.
+- `pnpm db:test`: migración desde base vacía, integración y reversión con
+  `down.sql`.
+- `pnpm visual:regression`: cambian las aperturas y los marcos nuevos.
+
 ## Criterios de salida de Fase 6
 
-- [ ] `P6-T01` a `P6-T12` están completas.
+- [ ] `P6-T01` a `P6-T13` están completas.
 - [ ] Programaciones sobreviven reinicios sin pérdidas ni duplicados.
 - [ ] Historias recurrentes respetan horario, ubicación y excepciones.
 - [ ] Validación previa bloquea contenido inválido o vencido.

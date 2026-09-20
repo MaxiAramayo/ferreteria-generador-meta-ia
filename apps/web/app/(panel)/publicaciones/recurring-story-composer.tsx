@@ -4,6 +4,7 @@ import type {
   RecurringStoryAccentResponse,
   RecurringStoryApprovalPolicyResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryKindResponse,
   RecurringStoryPhotoPayload,
   RecurringStoryRuleResponse,
   RecurringStoryThemeResponse,
@@ -29,14 +30,36 @@ import {
   OpeningStoryStyleControls,
   openingStoryThemes,
   openingStoryVariantLabel,
+  recurringStoryKinds,
 } from "./opening-story-style-controls.tsx";
 
 interface VisualStyle {
   readonly accent: RecurringStoryAccentResponse;
   readonly designVariant: RecurringStoryDesignVariantResponse;
+  readonly kind: RecurringStoryKindResponse;
   readonly photo: RecurringStoryPhotoPayload | null;
   readonly theme: RecurringStoryThemeResponse;
 }
+
+/** Punto de partida de cada historia: su marco con la foto al medio. */
+const defaultStyles: Readonly<Record<RecurringStoryKindResponse, VisualStyle>> =
+  Object.freeze({
+    apertura: Object.freeze({
+      accent: "marca" as const,
+      // El rojo de marca es el del cartel del local: el punto de partida.
+      designVariant: "cartel" as const,
+      kind: "apertura" as const,
+      photo: null,
+      theme: "promo" as const,
+    }),
+    lubricentro: Object.freeze({
+      accent: "marca" as const,
+      designVariant: "ventana" as const,
+      kind: "lubricentro" as const,
+      photo: null,
+      theme: "lubricentro" as const,
+    }),
+  });
 
 const ownImageMissing =
   "Subí la imagen que querés publicar: «Imagen propia» no tiene otra cosa que mostrar.";
@@ -44,7 +67,7 @@ const ownImageMissing =
 function styleCaption(style: VisualStyle): string {
   const theme =
     openingStoryThemes.find((candidate) => candidate.value === style.theme)
-      ?.label ?? "";
+      ?.label ?? "Grafito y amarillo";
   return style.designVariant === "imagen"
     ? "Imagen propia · se publica tal cual"
     : `${openingStoryVariantLabel(style.designVariant)} · ${theme}`;
@@ -133,20 +156,11 @@ export function RecurringStoryRuleComposer({
   ]);
   const [approvalPolicy, setApprovalPolicy] =
     useState<RecurringStoryApprovalPolicyResponse>("human-each-cycle");
-  // El rojo de marca es el del cartel del local: el punto de partida.
-  const [style, setStyle] = useState<VisualStyle>({
-    accent: "marca",
-    designVariant: "cartel",
-    photo: null,
-    theme: "promo",
-  });
+  const [style, setStyle] = useState<VisualStyle>(defaultStyles.apertura);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
-  const [editingVisualStyle, setEditingVisualStyle] = useState<VisualStyle>({
-    accent: "marca",
-    designVariant: "cartel",
-    photo: null,
-    theme: "promo",
-  });
+  const [editingVisualStyle, setEditingVisualStyle] = useState<VisualStyle>(
+    defaultStyles.apertura,
+  );
   const [saving, setSaving] = useState(false);
   const [savingRuleId, setSavingRuleId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -194,6 +208,32 @@ export function RecurringStoryRuleComposer({
     setStyle((current) => ({ ...current, ...change }));
   }
 
+  /**
+   * Cambiar de historia cambia el marco y la paleta: los de la apertura no son
+   * los del lubricentro. La foto elegida se conserva.
+   */
+  function changeKind(kind: RecurringStoryKindResponse): void {
+    idempotencyKey.current = null;
+    setStyle((current) => ({ ...defaultStyles[kind], photo: current.photo }));
+    setName((current) =>
+      current === "Apertura de sucursal" ||
+      current === "Service del lubricentro"
+        ? kind === "lubricentro"
+          ? "Service del lubricentro"
+          : "Apertura de sucursal"
+        : current,
+    );
+    if (kind === "lubricentro" && locationId === "") {
+      // El lubricentro funciona únicamente en casa central: la historia nombra
+      // una sucursal y no puede hablar por todas.
+      setLocationId(
+        loadState.kind === "ready"
+          ? (loadState.workspace.locations[0]?.id ?? "")
+          : "",
+      );
+    }
+  }
+
   function changeEditingStyle(change: Partial<VisualStyle>): void {
     visualStyleIdempotencyKey.current = null;
     setEditingVisualStyle((current) => ({ ...current, ...change }));
@@ -219,6 +259,12 @@ export function RecurringStoryRuleComposer({
       setNotice(ownImageMissing);
       return;
     }
+    if (style.kind === "lubricentro" && locationId === "") {
+      setNotice(
+        "El lubricentro funciona en una sola sucursal: elegí en cuál se atiende.",
+      );
+      return;
+    }
     idempotencyKey.current ??= crypto.randomUUID();
     setSaving(true);
     setNotice(
@@ -230,6 +276,7 @@ export function RecurringStoryRuleComposer({
       designVariant: style.designVariant,
       effectiveFromLocalDate,
       idempotencyKey: idempotencyKey.current,
+      kind: style.kind,
       leadTimeMinutes,
       localTime,
       locationId: locationId === "" ? null : locationId,
@@ -272,6 +319,7 @@ export function RecurringStoryRuleComposer({
     setEditingVisualStyle({
       accent: rule.accent,
       designVariant: rule.designVariant,
+      kind: rule.kind,
       photo: rule.photo,
       theme: rule.theme,
     });
@@ -300,6 +348,7 @@ export function RecurringStoryRuleComposer({
       designVariant: editingVisualStyle.designVariant,
       expectedVersion: rule.version,
       idempotencyKey: visualStyleIdempotencyKey.current,
+      kind: editingVisualStyle.kind,
       photo: editingVisualStyle.photo,
       ruleId: rule.id,
       theme: editingVisualStyle.theme,
@@ -394,6 +443,29 @@ export function RecurringStoryRuleComposer({
             value={name}
           />
         </label>
+        <fieldset className="recurring-story-kind">
+          <legend>Qué historia arma</legend>
+          {recurringStoryKinds.map((candidate) => (
+            <label
+              data-selected={String(style.kind === candidate.value)}
+              key={candidate.value}
+            >
+              <input
+                checked={style.kind === candidate.value}
+                disabled={!canSchedule || saving}
+                name="recurring-story-kind"
+                onChange={() => {
+                  changeKind(candidate.value);
+                }}
+                type="radio"
+              />
+              <span>
+                <strong>{candidate.label}</strong>
+                <small>{candidate.description}</small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
         <div className="recurring-story-grid">
           <label>
             Sucursal
@@ -406,7 +478,9 @@ export function RecurringStoryRuleComposer({
               }}
               value={locationId}
             >
-              <option value="">Ambas sucursales</option>
+              {style.kind === "lubricentro" ? null : (
+                <option value="">Ambas sucursales</option>
+              )}
               {loadState.workspace.locations.map((location) => (
                 <option key={location.id} value={location.id}>
                   Sólo {location.name}
@@ -482,6 +556,7 @@ export function RecurringStoryRuleComposer({
           designVariant={style.designVariant}
           disabled={!canSchedule || saving}
           inputName="new-recurring-story"
+          kind={style.kind}
           onAccentChange={(accent) => {
             changeStyle({ accent });
           }}
@@ -567,6 +642,7 @@ export function RecurringStoryRuleComposer({
                 <li key={rule.id}>
                   <strong>{rule.name}</strong>
                   <small>
+                    {rule.kind === "lubricentro" ? "Lubricentro · " : ""}
                     {rule.locationId === null
                       ? "Ambas sucursales"
                       : (loadState.workspace.locations.find(
@@ -594,6 +670,7 @@ export function RecurringStoryRuleComposer({
                         designVariant={editingVisualStyle.designVariant}
                         disabled={savingRuleId === rule.id}
                         inputName={`rule-${rule.id}`}
+                        kind={editingVisualStyle.kind}
                         onAccentChange={(accent) => {
                           changeEditingStyle({ accent });
                         }}
@@ -611,6 +688,11 @@ export function RecurringStoryRuleComposer({
                       />
                       <OpeningStoryPreview
                         caption={styleCaption(editingVisualStyle)}
+                        disabled={savingRuleId === rule.id}
+                        onPhotoChange={(photo) => {
+                          changeEditingStyle({ photo });
+                        }}
+                        photo={editingVisualStyle.photo}
                         preview={openingStoryPreviewDocument({
                           ...editingVisualStyle,
                           localDate: nextLocalDate(),
@@ -656,6 +738,11 @@ export function RecurringStoryRuleComposer({
       </form>
       <OpeningStoryPreview
         caption={styleCaption(style)}
+        disabled={!canSchedule || saving}
+        onPhotoChange={(photo) => {
+          changeStyle({ photo });
+        }}
+        photo={style.photo}
         preview={openingStoryPreviewDocument({
           ...style,
           localDate: effectiveFromLocalDate,

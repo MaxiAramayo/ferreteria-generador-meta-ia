@@ -43,11 +43,17 @@ const photoPair: MediaCapacity = { maximum: 2, minimum: 0 };
 const mosaic: MediaCapacity = { maximum: 6, minimum: 0 };
 const technicalScene: MediaCapacity = { maximum: 1, minimum: 1 };
 
-/** Lo que una historia de apertura admite además de título, datos y CTA. */
+/**
+ * Lo que una historia recurrente admite además de título, datos y CTA. `badge`
+ * e `icon` quedan admitidos para que un borrador anterior se siga componiendo,
+ * aunque la plantilla estable ya no los dibuja.
+ */
 const openingOptionalFields: readonly ContentFieldKey[] = [
   "accent",
   "badge",
+  "features",
   "greeting",
+  "highlights",
   "icon",
   "subtitle",
   "validity",
@@ -88,6 +94,61 @@ export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
       ["historia"],
       ["title", "items", "callToAction"],
       openingOptionalFields,
+      singlePhoto,
+    ),
+    // Los marcos de una apertura admiten el mismo contenido que el cartel: quien
+    // opera cambia de marco según dónde deja lugar su foto, sin perder datos.
+    "historia-apertura-esquina": specFor(
+      "historia-apertura-esquina",
+      "historia",
+      ["historia"],
+      ["title", "items", "callToAction"],
+      openingOptionalFields,
+      singlePhoto,
+    ),
+    "historia-apertura-placa": specFor(
+      "historia-apertura-placa",
+      "historia",
+      ["historia"],
+      ["title", "items", "callToAction"],
+      openingOptionalFields,
+      singlePhoto,
+    ),
+    // Los marcos del lubricentro admiten el mismo contenido: quien opera cambia
+    // de marco según dónde deja lugar su foto, sin perder ningún dato.
+    "historia-lubricentro-esquina": specFor(
+      "historia-lubricentro-esquina",
+      "historia",
+      ["historia"],
+      ["title", "callToAction"],
+      ["items", ...openingOptionalFields],
+      singlePhoto,
+    ),
+    // La imagen propia del lubricentro se publica tal cual, igual que la de la
+    // apertura, y admite los mismos campos para no perder el borrador al
+    // volver a un marco.
+    "historia-lubricentro-imagen": specFor(
+      "historia-lubricentro-imagen",
+      "historia",
+      ["historia"],
+      ["title"],
+      ["items", "callToAction", ...openingOptionalFields],
+      { maximum: 1, minimum: 1 },
+    ),
+    "historia-lubricentro-placa": specFor(
+      "historia-lubricentro-placa",
+      "historia",
+      ["historia"],
+      ["title", "callToAction"],
+      ["items", ...openingOptionalFields],
+      singlePhoto,
+    ),
+    "historia-lubricentro-ventana": specFor(
+      "historia-lubricentro-ventana",
+      "historia",
+      ["historia"],
+      ["title", "callToAction"],
+      ["items", ...openingOptionalFields],
       singlePhoto,
     ),
     "combo-kit": specFor(

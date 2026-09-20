@@ -27,6 +27,7 @@ export {
   mediaLimits,
   type AssetReference,
   type DesignContent,
+  type DesignFeature,
   type DesignDocument,
   type DesignSchemaVersion,
   type MediaAsset,

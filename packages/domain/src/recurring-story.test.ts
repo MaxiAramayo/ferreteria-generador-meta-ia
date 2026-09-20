@@ -7,11 +7,13 @@ import {
   recurringStorySourceToJson,
 } from "./pre-publish-validation.ts";
 import {
-  openingStoryDesignDocument,
   openingStoryGreeting,
-  openingStoryLayoutFor,
+  recurringStoryDesignDocument,
+  recurringStoryDesignVariantsFor,
+  recurringStoryLayoutFor,
   recurringStoryPhotoLimits,
   recurringStoryStyleIssue,
+  recurringStoryThemesFor,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type RecurringStoryLocationSource,
@@ -41,11 +43,73 @@ const occurrence = {
   scheduledAt: "2026-09-08T11:00:00.000Z",
 };
 
-test("la apertura conserva el diseño elegido por la regla", () => {
-  assert.equal(openingStoryLayoutFor("cartel"), "historia-apertura-cartel");
-  assert.equal(openingStoryLayoutFor("horario"), "historia-apertura-horario");
-  assert.equal(openingStoryLayoutFor("locales"), "historia-apertura-locales");
-  assert.equal(openingStoryLayoutFor("imagen"), "historia-apertura-imagen");
+test("cada historia conserva el marco elegido por la regla", () => {
+  assert.equal(
+    recurringStoryLayoutFor("apertura", "cartel"),
+    "historia-apertura-cartel",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("apertura", "placa"),
+    "historia-apertura-placa",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("apertura", "esquina"),
+    "historia-apertura-esquina",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("apertura", "imagen"),
+    "historia-apertura-imagen",
+  );
+  // Los marcos heredados siguen componiendo con la plantilla estable.
+  assert.equal(
+    recurringStoryLayoutFor("apertura", "horario"),
+    "historia-apertura-horario",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("lubricentro", "ventana"),
+    "historia-lubricentro-ventana",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("lubricentro", "placa"),
+    "historia-lubricentro-placa",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("lubricentro", "esquina"),
+    "historia-lubricentro-esquina",
+  );
+  assert.equal(
+    recurringStoryLayoutFor("lubricentro", "imagen"),
+    "historia-lubricentro-imagen",
+  );
+  // Un marco que el lubricentro no ofrece cae en el suyo con la foto al medio,
+  // en vez de componer un identificador que el motor no conoce.
+  assert.equal(
+    recurringStoryLayoutFor("lubricentro", "cartel"),
+    "historia-lubricentro-ventana",
+  );
+});
+
+test("cada historia ofrece sus marcos y su paleta", () => {
+  assert.deepEqual(recurringStoryDesignVariantsFor("apertura"), [
+    "cartel",
+    "placa",
+    "esquina",
+    "imagen",
+    "horario",
+    "locales",
+  ]);
+  assert.deepEqual(recurringStoryDesignVariantsFor("lubricentro"), [
+    "ventana",
+    "placa",
+    "esquina",
+    "imagen",
+  ]);
+  assert.deepEqual(recurringStoryThemesFor("apertura"), [
+    "taller",
+    "claro",
+    "promo",
+  ]);
+  assert.deepEqual(recurringStoryThemesFor("lubricentro"), ["lubricentro"]);
 });
 
 test("materializa una historia normal citando la versión de sucursal", () => {
@@ -62,17 +126,55 @@ test("materializa una historia normal citando la versión de sucursal", () => {
   assert.equal(result.requiresHumanApproval, true);
   assert.match(result.caption, /Rivadavia 673/u);
   assert.deepEqual(result.designContent, {
-    badge: "Abierto hoy",
-    callToAction: "Escribinos",
+    callToAction: "¿Buscás algo? Escribinos",
+    features: [
+      { icon: "herramientas", label: "Herramientas" },
+      { icon: "electricidad", label: "Electricidad" },
+      { icon: "sanitarios", label: "Sanitarios" },
+      { icon: "pintura", label: "Pinturas" },
+      { icon: "buloneria", label: "Bulonería y fijaciones" },
+      { icon: "automotor", label: "Lubricentro" },
+    ],
     greeting: "Buen día, Frías",
-    icon: "reloj",
+    highlights: [
+      "Asesoramiento personalizado",
+      "Variedad de marcas",
+      "Distintos medios de pago",
+    ],
     items: ["Casa Central · Rivadavia 673"],
-    // Una sucursal sola no promete lubricentro: puede no tenerlo.
-    subtitle:
-      "Casa Central ya está atendiendo. Vení a buscar lo que necesitás para tu casa o tu oficio.",
+    subtitle: "Te esperamos en Casa Central",
     title: "¡Ya abrimos!",
     validity: "de 8:00 a 12:30 y de 16:30 a 20:30",
   });
+});
+
+test("el lubricentro afirma sus servicios y la dirección donde se atiende", () => {
+  const result = resolveRecurringStoryDraft({
+    capturedAt: "2026-09-07T18:00:00.000Z",
+    kind: "lubricentro",
+    location,
+    occurrence,
+    policy: "human-each-cycle",
+  });
+
+  assert.equal(result.status, "ready");
+  assert.deepEqual(result.designContent, {
+    callToAction: "Pedí tu turno",
+    features: [
+      { icon: "aceite", label: "Lubricantes" },
+      { icon: "lubricentro", label: "Filtros" },
+      { icon: "bateria", label: "Baterías" },
+    ],
+    highlights: ["Autos", "Motos", "Utilitarios", "Autoelevadoras"],
+    // La dirección, no el nombre de la sucursal: es donde está la fosa.
+    subtitle: "Cambio de aceite con fosa en Rivadavia 673",
+    title: "¿Toca el service?",
+    validity: "de 8:00 a 12:30 y de 16:30 a 20:30",
+  });
+  assert.match(result.caption, /Cambio de aceite con fosa en Rivadavia 673/u);
+  assert.match(result.caption, /Pedí tu turno por WhatsApp\./u);
+  // El horario del día es el de la sucursal, no uno propio del servicio.
+  assert.equal(result.source.hours, "de 8:00 a 12:30 y de 16:30 a 20:30");
 });
 
 test("un feriado cerrado bloquea la afirmación Ya abrimos", () => {
@@ -265,9 +367,8 @@ test("una historia para todas con el mismo horario lo dice una vez y nombra cada
   );
   assert.equal(
     result.designContent.subtitle,
-    "Nuestros dos locales ya están atendiendo. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+    "Te esperamos en nuestros dos locales",
   );
-  assert.equal(result.designContent.badge, "Abierto hoy");
   assert.equal(result.designContent.greeting, "Buen día, Frías");
   assert.equal(result.requiresHumanApproval, false);
   assert.match(result.caption, /Casa central y Sucursal Rivadavia/u);
@@ -311,11 +412,11 @@ test("con horarios distintos va un renglón por sucursal", () => {
   ]);
   // Sin un horario común, no hay renglón de horario aparte.
   assert.equal(result.designContent.validity, undefined);
-  // Si abren a horas distintas, «ya están atendiendo» sería falso para la que
-  // abre más tarde: la historia dice que hoy se atiende.
+  // La bajada sólo dice dónde se atiende: con horarios distintos, el horario
+  // de cada una va en su renglón y ninguna afirmación queda de más.
   assert.equal(
     result.designContent.subtitle,
-    "Hoy atendemos en nuestros dos locales. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+    "Te esperamos en nuestros dos locales",
   );
   assert.match(
     result.caption,
@@ -353,11 +454,12 @@ test("una sucursal cerrada por excepción se nombra cerrada y la historia pide r
     result.designContent.validity,
     "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
   );
+  // Con una cerrada se nombra la que abre: contar «nuestros dos locales» ese
+  // día sería falso.
   assert.equal(
     result.designContent.subtitle,
-    "Casa central ya está atendiendo. Vení a buscar lo que necesitás para tu casa, tu oficio o tu auto.",
+    "Hoy te esperamos en Casa central",
   );
-  assert.equal(result.designContent.badge, "Horario especial");
   assert.equal(result.requiresHumanApproval, true);
   assert.match(result.caption, /Ya abrimos en Casa central\./u);
   assert.match(result.caption, /Sucursal Rivadavia permanece cerrada hoy\./u);
@@ -423,10 +525,7 @@ test("una sucursal inactiva no es parte de todas", () => {
   });
 
   assert.equal(result.status, "ready");
-  assert.match(
-    result.designContent.subtitle,
-    /^Casa central ya está atendiendo\./u,
-  );
+  assert.equal(result.designContent.subtitle, "Te esperamos en Casa central");
   assert.deepEqual(
     result.source.locations.map((entry) => entry.locationId),
     ["location-central"],
@@ -556,7 +655,9 @@ test("la imagen propia siempre vuelve a revisión humana", () => {
 const jpegPhoto: RecurringStoryPhoto = {
   alt: "Nuestra gata en el mostrador",
   dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusX: 50,
   focusY: 40,
+  zoom: 100,
 };
 
 test("un estilo de apertura valida su foto y exige una para la imagen propia", () => {
@@ -603,6 +704,37 @@ test("un estilo de apertura valida su foto y exige una para la imagen propia", (
     }),
     "photo-focus-invalid",
   );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: { ...jpegPhoto, focusX: -1 },
+    }),
+    "photo-focus-invalid",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      photo: { ...jpegPhoto, zoom: 300 },
+    }),
+    "photo-zoom-invalid",
+  );
+  // El cartel es un marco de la apertura: el lubricentro no lo ofrece.
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "cartel",
+      kind: "lubricentro",
+      photo: null,
+    }),
+    "variant-unavailable",
+  );
+  assert.equal(
+    recurringStoryStyleIssue({
+      designVariant: "ventana",
+      kind: "lubricentro",
+      photo: null,
+    }),
+    null,
+  );
 });
 
 test("el documento usa la foto de la regla o, sin ella, la del local", () => {
@@ -614,10 +746,11 @@ test("el documento usa la foto de la regla o, sin ella, la del local", () => {
   });
   assert.equal(resolution.status, "ready");
 
-  const withoutPhoto = openingStoryDesignDocument({
+  const withoutPhoto = recurringStoryDesignDocument({
     accent: "marca",
     content: resolution.designContent,
     designVariant: "cartel",
+    kind: "apertura",
     localDate: "2026-09-08",
     photo: null,
     ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
@@ -631,10 +764,11 @@ test("el documento usa la foto de la regla o, sin ella, la del local", () => {
   });
   assert.equal(withoutPhoto.content.accent, "marca");
 
-  const withPhoto = openingStoryDesignDocument({
+  const withPhoto = recurringStoryDesignDocument({
     accent: "verde",
     content: resolution.designContent,
     designVariant: "imagen",
+    kind: "apertura",
     localDate: "2026-09-08",
     photo: jpegPhoto,
     ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
@@ -649,12 +783,48 @@ test("el documento usa la foto de la regla o, sin ella, la del local", () => {
     zoom: 1,
   });
 
+  // El encuadre del panel viaja al documento: el acercamiento va en porcentaje
+  // en la regla y como factor en el motor.
+  const framed = recurringStoryDesignDocument({
+    accent: "marca",
+    content: resolution.designContent,
+    designVariant: "esquina",
+    kind: "apertura",
+    localDate: "2026-09-08",
+    photo: { ...jpegPhoto, focusX: 100, focusY: 0, zoom: 140 },
+    ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
+    theme: "promo",
+  });
+  assert.equal(framed.layout, "historia-apertura-esquina");
+  const [framedMedia] = framed.media;
+  assert.ok(framedMedia);
+  assert.deepEqual(framedMedia["focus"], { x: 100, y: 0 });
+  assert.equal(framedMedia["zoom"], 1.4);
+
+  // Sin foto propia, cada historia usa la suya de la biblioteca aprobada.
+  const lubricentro = recurringStoryDesignDocument({
+    accent: "marca",
+    content: resolution.designContent,
+    designVariant: "ventana",
+    kind: "lubricentro",
+    localDate: "2026-09-08",
+    photo: null,
+    ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",
+    theme: "lubricentro",
+  });
+  assert.equal(lubricentro.layout, "historia-lubricentro-ventana");
+  assert.deepEqual(lubricentro.media[0]?.["reference"], {
+    assetId: "brand/lubricentro-filtros",
+    source: "brand-library",
+  });
+
   assert.throws(
     () =>
-      openingStoryDesignDocument({
+      recurringStoryDesignDocument({
         accent: "marca",
         content: resolution.designContent,
         designVariant: "imagen",
+        kind: "apertura",
         localDate: "2026-09-08",
         photo: null,
         ruleId: "0f5ee2d4-8a3b-4c0e-9d64-2b0c1d9a7e11",

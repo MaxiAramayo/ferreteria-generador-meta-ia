@@ -8,12 +8,31 @@ export class UpdateRecurringStoryVisualStyleDto {
   @IsIn(["marca", "senal", "verde"])
   accent!: "marca" | "senal" | "verde";
 
-  @IsIn(["cartel", "horario", "locales", "imagen"])
-  designVariant!: "cartel" | "horario" | "imagen" | "locales";
+  @IsIn([
+    "cartel",
+    "esquina",
+    "horario",
+    "imagen",
+    "locales",
+    "placa",
+    "ventana",
+  ])
+  designVariant!:
+    | "cartel"
+    | "esquina"
+    | "horario"
+    | "imagen"
+    | "locales"
+    | "placa"
+    | "ventana";
 
   @IsInt()
   @Min(1)
   expectedVersion!: number;
+
+  /** La historia de la regla: el estilo no la cambia, la usa para validar. */
+  @IsIn(["apertura", "lubricentro"])
+  kind!: "apertura" | "lubricentro";
 
   /**
    * Obligatoria aunque admita `null`: omitirla la rechaza el servicio con un
@@ -26,6 +45,6 @@ export class UpdateRecurringStoryVisualStyleDto {
   @Type(() => RecurringStoryPhotoDto)
   photo?: RecurringStoryPhotoDto | null;
 
-  @IsIn(["taller", "claro", "promo"])
-  theme!: "taller" | "claro" | "promo";
+  @IsIn(["taller", "claro", "promo", "lubricentro"])
+  theme!: "taller" | "claro" | "promo" | "lubricentro";
 }

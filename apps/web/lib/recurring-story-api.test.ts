@@ -11,7 +11,9 @@ const apiBaseUrl = "https://api.example.invalid/";
 const photo = {
   alt: "Nuestra gata en el mostrador",
   dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusX: 50,
   focusY: 40,
+  zoom: 100,
 };
 const rule = {
   accent: "marca",
@@ -19,6 +21,7 @@ const rule = {
   designVariant: "cartel",
   effectiveFrom: "2026-09-08T11:30:00.000Z",
   id: "rule-1",
+  kind: "apertura",
   leadTimeMinutes: 120,
   localTime: "08:30",
   locationId: "location-1",
@@ -84,6 +87,7 @@ test("guarda con CSRF e idempotencia sin enviar una orden de publicación", asyn
     designVariant: "cartel",
     effectiveFromLocalDate: "2026-09-08",
     idempotencyKey: "recurring-rule-123",
+    kind: "apertura",
     leadTimeMinutes: 120,
     localTime: "08:30",
     locationId: "location-1",
@@ -148,6 +152,7 @@ test("actualiza el estilo con versión, CSRF e idempotencia", async (context) =>
     designVariant: "locales",
     expectedVersion: 1,
     idempotencyKey: "recurring-visual-style-123",
+    kind: "apertura",
     photo,
     ruleId: "rule-1",
     theme: "promo",
@@ -171,6 +176,7 @@ test("actualiza el estilo con versión, CSRF e idempotencia", async (context) =>
     accent: "verde",
     designVariant: "locales",
     expectedVersion: 1,
+    kind: "apertura",
     photo,
     theme: "promo",
   });
@@ -205,6 +211,43 @@ test("una regla con foto propia se lee entera y una foto rota falla cerrado", as
   assert.equal((await loadRecurringStoryWorkspace(apiBaseUrl)).kind, "error");
 });
 
+test("una regla del lubricentro se lee con su historia, su marco y su encuadre", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const framed = { ...photo, focusX: 100, focusY: 0, zoom: 140 };
+  globalThis.fetch = () =>
+    Promise.resolve(
+      Response.json({
+        ...workspace,
+        rules: [
+          {
+            ...rule,
+            designVariant: "esquina",
+            kind: "lubricentro",
+            photo: framed,
+            theme: "lubricentro",
+          },
+        ],
+      }),
+    );
+
+  const ready = await loadRecurringStoryWorkspace(apiBaseUrl);
+  assert.equal(ready.kind, "ready");
+  assert.equal(ready.workspace.rules[0]?.kind, "lubricentro");
+  assert.equal(ready.workspace.rules[0].designVariant, "esquina");
+  assert.equal(ready.workspace.rules[0].theme, "lubricentro");
+  assert.deepEqual(ready.workspace.rules[0].photo, framed);
+
+  // Una historia que el panel no conoce no se muestra como si fuera otra.
+  globalThis.fetch = () =>
+    Promise.resolve(
+      Response.json({ ...workspace, rules: [{ ...rule, kind: "taller" }] }),
+    );
+  assert.equal((await loadRecurringStoryWorkspace(apiBaseUrl)).kind, "error");
+});
+
 test("una foto demasiado pesada se explica en vez de fallar mudo", async (context) => {
   const originalFetch = globalThis.fetch;
   context.after(() => {
@@ -224,6 +267,7 @@ test("una foto demasiado pesada se explica en vez de fallar mudo", async (contex
     designVariant: "cartel",
     expectedVersion: 1,
     idempotencyKey: "recurring-visual-style-413",
+    kind: "apertura",
     photo,
     ruleId: "rule-1",
     theme: "promo",

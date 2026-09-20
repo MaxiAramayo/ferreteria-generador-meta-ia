@@ -8191,7 +8191,9 @@ const recurringStoryPhotoFixture = Object.freeze({
   alt: "Nuestra gata en el mostrador",
   // Cabecera real de un JPEG: la base guarda la foto, el motor la decodifica.
   dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusX: 50,
   focusY: 40,
+  zoom: 100,
 });
 
 test("la imagen propia exige su imagen y siempre pide aprobación humana", async () => {
@@ -8276,7 +8278,13 @@ test("la imagen propia exige su imagen y siempre pide aprobación humana", async
   // la validación del dominio.
   await assert.rejects(
     database.recurringStoryRule.update({
-      data: { photoAlt: null, photoDataUrl: null, photoFocusY: null },
+      data: {
+        photoAlt: null,
+        photoDataUrl: null,
+        photoFocusX: null,
+        photoFocusY: null,
+        photoZoom: null,
+      },
       where: { organizationId_id: { id: created.rule.id, organizationId } },
     }),
   );
@@ -8394,6 +8402,7 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
     designVariant: "locales",
     expectedVersion: createdRule.rule.version,
     idempotencyKey: visualStyleIdempotencyKey,
+    kind: "apertura",
     occurredAt: "2026-09-07T12:00:00.000Z",
     photo: recurringStoryPhotoFixture,
     ruleId: createdRule.rule.id,
@@ -8412,6 +8421,7 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
     designVariant: "locales",
     expectedVersion: createdRule.rule.version,
     idempotencyKey: visualStyleIdempotencyKey,
+    kind: "apertura",
     occurredAt: "2026-09-07T12:00:00.000Z",
     photo: recurringStoryPhotoFixture,
     ruleId: createdRule.rule.id,
@@ -8475,6 +8485,7 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
     designVariant: "cartel",
     expectedVersion: designUpdate.rule.version,
     idempotencyKey: `recurring-design-future-${randomUUID()}`,
+    kind: "apertura",
     occurredAt: "2026-09-07T12:01:00.000Z",
     photo: null,
     ruleId: createdRule.rule.id,
@@ -8608,6 +8619,134 @@ test("una regla recurrente materializa, aprueba y crea una ocurrencia sin public
   assert.equal(invalidated.status, "invalidated");
   assert.equal(publication.status, "validation_failed");
   assert.equal(occurrence.status, "cancelled");
+});
+
+test("una regla del lubricentro materializa su historia, con su marco y su encuadre", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const brandId = randomUUID();
+  const locationId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Aramayo lubricentro",
+      id: organizationId,
+      legalName: "Aramayo lubricentro",
+      slug: `lubricentro-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Responsable del lubricentro",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: {
+      id: membershipId,
+      organizationId,
+      roles: ["admin", "editor", "approver"],
+      userId,
+    },
+  });
+  await database.brand.create({
+    data: {
+      id: brandId,
+      name: "Aramayo",
+      organizationId,
+      profile: { themeId: "lubricentro" },
+    },
+  });
+  await database.location.create({
+    data: {
+      addressLine: "República de Siria 365",
+      brandId,
+      city: "Frías",
+      id: locationId,
+      name: "Casa Central",
+      openingHours: { display: "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30" },
+      organizationId,
+      province: "Santiago del Estero",
+    },
+  });
+  const actor = {
+    displayName: "Responsable del lubricentro",
+    email: `${userId}@example.invalid`,
+    membershipId,
+    organizationId,
+    roles: ["admin", "editor", "approver"] as const,
+    sessionId: randomUUID(),
+    userId,
+  };
+
+  const recurring = new PrismaRecurringStoryRepository(database);
+  const created = await recurring.create({
+    actor,
+    approvalPolicy: "human-each-cycle",
+    designVariant: "esquina",
+    effectiveFrom: "2026-09-08T11:30:00.000Z",
+    idempotencyKey: `lubricentro-${randomUUID()}`,
+    kind: "lubricentro",
+    leadTimeMinutes: 1_440,
+    localTime: "08:30",
+    locationId,
+    name: "Service del lubricentro",
+    occurredAt: "2026-09-07T12:00:00.000Z",
+    // El encuadre del panel: la moto queda abajo a la izquierda.
+    photo: { ...recurringStoryPhotoFixture, focusX: 100, focusY: 0, zoom: 140 },
+    theme: "lubricentro",
+    weekdays: [2],
+  });
+  assert.equal(created.status, "created");
+  assert.equal(created.rule.kind, "lubricentro");
+  assert.deepEqual(created.rule.photo, {
+    ...recurringStoryPhotoFixture,
+    focusX: 100,
+    focusY: 0,
+    zoom: 140,
+  });
+
+  // El lubricentro sólo existe en la sucursal donde está la fosa: la base no
+  // acepta una regla suya que hable por todas.
+  await assert.rejects(
+    database.recurringStoryRule.update({
+      data: { locationId: null },
+      where: { organizationId_id: { id: created.rule.id, organizationId } },
+    }),
+  );
+
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-07T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 1, reviewed: 1 },
+  );
+  const materialization =
+    await database.recurringStoryMaterialization.findFirstOrThrow({
+      where: { organizationId },
+    });
+  assert.ok(materialization.publicationId);
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: materialization.publicationId },
+  });
+  assert.match(publication.title, /^Lubricentro · Casa Central/u);
+  const revision = await database.publicationRevision.findFirstOrThrow({
+    where: { organizationId, publicationId: materialization.publicationId },
+  });
+  const document = JSON.stringify(revision.designDocument);
+  assert.match(document, /"layout":"historia-lubricentro-esquina"/u);
+  assert.match(document, /"theme":"lubricentro"/u);
+  assert.match(document, /"title":"¿Toca el service\?"/u);
+  // La bajada nombra la calle donde se atiende, no la sucursal.
+  assert.match(
+    document,
+    /"subtitle":"Cambio de aceite con fosa en República de Siria 365"/u,
+  );
+  assert.match(document, /"focus":\{"x":100,"y":0\}/u);
+  assert.match(document, /"zoom":1\.4/u);
 });
 
 test("una regla para todas las sucursales hace una sola historia y cae si cambia cualquiera", async () => {

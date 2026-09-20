@@ -2,13 +2,14 @@ import type {
   LocationConfigurationResponse,
   RecurringStoryAccentResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryKindResponse,
   RecurringStoryPhotoPayload,
   RecurringStoryThemeResponse,
 } from "@aramayo/contracts";
 import type { DesignDocument } from "@aramayo/design-engine";
 import { parseDesignDocument } from "@aramayo/design-engine/validation";
 import {
-  openingStoryDesignDocument,
+  recurringStoryDesignDocument,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
   type RecurringStoryDraftResolution,
@@ -16,7 +17,7 @@ import {
 } from "@aramayo/domain";
 
 /**
- * Documento de la vista previa de una regla de apertura.
+ * Documento de la vista previa de una regla recurrente.
  *
  * No es una maqueta: usa las mismas funciones del dominio que el borrador
  * real, con la configuración vigente de las sucursales. Lo único que la vista
@@ -34,11 +35,10 @@ const blockedMessages: Readonly<
     string
   >
 > = Object.freeze({
-  "location-closed":
-    "La sucursal figura cerrada: no hay «Ya abrimos» que mostrar.",
+  "location-closed": "La sucursal figura cerrada: no hay historia que mostrar.",
   "location-inactive": "No hay sucursales activas para esta historia.",
   "missing-hours":
-    "Falta el horario de alguna sucursal: sin horario no se afirma «Ya abrimos».",
+    "Falta el horario de alguna sucursal: sin horario no se afirma nada.",
 });
 
 function locationSource(
@@ -64,6 +64,7 @@ export function openingStoryPreviewDocument(
   input: Readonly<{
     accent: RecurringStoryAccentResponse;
     designVariant: RecurringStoryDesignVariantResponse;
+    kind: RecurringStoryKindResponse;
     localDate: string;
     localTime: string;
     /** `null`: la regla es para todas las sucursales activas. */
@@ -87,7 +88,8 @@ export function openingStoryPreviewDocument(
   );
   const [single] = scope;
   const resolution =
-    input.locationId === null || single === undefined
+    (input.locationId === null || single === undefined) &&
+    input.kind !== "lubricentro"
       ? resolveEveryLocationStoryDraft({
           capturedAt,
           designVariant: input.designVariant,
@@ -97,22 +99,28 @@ export function openingStoryPreviewDocument(
           occurrence,
           policy: "human-each-cycle",
         })
-      : resolveRecurringStoryDraft({
-          capturedAt,
-          designVariant: input.designVariant,
-          location: locationSource(single),
-          occurrence,
-          policy: "human-each-cycle",
-        });
+      : single === undefined
+        ? // El lubricentro nombra la sucursal donde está la fosa: sin ella no
+          // hay historia que componer.
+          ({ reason: "location-inactive", status: "blocked" } as const)
+        : resolveRecurringStoryDraft({
+            capturedAt,
+            designVariant: input.designVariant,
+            kind: input.kind,
+            location: locationSource(single),
+            occurrence,
+            policy: "human-each-cycle",
+          });
   if (resolution.status === "blocked") {
     return { kind: "blocked", message: blockedMessages[resolution.reason] };
   }
 
   const parsed = parseDesignDocument(
-    openingStoryDesignDocument({
+    recurringStoryDesignDocument({
       accent: input.accent,
       content: resolution.designContent,
       designVariant: input.designVariant,
+      kind: input.kind,
       localDate: input.localDate,
       photo: input.photo,
       ruleId: "vista-previa",

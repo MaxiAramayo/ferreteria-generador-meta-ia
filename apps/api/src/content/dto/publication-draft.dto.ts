@@ -53,6 +53,17 @@ export class PublicationDraftContentDto {
   declare products: PublicationProductReferenceDto[];
 }
 
+/** Un rubro o servicio de una historia recurrente: su ícono y su nombre. */
+export class DraftDesignFeatureDto {
+  @IsIn(ICON_NAMES)
+  declare icon: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(240)
+  declare label: string;
+}
+
 export class DraftDesignContentDto {
   @IsOptional()
   @IsIn(ACCENT_NAMES)
@@ -83,10 +94,26 @@ export class DraftDesignContentDto {
   declare category?: string;
 
   @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => DraftDesignFeatureDto)
+  declare features?: DraftDesignFeatureDto[];
+
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(240)
   declare greeting?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(4)
+  @IsString({ each: true })
+  @MaxLength(240, { each: true })
+  declare highlights?: string[];
 
   @IsOptional()
   @IsIn(ICON_NAMES)

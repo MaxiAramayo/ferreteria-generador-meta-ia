@@ -9,10 +9,11 @@ import {
 } from "class-validator";
 
 /**
- * Foto propia de una regla de apertura.
+ * Foto propia de una regla.
  *
  * El transporte sólo comprueba la forma; la API vuelve a validar los bytes con
- * el motor y el dominio decide lo que es regla de la apertura.
+ * el motor y el dominio decide lo que es regla de la historia. El encuadre
+ * viaja con la foto: el punto que queda fijo y cuánto se acercó.
  */
 export class RecurringStoryPhotoDto {
   @IsString()
@@ -28,5 +29,15 @@ export class RecurringStoryPhotoDto {
   @IsInt()
   @Max(100)
   @Min(0)
+  focusX!: number;
+
+  @IsInt()
+  @Max(100)
+  @Min(0)
   focusY!: number;
+
+  @IsInt()
+  @Max(250)
+  @Min(100)
+  zoom!: number;
 }

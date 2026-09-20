@@ -11,9 +11,12 @@ import {
   singleOccurrenceRule,
   type AuthenticatedActor,
   type OrganizationConfigurationRepository,
+  recurringStoryThemesFor,
   type PublicationWeekday,
   type RecurringStoryDesignVariant,
+  type RecurringStoryKind,
   type RecurringStoryPhoto,
+  type RecurringStoryTheme,
   type RecurringStoryRuleRecord,
   type RecurringStoryRuleRepository,
   type RecurringStoryStyleIssue,
@@ -41,6 +44,7 @@ function response(rule: RecurringStoryRuleRecord): RecurringStoryRuleResponse {
     designVariant: rule.designVariant,
     effectiveFrom: rule.effectiveFrom,
     id: rule.id,
+    kind: rule.kind,
     leadTimeMinutes: rule.leadTimeMinutes,
     localTime: rule.localTime,
     locationId: rule.locationId,
@@ -61,6 +65,8 @@ const styleIssueMessages: Readonly<Record<RecurringStoryStyleIssue, string>> =
     "photo-required": "La imagen propia necesita una imagen.",
     "photo-too-large": "La foto supera el tamaño permitido.",
     "photo-type-invalid": "La foto tiene que ser JPEG o PNG.",
+    "photo-zoom-invalid": "El acercamiento de la foto no es válido.",
+    "variant-unavailable": "Ese marco no es de esta historia.",
   });
 
 /**
@@ -69,14 +75,24 @@ const styleIssueMessages: Readonly<Record<RecurringStoryStyleIssue, string>> =
  * decodificar se rechaza al guardarla, no cada día al renderizar.
  */
 function assertValidStyle(
+  kind: RecurringStoryKind,
   designVariant: RecurringStoryDesignVariant,
+  theme: RecurringStoryTheme,
   photo: RecurringStoryPhoto | null,
 ): void {
-  const issue = recurringStoryStyleIssue({ designVariant, photo });
+  const issue = recurringStoryStyleIssue({ designVariant, kind, photo });
   if (issue !== null) {
     throw new BadRequestException({
-      field: "photo",
+      field: issue === "variant-unavailable" ? "designVariant" : "photo",
       message: styleIssueMessages[issue],
+    });
+  }
+  // La paleta del lubricentro es suya y la de la apertura, de la ferretería:
+  // mezclarlas publicaría una historia con la marca equivocada.
+  if (!recurringStoryThemesFor(kind).includes(theme)) {
+    throw new BadRequestException({
+      field: "theme",
+      message: "Ese color no es de esta historia.",
     });
   }
   if (photo !== null && !isInlineImageDataUrl(photo.dataUrl)) {
@@ -88,14 +104,22 @@ function assertValidStyle(
 }
 
 function photoFrom(
-  input: Readonly<{ alt: string; dataUrl: string; focusY: number }> | null,
+  input: Readonly<{
+    alt: string;
+    dataUrl: string;
+    focusX: number;
+    focusY: number;
+    zoom: number;
+  }> | null,
 ): RecurringStoryPhoto | null {
   return input === null
     ? null
     : Object.freeze({
         alt: input.alt.trim(),
         dataUrl: input.dataUrl,
+        focusX: input.focusX,
         focusY: input.focusY,
+        zoom: input.zoom,
       });
 }
 
@@ -163,12 +187,27 @@ export class RecurringStoryService {
         "La aprobación automática requiere administración y programación.",
       );
     }
+    const kind = input.kind ?? "apertura";
+    const [defaultTheme] = recurringStoryThemesFor(kind);
     const photo = photoFrom(input.photo ?? null);
-    assertValidStyle(input.designVariant ?? "cartel", photo);
+    assertValidStyle(
+      kind,
+      input.designVariant ?? (kind === "lubricentro" ? "ventana" : "cartel"),
+      input.theme ?? defaultTheme ?? "taller",
+      photo,
+    );
     const configuration = await this.#configuration.findByOrganizationId(
       actor.organizationId,
     );
     const locationId = input.locationId ?? null;
+    // El lubricentro funciona únicamente en casa central: su historia nombra
+    // una sucursal concreta y no puede hablar por todas.
+    if (kind === "lubricentro" && locationId === null) {
+      throw new BadRequestException({
+        field: "locationId",
+        message: "El lubricentro necesita la sucursal donde se atiende.",
+      });
+    }
     const scope = (configuration?.locations ?? []).filter(
       (candidate) =>
         candidate.isActive &&
@@ -205,6 +244,7 @@ export class RecurringStoryService {
         : { designVariant: input.designVariant }),
       effectiveFrom: anchor.effectiveFrom,
       idempotencyKey: normalizedKey,
+      kind,
       leadTimeMinutes: input.leadTimeMinutes,
       localTime: input.localTime,
       locationId,
@@ -254,10 +294,11 @@ export class RecurringStoryService {
       });
     }
     const photo = photoFrom(input.photo);
-    assertValidStyle(input.designVariant, photo);
+    assertValidStyle(input.kind, input.designVariant, input.theme, photo);
     const result = await this.#rules.updateVisualStyle({
       accent: input.accent,
       actor,
+      kind: input.kind,
       designVariant: input.designVariant,
       expectedVersion: input.expectedVersion,
       idempotencyKey: normalizedKey,

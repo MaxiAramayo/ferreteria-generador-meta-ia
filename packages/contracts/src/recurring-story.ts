@@ -3,23 +3,35 @@ import type { LocationConfigurationResponse } from "./organization-configuration
 export type RecurringStoryApprovalPolicyResponse =
   "automatic-routine" | "human-each-cycle";
 
-/** `imagen` publica tal cual la imagen propia de la regla. */
-export type RecurringStoryDesignVariantResponse =
-  "cartel" | "horario" | "imagen" | "locales";
+/** Qué historia recurrente arma la regla: el local que abre o el servicio. */
+export type RecurringStoryKindResponse = "apertura" | "lubricentro";
 
-export type RecurringStoryThemeResponse = "taller" | "claro" | "promo";
+/**
+ * Marco de la historia. Cada uno deja libre una zona distinta de la foto;
+ * `horario` y `locales` son marcos heredados, e `imagen` publica tal cual la
+ * imagen propia de la regla.
+ */
+export type RecurringStoryDesignVariantResponse =
+  "cartel" | "esquina" | "horario" | "imagen" | "locales" | "placa" | "ventana";
+
+export type RecurringStoryThemeResponse =
+  "taller" | "claro" | "promo" | "lubricentro";
 
 /** Color de la etiqueta de estado y del botón de contacto. */
 export type RecurringStoryAccentResponse = "marca" | "senal" | "verde";
 
 /**
- * Foto propia de la regla, embebida como `data:` JPEG o PNG. `focusY` es el
- * encuadre vertical, de 0 a 100.
+ * Foto propia de la regla, embebida como `data:` JPEG o PNG.
+ *
+ * `focusX` y `focusY` son el punto de la imagen que queda fijo, de 0 a 100, y
+ * `zoom` el acercamiento en porcentaje, de 100 a 250.
  */
 export interface RecurringStoryPhotoPayload {
   readonly alt: string;
   readonly dataUrl: string;
+  readonly focusX: number;
   readonly focusY: number;
+  readonly zoom: number;
 }
 
 export interface RecurringStoryRuleResponse {
@@ -29,6 +41,7 @@ export interface RecurringStoryRuleResponse {
   readonly designVariant: RecurringStoryDesignVariantResponse;
   readonly effectiveFrom: string;
   readonly id: string;
+  readonly kind: RecurringStoryKindResponse;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
   /** `null`: la historia es para todas las sucursales activas. */

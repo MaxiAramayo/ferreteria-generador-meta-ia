@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 
-import type { MediaAsset } from "../contracts/document.ts";
+import type { DesignFeature, MediaAsset } from "../contracts/document.ts";
 import { SafeArea } from "../primitives/canvas.tsx";
 import { Icon } from "../primitives/icon.tsx";
 import { AramayoMark } from "../primitives/logo.tsx";
@@ -11,6 +11,8 @@ import type { Theme } from "../themes/theme-colors.ts";
 import { COLORS, withAlpha } from "../tokens/colors.ts";
 import { RADII, SPACING } from "../tokens/space.ts";
 import { FONT_WEIGHTS, TYPOGRAPHY } from "../tokens/typography.ts";
+import { Cartel, liftShadow } from "./frame-kit.tsx";
+import { CARTEL_HEIGHT, VEIL_DENSE_OPACITY } from "./frame-geometry.ts";
 import {
   mediaAt,
   type LayoutContext,
@@ -18,50 +20,72 @@ import {
 } from "./layout-context.ts";
 
 /**
- * Historias de apertura (`ADR-030`).
+ * Historias recurrentes del local (`ADR-030`).
  *
- * Las tres composiciones comparten la voz del cartel del local: fondo de marca,
- * titular condensado enorme, una foto real y una franja de datos con horario,
- * sucursales y contacto. Cambia dónde vive la foto y qué dato manda:
+ * La apertura es una sola plantilla estable, con una jerarquía que no compite
+ * consigo misma: «¡Ya abrimos!» y la foto mandan; después los rubros, que son lo
+ * que hace acordar a alguien de lo que necesita; abajo y en chico, los
+ * argumentos secundarios, las sucursales, el horario y el botón de contacto.
+ * Todo con el mismo peso termina pareciendo un folleto.
  *
- * - `cartel`: la foto cruza la historia de lado a lado, como en la vidriera;
- * - `horario`: la foto es la esfera de un reloj y el horario, el protagonista;
- * - `locales`: la foto va pegada como una copia impresa y cada sucursal tiene
- *   su chapa.
+ * El lubricentro usa la misma jerarquía en su propio marco: la foto a sangre, el
+ * cartel del frente arriba y una placa grafito abajo con franja de seguridad.
  *
- * Todo texto con datos se apoya en la franja profunda del tema y nunca sobre la
- * foto: el blanco sobre el rojo de marca mide 4,19:1 y sobre el rojo profundo,
- * 6,31:1. La foto no dibuja ningún dato, así que una imagen cualquiera no puede
- * contradecir el horario.
- *
- * `imagen` es la excepción deliberada: publica tal cual la imagen que subió
- * quien opera. No compone texto; por eso su borrador siempre pide aprobación.
+ * Todo dato se apoya en una franja de color conocido y nunca sobre la foto: el
+ * blanco sobre el rojo de marca mide 4,19:1 y sobre el rojo profundo, 6,31:1.
+ * La foto no dibuja datos, así que una imagen cualquiera no puede contradecir el
+ * horario. `imagen` es la excepción deliberada: publica tal cual la imagen de
+ * quien opera, y por eso su borrador siempre pide aprobación.
  */
 
 const brandLockupMarkSize = 84;
-const photoFrameTicks = 12;
 
 interface OpeningPalette {
+  /** Filete que enmarca la foto a sangre. */
+  readonly frame: string;
   readonly grain: string;
   readonly greetingBackground: string;
   readonly greetingText: string;
   readonly halftone: string;
   readonly icon: string;
-  /** Franja de datos: horario, sucursales y contacto. */
+  /** Franja de datos: rubros, sucursales, horario y contacto. */
   readonly plate: string;
   readonly plateText: string;
-  readonly plateTextSoft: string;
   readonly rowBackground: string;
   readonly rowBorder: string;
   readonly text: string;
+  readonly title: string;
   /** Fondo de marca detrás del encabezado y el titular. */
   readonly top: string;
+  /** Velo que protege la cabecera cuando la foto va a sangre. */
+  readonly veil: string;
   readonly watermark: string;
 }
 
 function openingPalette(theme: Theme): OpeningPalette {
+  if (theme.brand === "lubricentro") {
+    return Object.freeze({
+      frame: COLORS.safety,
+      grain: withAlpha(COLORS.white, 0.03),
+      greetingBackground: COLORS.safety,
+      greetingText: COLORS.graphite,
+      halftone: withAlpha(COLORS.safety, 0.24),
+      icon: COLORS.safety,
+      plate: withAlpha(COLORS.graphite, 0.97),
+      plateText: COLORS.paper,
+      rowBackground: withAlpha(COLORS.white, 0.06),
+      rowBorder: withAlpha(COLORS.safety, 0.34),
+      text: COLORS.paper,
+      title: COLORS.safety,
+      top: COLORS.graphite,
+      veil: COLORS.graphiteDeep,
+      watermark: withAlpha(COLORS.safety, 0.06),
+    });
+  }
+
   if (theme.tone === "light") {
     return Object.freeze({
+      frame: COLORS.rustDeep,
       grain: withAlpha(COLORS.ink, 0.035),
       greetingBackground: COLORS.rustDeep,
       greetingText: COLORS.white,
@@ -69,17 +93,19 @@ function openingPalette(theme: Theme): OpeningPalette {
       icon: COLORS.rustDeep,
       plate: COLORS.cream,
       plateText: COLORS.ink,
-      plateTextSoft: withAlpha(COLORS.ink, 0.8),
       rowBackground: COLORS.paper,
       rowBorder: withAlpha(COLORS.ink, 0.1),
       text: COLORS.ink,
+      title: COLORS.ink,
       top: COLORS.paper,
+      veil: COLORS.paper,
       watermark: withAlpha(COLORS.ink, 0.05),
     });
   }
 
   if (theme.id === "promo") {
     return Object.freeze({
+      frame: COLORS.white,
       grain: withAlpha(COLORS.white, 0.045),
       greetingBackground: COLORS.white,
       greetingText: COLORS.rustDeep,
@@ -87,16 +113,18 @@ function openingPalette(theme: Theme): OpeningPalette {
       icon: COLORS.white,
       plate: COLORS.rustDeep,
       plateText: COLORS.white,
-      plateTextSoft: withAlpha(COLORS.white, 0.9),
       rowBackground: withAlpha(COLORS.white, 0.1),
       rowBorder: withAlpha(COLORS.white, 0.22),
       text: COLORS.white,
+      title: COLORS.white,
       top: COLORS.rust,
+      veil: COLORS.rustDeep,
       watermark: withAlpha(COLORS.white, 0.07),
     });
   }
 
   return Object.freeze({
+    frame: COLORS.rust,
     grain: withAlpha(COLORS.white, 0.03),
     greetingBackground: COLORS.rustDeep,
     greetingText: COLORS.white,
@@ -104,11 +132,12 @@ function openingPalette(theme: Theme): OpeningPalette {
     icon: COLORS.safety,
     plate: COLORS.humo,
     plateText: COLORS.paper,
-    plateTextSoft: withAlpha(COLORS.paper, 0.86),
     rowBackground: withAlpha(COLORS.white, 0.06),
     rowBorder: withAlpha(COLORS.white, 0.14),
     text: COLORS.paper,
+    title: COLORS.paper,
     top: COLORS.ink,
+    veil: COLORS.graphiteDeep,
     watermark: withAlpha(COLORS.white, 0.05),
   });
 }
@@ -158,6 +187,16 @@ export function openingAccentColors(
         pillText: COLORS.white,
       });
     case "marca":
+      if (theme.brand === "lubricentro") {
+        return Object.freeze({
+          ctaBackground: COLORS.safety,
+          ctaText: COLORS.graphite,
+          dot: COLORS.graphite,
+          outline: undefined,
+          pillBackground: COLORS.safety,
+          pillText: COLORS.graphite,
+        });
+      }
       return onRed
         ? Object.freeze({
             ctaBackground: COLORS.white,
@@ -274,7 +313,12 @@ function displayWidthEm(text: string): number {
  * línea más ancha. «¡Ya abrimos!» ocupa así el ancho de la zona segura, y un
  * título más largo baja de tamaño antes de salirse o partir una palabra.
  */
-function headlineSize(title: string, width: number, lines: number): number {
+function headlineSize(
+  title: string,
+  width: number,
+  lines: number,
+  maximum = 190,
+): number {
   const words = title.trim().split(/\s+/u);
   let widest = displayWidthEm(title);
 
@@ -291,7 +335,7 @@ function headlineSize(title: string, width: number, lines: number): number {
   }
 
   const fitted = Math.floor((width / Math.max(widest, 1)) * 0.98);
-  return Math.max(72, Math.min(fitted, 190));
+  return Math.max(72, Math.min(fitted, maximum));
 }
 
 /** «Casa Central · República de Siria 365» → nombre y detalle. */
@@ -300,6 +344,10 @@ function splitDetail(entry: string): readonly [string, string | undefined] {
   return separator < 0
     ? [entry, undefined]
     : [entry.slice(0, separator), entry.slice(separator + 3)];
+}
+
+function contentWidth(format: LayoutProps["format"]): number {
+  return format.width - format.safeArea.left - format.safeArea.right;
 }
 
 function OpeningTexture({
@@ -450,68 +498,16 @@ function OpeningHeader({
   );
 }
 
-function StatusPill({
-  accent,
-  children,
-  style,
-}: {
-  readonly accent: AccentColors;
-  readonly children: ReactNode;
-  readonly style?: CSSProperties | undefined;
-}): ReactElement {
-  return (
-    <span
-      data-opening-status=""
-      style={{
-        alignItems: "center",
-        alignSelf: "flex-start",
-        backgroundColor: accent.pillBackground,
-        justifySelf: "start",
-        border:
-          accent.outline === undefined
-            ? undefined
-            : `4px solid ${accent.outline}`,
-        borderRadius: RADII.pill,
-        color: accent.pillText,
-        display: "inline-flex",
-        fontFamily: TYPOGRAPHY.body.cssStack,
-        fontSize: 31,
-        fontWeight: FONT_WEIGHTS.extrabold,
-        gap: 16,
-        letterSpacing: 3,
-        lineHeight: 1,
-        padding: "17px 34px 17px 28px",
-        textTransform: "uppercase",
-        whiteSpace: "nowrap",
-        ...style,
-      }}
-    >
-      <span
-        aria-hidden="true"
-        style={{
-          backgroundColor: accent.dot,
-          borderRadius: RADII.pill,
-          display: "block",
-          flexShrink: 0,
-          height: 16,
-          width: 16,
-        }}
-      />
-      {children}
-    </span>
-  );
-}
-
 function Headline({
-  align = "left",
   color,
   lines,
+  maximum,
   title,
   width,
 }: {
-  readonly align?: "center" | "left";
   readonly color: string;
   readonly lines: number;
+  readonly maximum?: number | undefined;
   readonly title: string;
   readonly width: number;
 }): ReactElement {
@@ -521,19 +517,46 @@ function Headline({
       style={{
         color,
         fontFamily: TYPOGRAPHY.display.cssStack,
-        fontSize: headlineSize(title, width, lines),
+        fontSize: headlineSize(title, width, lines, maximum),
         fontWeight: FONT_WEIGHTS.black,
         letterSpacing: -1,
         // El «¡» baja de la línea: con dos líneas pisaría la siguiente.
         lineHeight: lines > 1 ? 0.96 : 0.86,
         margin: 0,
         maxWidth: width,
-        textAlign: align,
         textTransform: "uppercase",
       }}
     >
       {title}
     </h1>
+  );
+}
+
+/** La línea chica que acompaña al titular. */
+function Subline({
+  children,
+  color,
+  style,
+}: {
+  readonly children: string;
+  readonly color: string;
+  readonly style?: CSSProperties | undefined;
+}): ReactElement {
+  return (
+    <p
+      data-opening-subline=""
+      style={{
+        color,
+        fontFamily: TYPOGRAPHY.body.cssStack,
+        fontSize: 34,
+        fontWeight: FONT_WEIGHTS.bold,
+        lineHeight: 1.2,
+        margin: "8px 0 0",
+        ...style,
+      }}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -582,13 +605,128 @@ function OpeningPhoto({
   );
 }
 
+/** Rubros o servicios: se leen de un vistazo y no compiten con el titular. */
+function FeatureGrid({
+  features,
+  palette,
+}: {
+  readonly features: readonly DesignFeature[];
+  readonly palette: OpeningPalette;
+}): ReactElement {
+  return (
+    <div
+      data-opening-features=""
+      style={{
+        display: "grid",
+        gap: 8,
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      }}
+    >
+      {features.slice(0, 6).map((feature) => (
+        <div
+          data-opening-feature=""
+          key={feature.label}
+          style={{
+            alignItems: "center",
+            backgroundColor: palette.rowBackground,
+            border: `2px solid ${palette.rowBorder}`,
+            borderRadius: 16,
+            color: palette.plateText,
+            display: "flex",
+            gap: 12,
+            minHeight: 60,
+            padding: "6px 14px",
+          }}
+        >
+          <span style={{ display: "grid", flexShrink: 0 }}>
+            <Icon
+              color={palette.icon}
+              name={feature.icon}
+              size={36}
+              strokeWidth={2.4}
+            />
+          </span>
+          <span
+            style={{
+              fontFamily: TYPOGRAPHY.body.cssStack,
+              fontSize: 25,
+              fontWeight: FONT_WEIGHTS.extrabold,
+              lineHeight: 1.06,
+              minWidth: 0,
+            }}
+          >
+            {feature.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Tilde dibujada: el glifo ✓ no está en las fuentes de la marca. */
+function CheckMark({ color }: { readonly color: string }): ReactElement {
+  return (
+    <svg aria-hidden="true" height={20} viewBox="0 0 24 24" width={20}>
+      <path
+        d="M4 12.5l5 5L20 6.5"
+        fill="none"
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={3.2}
+      />
+    </svg>
+  );
+}
+
+/** Argumentos secundarios: una línea chica, sin recuadro. */
+function Highlights({
+  color,
+  highlights,
+}: {
+  readonly color: string;
+  readonly highlights: readonly string[];
+}): ReactElement {
+  return (
+    <p
+      data-opening-highlights=""
+      style={{
+        alignItems: "center",
+        color,
+        columnGap: 16,
+        display: "flex",
+        flexWrap: "wrap",
+        fontFamily: TYPOGRAPHY.body.cssStack,
+        fontSize: 23,
+        fontWeight: FONT_WEIGHTS.semibold,
+        lineHeight: 1.2,
+        margin: 0,
+        rowGap: 6,
+      }}
+    >
+      {highlights.map((highlight) => (
+        <span
+          key={highlight}
+          style={{
+            alignItems: "center",
+            display: "inline-flex",
+            gap: 6,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <CheckMark color={color} />
+          {highlight}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 function DetailRow({
-  boxed,
   entry,
   icon,
   palette,
 }: {
-  readonly boxed: boolean;
   readonly entry: string;
   readonly icon: IconName;
   readonly palette: OpeningPalette;
@@ -600,23 +738,18 @@ function DetailRow({
       data-opening-detail=""
       style={{
         alignItems: "center",
-        backgroundColor: boxed ? palette.rowBackground : undefined,
-        border: boxed ? `2px solid ${palette.rowBorder}` : undefined,
-        borderRadius: 18,
         color: palette.plateText,
         display: "flex",
-        gap: 20,
-        minHeight: boxed ? 84 : undefined,
-        padding: boxed ? "14px 28px" : "0 4px",
+        gap: 16,
       }}
     >
       <span style={{ display: "grid", flexShrink: 0 }}>
-        <Icon color={palette.icon} name={icon} size={40} strokeWidth={2.6} />
+        <Icon color={palette.icon} name={icon} size={32} strokeWidth={2.6} />
       </span>
       <span
         style={{
           fontFamily: TYPOGRAPHY.body.cssStack,
-          fontSize: boxed ? 32 : 30,
+          fontSize: 27,
           fontWeight: FONT_WEIGHTS.semibold,
           lineHeight: 1.16,
           minWidth: 0,
@@ -637,6 +770,37 @@ function DetailRow({
   );
 }
 
+/** Sucursales y horario: la información práctica, en chico. */
+function PracticalInfo({
+  items,
+  palette,
+  validity,
+}: {
+  readonly items: readonly string[];
+  readonly palette: OpeningPalette;
+  readonly validity: string | undefined;
+}): ReactElement {
+  return (
+    <div data-opening-info="" style={{ display: "grid", gap: 6 }}>
+      {items.slice(0, 3).map((entry) => (
+        <DetailRow
+          entry={entry}
+          icon={validity === undefined ? "reloj" : "ubicacion"}
+          key={entry}
+          palette={palette}
+        />
+      ))}
+      {validity === undefined ? null : (
+        <DetailRow entry={validity} icon="reloj" palette={palette} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Botón de contacto en dos líneas: la pregunta que trae el cliente y el número
+ * al que escribir.
+ */
 function ContactBar({
   accent,
   callToAction,
@@ -651,27 +815,26 @@ function ContactBar({
       data-cta=""
       data-role="cta"
       style={{
-        alignItems: "center",
         backgroundColor: accent.ctaBackground,
         borderRadius: 20,
         color: accent.ctaText,
-        display: "flex",
+        display: "grid",
         fontFamily: TYPOGRAPHY.display.cssStack,
-        fontSize: 54,
-        fontWeight: FONT_WEIGHTS.extrabold,
-        gap: SPACING.lg,
-        justifyContent:
-          phone.length === 0 || callToAction === undefined
-            ? "center"
-            : "space-between",
-        lineHeight: 0.95,
-        minHeight: 108,
-        padding: "16px 38px",
+        gap: 6,
+        padding: "12px 32px 14px",
         textTransform: "uppercase",
       }}
     >
       {callToAction === undefined ? null : (
-        <span style={{ minWidth: 0 }}>{callToAction}</span>
+        <span
+          style={{
+            fontSize: 42,
+            fontWeight: FONT_WEIGHTS.extrabold,
+            lineHeight: 0.95,
+          }}
+        >
+          {callToAction}
+        </span>
       )}
       {phone.length === 0 ? null : (
         <span
@@ -679,15 +842,17 @@ function ContactBar({
           style={{
             alignItems: "center",
             display: "flex",
-            flexShrink: 0,
-            gap: 14,
+            fontSize: 68,
+            fontWeight: FONT_WEIGHTS.black,
+            gap: 16,
+            lineHeight: 0.9,
             whiteSpace: "nowrap",
           }}
         >
           <Icon
             color={accent.ctaText}
             name="telefono"
-            size={44}
+            size={50}
             strokeWidth={2.8}
           />
           {phone}
@@ -697,7 +862,7 @@ function ContactBar({
   );
 }
 
-/** Franja profunda que llega hasta el borde inferior del lienzo. */
+/** Franja de datos que llega hasta el borde inferior del lienzo. */
 function Plate({
   children,
   format,
@@ -720,9 +885,9 @@ function Plate({
         color: palette.plateText,
         display: "flex",
         flexDirection: "column",
-        gap: SPACING.md,
+        gap: 14,
         margin: `0 -${String(right)}px -${String(bottom)}px -${String(left)}px`,
-        padding: `34px ${String(right)}px ${String(bottom)}px ${String(left)}px`,
+        padding: `22px ${String(right)}px ${String(bottom)}px ${String(left)}px`,
         position: "relative",
         ...style,
       }}
@@ -732,43 +897,21 @@ function Plate({
   );
 }
 
-function Message({
-  children,
-  color,
-}: {
-  readonly children: string;
-  readonly color: string;
-}): ReactElement {
-  return (
-    <p
-      data-opening-message=""
-      style={{
-        color,
-        fontFamily: TYPOGRAPHY.body.cssStack,
-        fontSize: 37,
-        fontWeight: FONT_WEIGHTS.semibold,
-        lineHeight: 1.22,
-        margin: 0,
-      }}
-    >
-      {children}
-    </p>
-  );
-}
-
-function contentWidth(format: LayoutProps["format"]): number {
-  return format.width - format.safeArea.left - format.safeArea.right;
-}
-
 /**
- * Apertura como cartel del local: la foto atraviesa la historia entre el
- * titular y la franja de datos, con el borde superior ondulado del cartel.
+ * «Ya abrimos»: la plantilla estable de la apertura.
+ *
+ * Arriba la marca, el saludo, el titular y una línea chica; al medio la foto de
+ * lado a lado con el borde ondulado del cartel; abajo, sobre la franja
+ * profunda, los rubros, los argumentos secundarios, las sucursales con el
+ * horario y el botón de contacto.
  */
 export function HistoriaAperturaCartel(props: LayoutProps): ReactElement {
   const { content, context, document, format, theme } = props;
   const palette = openingPalette(theme);
   const accent = openingAccentColors(theme, content.accent);
   const { left, right } = format.safeArea;
+  const features = content.features ?? [];
+  const highlights = content.highlights ?? [];
 
   return (
     <>
@@ -779,22 +922,25 @@ export function HistoriaAperturaCartel(props: LayoutProps): ReactElement {
           greeting={content.greeting ?? defaultGreeting(context)}
           palette={palette}
         />
-        <StatusPill accent={accent} style={{ marginTop: 40 }}>
-          {content.badge ?? "Abierto hoy"}
-        </StatusPill>
-        <div style={{ marginTop: 22 }}>
+        <div style={{ marginTop: 12 }}>
           <Headline
-            color={palette.text}
+            color={palette.title}
             lines={1}
             title={content.title}
             width={contentWidth(format)}
           />
         </div>
+        {content.subtitle === undefined ? null : (
+          // El «¡» del titular baja de la línea: la bajada le deja lugar.
+          <Subline color={palette.text} style={{ marginTop: 20 }}>
+            {content.subtitle}
+          </Subline>
+        )}
         <div
           data-opening-photo-band=""
           style={{
             flex: "1 1 auto",
-            margin: `36px -${String(right)}px 0 -${String(left)}px`,
+            margin: `20px -${String(right)}px 0 -${String(left)}px`,
             minHeight: 260,
             position: "relative",
           }}
@@ -808,391 +954,52 @@ export function HistoriaAperturaCartel(props: LayoutProps): ReactElement {
           />
           <svg
             aria-hidden="true"
-            height={84}
+            height={40}
             preserveAspectRatio="none"
             style={{ left: 0, position: "absolute", top: -1 }}
-            viewBox="0 0 1080 84"
+            viewBox="0 0 1080 40"
             width={format.width}
           >
             <path
-              d="M0 0H1080V30C918 78 742 14 548 40C352 66 190 82 0 36Z"
+              d="M0 0H1080V14C918 37 742 7 548 19C352 31 190 39 0 17Z"
               fill={palette.top}
             />
           </svg>
         </div>
-        <Plate format={format} palette={palette}>
+        <Plate format={format} palette={palette} style={{ gap: 12 }}>
           <Watermark
             color={palette.watermark}
             style={{ bottom: -250, right: -150 }}
           />
-          {content.subtitle === undefined ? null : (
-            <Message color={palette.plateText}>{content.subtitle}</Message>
+          {features.length === 0 ? null : (
+            <FeatureGrid features={features} palette={palette} />
           )}
-          <div style={{ display: "grid", gap: 12, marginTop: 6 }}>
-            {(content.items ?? []).slice(0, 3).map((entry) => (
-              <DetailRow
-                boxed
-                entry={entry}
-                icon="ubicacion"
-                key={entry}
-                palette={palette}
-              />
-            ))}
-          </div>
-          {content.validity === undefined ? null : (
-            <DetailRow
-              boxed={false}
-              entry={content.validity}
-              icon="reloj"
-              palette={palette}
-            />
+          {highlights.length === 0 ? null : (
+            <Highlights color={palette.plateText} highlights={highlights} />
           )}
-          <div style={{ marginTop: 6 }}>
-            <ContactBar
-              accent={accent}
-              callToAction={content.callToAction}
-              phone={context.brand.phone}
-            />
-          </div>
-        </Plate>
-      </SafeArea>
-    </>
-  );
-}
-
-/**
- * Apertura con el horario como protagonista: la foto es la esfera de un reloj
- * y el horario del día ocupa una ficha grande antes de las sucursales.
- */
-export function HistoriaAperturaHorario(props: LayoutProps): ReactElement {
-  const { content, context, document, format, theme } = props;
-  const palette = openingPalette(theme);
-  const accent = openingAccentColors(theme, content.accent);
-  const dial = 600;
-  const photoDiameter = 500;
-  const items = (content.items ?? []).slice(0, 3);
-  const hours = content.validity;
-
-  return (
-    <>
-      <OpeningTexture palette={palette} />
-      <Watermark
-        color={palette.watermark}
-        style={{ bottom: -210, left: -170 }}
-      />
-      <SafeArea format={format}>
-        <OpeningHeader
-          context={context}
-          greeting={content.greeting ?? defaultGreeting(context)}
-          palette={palette}
-        />
-        <div
-          data-opening-dial=""
-          style={{
-            alignSelf: "center",
-            height: dial,
-            marginTop: 30,
-            position: "relative",
-            width: dial,
-          }}
-        >
-          <svg
-            aria-hidden="true"
-            height={dial}
-            style={{ inset: 0, position: "absolute" }}
-            viewBox={`0 0 ${String(dial)} ${String(dial)}`}
-            width={dial}
-          >
-            {Array.from({ length: photoFrameTicks }, (_, index) => {
-              const major = index % 3 === 0;
-              return (
-                <rect
-                  fill={palette.text}
-                  height={major ? 34 : 22}
-                  key={index}
-                  rx={4}
-                  transform={`rotate(${String(index * 30)} ${String(dial / 2)} ${String(dial / 2)})`}
-                  width={major ? 10 : 7}
-                  x={dial / 2 - (major ? 5 : 3.5)}
-                  y={major ? 4 : 10}
-                />
-              );
-            })}
-          </svg>
-          <OpeningPhoto
-            context={context}
-            photo={mediaAt(document, 0)}
-            radius={RADII.pill}
-            style={{
-              border: `10px solid ${palette.text}`,
-              height: photoDiameter,
-              left: (dial - photoDiameter) / 2,
-              position: "absolute",
-              top: (dial - photoDiameter) / 2,
-              width: photoDiameter,
-            }}
-            theme={theme}
+          <PracticalInfo
+            items={content.items ?? []}
+            palette={palette}
+            validity={content.validity}
           />
-          <StatusPill
-            accent={accent}
-            style={{
-              bottom: 2,
-              left: "50%",
-              position: "absolute",
-              transform: "translateX(-50%)",
-            }}
-          >
-            {content.badge ?? "Abierto hoy"}
-          </StatusPill>
-        </div>
-        <div style={{ marginTop: 34 }}>
-          <Headline
-            align="center"
-            color={palette.text}
-            lines={1}
-            title={content.title}
-            width={contentWidth(format)}
-          />
-        </div>
-        <div
-          data-opening-ticket=""
-          data-panel=""
-          style={{
-            backgroundColor: palette.plate,
-            borderRadius: RADII.card,
-            color: palette.plateText,
-            display: "grid",
-            gap: 18,
-            marginTop: "auto",
-            padding: "30px 34px",
-          }}
-        >
-          {hours === undefined ? null : (
-            <div
-              data-opening-hours=""
-              style={{ alignItems: "center", display: "flex", gap: 24 }}
-            >
-              <span style={{ display: "grid", flexShrink: 0 }}>
-                <Icon
-                  color={palette.icon}
-                  name="reloj"
-                  size={76}
-                  strokeWidth={2.4}
-                />
-              </span>
-              <span
-                style={{
-                  fontFamily: TYPOGRAPHY.display.cssStack,
-                  fontSize: hours.length <= 32 ? 62 : 50,
-                  fontWeight: FONT_WEIGHTS.extrabold,
-                  lineHeight: 0.98,
-                  textTransform: "uppercase",
-                }}
-              >
-                {hours}
-              </span>
-            </div>
-          )}
-          {hours === undefined || items.length === 0 ? null : (
-            <div
-              aria-hidden="true"
-              style={{
-                borderTop: `2px dashed ${palette.rowBorder}`,
-                height: 0,
-              }}
-            />
-          )}
-          {items.map((entry) => (
-            <DetailRow
-              boxed={false}
-              entry={entry}
-              icon={hours === undefined ? "reloj" : "ubicacion"}
-              key={entry}
-              palette={palette}
-            />
-          ))}
-        </div>
-        <div style={{ marginTop: 22 }}>
           <ContactBar
             accent={accent}
             callToAction={content.callToAction}
             phone={context.brand.phone}
           />
-        </div>
+        </Plate>
       </SafeArea>
     </>
   );
 }
 
 /**
- * Apertura con las sucursales en foco: la foto va pegada como una copia impresa
- * junto al titular y cada sucursal se lee en su propia chapa.
+ * Las composiciones «horario» y «locales» se unificaron en la plantilla estable
+ * (`ADR-030`). Sus identificadores siguen registrados para que un borrador que
+ * nació con ellos se siga componiendo, ahora con la jerarquía nueva.
  */
-export function HistoriaAperturaLocales(props: LayoutProps): ReactElement {
-  const { content, context, document, format, theme } = props;
-  const palette = openingPalette(theme);
-  const accent = openingAccentColors(theme, content.accent);
-  const printWidth = 396;
-  // La copia va girada: su esquina inferior izquierda avanza sobre el titular.
-  const headlineWidth = contentWidth(format) - printWidth - 44;
-
-  return (
-    <>
-      <OpeningTexture palette={palette} />
-      <SafeArea format={format}>
-        <OpeningHeader
-          context={context}
-          greeting={content.greeting ?? defaultGreeting(context)}
-          palette={palette}
-        />
-        <div
-          style={{
-            alignItems: "flex-start",
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 40,
-            minHeight: 500,
-            position: "relative",
-          }}
-        >
-          <div style={{ display: "grid", gap: 26, maxWidth: headlineWidth }}>
-            <StatusPill accent={accent}>
-              {content.badge ?? "Abierto hoy"}
-            </StatusPill>
-            <Headline
-              color={palette.text}
-              lines={2}
-              title={content.title}
-              width={headlineWidth}
-            />
-          </div>
-          <div
-            data-opening-print=""
-            style={{
-              backgroundColor: COLORS.white,
-              borderRadius: 6,
-              boxShadow: `0 26px 40px ${withAlpha(COLORS.graphiteDeep, 0.34)}`,
-              flexShrink: 0,
-              padding: "16px 16px 62px",
-              position: "relative",
-              transform: "rotate(4deg)",
-              width: printWidth,
-            }}
-          >
-            <OpeningPhoto
-              context={context}
-              photo={mediaAt(document, 0)}
-              radius={2}
-              style={{ height: 430, width: "100%" }}
-              theme={theme}
-            />
-            <span
-              aria-hidden="true"
-              style={{
-                backgroundColor: withAlpha(COLORS.safety, 0.74),
-                height: 44,
-                left: "50%",
-                position: "absolute",
-                top: -20,
-                transform: "translateX(-50%) rotate(-3deg)",
-                width: 150,
-              }}
-            />
-          </div>
-        </div>
-        <Plate format={format} palette={palette} style={{ marginTop: "auto" }}>
-          <Watermark
-            color={palette.watermark}
-            style={{ bottom: -250, right: -150 }}
-          />
-          {content.subtitle === undefined ? null : (
-            <Message color={palette.plateText}>{content.subtitle}</Message>
-          )}
-          <div style={{ display: "grid", gap: 14, marginTop: 4 }}>
-            {(content.items ?? []).slice(0, 3).map((entry, index) => {
-              const [name, detail] = splitDetail(entry);
-              return (
-                <div
-                  data-opening-branch=""
-                  key={entry}
-                  style={{
-                    alignItems: "center",
-                    backgroundColor: COLORS.paper,
-                    borderRadius: 18,
-                    color: COLORS.ink,
-                    display: "grid",
-                    gap: 24,
-                    gridTemplateColumns: "92px minmax(0, 1fr)",
-                    padding: "20px 28px 20px 20px",
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      alignItems: "center",
-                      backgroundColor: COLORS.rustDeep,
-                      borderRadius: 14,
-                      color: COLORS.white,
-                      display: "flex",
-                      fontFamily: TYPOGRAPHY.display.cssStack,
-                      fontSize: 50,
-                      fontWeight: FONT_WEIGHTS.black,
-                      height: 92,
-                      justifyContent: "center",
-                    }}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span style={{ display: "grid", gap: 6, minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontFamily: TYPOGRAPHY.display.cssStack,
-                        fontSize: 44,
-                        fontWeight: FONT_WEIGHTS.extrabold,
-                        lineHeight: 0.95,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {name}
-                    </span>
-                    {detail === undefined ? null : (
-                      <span
-                        style={{
-                          color: COLORS.inkSoft,
-                          fontFamily: TYPOGRAPHY.body.cssStack,
-                          fontSize: 30,
-                          fontWeight: FONT_WEIGHTS.semibold,
-                          lineHeight: 1.12,
-                        }}
-                      >
-                        {detail}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          {content.validity === undefined ? null : (
-            <DetailRow
-              boxed={false}
-              entry={content.validity}
-              icon="reloj"
-              palette={palette}
-            />
-          )}
-          <div style={{ marginTop: 6 }}>
-            <ContactBar
-              accent={accent}
-              callToAction={content.callToAction}
-              phone={context.brand.phone}
-            />
-          </div>
-        </Plate>
-      </SafeArea>
-    </>
-  );
-}
+export const HistoriaAperturaHorario = HistoriaAperturaCartel;
+export const HistoriaAperturaLocales = HistoriaAperturaCartel;
 
 /**
  * Imagen propia publicada tal cual.
@@ -1214,5 +1021,596 @@ export function HistoriaAperturaImagen(props: LayoutProps): ReactElement {
         theme={theme}
       />
     </div>
+  );
+}
+
+/** Franja de seguridad: la del borde de la fosa, en amarillo y grafito. */
+function SafetyStripe({
+  style,
+}: {
+  readonly style?: CSSProperties | undefined;
+}): ReactElement {
+  return (
+    <div
+      aria-hidden="true"
+      data-safety-stripe=""
+      style={{
+        background: `repeating-linear-gradient(135deg, ${COLORS.safety} 0 26px, ${COLORS.graphite} 26px 52px)`,
+        height: 18,
+        left: 0,
+        position: "absolute",
+        right: 0,
+        top: -18,
+        ...style,
+      }}
+    />
+  );
+}
+
+/** Borde ondulado del cartel, ahora como remate de la placa de datos. */
+function PlateWave({ color }: { readonly color: string }): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      data-plate-wave=""
+      height={40}
+      preserveAspectRatio="none"
+      style={{ left: 0, position: "absolute", top: -39 }}
+      viewBox="0 0 1080 40"
+      width="100%"
+    >
+      <path
+        d="M0 40V21C190 2 352 10 548 22C742 34 918 3 1080 19V40Z"
+        fill={color}
+      />
+    </svg>
+  );
+}
+
+/**
+ * El remate de la placa según la marca: la franja de la fosa en el lubricentro
+ * y la onda del cartel en la ferretería.
+ */
+function PlateEdge({
+  palette,
+  theme,
+}: {
+  readonly palette: OpeningPalette;
+  readonly theme: Theme;
+}): ReactElement {
+  return theme.brand === "lubricentro" ? (
+    <SafetyStripe />
+  ) : (
+    <PlateWave color={palette.plate} />
+  );
+}
+
+/**
+ * Hasta dónde llega el tramo denso del velo: un poco más abajo que la bajada de
+ * cada cabecera. Después se desvanece en `frameVeilFade`, para oscurecer lo
+ * mínimo de la foto.
+ */
+const frameVeilDense = Object.freeze({ lubricentro: 556, store: 586 });
+const frameVeilFade = 130;
+
+function TopVeil({
+  palette,
+  theme,
+}: {
+  readonly palette: OpeningPalette;
+  readonly theme: Theme;
+}): ReactElement {
+  const dense =
+    theme.brand === "lubricentro"
+      ? frameVeilDense.lubricentro
+      : frameVeilDense.store;
+  const ink = palette.veil;
+
+  return (
+    <div
+      aria-hidden="true"
+      data-frame-veil=""
+      style={{
+        background: `linear-gradient(180deg, ${withAlpha(ink, 0.94)} 0, ${withAlpha(ink, VEIL_DENSE_OPACITY)} ${String(dense)}px, ${withAlpha(ink, 0)} ${String(dense + frameVeilFade)}px)`,
+        height: dense + frameVeilFade,
+        left: 0,
+        pointerEvents: "none",
+        position: "absolute",
+        right: 0,
+        top: 0,
+      }}
+    />
+  );
+}
+
+/** El filete de color, adelante de la foto a sangre. */
+function FrameBorder({
+  palette,
+}: {
+  readonly palette: OpeningPalette;
+}): ReactElement {
+  return (
+    <div
+      aria-hidden="true"
+      data-frame-border=""
+      style={{
+        border: `8px solid ${palette.frame}`,
+        borderRadius: 28,
+        inset: 26,
+        pointerEvents: "none",
+        position: "absolute",
+      }}
+    />
+  );
+}
+
+interface FrameBlockProps {
+  readonly content: LayoutProps["content"];
+  readonly palette: OpeningPalette;
+}
+
+/**
+ * Cabecera de todos los marcos: el cartel del frente en el lubricentro, y la
+ * marca con el saludo en la ferretería; debajo, el titular y la bajada.
+ */
+function FrameHeader({
+  content,
+  context,
+  format,
+  palette,
+  theme,
+}: FrameBlockProps & {
+  readonly context: LayoutContext;
+  readonly format: LayoutProps["format"];
+  readonly theme: Theme;
+}): ReactElement {
+  const lubricentro = theme.brand === "lubricentro";
+
+  return (
+    <>
+      {lubricentro ? (
+        <div style={{ height: CARTEL_HEIGHT, position: "relative" }}>
+          <Cartel context={context} style={{ left: 0, top: 0 }} theme={theme} />
+        </div>
+      ) : (
+        <OpeningHeader
+          context={context}
+          greeting={content.greeting ?? defaultGreeting(context)}
+          palette={palette}
+        />
+      )}
+      <div style={{ marginTop: lubricentro ? 26 : 12 }}>
+        <Headline
+          color={palette.title}
+          lines={1}
+          maximum={lubricentro ? 150 : undefined}
+          title={content.title}
+          width={contentWidth(format)}
+        />
+      </div>
+      {content.subtitle === undefined ? null : (
+        // El «¡» o el «¿» del titular bajan de la línea: la bajada les deja lugar.
+        <Subline color={palette.text} style={{ marginTop: 20 }}>
+          {content.subtitle}
+        </Subline>
+      )}
+    </>
+  );
+}
+
+/** Rubros o servicios, argumentos y datos prácticos, a lo ancho. */
+function FrameDetails({ content, palette }: FrameBlockProps): ReactElement {
+  const features = content.features ?? [];
+  const highlights = content.highlights ?? [];
+
+  return (
+    <>
+      {features.length === 0 ? null : (
+        <FeatureGrid features={features} palette={palette} />
+      )}
+      {highlights.length === 0 ? null : (
+        <Highlights color={palette.plateText} highlights={highlights} />
+      )}
+      <PracticalInfo
+        items={content.items ?? []}
+        palette={palette}
+        validity={content.validity}
+      />
+    </>
+  );
+}
+
+/**
+ * Marco «placa»: la foto a sangre con la cabecera arriba y los datos en una
+ * placa abajo. Sirve cuando lo importante de la foto está arriba o al medio.
+ */
+export function HistoriaMarcoPlaca(props: LayoutProps): ReactElement {
+  const { content, context, document, format, theme } = props;
+  const palette = openingPalette(theme);
+  const accent = openingAccentColors(theme, content.accent);
+
+  return (
+    <>
+      <OpeningPhoto
+        context={context}
+        photo={mediaAt(document, 0)}
+        radius={0}
+        style={{ inset: 0, position: "absolute" }}
+        theme={theme}
+      />
+      <TopVeil palette={palette} theme={theme} />
+      <FrameBorder palette={palette} />
+      <SafeArea format={format}>
+        <FrameHeader
+          content={content}
+          context={context}
+          format={format}
+          palette={palette}
+          theme={theme}
+        />
+        <div style={{ flex: "1 1 auto", minHeight: 160 }} />
+        <Plate
+          format={format}
+          palette={palette}
+          style={{ gap: 12, paddingTop: 30 }}
+        >
+          <PlateEdge palette={palette} theme={theme} />
+          <FrameDetails content={content} palette={palette} />
+          <ContactBar
+            accent={accent}
+            callToAction={content.callToAction}
+            phone={context.brand.phone}
+          />
+        </Plate>
+      </SafeArea>
+    </>
+  );
+}
+
+/** «Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30» en renglones cortos. */
+function HoursLines({
+  palette,
+  validity,
+}: {
+  readonly palette: OpeningPalette;
+  readonly validity: string;
+}): ReactElement {
+  const [days, ranges] = splitDetail(validity);
+
+  return (
+    <div
+      data-opening-detail=""
+      style={{ alignItems: "flex-start", display: "flex", gap: 12 }}
+    >
+      <span style={{ display: "grid", flexShrink: 0, paddingTop: 2 }}>
+        <Icon color={palette.icon} name="reloj" size={30} strokeWidth={2.6} />
+      </span>
+      <span
+        style={{
+          display: "grid",
+          fontFamily: TYPOGRAPHY.body.cssStack,
+          fontSize: 24,
+          fontWeight: FONT_WEIGHTS.semibold,
+          lineHeight: 1.18,
+          minWidth: 0,
+        }}
+      >
+        {ranges === undefined ? (
+          validity
+        ) : (
+          <>
+            <strong style={{ fontWeight: FONT_WEIGHTS.extrabold }}>
+              {days}
+            </strong>
+            {ranges.split(" / ").map((range) => (
+              <span key={range}>{range}</span>
+            ))}
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** Sucursal en dos renglones: el nombre y, debajo, la calle. */
+function PlaceLines({
+  entry,
+  palette,
+}: {
+  readonly entry: string;
+  readonly palette: OpeningPalette;
+}): ReactElement {
+  const [name, detail] = splitDetail(entry);
+
+  return (
+    <div
+      data-opening-detail=""
+      style={{ alignItems: "flex-start", display: "flex", gap: 12 }}
+    >
+      <span style={{ display: "grid", flexShrink: 0, paddingTop: 2 }}>
+        <Icon
+          color={palette.icon}
+          name="ubicacion"
+          size={30}
+          strokeWidth={2.6}
+        />
+      </span>
+      <span
+        style={{
+          display: "grid",
+          fontFamily: TYPOGRAPHY.body.cssStack,
+          fontSize: 24,
+          fontWeight: FONT_WEIGHTS.semibold,
+          lineHeight: 1.18,
+          minWidth: 0,
+        }}
+      >
+        {detail === undefined ? (
+          entry
+        ) : (
+          <>
+            <strong style={{ fontWeight: FONT_WEIGHTS.extrabold }}>
+              {name}
+            </strong>
+            <span>{detail}</span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** Botón angosto: la acción arriba y el número abajo, sin ícono. */
+function StackedContact({
+  accent,
+  callToAction,
+  phone,
+}: {
+  readonly accent: AccentColors;
+  readonly callToAction: string | undefined;
+  readonly phone: string;
+}): ReactElement {
+  return (
+    <div
+      data-cta=""
+      data-role="cta"
+      style={{
+        backgroundColor: accent.ctaBackground,
+        color: accent.ctaText,
+        display: "grid",
+        fontFamily: TYPOGRAPHY.display.cssStack,
+        gap: 4,
+        padding: "16px 20px 18px",
+        textTransform: "uppercase",
+      }}
+    >
+      {callToAction === undefined ? null : (
+        <span
+          style={{
+            fontSize: 34,
+            fontWeight: FONT_WEIGHTS.extrabold,
+            lineHeight: 0.95,
+          }}
+        >
+          {callToAction}
+        </span>
+      )}
+      {phone.length === 0 ? null : (
+        <span
+          data-opening-phone=""
+          style={{
+            fontSize: 46,
+            fontWeight: FONT_WEIGHTS.black,
+            lineHeight: 0.9,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {phone}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Ancho de la tarjeta de la esquina. Con pocos servicios alcanza una columna
+ * angosta; los seis rubros de la ferretería necesitan una más ancha para no
+ * partir sus nombres.
+ */
+function cornerCardWidth(content: LayoutProps["content"]): number {
+  return (content.features?.length ?? 0) > 3 ? 400 : 272;
+}
+
+/** Tarjeta con todos los datos, colgada debajo de la cabecera. */
+function CornerCard({
+  accent,
+  content,
+  context,
+  palette,
+  theme,
+}: FrameBlockProps & {
+  readonly accent: AccentColors;
+  readonly context: LayoutContext;
+  readonly theme: Theme;
+}): ReactElement {
+  const features = content.features ?? [];
+  const highlights = content.highlights ?? [];
+  const lubricentro = theme.brand === "lubricentro";
+
+  return (
+    <aside
+      data-frame-card=""
+      data-panel=""
+      style={{
+        alignSelf: "flex-end",
+        backgroundColor: palette.plate,
+        borderRadius: 22,
+        boxShadow: liftShadow,
+        color: palette.plateText,
+        display: "flex",
+        flexDirection: "column",
+        marginTop: 24,
+        overflow: "hidden",
+        position: "relative",
+        width: cornerCardWidth(content),
+      }}
+    >
+      {lubricentro ? <SafetyStripe style={{ top: 0 }} /> : null}
+      <div
+        style={{
+          display: "grid",
+          gap: 16,
+          padding: `${lubricentro ? "34px" : "24px"} 20px 20px`,
+        }}
+      >
+        {features.length === 0 ? null : (
+          <div data-opening-features="" style={{ display: "grid", gap: 10 }}>
+            {features.map((feature) => (
+              <div
+                data-opening-feature=""
+                key={feature.label}
+                style={{ alignItems: "center", display: "flex", gap: 12 }}
+              >
+                <span style={{ display: "grid", flexShrink: 0 }}>
+                  <Icon
+                    color={palette.icon}
+                    name={feature.icon}
+                    size={32}
+                    strokeWidth={2.4}
+                  />
+                </span>
+                <span
+                  style={{
+                    fontFamily: TYPOGRAPHY.body.cssStack,
+                    fontSize: 25,
+                    fontWeight: FONT_WEIGHTS.extrabold,
+                    lineHeight: 1.06,
+                    minWidth: 0,
+                  }}
+                >
+                  {feature.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {highlights.length === 0 ? null : (
+          <Highlights color={palette.plateText} highlights={highlights} />
+        )}
+        {(content.items ?? []).slice(0, 3).map((entry) => (
+          <PlaceLines entry={entry} key={entry} palette={palette} />
+        ))}
+        {content.validity === undefined ? null : (
+          <HoursLines palette={palette} validity={content.validity} />
+        )}
+      </div>
+      <StackedContact
+        accent={accent}
+        callToAction={content.callToAction}
+        phone={context.brand.phone}
+      />
+    </aside>
+  );
+}
+
+/**
+ * Marco «esquina»: la foto a sangre, la cabecera arriba y todos los datos en
+ * una tarjeta arriba a la derecha. Deja libres la mitad izquierda y el pie,
+ * para una foto con lo importante abajo a la izquierda.
+ */
+export function HistoriaMarcoEsquina(props: LayoutProps): ReactElement {
+  const { content, context, document, format, theme } = props;
+  const palette = openingPalette(theme);
+  const accent = openingAccentColors(theme, content.accent);
+
+  return (
+    <>
+      <OpeningPhoto
+        context={context}
+        photo={mediaAt(document, 0)}
+        radius={0}
+        style={{ inset: 0, position: "absolute" }}
+        theme={theme}
+      />
+      <TopVeil palette={palette} theme={theme} />
+      <FrameBorder palette={palette} />
+      <SafeArea format={format}>
+        <FrameHeader
+          content={content}
+          context={context}
+          format={format}
+          palette={palette}
+          theme={theme}
+        />
+        <CornerCard
+          accent={accent}
+          content={content}
+          context={context}
+          palette={palette}
+          theme={theme}
+        />
+      </SafeArea>
+    </>
+  );
+}
+
+/**
+ * Marco «ventana»: la foto enmarcada sobre el fondo de marca, con la cabecera
+ * arriba y los datos abajo. Nada se apoya sobre la foto, así que sirve para
+ * cualquier imagen.
+ */
+export function HistoriaMarcoVentana(props: LayoutProps): ReactElement {
+  const { content, context, document, format, theme } = props;
+  const palette = openingPalette(theme);
+  const accent = openingAccentColors(theme, content.accent);
+
+  return (
+    <>
+      <OpeningTexture palette={palette} />
+      <Watermark
+        color={palette.watermark}
+        style={{ bottom: -250, right: -150 }}
+      />
+      <SafeArea format={format}>
+        <FrameHeader
+          content={content}
+          context={context}
+          format={format}
+          palette={palette}
+          theme={theme}
+        />
+        <div
+          data-frame-window=""
+          style={{
+            border: `8px solid ${palette.frame}`,
+            borderRadius: 30,
+            flex: "1 1 auto",
+            marginTop: 28,
+            minHeight: 300,
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
+          <OpeningPhoto
+            context={context}
+            photo={mediaAt(document, 0)}
+            radius={0}
+            style={{ inset: 0, position: "absolute" }}
+            theme={theme}
+          />
+        </div>
+        <div
+          data-opening-plate=""
+          style={{ display: "grid", gap: 12, marginTop: 24 }}
+        >
+          <FrameDetails content={content} palette={palette} />
+          <ContactBar
+            accent={accent}
+            callToAction={content.callToAction}
+            phone={context.brand.phone}
+          />
+        </div>
+      </SafeArea>
+    </>
   );
 }

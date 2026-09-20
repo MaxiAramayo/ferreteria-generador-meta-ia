@@ -3,6 +3,7 @@
 import type {
   RecurringStoryAccentResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryKindResponse,
   RecurringStoryPhotoPayload,
   RecurringStoryThemeResponse,
 } from "@aramayo/contracts";
@@ -11,7 +12,10 @@ import type {
   DesignDocument,
   MediaAsset,
 } from "@aramayo/design-engine";
-import { openingStoryDefaultPhoto } from "@aramayo/domain";
+import {
+  recurringStoryDefaultPhotos,
+  recurringStoryLayoutFor,
+} from "@aramayo/domain";
 import { startTransition, useEffect, useState } from "react";
 
 import {
@@ -30,41 +34,59 @@ type EditorState =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "ready"; draft: RecurringStoryDraft; notice?: string }>;
 
-const openingLayouts = Object.freeze({
-  cartel: "historia-apertura-cartel",
-  horario: "historia-apertura-horario",
-  imagen: "historia-apertura-imagen",
-  locales: "historia-apertura-locales",
-} as const);
+function draftKind(document: DesignDocument): RecurringStoryKindResponse {
+  return document.layout.startsWith("historia-lubricentro-")
+    ? "lubricentro"
+    : "apertura";
+}
 
-/** Foto del local: la misma que usa el borrador de una regla sin foto propia. */
-const storePhotoMedia: MediaAsset = Object.freeze({
-  alt: openingStoryDefaultPhoto.alt,
-  fit: "cover",
-  focus: Object.freeze({ x: 50, y: 50 }),
-  reference: Object.freeze({
-    assetId: openingStoryDefaultPhoto.assetId,
-    source: "brand-library" as const,
-  }),
-  zoom: 1,
-});
+/** Foto de la biblioteca: la misma que usa una regla sin foto propia. */
+function libraryPhotoMedia(kind: RecurringStoryKindResponse): MediaAsset {
+  const fallback = recurringStoryDefaultPhotos[kind];
+  return Object.freeze({
+    alt: fallback.alt,
+    fit: "cover",
+    focus: Object.freeze({ x: 50, y: 50 }),
+    reference: Object.freeze({
+      assetId: fallback.assetId,
+      source: "brand-library" as const,
+    }),
+    zoom: 1,
+  });
+}
+
+const knownVariants: readonly RecurringStoryDesignVariantResponse[] = [
+  "cartel",
+  "esquina",
+  "horario",
+  "imagen",
+  "locales",
+  "placa",
+  "ventana",
+];
 
 function layoutVariant(
   document: DesignDocument,
 ): RecurringStoryDesignVariantResponse {
-  if (document.layout === openingLayouts.horario) return "horario";
-  if (document.layout === openingLayouts.locales) return "locales";
-  if (document.layout === openingLayouts.imagen) return "imagen";
-  return "cartel";
+  const suffix = document.layout.replace(
+    `historia-${draftKind(document)}-`,
+    "",
+  );
+  return (
+    knownVariants.find((candidate) => candidate === suffix) ??
+    (draftKind(document) === "lubricentro" ? "ventana" : "cartel")
+  );
 }
 
 function recurringTheme(document: DesignDocument): RecurringStoryThemeResponse {
-  return document.theme === "claro" || document.theme === "promo"
+  return document.theme === "claro" ||
+    document.theme === "promo" ||
+    document.theme === "lubricentro"
     ? document.theme
     : "taller";
 }
 
-/** La foto propia del borrador; `null` si usa la del local. */
+/** La foto propia del borrador; `null` si usa la de la biblioteca. */
 function draftPhoto(
   document: DesignDocument,
 ): RecurringStoryPhotoPayload | null {
@@ -73,20 +95,25 @@ function draftPhoto(
     ? {
         alt: media.alt,
         dataUrl: media.reference.dataUrl,
+        focusX: media.focus.x,
         focusY: media.focus.y,
+        zoom: Math.round(media.zoom * 100),
       }
     : null;
 }
 
-function photoMedia(photo: RecurringStoryPhotoPayload | null): MediaAsset {
+function photoMedia(
+  photo: RecurringStoryPhotoPayload | null,
+  kind: RecurringStoryKindResponse,
+): MediaAsset {
   return photo === null
-    ? storePhotoMedia
+    ? libraryPhotoMedia(kind)
     : {
         alt: photo.alt,
         fit: "cover",
-        focus: { x: 50, y: photo.focusY },
+        focus: { x: photo.focusX, y: photo.focusY },
         reference: { dataUrl: photo.dataUrl, source: "inline" },
-        zoom: 1,
+        zoom: photo.zoom / 100,
       };
 }
 
@@ -94,7 +121,7 @@ function editableText(value: string | undefined): string {
   return value ?? "";
 }
 
-type OptionalTextField = "badge" | "greeting" | "subtitle" | "validity";
+type OptionalTextField = "greeting" | "subtitle" | "validity";
 
 /** Un campo vacío se quita: el motor rechaza un texto opcional en blanco. */
 function withOptionalText(
@@ -110,9 +137,6 @@ function withOptionalText(
     return next;
   }
   switch (field) {
-    case "badge":
-      delete next.badge;
-      break;
     case "greeting":
       delete next.greeting;
       break;
@@ -176,6 +200,7 @@ export function RecurringStoryDraftEditor({
   const draft = state.draft;
   const content = draft.designDocument.content;
   const items = content.items ?? [];
+  const kind = draftKind(draft.designDocument);
   const designVariant = layoutVariant(draft.designDocument);
   const photo = draftPhoto(draft.designDocument);
   const ownImage = designVariant === "imagen";
@@ -267,19 +292,20 @@ export function RecurringStoryDraftEditor({
             accent={accent}
             designVariant={designVariant}
             inputName={`draft-${publicationId}`}
+            kind={kind}
             onAccentChange={(nextAccent) => {
               update({ accent: nextAccent });
             }}
             onDesignVariantChange={(nextVariant) => {
               updateDocument((document) => ({
                 ...document,
-                layout: openingLayouts[nextVariant],
+                layout: recurringStoryLayoutFor(kind, nextVariant),
               }));
             }}
             onPhotoChange={(nextPhoto) => {
               updateDocument((document) => ({
                 ...document,
-                media: [photoMedia(nextPhoto)],
+                media: [photoMedia(nextPhoto, kind)],
               }));
             }}
             onThemeChange={(nextTheme) => {
@@ -315,16 +341,6 @@ export function RecurringStoryDraftEditor({
                     updateOptional("greeting", event.currentTarget.value);
                   }}
                   value={editableText(content.greeting)}
-                />
-              </label>
-              <label>
-                Etiqueta
-                <input
-                  maxLength={40}
-                  onChange={(event) => {
-                    updateOptional("badge", event.currentTarget.value);
-                  }}
-                  value={editableText(content.badge)}
                 />
               </label>
               <label>
@@ -409,7 +425,15 @@ export function RecurringStoryDraftEditor({
         </div>
         <OpeningStoryPreview
           caption="Es la misma composición que se renderiza antes de aprobar."
+          disabled={saving}
           heading="Cambios en vivo"
+          onPhotoChange={(nextPhoto) => {
+            updateDocument((document) => ({
+              ...document,
+              media: [photoMedia(nextPhoto, kind)],
+            }));
+          }}
+          photo={photo}
           preview={{ document: draft.designDocument, kind: "ready" }}
         />
       </div>

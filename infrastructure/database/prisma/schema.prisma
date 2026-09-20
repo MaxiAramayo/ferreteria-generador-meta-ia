@@ -291,10 +291,23 @@ enum RecurringStoryRuleStatus {
   @@map("recurring_story_rule_status")
 }
 
+/// Qué historia recurrente arma la regla: el local que abre o el servicio.
+enum RecurringStoryKind {
+  apertura    @map("apertura")
+  lubricentro @map("lubricentro")
+
+  @@map("recurring_story_kind")
+}
+
+/// Marco de la historia: cada uno deja libre una zona distinta de la foto.
 enum RecurringStoryDesignVariant {
   cartel  @map("cartel")
+  /// Marcos heredados; hoy componen con la plantilla estable (`ADR-030`).
   horario @map("horario")
   locales @map("locales")
+  placa   @map("placa")
+  esquina @map("esquina")
+  ventana @map("ventana")
   /// Publica tal cual la imagen propia de la regla (`ADR-030`).
   imagen  @map("imagen")
 
@@ -311,9 +324,11 @@ enum RecurringStoryAccent {
 }
 
 enum RecurringStoryTheme {
-  taller @map("taller")
-  claro  @map("claro")
-  promo  @map("promo")
+  taller      @map("taller")
+  claro       @map("claro")
+  promo       @map("promo")
+  /// Grafito y amarillo del lubricentro (`ADR-030`).
+  lubricentro @map("lubricentro")
 
   @@map("recurring_story_theme")
 }
@@ -738,6 +753,7 @@ model RecurringStoryRule {
   leadTimeMinutes       Int                          @map("lead_time_minutes")
   effectiveFrom         DateTime                     @map("effective_from") @db.Timestamptz(3)
   approvalPolicy        RecurringStoryApprovalPolicy @map("approval_policy")
+  kind                  RecurringStoryKind           @default(apertura)
   designVariant         RecurringStoryDesignVariant  @default(cartel) @map("design_variant")
   designRotation        RecurringStoryDesignVariant[] @default([cartel, horario, locales, cartel, horario, locales, cartel]) @map("design_rotation")
   theme                 RecurringStoryTheme          @default(taller)
@@ -746,6 +762,9 @@ model RecurringStoryRule {
   photoDataUrl          String?                      @map("photo_data_url") @db.Text
   photoAlt              String?                      @map("photo_alt") @db.VarChar(160)
   photoFocusY           Int?                         @map("photo_focus_y") @db.SmallInt
+  photoFocusX           Int?                         @map("photo_focus_x") @db.SmallInt
+  /// Acercamiento de la foto en porcentaje, de 100 a 250.
+  photoZoom             Int?                         @map("photo_zoom") @db.SmallInt
   status                RecurringStoryRuleStatus     @default(active)
   idempotencyKey        String                       @map("idempotency_key") @db.VarChar(128)
   requestHash           String                       @map("request_hash") @db.Char(64)

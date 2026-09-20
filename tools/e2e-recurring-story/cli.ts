@@ -358,8 +358,41 @@ async function main(): Promise<void> {
         exact: false,
       })
       .waitFor({ timeout: 10_000 });
-    await page.getByText("Cartel de apertura", { exact: true }).click();
+    await page.getByText("Foto al medio", { exact: true }).click();
     reportCheck("la imagen propia sin imagen no deja activar la regla");
+
+    // La mayoría de las historias son para todas las sucursales, así que el
+    // formulario arranca ahí; elegir el lubricentro lo cambia, porque el
+    // servicio existe en una sola.
+    const scope = page.getByTestId("recurring-story-location");
+    assert.equal(
+      await scope.inputValue(),
+      "",
+      "El formulario tiene que arrancar en «Ambas sucursales».",
+    );
+
+    // --- Cada historia ofrece sus marcos y su paleta ---
+    // «Lubricentro» también es uno de los rubros que dibuja la apertura: el
+    // selector se busca dentro de su propio grupo.
+    const storyKinds = page.getByRole("group", { name: "Qué historia arma" });
+    await storyKinds.getByText("Lubricentro", { exact: true }).click();
+    await preview.getByText("¿Toca el service?").waitFor({ timeout: 10_000 });
+    await page.getByText("Foto enmarcada", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByText("Rojo Aramayo", { exact: true }).count(),
+      0,
+      "El lubricentro usa su paleta: no ofrece la de la ferretería.",
+    );
+    assert.notEqual(
+      await scope.inputValue(),
+      "",
+      "El lubricentro tiene que quedar atado a la sucursal donde se atiende.",
+    );
+    await storyKinds.getByText("Apertura", { exact: true }).click();
+    await preview.getByText("¡Ya abrimos!").waitFor({ timeout: 10_000 });
+    reportCheck(
+      "cambiar de historia cambia copy, marcos y paleta en la vista previa real",
+    );
 
     // --- Una foto propia se prepara en el navegador y entra a la pieza ---
     // Es una foto real del local: el render de más abajo la decodifica.
@@ -389,16 +422,27 @@ async function main(): Promise<void> {
       "la foto subida y el acento verde aparecen en la vista previa real antes de guardar",
     );
 
-    // --- Crear la regla desde el panel ---
-    // La mayoría de las historias son para todas las sucursales, así que el
-    // formulario arranca ahí. Este recorrido prueba el camino de una sola:
-    // el de todas lo cubren la integración de la base y el dominio.
-    const scope = page.getByTestId("recurring-story-location");
-    assert.equal(
-      await scope.inputValue(),
-      "",
-      "El formulario tiene que arrancar en «Ambas sucursales».",
+    // --- El encuadre se acomoda acercando y arrastrando la foto ---
+    await page.getByLabel("Acercar").fill("150");
+    const movableSurface = page.locator('[data-movable="true"]');
+    await movableSurface.scrollIntoViewIfNeeded();
+    const surfaceBox = await movableSurface.boundingBox();
+    assert.ok(surfaceBox, "La vista previa tiene que poder arrastrarse.");
+    const surfaceCenter = {
+      x: surfaceBox.x + surfaceBox.width / 2,
+      y: surfaceBox.y + surfaceBox.height / 2,
+    };
+    await page.mouse.move(surfaceCenter.x, surfaceCenter.y);
+    await page.mouse.down();
+    await page.mouse.move(surfaceCenter.x, surfaceCenter.y - 80, { steps: 8 });
+    await page.mouse.up();
+    reportCheck(
+      "la foto se acerca y se mueve arrastrándola en la vista previa",
     );
+
+    // --- Crear la regla desde el panel ---
+    // Este recorrido prueba el camino de una sola sucursal: el de todas lo
+    // cubren la integración de la base y el dominio.
     await scope.selectOption({ label: `Sólo ${fixture.locationName}` });
     const tomorrow = tomorrowInLocationZone();
     for (const label of weekdayLabels) {
@@ -426,7 +470,14 @@ async function main(): Promise<void> {
       assert.equal(rule.leadTimeMinutes, leadTimeMinutes);
       assert.equal(rule.timeZone, locationTimeZone);
       assert.equal(rule.approvalPolicy, "human_each_cycle");
+      assert.equal(rule.kind, "apertura");
       assert.equal(rule.designVariant, "cartel");
+      // El encuadre elegido en el panel es el que guarda la regla.
+      assert.equal(rule.photoZoom, 150);
+      assert.ok(
+        rule.photoFocusY !== null && rule.photoFocusY > 50,
+        "Arrastrar la foto hacia arriba tiene que mover su encuadre.",
+      );
       // El rojo de marca es el punto de partida de una regla nueva.
       assert.equal(rule.theme, "promo");
       assert.equal(rule.accent, "verde");
@@ -511,7 +562,7 @@ async function main(): Promise<void> {
         .getByRole("heading", { name: "Editá lo que verá tu cliente." })
         .waitFor({ timeout: startupTimeoutMs });
       await page.getByLabel("Titular").fill("¡Abrimos temprano!");
-      await page.getByText("Horario en foco", { exact: true }).click();
+      await page.getByText("Placa abajo", { exact: true }).click();
       await page.getByText("Claro", { exact: true }).click();
       const saveDraftResponse = page.waitForResponse(
         (response) =>
@@ -532,7 +583,7 @@ async function main(): Promise<void> {
       assert.equal(revised.revisions.length, 2);
       assert.match(
         JSON.stringify(revised.revisions[0]?.designDocument),
-        /"layout":"historia-apertura-horario"/u,
+        /"layout":"historia-apertura-placa"/u,
       );
       assert.match(
         JSON.stringify(revised.revisions[0]?.designDocument),

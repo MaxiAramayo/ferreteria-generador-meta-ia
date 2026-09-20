@@ -84,6 +84,9 @@ export {
   HistoriaAperturaHorario,
   HistoriaAperturaImagen,
   HistoriaAperturaLocales,
+  HistoriaMarcoEsquina,
+  HistoriaMarcoPlaca,
+  HistoriaMarcoVentana,
   openingAccentColors,
 } from "./layouts/opening-stories.tsx";
 export {

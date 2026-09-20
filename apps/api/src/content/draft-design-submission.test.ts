@@ -60,3 +60,39 @@ test("un medio sin origen o con dos orígenes se rechaza", () => {
     );
   }
 });
+
+test("los rubros y los diferenciales de una historia recurrente viajan enteros", () => {
+  const recurring = design([
+    {
+      alt: "Nuestra gata en el mostrador",
+      dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+      focus: { x: 100, y: 0 },
+      zoom: 1.4,
+    },
+  ]);
+  recurring.content = {
+    callToAction: "¿Buscás algo? Escribinos",
+    features: [
+      { icon: "herramientas", label: "Herramientas" },
+      { icon: "sanitarios", label: "Sanitarios" },
+    ],
+    highlights: ["Asesoramiento personalizado"],
+    items: ["Casa Central · República de Siria 365"],
+    title: "¡Ya abrimos!",
+  };
+  recurring.layout = "historia-apertura-placa";
+  const submission = draftDesignSubmission(recurring);
+
+  assert.deepEqual(submission.content.features, [
+    { icon: "herramientas", label: "Herramientas" },
+    { icon: "sanitarios", label: "Sanitarios" },
+  ]);
+  assert.deepEqual(submission.content.highlights, [
+    "Asesoramiento personalizado",
+  ]);
+  // El encuadre de la foto también: es lo que se vio en el panel.
+  const [media] = submission.media;
+  assert.ok(media);
+  assert.deepEqual(media.focus, { x: 100, y: 0 });
+  assert.equal(media.zoom, 1.4);
+});

@@ -88,7 +88,9 @@ export interface DraftDesignContentSubmission {
   readonly branch?: string;
   readonly callToAction?: string;
   readonly category?: string;
+  readonly features?: readonly Readonly<{ icon: string; label: string }>[];
   readonly greeting?: string;
+  readonly highlights?: readonly string[];
   readonly icon?: string;
   readonly items?: readonly string[];
   readonly phone?: string;

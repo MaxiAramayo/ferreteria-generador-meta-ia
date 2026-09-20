@@ -7,6 +7,7 @@ import {
   type AssetReference,
   type DesignContent,
   type DesignDocument,
+  type DesignFeature,
   type MediaAsset,
   type MediaFit,
 } from "../contracts/document.ts";
@@ -61,7 +62,9 @@ const contentFieldKeys: readonly ContentFieldKey[] = [
   "callToAction",
   "category",
   "disclaimer",
+  "features",
   "greeting",
+  "highlights",
   "icon",
   "items",
   "phone",
@@ -74,8 +77,16 @@ const contentFieldKeys: readonly ContentFieldKey[] = [
 
 const knownContentFields: ReadonlySet<string> = new Set(contentFieldKeys);
 
+const structuredFieldKeys: ReadonlySet<ContentFieldKey> = new Set([
+  "accent",
+  "features",
+  "highlights",
+  "icon",
+  "items",
+]);
+
 const textFieldKeys: readonly ContentFieldKey[] = contentFieldKeys.filter(
-  (key) => key !== "accent" && key !== "icon" && key !== "items",
+  (key) => !structuredFieldKeys.has(key),
 );
 
 const assetIdPattern = /^[a-z0-9][a-z0-9/_-]{2,127}$/u;
@@ -213,6 +224,77 @@ function readItems(
   }
 
   return items.length === value.length ? Object.freeze(items) : undefined;
+}
+
+function readTextList(
+  value: unknown,
+  path: string,
+  maximum: number,
+  issues: DesignIssue[],
+): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    issues.push(issue("invalid-type", path));
+    return undefined;
+  }
+  if (value.length === 0) {
+    issues.push(issue("missing", path));
+    return undefined;
+  }
+  if (value.length > maximum) {
+    issues.push(issue("too-many", path));
+    return undefined;
+  }
+  const texts: string[] = [];
+  for (const [index, entry] of value.entries()) {
+    const text = readText(entry, `${path}[${String(index)}]`, issues);
+    if (text !== undefined) {
+      texts.push(text);
+    }
+  }
+  return texts.length === value.length ? Object.freeze(texts) : undefined;
+}
+
+function readFeatures(
+  value: unknown,
+  path: string,
+  issues: DesignIssue[],
+): readonly DesignFeature[] | undefined {
+  if (!Array.isArray(value)) {
+    issues.push(issue("invalid-type", path));
+    return undefined;
+  }
+  if (value.length === 0) {
+    issues.push(issue("missing", path));
+    return undefined;
+  }
+  if (value.length > contentLimits.featuresMaximum) {
+    issues.push(issue("too-many", path));
+    return undefined;
+  }
+  const features: DesignFeature[] = [];
+  for (const [index, entry] of value.entries()) {
+    const entryPath = `${path}[${String(index)}]`;
+    const record = asRecord(entry);
+    if (record === undefined) {
+      issues.push(issue("invalid-type", entryPath));
+      continue;
+    }
+    collectUnknownKeys(
+      record,
+      new Set(["icon", "label"]),
+      `${entryPath}.`,
+      issues,
+    );
+    const label = readText(record["label"], `${entryPath}.label`, issues);
+    if (!isIconName(record["icon"])) {
+      issues.push(issue("invalid-value", `${entryPath}.icon`));
+      continue;
+    }
+    if (label !== undefined) {
+      features.push(Object.freeze({ icon: record["icon"], label }));
+    }
+  }
+  return features.length === value.length ? Object.freeze(features) : undefined;
 }
 
 function readNumber(
@@ -471,6 +553,21 @@ function parseContent(
     items = readItems(record["items"], "content.items", issues);
   }
 
+  let features: readonly DesignFeature[] | undefined;
+  if (record["features"] !== undefined && allowedFields.has("features")) {
+    features = readFeatures(record["features"], "content.features", issues);
+  }
+
+  let highlights: readonly string[] | undefined;
+  if (record["highlights"] !== undefined && allowedFields.has("highlights")) {
+    highlights = readTextList(
+      record["highlights"],
+      "content.highlights",
+      contentLimits.highlightsMaximum,
+      issues,
+    );
+  }
+
   const title = texts.get("title");
 
   if (title === undefined) {
@@ -480,6 +577,8 @@ function parseContent(
   return Object.freeze({
     ...Object.fromEntries(texts),
     ...(accent === undefined ? {} : { accent }),
+    ...(features === undefined ? {} : { features }),
+    ...(highlights === undefined ? {} : { highlights }),
     ...(icon === undefined ? {} : { icon }),
     ...(items === undefined ? {} : { items }),
     title,

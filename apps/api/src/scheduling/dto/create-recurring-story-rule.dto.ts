@@ -26,10 +26,25 @@ export class CreateRecurringStoryRuleDto {
   @IsIn(["human-each-cycle", "automatic-routine"])
   approvalPolicy!: "automatic-routine" | "human-each-cycle";
 
-  /** Composición para todos los días seleccionados de esta regla. */
+  /** Marco para todos los días seleccionados de esta regla. */
   @IsOptional()
-  @IsIn(["cartel", "horario", "locales", "imagen"])
-  designVariant?: "cartel" | "horario" | "imagen" | "locales";
+  @IsIn([
+    "cartel",
+    "esquina",
+    "horario",
+    "imagen",
+    "locales",
+    "placa",
+    "ventana",
+  ])
+  designVariant?:
+    | "cartel"
+    | "esquina"
+    | "horario"
+    | "imagen"
+    | "locales"
+    | "placa"
+    | "ventana";
 
   @Matches(/^\d{4}-\d{2}-\d{2}$/u)
   effectiveFromLocalDate!: string;
@@ -39,6 +54,11 @@ export class CreateRecurringStoryRuleDto {
   @Min(15)
   @Type(() => Number)
   leadTimeMinutes!: number;
+
+  /** Qué historia arma la regla; sin esto, la apertura del local. */
+  @IsOptional()
+  @IsIn(["apertura", "lubricentro"])
+  kind?: "apertura" | "lubricentro";
 
   @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/u)
   localTime!: string;
@@ -60,8 +80,8 @@ export class CreateRecurringStoryRuleDto {
   photo?: RecurringStoryPhotoDto;
 
   @IsOptional()
-  @IsIn(["taller", "claro", "promo"])
-  theme?: "taller" | "claro" | "promo";
+  @IsIn(["taller", "claro", "promo", "lubricentro"])
+  theme?: "taller" | "claro" | "promo" | "lubricentro";
 
   @ArrayNotEmpty()
   @ArrayUnique()
