@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import {
-  openingStoryDesignDocument,
   planOccurrences,
+  recurringStoryDesignDocument,
   recurringStorySourceToJson,
   resolveEveryLocationStoryDraft,
   resolveRecurringStoryDraft,
@@ -15,6 +15,7 @@ import {
   type RecurringStoryDayOverride,
   type RecurringStoryDesignVariant,
   type RecurringStoryDraftResolution,
+  type RecurringStoryKind,
   type RecurringStoryLocationSource,
   type RecurringStoryMaterializationRepository,
   type RecurringStoryPhoto,
@@ -38,20 +39,38 @@ function sha256(value: string): string {
 function photoFingerprint(photo: RecurringStoryPhoto | null): string | null {
   return photo === null
     ? null
-    : sha256(JSON.stringify([photo.alt, photo.dataUrl, photo.focusY]));
+    : sha256(
+        JSON.stringify([
+          photo.alt,
+          photo.dataUrl,
+          photo.focusX,
+          photo.focusY,
+          photo.zoom,
+        ]),
+      );
 }
 
 function photoColumns(photo: RecurringStoryPhoto | null): Readonly<{
   photoAlt: string | null;
   photoDataUrl: string | null;
+  photoFocusX: number | null;
   photoFocusY: number | null;
+  photoZoom: number | null;
 }> {
   return photo === null
-    ? { photoAlt: null, photoDataUrl: null, photoFocusY: null }
+    ? {
+        photoAlt: null,
+        photoDataUrl: null,
+        photoFocusX: null,
+        photoFocusY: null,
+        photoZoom: null,
+      }
     : {
         photoAlt: photo.alt,
         photoDataUrl: photo.dataUrl,
+        photoFocusX: photo.focusX,
         photoFocusY: photo.focusY,
+        photoZoom: photo.zoom,
       };
 }
 
@@ -62,6 +81,7 @@ function requestHash(command: CreateRecurringStoryRuleCommand): string {
       approvalPolicy: command.approvalPolicy,
       designVariant: command.designVariant ?? "cartel",
       effectiveFrom: command.effectiveFrom,
+      kind: command.kind ?? "apertura",
       leadTimeMinutes: command.leadTimeMinutes,
       localTime: command.localTime,
       locationId: command.locationId,
@@ -94,18 +114,24 @@ function mapPhoto(
   row: Readonly<{
     photoAlt: string | null;
     photoDataUrl: string | null;
+    photoFocusX: number | null;
     photoFocusY: number | null;
+    photoZoom: number | null;
   }>,
 ): RecurringStoryPhoto | null {
   // El CHECK de la tabla guarda la foto entera o nada.
   return row.photoDataUrl === null ||
     row.photoAlt === null ||
-    row.photoFocusY === null
+    row.photoFocusX === null ||
+    row.photoFocusY === null ||
+    row.photoZoom === null
     ? null
     : Object.freeze({
         alt: row.photoAlt,
         dataUrl: row.photoDataUrl,
+        focusX: row.photoFocusX,
         focusY: row.photoFocusY,
+        zoom: row.photoZoom,
       });
 }
 
@@ -117,6 +143,7 @@ function mapRule(
     designVariant: RecurringStoryDesignVariant;
     effectiveFrom: Date;
     id: string;
+    kind: RecurringStoryKind;
     leadTimeMinutes: number;
     localTime: string;
     locationId: string | null;
@@ -124,7 +151,9 @@ function mapRule(
     organizationId: string;
     photoAlt: string | null;
     photoDataUrl: string | null;
+    photoFocusX: number | null;
     photoFocusY: number | null;
+    photoZoom: number | null;
     status: "active" | "cancelled" | "paused";
     theme: RecurringStoryTheme;
     timeZone: string;
@@ -139,6 +168,7 @@ function mapRule(
     designVariant: row.designVariant,
     effectiveFrom: row.effectiveFrom.toISOString(),
     id: row.id,
+    kind: row.kind,
     leadTimeMinutes: row.leadTimeMinutes,
     localTime: row.localTime,
     locationId: row.locationId,
@@ -251,8 +281,10 @@ export class PrismaRecurringStoryRepository
   ): Promise<CreateRecurringStoryRuleResult> {
     const accent = command.accent ?? "marca";
     const designVariant = command.designVariant ?? "cartel";
+    const kind = command.kind ?? "apertura";
     const photo = command.photo ?? null;
-    const theme = command.theme ?? "taller";
+    const theme =
+      command.theme ?? (kind === "lubricentro" ? "lubricentro" : "taller");
     const hash = requestHash(command);
     return this.#database.$transaction(async (transaction) => {
       const existing = await transaction.recurringStoryRule.findUnique({
@@ -296,6 +328,7 @@ export class PrismaRecurringStoryRepository
           ...photoColumns(photo),
           effectiveFrom: new Date(command.effectiveFrom),
           idempotencyKey: command.idempotencyKey,
+          kind,
           leadTimeMinutes: command.leadTimeMinutes,
           localTime: command.localTime,
           locationId: command.locationId,
@@ -318,6 +351,7 @@ export class PrismaRecurringStoryRepository
             accent,
             approvalPolicy: command.approvalPolicy,
             designVariant,
+            kind,
             leadTimeMinutes: command.leadTimeMinutes,
             locationId: command.locationId,
             photo: photoFingerprint(photo),
@@ -352,6 +386,8 @@ export class PrismaRecurringStoryRepository
       designVariant: RecurringStoryDesignVariant;
       expectedVersion: number;
       idempotencyKey: string;
+      /** La historia de la regla: un marco de otra no se le puede aplicar. */
+      kind: RecurringStoryKind;
       occurredAt: string;
       photo: RecurringStoryPhoto | null;
       ruleId: string;
@@ -368,6 +404,7 @@ export class PrismaRecurringStoryRepository
         accent: command.accent,
         designVariant: command.designVariant,
         expectedVersion: command.expectedVersion,
+        kind: command.kind,
         organizationId: command.actor.organizationId,
         photo,
         ruleId: command.ruleId,
@@ -383,7 +420,11 @@ export class PrismaRecurringStoryRepository
           },
         },
       });
-      if (existing === null) return Object.freeze({ status: "not-found" });
+      // La historia de la regla no cambia con el estilo: un pedido que dice
+      // otra viene de un panel desactualizado y no encuentra su regla.
+      if (existing === null || existing.kind !== command.kind) {
+        return Object.freeze({ status: "not-found" });
+      }
       if (
         existing.lastVisualStyleIdempotencyKey === command.idempotencyKey &&
         existing.lastVisualStyleRequestHash === hash
@@ -533,7 +574,7 @@ export class PrismaRecurringStoryRepository
       Awaited<
         ReturnType<DatabaseClient["recurringStoryRule"]["findMany"]>
       >[number],
-      "photoAlt" | "photoDataUrl" | "photoFocusY"
+      "photoAlt" | "photoDataUrl" | "photoFocusX" | "photoFocusY" | "photoZoom"
     > &
       Readonly<{ location: LocationRow | null }>,
     occurrence: Readonly<{
@@ -568,9 +609,12 @@ export class PrismaRecurringStoryRepository
           select: {
             accent: true,
             designVariant: true,
+            kind: true,
             photoAlt: true,
             photoDataUrl: true,
+            photoFocusX: true,
             photoFocusY: true,
+            photoZoom: true,
             theme: true,
           },
           where: {
@@ -636,6 +680,7 @@ export class PrismaRecurringStoryRepository
             capturedAt,
             ...(dayOverride === undefined ? {} : { dayOverride }),
             designVariant: style.designVariant,
+            kind: style.kind,
             location: locationSource(location),
             occurrence,
             policy,
@@ -678,10 +723,11 @@ export class PrismaRecurringStoryRepository
         const publicationId = randomUUID();
         const revisionId = randomUUID();
         const content = { caption: resolution.caption, products: [] };
-        const designDocument = openingStoryDesignDocument({
+        const designDocument = recurringStoryDesignDocument({
           accent: style.accent,
           content: resolution.designContent,
           designVariant: style.designVariant,
+          kind: style.kind,
           localDate,
           photo: mapPhoto(style),
           ruleId: rule.id,
@@ -696,7 +742,7 @@ export class PrismaRecurringStoryRepository
             organizationId: rule.organizationId,
             scheduledFor: new Date(occurrence.scheduledAt),
             timeZone: rule.timeZone,
-            title: `Ya abrimos · ${scopeName} · ${localDate}`,
+            title: `${style.kind === "lubricentro" ? "Lubricentro" : "Ya abrimos"} · ${scopeName} · ${localDate}`,
           },
         });
         await transaction.publicationRevision.create({

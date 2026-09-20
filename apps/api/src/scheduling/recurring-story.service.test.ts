@@ -63,6 +63,7 @@ const storedRule: RecurringStoryRuleRecord = {
   designVariant: "cartel",
   effectiveFrom: "2026-09-08T11:30:00.000Z",
   id: "rule-1",
+  kind: "apertura",
   leadTimeMinutes: 120,
   localTime: "08:30",
   locationId: primaryLocation.id,
@@ -131,14 +132,18 @@ class FakeRules implements RecurringStoryRuleRepository {
   }
 }
 
-const submission = {
+/** Una regla para todas las sucursales activas: sin sucursal elegida. */
+const everyLocationSubmission = {
   approvalPolicy: "human-each-cycle" as const,
   effectiveFromLocalDate: "2026-09-08",
   leadTimeMinutes: 120,
   localTime: "08:30",
-  locationId: primaryLocation.id,
   name: " Apertura ",
   weekdays: [1, 2, 3, 4, 5, 6],
+};
+const submission = {
+  ...everyLocationSubmission,
+  locationId: primaryLocation.id,
 };
 
 test("crea una regla anclada a la fecha civil de la sucursal", async () => {
@@ -194,6 +199,7 @@ test("actualiza el estilo de una regla con control de versión", async () => {
       accent: "verde",
       designVariant: "locales",
       expectedVersion: storedRule.version,
+      kind: "apertura",
       photo: null,
       theme: "promo",
     },
@@ -285,7 +291,9 @@ test("una regla para todas exige que las sucursales compartan zona horaria", asy
 const jpegPhoto = {
   alt: " Nuestra gata en el mostrador ",
   dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+  focusX: 50,
   focusY: 40,
+  zoom: 100,
 };
 
 test("una regla guarda su foto propia y su acento", async () => {
@@ -347,6 +355,7 @@ test("la imagen propia sin imagen y una foto falsa se rechazan antes de guardar"
         accent: "marca",
         designVariant: "imagen",
         expectedVersion: storedRule.version,
+        kind: "apertura",
         photo: null,
         theme: "promo",
       },
@@ -358,6 +367,70 @@ test("la imagen propia sin imagen y una foto falsa se rechazan antes de guardar"
   assert.equal(rules.visualStyleInput, undefined);
 });
 
+test("el lubricentro necesita su sucursal y no toma marcos de la apertura", async () => {
+  const rejected = new RecurringStoryService(
+    new FakeRules(),
+    new FakeConfiguration(),
+  );
+  // El servicio funciona únicamente en casa central: no hay historia del
+  // lubricentro «para todas las sucursales».
+  await assert.rejects(
+    rejected.create(
+      actor(["approver"]),
+      {
+        ...everyLocationSubmission,
+        designVariant: "ventana",
+        kind: "lubricentro",
+      },
+      "rule-idempotency-lubricentro-scope",
+    ),
+    BadRequestException,
+  );
+  await assert.rejects(
+    rejected.create(
+      actor(["approver"]),
+      { ...submission, designVariant: "cartel", kind: "lubricentro" },
+      "rule-idempotency-lubricentro-frame",
+    ),
+    BadRequestException,
+  );
+  // La paleta de la ferretería tampoco: publicaría con la marca equivocada.
+  await assert.rejects(
+    rejected.create(
+      actor(["approver"]),
+      {
+        ...submission,
+        designVariant: "ventana",
+        kind: "lubricentro",
+        theme: "promo",
+      },
+      "rule-idempotency-lubricentro-theme",
+    ),
+    BadRequestException,
+  );
+
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+  await service.create(
+    actor(["approver"]),
+    {
+      ...submission,
+      designVariant: "esquina",
+      kind: "lubricentro",
+      photo: jpegPhoto,
+      theme: "lubricentro",
+    },
+    "rule-idempotency-lubricentro",
+  );
+  assert.equal(rules.input?.kind, "lubricentro");
+  assert.equal(rules.input.designVariant, "esquina");
+  assert.equal(rules.input.theme, "lubricentro");
+  assert.deepEqual(rules.input.photo, {
+    ...jpegPhoto,
+    alt: "Nuestra gata en el mostrador",
+  });
+});
+
 test("cambiar el estilo exige decir qué pasa con la foto", async () => {
   const rules = new FakeRules();
   const service = new RecurringStoryService(rules, new FakeConfiguration());
@@ -365,6 +438,7 @@ test("cambiar el estilo exige decir qué pasa con la foto", async () => {
     accent: "marca" as const,
     designVariant: "cartel" as const,
     expectedVersion: storedRule.version,
+    kind: "apertura" as const,
     theme: "promo" as const,
   };
 

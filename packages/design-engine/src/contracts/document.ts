@@ -62,6 +62,16 @@ export interface MediaAsset {
   readonly zoom: number;
 }
 
+/**
+ * Un rubro o servicio con su icono: «Electricidad», «Cambio de aceite».
+ *
+ * El icono es un nombre semántico, como en `icon`; el motor resuelve el dibujo.
+ */
+export interface DesignFeature {
+  readonly icon: IconName;
+  readonly label: string;
+}
+
 export interface DesignContent {
   /** Color de la etiqueta de estado y del botón; sin él decide el tema. */
   readonly accent?: AccentName;
@@ -71,8 +81,12 @@ export interface DesignContent {
   readonly category?: string;
   /** Aclaración comercial visible, por ejemplo «Imagen ilustrativa». */
   readonly disclaimer?: string;
+  /** Rubros o servicios con icono, en el orden en que se muestran. */
+  readonly features?: readonly DesignFeature[];
   /** Saludo breve del encabezado, por ejemplo «Buen día, Frías». */
   readonly greeting?: string;
+  /** Argumentos secundarios en una línea: «Variedad de marcas». */
+  readonly highlights?: readonly string[];
   readonly icon?: IconName;
   readonly items?: readonly string[];
   readonly phone?: string;
@@ -123,6 +137,8 @@ export const inlineAssetLimits = Object.freeze({
 });
 
 export const contentLimits = Object.freeze({
+  featuresMaximum: 6,
+  highlightsMaximum: 4,
   itemsMaximum: 8,
   slugPattern: /^[a-z0-9][a-z0-9-]{2,63}$/u,
   textMaximum: 240,

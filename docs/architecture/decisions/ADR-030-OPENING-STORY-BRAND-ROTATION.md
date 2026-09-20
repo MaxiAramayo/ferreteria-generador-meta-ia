@@ -1,9 +1,9 @@
-# ADR-030: historias de apertura con firma de marca y estilo por regla
+# ADR-030: historias recurrentes con firma de marca y marcos por regla
 
 - Estado: aceptado
 - Fecha: 2026-09-17
 - Actualizada: 2026-09-19
-- Tareas: `P6-T10`, `P6-T11`, `P6-T12`
+- Tareas: `P6-T10`, `P6-T11`, `P6-T12`, `P6-T13`
 
 ## Contexto
 
@@ -101,10 +101,60 @@ diseños del sistema.
     «Buenas tardes» o «Buenas noches»— con la localidad cuando entra, y «tu
     auto» sólo se promete en una historia de todas las sucursales.
 
+### Enmienda del 2026-09-19: lubricentro, marcos intercambiables y encuadre (`P6-T13`)
+
+El dueño pidió tres cosas después de ver las aperturas: recordar el servicio de
+lubricentro algunos días, ordenar la apertura por jerarquía —marca, mensaje,
+rubros, diferenciales, datos prácticos y un botón grande— y poder cambiar el
+marco y mover la foto cuando queda cortada, «a medida que vaya poniendo otras
+imágenes».
+
+13. Una regla recurrente declara qué historia arma: `apertura` o `lubricentro`.
+    La historia decide el copy, la paleta y los marcos disponibles; el
+    mecanismo —materializar, revisar, aprobar, publicar— es el mismo. El
+    lubricentro funciona únicamente en casa central (`KN-004`), así que su regla
+    nombra una sucursal concreta y nunca «todas»: lo comprueban el servicio y un
+    `CHECK` de la tabla.
+14. Cada historia ofrece marcos que dejan libre una zona distinta de la foto,
+    con la misma idea que la familia de `ADR-029`: quien opera elige el que no
+    tapa lo que importa de su imagen. La apertura ofrece «foto al medio»
+    (`cartel`), «placa abajo» (`placa`), «tarjeta arriba a la derecha»
+    (`esquina`) e «imagen propia»; el lubricentro, «foto enmarcada»
+    (`ventana`), `placa`, `esquina` e «imagen propia». El identificador del
+    layout nombra historia y marco —`historia-<historia>-<marco>`—, así que un
+    borrador dice con qué se compuso sin mirar la regla. `horario` y `locales`
+    quedan como marcos heredados: siguen registrados y componen con la
+    plantilla estable.
+15. El encuadre viaja con la foto: `focusX`, `focusY` —el punto de la imagen
+    que queda fijo, de 0 a 100— y `zoom`, en porcentaje de 100 a 250. El panel
+    lo edita arrastrando la foto sobre la vista previa real y con una barra para
+    acercar; las flechas del teclado hacen lo mismo. Acercar es lo que crea
+    lugar para mover: una foto con la misma proporción que la historia no tiene
+    sobrante al 100 %.
+16. La apertura sigue la jerarquía que definió el dueño: marca y saludo,
+    «¡Ya abrimos!», una línea chica con dónde se atiende, seis rubros con
+    ícono, tres diferenciales en chico, las sucursales con el horario y un botón
+    grande «¿Buscás algo? Escribinos» con el teléfono. La etiqueta «Abierto hoy»
+    se quita: repetía lo que ya dice el titular. Los seis rubros salen de los
+    que comercializa el negocio (`KN-004`) y los tres diferenciales son
+    afirmaciones del dueño, registradas acá porque no se deducen de la base.
+17. El lubricentro afirma «¿Toca el service?», «Cambio de aceite con fosa en
+    <dirección>» —la calle, no el nombre de la sucursal—, sus productos
+    (lubricantes, filtros y baterías), los vehículos que atiende y el horario
+    vigente de esa sucursal, con el botón «Pedí tu turno»: el turno se toma por
+    WhatsApp o en el local (`KN-002`). Sin foto propia usa la del mostrador de
+    lubricantes de la biblioteca.
+18. Ninguna pieza rotula su foto como ilustrativa. Es una decisión del dueño del
+    2026-09-19: la aclaración le resta a la historia y la foto es material suyo,
+    no una afirmación del sistema.
+
 ## Consecuencias
 
 - La variación no inventa copy ni hechos: cambia composición o tema, no el
   horario ni la información de sucursal.
+- Dos reglas del lubricentro con días distintos —una con la foto de la camioneta
+  en la fosa y otra con la moto— se resuelven eligiendo marco y encuadre, sin
+  pedir un diseño nuevo por cada foto.
 - La persona que opera puede crear «Apertura general» para lunes a miércoles y
   «Apertura de sucursales» para jueves a sábado, sin repetir una elección por
   cada día ni convertir domingo en una ausencia silenciosa.
@@ -131,3 +181,13 @@ diseños del sistema.
 - **Leer el texto de la imagen propia para validarlo**: agregaría un
   proveedor y una afirmación automática sobre lo que dice una imagen; la
   aprobación humana obligatoria resuelve lo mismo sin inventar certeza.
+- **Un marco por historia y recortar la foto al subirla**: obliga a preparar
+  cada imagen afuera y deja la pieza a merced de dónde caiga el motivo. Los
+  marcos con encuadre resuelven el mismo problema dentro del panel.
+- **Barras de horizontal y vertical en vez de arrastrar**: es más fácil de
+  construir, pero mover una foto es un gesto, no dos números. Las barras
+  quedaron para el acercamiento y las flechas del teclado cubren el mismo
+  ajuste sin mouse.
+- **Un layout por marco sin nombrar la historia**: ahorra identificadores, pero
+  un borrador del lubricentro compuesto como `historia-apertura-placa` miente
+  sobre lo que es en los registros y en la base.

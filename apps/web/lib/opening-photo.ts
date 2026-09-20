@@ -2,7 +2,7 @@ import type { RecurringStoryPhotoPayload } from "@aramayo/contracts";
 import { recurringStoryPhotoLimits } from "@aramayo/domain";
 
 /**
- * Foto propia de una historia de apertura, preparada en el navegador.
+ * Foto propia de una historia recurrente, preparada en el navegador.
  *
  * El archivo nunca viaja tal cual: se decodifica, se achica a lo que la
  * historia puede mostrar y se vuelve a codificar como JPEG. Eso quita los
@@ -16,7 +16,55 @@ export const openingPhotoBounds = Object.freeze({ height: 1920, width: 1080 });
 const sourceBytesMaximum = 25 * 1024 * 1024;
 const qualities = Object.freeze([0.86, 0.74, 0.62]);
 
-export const defaultOpeningPhotoAlt = "Foto propia de la apertura";
+export const defaultOpeningPhotoAlt = "Foto propia de la historia";
+
+/** Encuadre inicial: la foto entera, centrada y sin acercar. */
+export const defaultOpeningPhotoFraming = Object.freeze({
+  focusX: 50,
+  focusY: 50,
+  zoom: 100,
+});
+
+export function clampFramingPercentage(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+/**
+ * Encuadre que resulta de arrastrar la foto.
+ *
+ * El punto del encuadre es el que queda fijo dentro del recuadro, así que
+ * arrastrar hacia la derecha baja el porcentaje. Cuánto se puede mover depende
+ * del sobrante: una foto con la misma proporción que la historia no tiene nada
+ * que mover hasta que se la acerca.
+ */
+export function framingAfterDrag(
+  size: Readonly<{
+    boxHeight: number;
+    boxWidth: number;
+    naturalHeight: number;
+    naturalWidth: number;
+  }>,
+  start: Readonly<{ focusX: number; focusY: number; zoom: number }>,
+  delta: Readonly<{ x: number; y: number }>,
+): Readonly<{ focusX: number; focusY: number }> {
+  const cover = Math.max(
+    size.boxWidth / size.naturalWidth,
+    size.boxHeight / size.naturalHeight,
+  );
+  const scale = cover * (start.zoom / 100);
+  const overflowX = size.naturalWidth * scale - size.boxWidth;
+  const overflowY = size.naturalHeight * scale - size.boxHeight;
+  return {
+    focusX:
+      overflowX > 1
+        ? clampFramingPercentage(start.focusX - (delta.x / overflowX) * 100)
+        : start.focusX,
+    focusY:
+      overflowY > 1
+        ? clampFramingPercentage(start.focusY - (delta.y / overflowY) * 100)
+        : start.focusY,
+  };
+}
 
 export type OpeningPhotoResult =
   | Readonly<{ kind: "error"; message: string }>
@@ -99,7 +147,11 @@ export async function prepareOpeningPhoto(
         }
       : {
           kind: "ready",
-          photo: { alt: defaultOpeningPhotoAlt, dataUrl, focusY: 50 },
+          photo: {
+            alt: defaultOpeningPhotoAlt,
+            dataUrl,
+            ...defaultOpeningPhotoFraming,
+          },
         };
   } finally {
     bitmap.close();

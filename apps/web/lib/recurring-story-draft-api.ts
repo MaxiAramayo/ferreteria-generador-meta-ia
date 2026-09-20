@@ -1,12 +1,22 @@
 import type { DesignDocument, MediaAsset } from "@aramayo/design-engine";
 import { parseDesignDocument } from "@aramayo/design-engine/validation";
 
-type OpeningLayout =
-  | "historia-apertura-cartel"
-  | "historia-apertura-horario"
-  | "historia-apertura-imagen"
-  | "historia-apertura-locales";
-type OpeningTheme = "claro" | "promo" | "taller";
+/** Marcos que el editor sabe recomponer, de las dos historias recurrentes. */
+const recurringLayouts = [
+  "historia-apertura-cartel",
+  "historia-apertura-esquina",
+  "historia-apertura-horario",
+  "historia-apertura-imagen",
+  "historia-apertura-locales",
+  "historia-apertura-placa",
+  "historia-lubricentro-esquina",
+  "historia-lubricentro-imagen",
+  "historia-lubricentro-placa",
+  "historia-lubricentro-ventana",
+] as const;
+
+export type RecurringStoryLayout = (typeof recurringLayouts)[number];
+type RecurringTheme = "claro" | "lubricentro" | "promo" | "taller";
 
 export interface RecurringStoryDraft {
   readonly content: Readonly<{ caption: string }>;
@@ -33,18 +43,13 @@ function record(value: unknown): Readonly<Record<string, unknown>> | null {
     : null;
 }
 
-function openingLayout(value: unknown): value is OpeningLayout {
-  return (
-    value === "historia-apertura-cartel" ||
-    value === "historia-apertura-horario" ||
-    value === "historia-apertura-imagen" ||
-    value === "historia-apertura-locales"
-  );
+function recurringLayout(value: unknown): value is RecurringStoryLayout {
+  return recurringLayouts.some((candidate) => candidate === value);
 }
 
 /**
- * La foto de un borrador de apertura vuelve a la API por su origen: la foto
- * del local por su identificador de marca y la foto propia, embebida. Una URL
+ * La foto de un borrador recurrente vuelve a la API por su origen: la de la
+ * biblioteca por su identificador de marca y la foto propia, embebida. Una URL
  * remota no se puede reenviar como tal: el editor no la ofrece.
  */
 function mediaPayload(
@@ -66,8 +71,13 @@ function mediaPayload(
   }
 }
 
-function openingTheme(value: unknown): value is OpeningTheme {
-  return value === "taller" || value === "claro" || value === "promo";
+function recurringTheme(value: unknown): value is RecurringTheme {
+  return (
+    value === "taller" ||
+    value === "claro" ||
+    value === "promo" ||
+    value === "lubricentro"
+  );
 }
 
 function draft(value: unknown): RecurringStoryDraft | null {
@@ -80,8 +90,8 @@ function draft(value: unknown): RecurringStoryDraft | null {
     revision === null ||
     content === null ||
     !parsedDocument.ok ||
-    !openingLayout(parsedDocument.document.layout) ||
-    !openingTheme(parsedDocument.document.theme) ||
+    !recurringLayout(parsedDocument.document.layout) ||
+    !recurringTheme(parsedDocument.document.theme) ||
     typeof content["caption"] !== "string" ||
     typeof publication["id"] !== "string" ||
     typeof publication["title"] !== "string" ||
@@ -141,7 +151,7 @@ export async function loadRecurringStoryDraft(
       ? { kind: "ready", draft: parsed }
       : {
           kind: "error",
-          message: "Este borrador no es una historia de apertura editable.",
+          message: "Este borrador no es una historia recurrente editable.",
         };
   } catch {
     return {

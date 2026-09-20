@@ -194,6 +194,19 @@ Se versionó junto con `P6-T11` (`439276f`) y necesita la migración
 `20260918120000_recurring_story_photo` al desplegar. El usuario aprobó las tres
 composiciones el mismo día, sobre los renders del motor real.
 
+`P6-T13` cerró el 2026-09-19, también a pedido del usuario: la rutina recurrente
+ahora arma dos historias —la apertura del local y el service del lubricentro— y
+cada una ofrece marcos que dejan libre una zona distinta de la foto: foto al
+medio, placa abajo, tarjeta arriba a la derecha e imagen propia. La foto se
+acomoda arrastrándola sobre la vista previa real, con una barra para acercar, y
+ese encuadre es el que renderiza el worker. La apertura quedó ordenada por
+jerarquía —marca, «¡Ya abrimos!», rubros con ícono, diferenciales en chico,
+sucursales con horario y un botón grande— y sin la etiqueta «Abierto hoy». El
+lubricentro nombra la dirección donde está la fosa y sólo se programa para esa
+sucursal, como está aprobado en `KN-004`. Necesita la migración
+`20260919120000_recurring_story_lubricentro_frames` al desplegar. Las decisiones
+están en [`ADR-030`](architecture/decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md).
+
 La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
 el 2026-09-17 tras publicar sus imágenes linux/amd64 en
 [GitHub Actions](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/35230874348).

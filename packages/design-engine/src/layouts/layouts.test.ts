@@ -168,7 +168,10 @@ test("cada layout migrado compone dentro de las dimensiones de su formato", () =
       `${layout} no usa el alto de su formato.`,
     );
     // La imagen propia se publica tal cual: no compone texto.
-    if (layout === "historia-apertura-imagen") {
+    if (
+      layout === "historia-apertura-imagen" ||
+      layout === "historia-lubricentro-imagen"
+    ) {
       continue;
     }
     assert.ok(
@@ -179,11 +182,17 @@ test("cada layout migrado compone dentro de las dimensiones de su formato", () =
 });
 
 test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitrarias", () => {
-  const openingLayouts = new Set<LayoutId>([
+  const recurringLayouts = new Set<LayoutId>([
     "historia-apertura-cartel",
+    "historia-apertura-esquina",
     "historia-apertura-horario",
     "historia-apertura-imagen",
     "historia-apertura-locales",
+    "historia-apertura-placa",
+    "historia-lubricentro-esquina",
+    "historia-lubricentro-imagen",
+    "historia-lubricentro-placa",
+    "historia-lubricentro-ventana",
   ]);
   for (const layout of migratedLayouts) {
     const html = markupFor(layout);
@@ -197,10 +206,10 @@ test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitraria
     }
 
     assert.ok(
-      openingLayouts.has(layout) || !html.includes("background-image"),
+      recurringLayouts.has(layout) || !html.includes("background-image"),
       `${layout} usa una imagen de fondo en lugar de componer con primitivas.`,
     );
-    if (openingLayouts.has(layout)) {
+    if (recurringLayouts.has(layout)) {
       assert.ok(
         !html.includes("url("),
         `${layout} no puede cargar un fondo externo: su trama debe ser determinista.`,
@@ -215,14 +224,19 @@ function openingDocument(
 ): DesignDocument {
   return documentFor(layout, {
     content: {
-      badge: "Abierto hoy",
-      callToAction: "Escribinos",
+      callToAction: "¿Buscás algo? Escribinos",
+      features: [
+        { icon: "herramientas", label: "Herramientas" },
+        { icon: "electricidad", label: "Electricidad" },
+        { icon: "sanitarios", label: "Sanitarios" },
+      ],
       greeting: "Buen día, Frías",
+      highlights: ["Asesoramiento personalizado", "Variedad de marcas"],
       items: [
         "Casa Central · República de Siria 365",
         "Sucursal · Rivadavia 673",
       ],
-      subtitle: "Nuestros dos locales ya están atendiendo.",
+      subtitle: "Te esperamos en nuestros dos locales",
       title: "¡Ya abrimos!",
       validity: "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
     },
@@ -239,24 +253,31 @@ function openingMarkup(document: DesignDocument): string {
 
 const openingCompositions: readonly LayoutId[] = [
   "historia-apertura-cartel",
+  "historia-apertura-esquina",
   "historia-apertura-horario",
   "historia-apertura-locales",
+  "historia-apertura-placa",
 ];
 
-test("cada apertura compone marca, saludo, estado, datos y contacto", () => {
+test("cada apertura compone marca, saludo, rubros, datos y contacto", () => {
   for (const layout of openingCompositions) {
     const html = openingMarkup(openingDocument(layout));
 
     assert.match(html, /data-logo=""/u, `${layout} no lleva la marca.`);
     assert.ok(html.includes("Buen día, Frías"), `${layout} sin saludo.`);
-    assert.ok(html.includes("Abierto hoy"), `${layout} sin estado.`);
     assert.ok(html.includes("¡Ya abrimos!"), `${layout} sin titular.`);
+    assert.ok(html.includes("Herramientas"), `${layout} sin rubros.`);
+    assert.ok(
+      html.includes("Asesoramiento personalizado"),
+      `${layout} sin diferenciales.`,
+    );
     assert.ok(
       html.includes("República de Siria 365") && html.includes("Rivadavia 673"),
       `${layout} no muestra las sucursales.`,
     );
+    // La tarjeta angosta parte el horario en renglones; el dato es el mismo.
     assert.ok(
-      html.includes("08:30 a 13:00 / 16:30 a 20:30"),
+      html.includes("08:30 a 13:00") && html.includes("16:30 a 20:30"),
       `${layout} no muestra el horario.`,
     );
     assert.ok(
@@ -271,6 +292,61 @@ test("cada apertura compone marca, saludo, estado, datos y contacto", () => {
       `${layout} no compone la foto del documento.`,
     );
   }
+});
+
+const lubricentroFrames: readonly LayoutId[] = [
+  "historia-lubricentro-esquina",
+  "historia-lubricentro-placa",
+  "historia-lubricentro-ventana",
+];
+
+test("cada marco del lubricentro lleva su cartel, sus servicios y su turno", () => {
+  for (const layout of lubricentroFrames) {
+    const html = openingMarkup(
+      openingDocument(layout, {
+        content: {
+          callToAction: "Pedí tu turno",
+          features: [
+            { icon: "aceite", label: "Lubricantes" },
+            { icon: "bateria", label: "Baterías" },
+          ],
+          highlights: ["Autos", "Motos"],
+          subtitle: "Cambio de aceite con fosa en República de Siria 365",
+          title: "¿Toca el service?",
+          validity: "Lun a sáb · 08:30 a 13:00 / 16:30 a 20:30",
+        },
+        theme: "lubricentro",
+      }),
+    );
+
+    assert.match(html, /data-cartel=""/u, `${layout} no lleva el cartel.`);
+    assert.ok(html.includes("¿Toca el service?"), `${layout} sin titular.`);
+    assert.ok(
+      html.includes("Cambio de aceite con fosa en República de Siria 365"),
+      `${layout} no dice dónde se atiende.`,
+    );
+    assert.ok(html.includes("Lubricantes"), `${layout} sin servicios.`);
+    assert.ok(html.includes("Motos"), `${layout} sin vehículos.`);
+    assert.ok(
+      html.includes("Pedí tu turno") && html.includes(context.brand.phone),
+      `${layout} no muestra el contacto.`,
+    );
+    // La paleta del lubricentro es suya: amarillo de señal y grafito.
+    assert.ok(html.includes("#ffb200"), `${layout} sin amarillo de señal.`);
+  }
+});
+
+test("el marco de la esquina deja libre el pie de la foto", () => {
+  const corner = openingMarkup(
+    openingDocument("historia-apertura-esquina", {}),
+  );
+  const plate = openingMarkup(openingDocument("historia-apertura-placa", {}));
+
+  // La tarjeta se apoya arriba a la derecha; la placa ocupa el ancho abajo.
+  assert.match(corner, /data-frame-card=""/u);
+  assert.ok(!corner.includes('data-opening-plate=""'));
+  assert.match(plate, /data-opening-plate=""/u);
+  assert.ok(!plate.includes('data-frame-card=""'));
 });
 
 test("una apertura sin saludo ancla la localidad del perfil", () => {
@@ -291,7 +367,7 @@ test("una apertura sin foto muestra la marca en lugar de inventar una", () => {
   }
 });
 
-test("el acento verde pinta la etiqueta y el botón, no el resto", () => {
+test("el acento verde pinta el botón, no el resto", () => {
   const brand = openingMarkup(openingDocument("historia-apertura-cartel"));
   const green = openingMarkup(
     openingDocument("historia-apertura-cartel", {
@@ -304,7 +380,8 @@ test("el acento verde pinta la etiqueta y el botón, no el resto", () => {
   const verde = "background-color:#1e7d3f";
 
   assert.ok(!brand.includes(verde));
-  assert.equal(green.split(verde).length - 1, 2);
+  // La etiqueta de estado ya no existe: el verde vive sólo en el botón.
+  assert.equal(green.split(verde).length - 1, 1);
 });
 
 test("la imagen propia ocupa el lienzo y no le agrega texto", () => {

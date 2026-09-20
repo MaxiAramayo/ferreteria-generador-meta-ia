@@ -3,6 +3,7 @@ import type {
   RecurringStoryAccentResponse,
   RecurringStoryApprovalPolicyResponse,
   RecurringStoryDesignVariantResponse,
+  RecurringStoryKindResponse,
   RecurringStoryPhotoPayload,
   RecurringStoryRuleResponse,
   RecurringStoryThemeResponse,
@@ -15,6 +16,7 @@ export interface RecurringStoryRuleSubmission {
   readonly designVariant: RecurringStoryDesignVariantResponse;
   readonly effectiveFromLocalDate: string;
   readonly idempotencyKey: string;
+  readonly kind: RecurringStoryKindResponse;
   readonly leadTimeMinutes: number;
   readonly localTime: string;
   /** `null`: la regla es para todas las sucursales activas. */
@@ -32,6 +34,7 @@ export interface RecurringStoryVisualStyleSubmission {
   readonly designVariant: RecurringStoryDesignVariantResponse;
   readonly expectedVersion: number;
   readonly idempotencyKey: string;
+  readonly kind: RecurringStoryKindResponse;
   readonly photo: RecurringStoryPhotoPayload | null;
   readonly ruleId: string;
   readonly theme: RecurringStoryThemeResponse;
@@ -52,15 +55,24 @@ export type RecurringStoryVisualStyleSaveResult =
   | Readonly<{ kind: "error"; message: string }>
   | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
 
+const designVariants: readonly RecurringStoryDesignVariantResponse[] = [
+  "cartel",
+  "esquina",
+  "horario",
+  "imagen",
+  "locales",
+  "placa",
+  "ventana",
+];
+
 function designVariant(
   value: unknown,
 ): RecurringStoryDesignVariantResponse | null {
-  return value === "cartel" ||
-    value === "horario" ||
-    value === "locales" ||
-    value === "imagen"
-    ? value
-    : null;
+  return designVariants.find((candidate) => candidate === value) ?? null;
+}
+
+function kind(value: unknown): RecurringStoryKindResponse | null {
+  return value === "apertura" || value === "lubricentro" ? value : null;
 }
 
 function accent(value: unknown): RecurringStoryAccentResponse | null {
@@ -77,17 +89,24 @@ function photo(value: unknown): RecurringStoryPhotoPayload | null | undefined {
     typeof candidate["alt"] === "string" &&
     typeof candidate["dataUrl"] === "string" &&
     /^data:image\/(?:jpeg|png);base64,/u.test(candidate["dataUrl"]) &&
-    typeof candidate["focusY"] === "number"
+    typeof candidate["focusX"] === "number" &&
+    typeof candidate["focusY"] === "number" &&
+    typeof candidate["zoom"] === "number"
     ? {
         alt: candidate["alt"],
         dataUrl: candidate["dataUrl"],
+        focusX: candidate["focusX"],
         focusY: candidate["focusY"],
+        zoom: candidate["zoom"],
       }
     : undefined;
 }
 
 function theme(value: unknown): RecurringStoryThemeResponse | null {
-  return value === "taller" || value === "claro" || value === "promo"
+  return value === "taller" ||
+    value === "claro" ||
+    value === "promo" ||
+    value === "lubricentro"
     ? value
     : null;
 }
@@ -150,8 +169,10 @@ function rule(value: unknown): RecurringStoryRuleResponse | null {
   const visualVariant = candidate?.["designVariant"];
   const rulePhoto = photo(candidate?.["photo"]);
   const ruleAccent = accent(candidate?.["accent"]);
+  const ruleKind = kind(candidate?.["kind"]);
   return candidate !== null &&
     ruleAccent !== null &&
+    ruleKind !== null &&
     rulePhoto !== undefined &&
     (candidate["approvalPolicy"] === "human-each-cycle" ||
       candidate["approvalPolicy"] === "automatic-routine") &&
@@ -179,6 +200,7 @@ function rule(value: unknown): RecurringStoryRuleResponse | null {
         designVariant: designVariant(visualVariant) ?? "cartel",
         effectiveFrom: candidate["effectiveFrom"],
         id: candidate["id"],
+        kind: ruleKind,
         leadTimeMinutes: candidate["leadTimeMinutes"],
         localTime: candidate["localTime"],
         locationId: candidate["locationId"],
@@ -282,6 +304,7 @@ export async function saveRecurringStoryRule(
           approvalPolicy: submission.approvalPolicy,
           designVariant: submission.designVariant,
           effectiveFromLocalDate: submission.effectiveFromLocalDate,
+          kind: submission.kind,
           leadTimeMinutes: submission.leadTimeMinutes,
           localTime: submission.localTime,
           ...(submission.locationId === null
@@ -344,6 +367,7 @@ export async function saveRecurringStoryVisualStyle(
           accent: submission.accent,
           designVariant: submission.designVariant,
           expectedVersion: submission.expectedVersion,
+          kind: submission.kind,
           photo: submission.photo,
           theme: submission.theme,
         }),

@@ -50,6 +50,9 @@ import {
   HistoriaAperturaHorario,
   HistoriaAperturaImagen,
   HistoriaAperturaLocales,
+  HistoriaMarcoEsquina,
+  HistoriaMarcoPlaca,
+  HistoriaMarcoVentana,
 } from "./opening-stories.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
 import {
@@ -81,6 +84,12 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "historia-apertura-horario": HistoriaAperturaHorario,
     "historia-apertura-imagen": HistoriaAperturaImagen,
     "historia-apertura-locales": HistoriaAperturaLocales,
+    "historia-apertura-esquina": HistoriaMarcoEsquina,
+    "historia-apertura-placa": HistoriaMarcoPlaca,
+    "historia-lubricentro-esquina": HistoriaMarcoEsquina,
+    "historia-lubricentro-imagen": HistoriaAperturaImagen,
+    "historia-lubricentro-placa": HistoriaMarcoPlaca,
+    "historia-lubricentro-ventana": HistoriaMarcoVentana,
     "combo-kit": ComboKit,
     "composicion-banda-superior": ComposicionBandaSuperior,
     "composicion-circulo-central": ComposicionCirculoCentral,
@@ -146,7 +155,9 @@ export function isLayoutMigrated(layoutId: LayoutId): boolean {
  * que no entra se rechaza con la ruta del campo, y quien edita decide.
  */
 export const TEXT_BUDGET = Object.freeze({
+  feature: 28,
   greeting: 26,
+  highlight: 32,
   items: 60,
   subtitle: 150,
   title: 90,
@@ -180,6 +191,24 @@ export function assertTextFits(document: DesignDocument): void {
     content.validity.length > TEXT_BUDGET.validity
   ) {
     issues.push({ code: "too-long", path: "content.validity" });
+  }
+
+  for (const [index, feature] of (content.features ?? []).entries()) {
+    if (feature.label.length > TEXT_BUDGET.feature) {
+      issues.push({
+        code: "too-long",
+        path: `content.features[${String(index)}].label`,
+      });
+    }
+  }
+
+  for (const [index, highlight] of (content.highlights ?? []).entries()) {
+    if (highlight.length > TEXT_BUDGET.highlight) {
+      issues.push({
+        code: "too-long",
+        path: `content.highlights[${String(index)}]`,
+      });
+    }
   }
 
   for (const [index, item] of (content.items ?? []).entries()) {
@@ -221,9 +250,15 @@ export function DesignPiece({
     "banner-marca",
     "destacada-cover",
     "historia-apertura-cartel",
+    "historia-apertura-esquina",
     "historia-apertura-horario",
     "historia-apertura-imagen",
     "historia-apertura-locales",
+    "historia-apertura-placa",
+    "historia-lubricentro-esquina",
+    "historia-lubricentro-imagen",
+    "historia-lubricentro-placa",
+    "historia-lubricentro-ventana",
   ]);
   const backdrop = !withoutBackdrop.has(document.layout);
 

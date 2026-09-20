@@ -285,12 +285,17 @@ diagnóstico seguro y referencias suficientes para reconciliar el estado.
 
 Regla que materializa publicaciones futuras. No publica directamente.
 
-La regla conserva sucursal, hora civil, zona, días, anticipación, vigencia y
+La regla conserva qué historia arma —la `apertura` del local o el
+`lubricentro`—, sucursal, hora civil, zona, días, anticipación, vigencia y
 política de aprobación (`human-each-cycle` o `automatic-routine`), además de su
-estilo: composición, tema, acento y una foto propia opcional. La composición
-«imagen propia» publica tal cual la foto de la regla y su borrador siempre
-exige aprobación humana, porque el sistema no puede leer lo que la imagen
-afirma ([`ADR-030`](decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md)). Cada
+estilo: marco, tema, acento y una foto propia opcional con su encuadre. La
+historia decide el copy, la paleta y los marcos disponibles; cada marco deja
+libre una zona distinta de la foto y el encuadre —punto fijo y acercamiento—
+viaja con ella hasta el render. El lubricentro funciona únicamente donde está
+la fosa, así que su regla nombra una sucursal y nunca «todas». El marco «imagen
+propia» publica tal cual la foto de la regla y su borrador siempre exige
+aprobación humana, porque el sistema no puede leer lo que la imagen afirma
+([`ADR-030`](decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md)). Cada
 ocurrencia dentro de la ventana de anticipación produce una materialización
 identificada por `organización + regla + clave de ocurrencia`, con la misma
 clave civil de [`ADR-023`](decisions/ADR-023-OCCURRENCE-CIVIL-IDENTITY.md).

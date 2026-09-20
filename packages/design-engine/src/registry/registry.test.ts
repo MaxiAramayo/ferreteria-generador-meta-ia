@@ -181,9 +181,12 @@ test("los temas y los iconos coinciden con el inventario", () => {
     [...THEME_IDS].sort(),
     [...manifest.inventory.themes].sort(),
   );
+  // El catálogo propio suma iconos que el generador no tenía, igual que suma
+  // layouts: cada uno se declara acá para que agregar uno sea una decisión.
+  const catalogIcons = ["sanitarios"];
   assert.deepEqual(
     [...ICON_NAMES].sort(),
-    [...manifest.inventory.iconNames].sort(),
+    [...manifest.inventory.iconNames, ...catalogIcons].sort(),
   );
 });
 

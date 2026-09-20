@@ -68,7 +68,13 @@ afirmación de disponibilidad sin dato que la respalde.
 | `historia-apertura-cartel` | Avisar que el local abrió, con la foto de lado a lado | Foto real, saludo, estado, sucursales, horario vigente | Escribir por WhatsApp |
 | `historia-apertura-horario` | La apertura con el horario del día como protagonista | Foto real como esfera de reloj, horario vigente, sucursales | Escribir por WhatsApp |
 | `historia-apertura-locales` | La apertura cuando importan las sucursales | Foto real impresa, una chapa por sucursal, horario vigente | Escribir por WhatsApp |
+| `historia-apertura-placa` | La apertura con la foto a sangre y los datos en una placa abajo | Foto real, saludo, rubros, sucursales, horario vigente | Escribir por WhatsApp |
+| `historia-apertura-esquina` | La apertura con los datos en una tarjeta arriba a la derecha | Foto real con el motivo abajo a la izquierda, rubros, sucursales, horario | Escribir por WhatsApp |
 | `historia-apertura-imagen` | Publicar tal cual una historia armada afuera | La imagen subida por quien opera; siempre con aprobación humana | El que traiga la imagen |
+| `historia-lubricentro-ventana` | Recordar el servicio con la foto enmarcada en amarillo | Foto real, servicios, vehículos, dirección y horario vigente | Pedir turno |
+| `historia-lubricentro-placa` | El servicio con la foto a sangre y los datos en una placa abajo | Foto real, servicios, vehículos, dirección y horario vigente | Pedir turno |
+| `historia-lubricentro-esquina` | El servicio con los datos en una tarjeta arriba a la derecha | Foto real con el motivo abajo a la izquierda, servicios, horario | Pedir turno |
+| `historia-lubricentro-imagen` | Publicar tal cual una historia del lubricentro armada afuera | La imagen subida por quien opera; siempre con aprobación humana | El que traiga la imagen |
 
 ### Cuadrado (1080×1080)
 
