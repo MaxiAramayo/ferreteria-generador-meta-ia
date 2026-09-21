@@ -218,6 +218,22 @@ precio, la pieza invita a consultarlo. Las decisiones están en
 necesita migración: el borrador viaja por el camino de publicación que ya
 existía.
 
+La revisión posterior al merge encontró que **guardar no funcionaba**, y el E2E
+no lo veía porque componía la vista previa sin apretar «Guardar». `POST
+/publications` conservaba el límite de 100 KB —esta historia crea la
+publicación con la foto adentro— y el panel leía la respuesta con una forma
+inventada, así que avisaba «no se guardó» sobre un `201`: invitaba a reintentar
+y a duplicar borradores. Se corrigió en `888004e` y el E2E ahora guarda de
+verdad.
+
+La release `888004e3326dd02adc58393290cb41a2241c3209` se promovió a producción
+el 2026-09-21, con copia previa verificada
+(`aramayo-production-20260921T221347Z`) porque arrastraba tres migraciones
+acumuladas desde el 17/09. Las tres aplicaron correctamente; `/health`,
+`/ready`, el panel y las rutas legales respondieron `200` por HTTPS, y el
+worker reporta PostgreSQL y Redis arriba. `5f36aa9b…` queda como rollback y la
+poda de imágenes viejas sigue pendiente.
+
 La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
 el 2026-09-17 tras publicar sus imágenes linux/amd64 en
 [GitHub Actions](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/35230874348).

@@ -37,6 +37,21 @@ estaban activos.
 
 ## Estado de producción verificado
 
+El 2026-09-21 se promovió `888004e3326dd02adc58393290cb41a2241c3209`, con las
+imágenes publicadas en la corrida `35661475543`. Antes de migrar se tomó una
+copia fuera de horario —`aramayo-production-20260921T221347Z`,
+`Result=success`— porque la release arrastraba tres migraciones acumuladas:
+`recurring_story_visual_style`, `recurring_story_photo` y
+`recurring_story_lubricentro_frames`. Las tres son aditivas y conservan su
+`down.sql`. Migración, API, web y worker quedaron en ese SHA; PostgreSQL, Redis
+y Caddy siguen en sus imágenes de base. `/health`, `/ready`, el panel y las
+rutas legales respondieron `200` por HTTPS, y el worker reporta sus
+dependencias arriba. La release `5f36aa9b…` se conserva para rollback.
+
+Quedaron en el host las imágenes de nueve SHA que ya no son elegibles para
+rollback. No se podaron: la poda por SHA exacto sigue pendiente y el disco
+quedó al 70 %.
+
 El 2026-09-16 producción quedó en marcha en
 `https://content.ferreteriaaramayo.com.ar`, con la API en
 `https://api.content.ferreteriaaramayo.com.ar` y certificado Let's Encrypt. El
