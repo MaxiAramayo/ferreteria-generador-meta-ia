@@ -48,9 +48,16 @@ y Caddy siguen en sus imágenes de base. `/health`, `/ready`, el panel y las
 rutas legales respondieron `200` por HTTPS, y el worker reporta sus
 dependencias arriba. La release `5f36aa9b…` se conserva para rollback.
 
-Quedaron en el host las imágenes de nueve SHA que ya no son elegibles para
-rollback. No se podaron: la poda por SHA exacto sigue pendiente y el disco
-quedó al 70 %.
+Ese mismo día se podó el host por SHA exacto: salieron las imágenes de los
+nueve SHA que ya no eran elegibles para rollback y las cuatro de staging. El
+disco pasó de 70 % a 26 % de uso —de 22 GB a 54 GB libres— sin tocar ningún
+volumen. Quedan tres juegos de imágenes: `888004e…` en curso, `5f36aa9b…` para
+rollback, y las de base (Caddy, PostgreSQL, Redis).
+
+La medición que ordenó la limpieza: las imágenes viejas eran 34,4 GB
+reclamables y **todos los volúmenes juntos, 144 MB**. Borrar datos no libera
+espacio en este host; borrar imágenes sí, y no pierde nada porque GHCR las
+conserva.
 
 El 2026-09-16 producción quedó en marcha en
 `https://content.ferreteriaaramayo.com.ar`, con la API en
@@ -62,6 +69,17 @@ y la carpeta de Cloudinary, `aramayo-posts/produccion`.
 
 Staging quedó **detenido, no borrado**: los dos Caddy usan `80/443` y no pueden
 correr a la vez. Sus volúmenes siguen intactos.
+
+El 2026-09-21, a pedido del usuario —«sólo usaré producción»—, se desarmó el
+resto de staging: se quitaron sus siete contenedores detenidos y sus cuatro
+imágenes (`fee63661…`), que eran lo único que pesaba, 4,4 GB. Volver a
+levantarlo exige `pull` y recrear los contenedores desde su compose; nada se
+perdió, porque las imágenes viven en GHCR y el compose en Git. Sus **cuatro
+volúmenes siguen ahí**: son 70 MB y contienen la base de staging, con la
+identidad temporal de App Review que nunca se activó. Borrarlos no libera
+espacio útil y es la baja de esa identidad, que sigue como acción operativa
+abierta junto con su entrada del Llavero. La copia cifrada
+`aramayo-staging-20260916T063538Z` conserva esa base.
 
 En la app de Meta se agregaron el redirect OAuth de producción —se conservó el de
 staging—, el dominio `content.ferreteriaaramayo.com.ar`, y se apuntaron a
