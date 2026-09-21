@@ -649,9 +649,81 @@ revisarla, aprobarla y conservar su snapshot.
   sigue deshabilitado y su smoke remoto continúa en espera según la autorización
   registrada para `P1-T07`.
 
+## P2-T09 — Historias de producto con foto propia y marcos intercambiables
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P2-T07`, `P2-T08`, `P6-T13`
+- Riesgo: Medio
+
+### Objetivo
+
+Permitir que quien opera arme una historia común de producto con su propia foto,
+elija entre varios marcos y escriba el precio a mano, sin tocar la exigencia de
+evidencia que protege a los precios citables.
+
+### Entregables
+
+- Cuatro layouts `historia-producto-*` sobre las primitivas de marco
+  compartidas.
+- Compositor de panel con subida de foto, encuadre arrastrable, elección de
+  marco y campos de la pieza.
+- `ADR-031` y las entradas de catálogo correspondientes.
+
+### Criterios de aceptación
+
+- [x] Los cuatro marcos dejan libre una zona distinta de la foto y comparten las
+      primitivas de `story-frame-kit`.
+- [x] El precio se dibuja en la pieza; el caption nunca lo lleva y la validación
+      previa no cambia.
+- [x] Sin precio la pieza invita a consultarlo y un precio anterior solo no se
+      dibuja.
+- [x] La vista previa del panel es el mismo documento que renderiza el worker,
+      con el encuadre que se guarda.
+- [x] Guardar deja un borrador: revisar, aprobar y publicar siguen siendo pasos
+      aparte.
+
+### Verificación obligatoria
+
+- [x] Prueba de `productStoryDocument` y `saveProductStoryDraft` sobre los
+      cuatro marcos, el precio anterior huérfano y el caption sin importe.
+- [x] Regresión visual de los cuatro layouts nuevos.
+- [x] `pnpm verify` completo.
+
+### Fuera de alcance
+
+- Leer el catálogo de Odoo para completar precio o stock.
+- Publicación externa y programación de estas piezas.
+
+### Notas de progreso
+
+- 2026-09-21: el dueño pidió «diseños así pero para subir productos, en las
+  historias comunes no recurrentes», con varios marcos, algunos con precio y
+  otros sin, «que sea protagonista el producto».
+- El precio quedó resuelto sin tocar la red: se dibuja en la pieza, que es una
+  afirmación que el dueño firma al aprobar, y el caption no lo repite. La
+  alternativa —una excepción en la validación previa— habría dejado sin red a
+  todas las publicaciones.
+- Los cuatro marcos reusan la tarjeta al pie, la tarjeta de esquina, el recuadro
+  y el velo superior que ya usaban la apertura y el lubricentro; un ajuste de
+  esas primitivas se ve en las tres historias a la vez.
+- El dueño aprobó los cuatro marcos sobre los renders del motor real, incluidas
+  dos variantes sin precio.
+
+### Evidencia de cierre
+
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck, suites
+  unitarias, baseline visual y smoke aprobados.
+- Regresión visual: los cuatro layouts nuevos entraron a la baseline y el resto
+  del catálogo quedó sin cambios.
+- Pruebas: `apps/web/lib/product-story.test.ts` fija la composición del
+  documento, el descarte del precio anterior huérfano, el layout de cada marco y
+  el envío de la foto con su encuadre.
+- Decisiones: [`ADR-031`](../architecture/decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md).
+
 ## Criterios de salida de Fase 2
 
-- [x] `P2-T01` a `P2-T08` están completas.
+- [x] `P2-T01` a `P2-T09` están completas.
 - [x] Aislamiento, autorización e idempotencia tienen pruebas.
 - [x] Existe un flujo determinista aprobado de punta a punta.
 - [x] Ninguna acción del panel publica o llama a IA de forma implícita.

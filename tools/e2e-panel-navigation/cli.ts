@@ -14,6 +14,8 @@
  * - **por rol**: cada persona ve sólo sus secciones y su «Para hoy»;
  * - **moverse**: desde cualquier pantalla, Configuración y Cuenta incluidas, se
  *   llega a las demás sin escribir la dirección;
+ * - **cada flujo compone**: la historia de producto arma la pieza con la foto
+ *   que se sube y cambia de marco sin perderla;
  * - **salir**: cerrar sesión la revoca en la API;
  * - **API caída**: el panel lo dice en vez de mandar a iniciar sesión.
  *
@@ -24,7 +26,7 @@
 
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { Pool } from "pg";
@@ -358,6 +360,59 @@ async function main(): Promise<void> {
     await editorPage.reload({ waitUntil: "load" });
     await waitForHeading(editorPage, "Elegí cómo nace la pieza.");
     assert.equal(await currentFlow.textContent(), "Creatividad IA");
+    assert.equal((await navigation(editorPage)).current, "Publicaciones");
+
+    // --- La historia de producto arma la pieza con la foto que se sube ---
+    // Cambiar de marco es lo que pidió el dueño: el mismo producto, otra zona
+    // de la foto libre (`ADR-031`).
+    await flows.getByRole("link", { name: "Producto" }).click();
+    await editorPage.waitForURL(
+      `${webBaseUrl}/publicaciones/nueva?flujo=producto`,
+      {
+        waitUntil: "commit",
+      },
+    );
+    const productComposer = editorPage.getByRole("region", {
+      name: "Compositor de historia de producto",
+    });
+    await productComposer.waitFor({ timeout: uiTimeoutMs });
+    await editorPage
+      .getByLabel("Nombre del producto")
+      .fill("Guantes de trabajo");
+    await editorPage.getByLabel("Precio", { exact: true }).fill("$ 48.900");
+    await editorPage.getByLabel("Subir foto").setInputFiles({
+      buffer: await readFile(
+        fileURLToPath(
+          new URL(
+            "../../packages/design-engine/assets/brand/local-aramayo.jpg",
+            import.meta.url,
+          ),
+        ),
+      ),
+      mimeType: "image/jpeg",
+      name: "guantes.jpg",
+    });
+    const productPreview = editorPage.locator(
+      '[data-card][data-format="historia"]',
+    );
+    await productPreview
+      .locator('img[src^="data:image/jpeg;base64,"]')
+      .waitFor({ timeout: 30_000 });
+    await productPreview
+      .locator('[data-frame-card="abajo"]')
+      .waitFor({ timeout: uiTimeoutMs });
+    assert.ok(
+      await productPreview.getByText("$ 48.900").count(),
+      "El precio se dibuja en la pieza, que es donde vive.",
+    );
+    await editorPage.getByText("Tarjeta a la derecha", { exact: true }).click();
+    await productPreview
+      .locator('[data-frame-card="esquina"]')
+      .waitFor({ timeout: uiTimeoutMs });
+    reportCheck(
+      "la historia de producto compone la foto subida y cambia de marco sin perderla",
+    );
+
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
     await editorPage
       .getByRole("navigation", { name: "Publicaciones" })

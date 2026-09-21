@@ -1,5 +1,6 @@
 export const publicationComposerVariants = [
   "template",
+  "product-story",
   "ai-creative",
   "recurring-story",
 ] as const;
@@ -41,6 +42,8 @@ export interface PublicationComposerMeta {
   readonly canEdit: boolean;
   readonly canSchedule: boolean;
   readonly formId: string;
+  /** Un flujo que guarda su propio borrador avisa por acá al terminar. */
+  readonly onDraftSaved: (title: string) => void;
 }
 
 export interface PublicationComposerContextValue {
@@ -58,6 +61,8 @@ const actionsByVariant: Readonly<
     "accept-brief",
     "request-brief",
   ]),
+  // La historia de producto guarda su propio borrador con la foto y el marco.
+  "product-story": new Set<PublicationComposerAction>(["save-draft"]),
   "recurring-story": new Set<PublicationComposerAction>(),
   template: new Set<PublicationComposerAction>([
     "edit-caption",
@@ -91,6 +96,7 @@ export const createPiecePath = "/publicaciones/nueva";
 const variantSlugs: Readonly<Record<PublicationComposerVariant, string>> =
   Object.freeze({
     "ai-creative": "creatividad-ia",
+    "product-story": "producto",
     "recurring-story": "historia-recurrente",
     template: "plantilla",
   });

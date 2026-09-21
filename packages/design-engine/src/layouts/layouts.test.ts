@@ -182,7 +182,9 @@ test("cada layout migrado compone dentro de las dimensiones de su formato", () =
 });
 
 test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitrarias", () => {
-  const recurringLayouts = new Set<LayoutId>([
+  // Las historias con foto propia pintan su propia trama de marca: llevan
+  // `background-image` con degradados deterministas, nunca una imagen externa.
+  const brandBackdropLayouts = new Set<LayoutId>([
     "historia-apertura-cartel",
     "historia-apertura-esquina",
     "historia-apertura-horario",
@@ -193,6 +195,7 @@ test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitraria
     "historia-lubricentro-imagen",
     "historia-lubricentro-placa",
     "historia-lubricentro-ventana",
+    "historia-producto-ventana",
   ]);
   for (const layout of migratedLayouts) {
     const html = markupFor(layout);
@@ -206,10 +209,10 @@ test("ningún layout hornea texto dentro de una imagen ni carga rutas arbitraria
     }
 
     assert.ok(
-      recurringLayouts.has(layout) || !html.includes("background-image"),
+      brandBackdropLayouts.has(layout) || !html.includes("background-image"),
       `${layout} usa una imagen de fondo en lugar de componer con primitivas.`,
     );
-    if (recurringLayouts.has(layout)) {
+    if (brandBackdropLayouts.has(layout)) {
       assert.ok(
         !html.includes("url("),
         `${layout} no puede cargar un fondo externo: su trama debe ser determinista.`,

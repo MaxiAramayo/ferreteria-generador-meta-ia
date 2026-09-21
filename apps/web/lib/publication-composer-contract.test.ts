@@ -22,8 +22,13 @@ test("cada variante expone únicamente sus acciones válidas", () => {
     [...allowedComposerActions("ai-creative")],
     ["accept-brief", "request-brief"],
   );
+  // La historia de producto guarda su propio borrador, con foto y marco.
+  assert.deepEqual(
+    [...allowedComposerActions("product-story")],
+    ["save-draft"],
+  );
   // Las variantes que todavía no tienen dominio detrás no simulan acciones.
-  const implemented = new Set(["ai-creative", "template"]);
+  const implemented = new Set(["ai-creative", "product-story", "template"]);
   for (const variant of publicationComposerVariants) {
     if (!implemented.has(variant)) {
       assert.equal(allowedComposerActions(variant).size, 0);

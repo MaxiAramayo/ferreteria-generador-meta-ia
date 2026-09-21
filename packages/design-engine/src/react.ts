@@ -87,8 +87,14 @@ export {
   HistoriaMarcoEsquina,
   HistoriaMarcoPlaca,
   HistoriaMarcoVentana,
-  openingAccentColors,
 } from "./layouts/opening-stories.tsx";
+export { openingAccentColors } from "./layouts/story-frame-kit.tsx";
+export {
+  HistoriaProductoEtiqueta,
+  HistoriaProductoPrecioAbajo,
+  HistoriaProductoTarjeta,
+  HistoriaProductoVentana,
+} from "./layouts/product-stories.tsx";
 export {
   footerBranch,
   mediaAt,

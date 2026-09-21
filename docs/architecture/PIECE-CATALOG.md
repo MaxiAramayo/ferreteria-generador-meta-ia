@@ -75,6 +75,16 @@ afirmación de disponibilidad sin dato que la respalde.
 | `historia-lubricentro-placa` | El servicio con la foto a sangre y los datos en una placa abajo | Foto real, servicios, vehículos, dirección y horario vigente | Pedir turno |
 | `historia-lubricentro-esquina` | El servicio con los datos en una tarjeta arriba a la derecha | Foto real con el motivo abajo a la izquierda, servicios, horario | Pedir turno |
 | `historia-lubricentro-imagen` | Publicar tal cual una historia del lubricentro armada afuera | La imagen subida por quien opera; siempre con aprobación humana | El que traiga la imagen |
+| `historia-producto-precio-abajo` | Un producto con foto propia y el precio en una tarjeta al pie | Foto real, nombre; precio, medidas y vigencia si los hay | Consultar por WhatsApp |
+| `historia-producto-etiqueta` | El importe como la etiqueta colgada de la góndola, sobre la foto | Foto real, nombre; el precio cuelga en la etiqueta | Consultar por WhatsApp |
+| `historia-producto-tarjeta` | Los datos en una columna a la derecha, el producto libre a la izquierda | Foto real con el motivo a la izquierda, nombre, precio o consulta | Consultar por WhatsApp |
+| `historia-producto-ventana` | El producto enmarcado sobre el fondo de marca, nada encima de la foto | Foto real, nombre, precio o consulta, medidas | Consultar por WhatsApp |
+
+Las cuatro `historia-producto-*` llevan foto propia y el precio lo escribe
+quien publica: se dibuja en la pieza y nunca en el caption, porque un importe
+en el texto exige evidencia vigente del catálogo
+([`ADR-031`](decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md)). Sin precio, la
+pieza invita a consultarlo en lugar de dejar un hueco.
 
 ### Cuadrado (1080×1080)
 

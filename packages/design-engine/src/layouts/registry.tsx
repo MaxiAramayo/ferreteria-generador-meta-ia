@@ -54,6 +54,12 @@ import {
   HistoriaMarcoPlaca,
   HistoriaMarcoVentana,
 } from "./opening-stories.tsx";
+import {
+  HistoriaProductoEtiqueta,
+  HistoriaProductoPrecioAbajo,
+  HistoriaProductoTarjeta,
+  HistoriaProductoVentana,
+} from "./product-stories.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
 import {
   EppSeguridad,
@@ -86,6 +92,10 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "historia-apertura-locales": HistoriaAperturaLocales,
     "historia-apertura-esquina": HistoriaMarcoEsquina,
     "historia-apertura-placa": HistoriaMarcoPlaca,
+    "historia-producto-etiqueta": HistoriaProductoEtiqueta,
+    "historia-producto-precio-abajo": HistoriaProductoPrecioAbajo,
+    "historia-producto-tarjeta": HistoriaProductoTarjeta,
+    "historia-producto-ventana": HistoriaProductoVentana,
     "historia-lubricentro-esquina": HistoriaMarcoEsquina,
     "historia-lubricentro-imagen": HistoriaAperturaImagen,
     "historia-lubricentro-placa": HistoriaMarcoPlaca,
@@ -255,6 +265,10 @@ export function DesignPiece({
     "historia-apertura-imagen",
     "historia-apertura-locales",
     "historia-apertura-placa",
+    "historia-producto-etiqueta",
+    "historia-producto-precio-abajo",
+    "historia-producto-tarjeta",
+    "historia-producto-ventana",
     "historia-lubricentro-esquina",
     "historia-lubricentro-imagen",
     "historia-lubricentro-placa",

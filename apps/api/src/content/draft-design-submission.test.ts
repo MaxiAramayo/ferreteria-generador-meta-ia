@@ -96,3 +96,46 @@ test("los rubros y los diferenciales de una historia recurrente viajan enteros",
   assert.deepEqual(media.focus, { x: 100, y: 0 });
   assert.equal(media.zoom, 1.4);
 });
+
+test("el precio de una historia de producto llega entero al caso de uso", () => {
+  // El precio de estas piezas lo escribe quien publica y se dibuja en la
+  // pieza, nunca en el caption (`ADR-031`). Si el transporte lo descartara,
+  // la historia saldría sin el dato que le da sentido.
+  const product = design([
+    {
+      alt: "Guantes de trabajo sobre el mostrador",
+      dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+      fit: "cover",
+      focus: { x: 50, y: 30 },
+      zoom: 1.2,
+    },
+  ]);
+  product.content = {
+    badge: "Oferta",
+    callToAction: "Consultanos",
+    category: "Seguridad industrial",
+    items: ["Talles 8 al 11", "Palma reforzada"],
+    previousPrice: "$ 62.400",
+    price: "$ 48.900",
+    subtitle: "Con agarre reforzado",
+    title: "Guantes de trabajo",
+    validity: "Hasta el sábado",
+  };
+  product.layout = "historia-producto-etiqueta";
+  const submission = draftDesignSubmission(product);
+
+  assert.equal(submission.layout, "historia-producto-etiqueta");
+  assert.equal(submission.content.price, "$ 48.900");
+  assert.equal(submission.content.previousPrice, "$ 62.400");
+  assert.equal(submission.content.badge, "Oferta");
+  assert.equal(submission.content.validity, "Hasta el sábado");
+  assert.deepEqual(submission.content.items, [
+    "Talles 8 al 11",
+    "Palma reforzada",
+  ]);
+  const [photo] = submission.media;
+  assert.ok(photo);
+  assert.equal(photo.fit, "cover");
+  assert.deepEqual(photo.focus, { x: 50, y: 30 });
+  assert.equal(photo.zoom, 1.2);
+});

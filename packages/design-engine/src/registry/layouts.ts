@@ -59,8 +59,61 @@ const openingOptionalFields: readonly ContentFieldKey[] = [
   "validity",
 ];
 
+/**
+ * Lo que admite una historia de producto: el nombre manda y el resto acompaña.
+ * El precio lo escribe quien publica y se dibuja en la pieza; sin precio, el
+ * marco invita a consultarlo (`ADR-031`).
+ */
+const productFrameFields: readonly ContentFieldKey[] = [
+  "accent",
+  "badge",
+  "branch",
+  "callToAction",
+  "category",
+  "disclaimer",
+  "items",
+  "phone",
+  "previousPrice",
+  "price",
+  "subtitle",
+  "validity",
+];
+
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
+    "historia-producto-etiqueta": specFor(
+      "historia-producto-etiqueta",
+      "historia",
+      ["historia"],
+      ["title"],
+      productFrameFields,
+      singlePhoto,
+    ),
+    "historia-producto-precio-abajo": specFor(
+      "historia-producto-precio-abajo",
+      "historia",
+      ["historia"],
+      ["title"],
+      productFrameFields,
+      singlePhoto,
+    ),
+    "historia-producto-tarjeta": specFor(
+      "historia-producto-tarjeta",
+      "historia",
+      ["historia"],
+      ["title"],
+      productFrameFields,
+      singlePhoto,
+    ),
+    "historia-producto-ventana": specFor(
+      "historia-producto-ventana",
+      "historia",
+      ["historia"],
+      ["title"],
+      productFrameFields,
+      singlePhoto,
+    ),
+
     "historia-apertura-cartel": specFor(
       "historia-apertura-cartel",
       "historia",
