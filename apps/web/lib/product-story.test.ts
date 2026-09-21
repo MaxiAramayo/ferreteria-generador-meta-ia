@@ -96,10 +96,23 @@ test("guardar manda la foto embebida con su encuadre y un caption sin precio", a
       body: typeof init?.body === "string" ? init.body : "",
       path: url.pathname,
     });
+    // La respuesta es la que devuelve la API de verdad: la publicación en la
+    // raíz, con su revisión. Un doble inventado acá esconde el error real.
     return Promise.resolve(
       url.pathname === "/auth/csrf"
         ? Response.json({ csrfToken: "csrf-safe" })
-        : Response.json({ publication: { title: "Guantes de trabajo" } }),
+        : Response.json({
+            createdAt: "2026-09-21T22:03:14.531Z",
+            id: "904729f9-07a2-46aa-9342-7f17e4a953cd",
+            latestRevision: {
+              id: "6f0b6a71-0a3d-4f9d-9a1e-2d6f2f7b1c44",
+              revisionNumber: 1,
+            },
+            status: "draft",
+            title: "Guantes de trabajo",
+            updatedAt: "2026-09-21T22:03:14.531Z",
+            version: 1,
+          }),
     );
   };
 

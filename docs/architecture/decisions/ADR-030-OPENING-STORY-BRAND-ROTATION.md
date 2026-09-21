@@ -86,7 +86,7 @@ diseños del sistema.
     `MediaAsset` en Cloudinary porque no necesita un circuito asíncrono nuevo
     ni llevar credenciales de Cloudinary fuera del worker, y porque el
     documento embebido se recompone igual aunque la URL cambie. El costo es esa
-    copia por borrador y respuestas idempotentes de hasta 4 MB. La API acepta cuerpos de hasta 4 MB sólo en las tres rutas que llevan
+    copia por borrador y respuestas idempotentes de hasta 4 MB. La API acepta cuerpos de hasta 4 MB sólo en las rutas que llevan
     la foto; el resto conserva 100 KB, incluido el login. La API y el motor
     comprueban que los bytes sean de verdad el JPEG o PNG que declaran. Se
     revisa si entra otra persona a operar o si la base crece más de lo

@@ -4,8 +4,9 @@ import type { NextFunction, Request, Response } from "express";
  * Tamaño de los pedidos JSON.
  *
  * Toda la API conserva el límite de Express, 100 KB, incluido el login. Sólo
- * las tres rutas que llevan la foto propia de una apertura (`ADR-030`) aceptan
- * hasta 4 MB: una foto de hasta 3 MB en base64 más el resto del documento.
+ * las rutas que llevan una foto propia —la de una apertura (`ADR-030`) o la de
+ * una historia de producto (`ADR-031`)— aceptan hasta 4 MB: una foto de hasta
+ * 3 MB en base64 más el resto del documento.
  *
  * El analizador se registra con el límite mayor y este filtro corre antes:
  * rechaza por el largo declarado sin leer el cuerpo. Un pedido sin largo
@@ -17,6 +18,8 @@ export const photoJsonBodyLimitBytes = 4 * 1024 * 1024;
 const photoRoutes: readonly (readonly [method: string, path: RegExp])[] = [
   ["POST", /^\/scheduling\/recurring-stories\/?$/u],
   ["PATCH", /^\/scheduling\/recurring-stories\/[^/]+\/visual-style\/?$/u],
+  // Una historia de producto nace con su foto: se crea, no se materializa.
+  ["POST", /^\/publications\/?$/u],
   ["PATCH", /^\/publications\/[^/]+\/?$/u],
 ];
 

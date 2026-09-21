@@ -60,7 +60,9 @@ piezas que sí salen del catálogo.
    se prepara en el navegador hasta 1440×2560, JPEG sin metadatos, embebida
    como `data:` en el borrador, con `focusX`, `focusY` y `zoom` de 100 a 250.
    El panel la mueve arrastrándola sobre la vista previa real, que es el mismo
-   documento que renderiza el worker.
+   documento que renderiza el worker. Esta historia **crea** la publicación con
+   la foto adentro, así que `POST /publications` se suma a las rutas que
+   aceptan 4 MB; el resto de la API conserva 100 KB.
 7. Los marcos se apoyan en las primitivas compartidas
    (`story-frame-kit.tsx`): la tarjeta al pie, la tarjeta de esquina, el
    recuadro y el velo superior son los mismos que usan la apertura y el

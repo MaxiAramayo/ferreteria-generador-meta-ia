@@ -138,7 +138,11 @@ function isPublicationList(value: unknown): value is PublicationListResponse {
   );
 }
 
-function savedPublication(
+/**
+ * La publicación que devuelve la API al guardar un borrador. Vive acá y se
+ * comparte: quien la lea por su cuenta termina inventando la forma.
+ */
+export function savedPublication(
   value: unknown,
 ): Readonly<{ id: string; title: string }> | null {
   const publication = record(value);
