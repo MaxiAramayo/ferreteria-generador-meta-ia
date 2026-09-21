@@ -21,6 +21,7 @@ import {
 } from "../../../lib/publication-composer-contract";
 import { saveTemplatePublicationDraft } from "../../../lib/publication-workspace-api";
 import { AICreativeComposer } from "./ai-creative-composer";
+import { ProductStoryComposer } from "./product-story-composer";
 import { RecurringStoryRuleComposer } from "./recurring-story-composer";
 import {
   PublicationComposerContextProvider,
@@ -196,8 +197,9 @@ function PublicationComposerProvider({
       canEdit,
       canSchedule,
       formId: "publication-template-form",
+      onDraftSaved,
     }),
-    [apiBaseUrl, canEdit, canSchedule, state.variant],
+    [apiBaseUrl, canEdit, canSchedule, onDraftSaved, state.variant],
   );
 
   return (
@@ -232,6 +234,7 @@ function ComposerVariantNavigation() {
     value: PublicationComposerVariant;
   }>[] = [
     { label: "Plantilla", value: "template" },
+    { label: "Producto", value: "product-story" },
     { label: "Creatividad IA", value: "ai-creative" },
     { label: "Historia recurrente", value: "recurring-story" },
   ];
@@ -411,11 +414,24 @@ export function RecurringStoryComposer() {
   );
 }
 
+function ProductStory() {
+  const meta = usePublicationComposerMeta();
+  return (
+    <ProductStoryComposer
+      apiBaseUrl={meta.apiBaseUrl}
+      canEdit={meta.canEdit}
+      onDraftSaved={meta.onDraftSaved}
+    />
+  );
+}
+
 function ActiveComposer() {
   const state = usePublicationComposerState();
   switch (state.variant) {
     case "template":
       return <TemplatePublicationComposer />;
+    case "product-story":
+      return <ProductStory />;
     case "ai-creative":
       return <AICreative />;
     case "recurring-story":

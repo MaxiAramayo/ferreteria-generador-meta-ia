@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-19
+Actualizado: 2026-09-21
 
 ## Fase activa
 
@@ -206,6 +206,17 @@ lubricentro nombra la dirección donde está la fosa y sólo se programa para es
 sucursal, como está aprobado en `KN-004`. Necesita la migración
 `20260919120000_recurring_story_lubricentro_frames` al desplegar. Las decisiones
 están en [`ADR-030`](architecture/decisions/ADR-030-OPENING-STORY-BRAND-ROTATION.md).
+
+`P2-T09` cerró el 2026-09-21, a pedido del usuario: las publicaciones comunes
+ahora arman una historia de producto con foto propia y cuatro marcos —precio
+abajo, etiqueta colgada, tarjeta a la derecha y foto enmarcada— sobre las mismas
+primitivas que la apertura y el lubricentro. El precio lo escribe quien publica
+y **se dibuja en la pieza, nunca en el caption**: un importe en el texto sigue
+exigiendo evidencia vigente del catálogo y la validación previa no cambió. Sin
+precio, la pieza invita a consultarlo. Las decisiones están en
+[`ADR-031`](architecture/decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md). No
+necesita migración: el borrador viaja por el camino de publicación que ya
+existía.
 
 La release `5f36aa9b49c0af1070c29b87154b166f8a2b75c6` se promovió a producción
 el 2026-09-17 tras publicar sus imágenes linux/amd64 en
