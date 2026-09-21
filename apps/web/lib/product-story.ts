@@ -2,6 +2,8 @@ import type { RecurringStoryPhotoPayload } from "@aramayo/contracts";
 import type { DesignDocument } from "@aramayo/design-engine";
 import { parseDesignDocument } from "@aramayo/design-engine/validation";
 
+import { savedPublication } from "./publication-workspace-api.ts";
+
 /**
  * Historia de producto con foto propia (`ADR-031`).
  *
@@ -260,10 +262,9 @@ export async function saveProductStoryDraft(
           "La foto es demasiado pesada. Probá con otra o recortala antes de subirla.",
       };
     }
-    const body = record(await payload(response));
-    const publication = record(body?.["publication"]);
-    return response.ok && typeof publication?.["title"] === "string"
-      ? { kind: "saved", title: publication["title"] }
+    const publication = savedPublication(await payload(response));
+    return response.ok && publication !== null
+      ? { kind: "saved", title: publication.title }
       : {
           kind: "error",
           message: "El borrador no se guardó. Revisá los campos y reintentá.",

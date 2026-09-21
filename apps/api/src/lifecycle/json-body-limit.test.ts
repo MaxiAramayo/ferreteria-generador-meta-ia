@@ -27,6 +27,12 @@ test("sólo las rutas que llevan la foto propia aceptan cuerpos grandes", () => 
     ),
     photoJsonBodyLimitBytes,
   );
+  // Una historia de producto crea la publicación con la foto adentro: sin
+  // esta ruta, guardar el borrador siempre termina en 413 (`ADR-031`).
+  assert.equal(
+    jsonBodyLimitFor("POST", "/publications"),
+    photoJsonBodyLimitBytes,
+  );
   // El login y el resto de las escrituras conservan el límite de Express.
   assert.equal(
     jsonBodyLimitFor("POST", "/auth/login"),
@@ -85,6 +91,11 @@ test("un cuerpo que declara más de lo permitido se rechaza sin leerlo", () => {
     status: 413,
   });
   assert.deepEqual(run("POST", "/scheduling/recurring-stories", 800 * 1024), {
+    nextCalled: true,
+    status: undefined,
+  });
+  // Una foto preparada en el navegador pesa entre 0,4 y 1,5 MB.
+  assert.deepEqual(run("POST", "/publications", 1_500 * 1024), {
     nextCalled: true,
     status: undefined,
   });

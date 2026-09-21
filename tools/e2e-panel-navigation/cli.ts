@@ -413,6 +413,59 @@ async function main(): Promise<void> {
       "la historia de producto compone la foto subida y cambia de marco sin perderla",
     );
 
+    // Guardar de verdad: la foto embebida viaja en el cuerpo del POST y la
+    // API tiene que aceptarla. Con el límite por defecto de 100 KB, este paso
+    // termina en 413 y el borrador no existe.
+    await editorPage
+      .getByLabel("Texto que acompaña")
+      .fill("Pasá por el local y probátelos.");
+    // Lo que respondió la API, para que un rechazo se lea en el fallo y no
+    // haya que adivinarlo desde el aviso del panel.
+    let saveOutcome = "sin respuesta";
+    editorPage.on("response", (response) => {
+      const url = new URL(response.url());
+      if (
+        url.pathname !== "/publications" ||
+        response.request().method() !== "POST"
+      ) {
+        return;
+      }
+      void response
+        .text()
+        .then((body) => {
+          saveOutcome = `${String(response.status())} ${body.slice(0, 400)}`;
+        })
+        .catch(() => {
+          saveOutcome = `${String(response.status())} (sin cuerpo)`;
+        });
+    });
+    await editorPage.getByRole("button", { name: "Guardar borrador" }).click();
+    // El aviso dice qué pasó: esperar sólo el éxito convertiría cualquier
+    // rechazo de la API en un timeout sin motivo.
+    const productNotice = editorPage
+      .locator('[data-variant="product-story"] [role="status"]')
+      .first();
+    await productNotice.waitFor({ timeout: uiTimeoutMs });
+    await editorPage.waitForFunction(
+      () =>
+        !(
+          document.querySelector(
+            '[data-variant="product-story"] [role="status"]',
+          )?.textContent ?? "Guardando"
+        ).includes("Guardando"),
+      undefined,
+      { timeout: uiTimeoutMs },
+    );
+    const savedNotice = (await productNotice.textContent()) ?? "";
+    assert.match(
+      savedNotice,
+      /Borrador guardado como/u,
+      `Guardar la historia de producto falló: ${savedNotice} — la API respondió ${saveOutcome}`,
+    );
+    reportCheck(
+      "guardar la historia de producto deja el borrador con su foto embebida",
+    );
+
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
     await editorPage
       .getByRole("navigation", { name: "Publicaciones" })

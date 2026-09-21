@@ -687,6 +687,7 @@ evidencia que protege a los precios citables.
 
 - [x] Prueba de `productStoryDocument` y `saveProductStoryDraft` sobre los
       cuatro marcos, el precio anterior huérfano y el caption sin importe.
+- [x] E2E que guarda el borrador de verdad, con la foto embebida en el cuerpo.
 - [x] Regresión visual de los cuatro layouts nuevos.
 - [x] `pnpm verify` completo.
 
@@ -709,6 +710,15 @@ evidencia que protege a los precios citables.
   esas primitivas se ve en las tres historias a la vez.
 - El dueño aprobó los cuatro marcos sobre los renders del motor real, incluidas
   dos variantes sin precio.
+- 2026-09-21, revisión posterior al merge: guardar el borrador **no funcionaba**
+  y el E2E no lo cubría porque componía la vista previa sin apretar «Guardar».
+  Dos defectos encadenados: `POST /publications` conservaba el límite de 100 KB
+  —una historia de producto crea la publicación con la foto adentro, no la
+  materializa— y el panel leía la respuesta con una forma inventada
+  (`{publication:{title}}`), así que avisaba «no se guardó» sobre un `201`. Lo
+  segundo es peor que lo primero: invita a reintentar y a duplicar borradores.
+  Ahora el E2E guarda de verdad, y la lectura de la respuesta vive en un solo
+  lugar (`savedPublication`).
 
 ### Evidencia de cierre
 
