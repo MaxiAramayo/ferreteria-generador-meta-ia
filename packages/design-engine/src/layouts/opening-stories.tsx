@@ -679,7 +679,7 @@ function FeatureList({
       data-opening-features=""
       style={{
         display: "grid",
-        gap: 10,
+        gap: 6,
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
       }}
     >
@@ -691,21 +691,21 @@ function FeatureList({
             alignItems: "center",
             color: palette.plateText,
             display: "flex",
-            gap: 10,
+            gap: 8,
           }}
         >
           <span style={{ display: "grid", flexShrink: 0 }}>
             <Icon
               color={palette.icon}
               name={feature.icon}
-              size={32}
+              size={24}
               strokeWidth={2.4}
             />
           </span>
           <span
             style={{
               fontFamily: TYPOGRAPHY.body.cssStack,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FONT_WEIGHTS.extrabold,
               lineHeight: 1.05,
               minWidth: 0,
@@ -720,9 +720,15 @@ function FeatureList({
 }
 
 /** Tilde dibujada: el glifo ✓ no está en las fuentes de la marca. */
-function CheckMark({ color }: { readonly color: string }): ReactElement {
+function CheckMark({
+  color,
+  size = 20,
+}: {
+  readonly color: string;
+  readonly size?: number | undefined;
+}): ReactElement {
   return (
-    <svg aria-hidden="true" height={20} viewBox="0 0 24 24" width={20}>
+    <svg aria-hidden="true" height={size} viewBox="0 0 24 24" width={size}>
       <path
         d="M4 12.5l5 5L20 6.5"
         fill="none"
@@ -738,9 +744,11 @@ function CheckMark({ color }: { readonly color: string }): ReactElement {
 /** Argumentos secundarios: una línea chica, sin recuadro. */
 function Highlights({
   color,
+  compact = false,
   highlights,
 }: {
   readonly color: string;
+  readonly compact?: boolean | undefined;
   readonly highlights: readonly string[];
 }): ReactElement {
   return (
@@ -751,11 +759,11 @@ function Highlights({
         color,
         // Los tres argumentos entran en un renglón incluso dentro de la
         // tarjeta baja, que es más angosta que la placa.
-        columnGap: 14,
+        columnGap: compact ? 12 : 14,
         display: "flex",
         flexWrap: "wrap",
         fontFamily: TYPOGRAPHY.body.cssStack,
-        fontSize: 22,
+        fontSize: compact ? 19 : 22,
         fontWeight: FONT_WEIGHTS.semibold,
         lineHeight: 1.2,
         margin: 0,
@@ -772,7 +780,7 @@ function Highlights({
             whiteSpace: "nowrap",
           }}
         >
-          <CheckMark color={color} />
+          <CheckMark color={color} size={compact ? 16 : 20} />
           {highlight}
         </span>
       ))}
@@ -781,10 +789,12 @@ function Highlights({
 }
 
 function DetailRow({
+  compact = false,
   entry,
   icon,
   palette,
 }: {
+  readonly compact?: boolean | undefined;
   readonly entry: string;
   readonly icon: IconName;
   readonly palette: OpeningPalette;
@@ -798,16 +808,21 @@ function DetailRow({
         alignItems: "center",
         color: palette.plateText,
         display: "flex",
-        gap: 16,
+        gap: compact ? 10 : 16,
       }}
     >
       <span style={{ display: "grid", flexShrink: 0 }}>
-        <Icon color={palette.icon} name={icon} size={32} strokeWidth={2.6} />
+        <Icon
+          color={palette.icon}
+          name={icon}
+          size={compact ? 22 : 32}
+          strokeWidth={2.6}
+        />
       </span>
       <span
         style={{
           fontFamily: TYPOGRAPHY.body.cssStack,
-          fontSize: 27,
+          fontSize: compact ? 20 : 27,
           fontWeight: FONT_WEIGHTS.semibold,
           lineHeight: 1.16,
           minWidth: 0,
@@ -830,18 +845,35 @@ function DetailRow({
 
 /** Sucursales y horario: la información práctica, en chico. */
 function PracticalInfo({
+  compact = false,
   items,
   palette,
   validity,
 }: {
+  readonly compact?: boolean | undefined;
   readonly items: readonly string[];
   readonly palette: OpeningPalette;
   readonly validity: string | undefined;
 }): ReactElement {
   return (
-    <div data-opening-info="" style={{ display: "grid", gap: 6 }}>
+    <div
+      data-opening-info=""
+      style={
+        compact
+          ? {
+              // En la tarjeta baja las sucursales comparten renglón si entran:
+              // cada uno que se ahorra es foto que se ve.
+              columnGap: 18,
+              display: "flex",
+              flexWrap: "wrap",
+              rowGap: 4,
+            }
+          : { display: "grid", gap: 4 }
+      }
+    >
       {items.slice(0, 3).map((entry) => (
         <DetailRow
+          compact={compact}
           entry={entry}
           icon={validity === undefined ? "reloj" : "ubicacion"}
           key={entry}
@@ -849,7 +881,12 @@ function PracticalInfo({
         />
       ))}
       {validity === undefined ? null : (
-        <DetailRow entry={validity} icon="reloj" palette={palette} />
+        <DetailRow
+          compact={compact}
+          entry={validity}
+          icon="reloj"
+          palette={palette}
+        />
       )}
     </div>
   );
@@ -878,8 +915,8 @@ function ContactBar({
         color: accent.ctaText,
         display: "grid",
         fontFamily: TYPOGRAPHY.display.cssStack,
-        gap: 6,
-        padding: "12px 32px 14px",
+        gap: 4,
+        padding: "10px 30px 12px",
         textTransform: "uppercase",
       }}
     >
@@ -911,6 +948,74 @@ function ContactBar({
             color={accent.ctaText}
             name="telefono"
             size={50}
+            strokeWidth={2.8}
+          />
+          {phone}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Contacto en un solo renglón, para la tarjeta baja: la acción y el número
+ * juntos y chicos, para que la tarjeta arranque lo más abajo posible.
+ */
+function InlineContact({
+  accent,
+  callToAction,
+  phone,
+}: {
+  readonly accent: AccentColors;
+  readonly callToAction: string | undefined;
+  readonly phone: string;
+}): ReactElement {
+  return (
+    <div
+      data-cta=""
+      data-role="cta"
+      style={{
+        alignItems: "center",
+        backgroundColor: accent.ctaBackground,
+        borderRadius: 14,
+        color: accent.ctaText,
+        display: "flex",
+        flexWrap: "wrap",
+        fontFamily: TYPOGRAPHY.display.cssStack,
+        gap: 14,
+        justifyContent: "center",
+        padding: "10px 20px 12px",
+        textTransform: "uppercase",
+      }}
+    >
+      {callToAction === undefined ? null : (
+        <span
+          style={{
+            fontSize: 34,
+            fontWeight: FONT_WEIGHTS.extrabold,
+            lineHeight: 1,
+          }}
+        >
+          {callToAction}
+        </span>
+      )}
+      {phone.length === 0 ? null : (
+        <span
+          data-opening-phone=""
+          style={{
+            alignItems: "center",
+            display: "flex",
+            fontSize: 38,
+            fontWeight: FONT_WEIGHTS.black,
+            gap: 10,
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <Icon
+            color={accent.ctaText}
+            name="telefono"
+            size={30}
             strokeWidth={2.8}
           />
           {phone}
@@ -1235,9 +1340,14 @@ function FrameDetails({
         <FeatureGrid features={features} palette={palette} />
       )}
       {highlights.length === 0 ? null : (
-        <Highlights color={palette.plateText} highlights={highlights} />
+        <Highlights
+          color={palette.plateText}
+          compact={compact}
+          highlights={highlights}
+        />
       )}
       <PracticalInfo
+        compact={compact}
         items={content.items ?? []}
         palette={palette}
         validity={content.validity}
@@ -1275,11 +1385,11 @@ function BottomCard({
         color: palette.plateText,
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 10,
         // Empuja la tarjeta al pie de la zona segura.
         marginTop: "auto",
         overflow: "hidden",
-        padding: lubricentro ? "32px 24px 22px" : "22px 24px",
+        padding: lubricentro ? "30px 22px 18px" : "18px 22px",
         position: "relative",
       }}
     >
@@ -1320,7 +1430,7 @@ export function HistoriaMarcoPlaca(props: LayoutProps): ReactElement {
         />
         <BottomCard palette={palette} theme={theme}>
           <FrameDetails compact content={content} palette={palette} />
-          <ContactBar
+          <InlineContact
             accent={accent}
             callToAction={content.callToAction}
             phone={context.brand.phone}
