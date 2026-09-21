@@ -78,14 +78,15 @@ diseños del sistema.
    El caption, la validación previa y la invalidación por cambio de horario
    siguen saliendo de la fuente factual; la imagen, en cambio, no se corrige
    sola si el horario cambia.
-10. La foto se prepara en el navegador —hasta 1080×1920, JPEG, sin metadatos,
+10. La foto se prepara en el navegador —hasta 1440×2560, JPEG, sin metadatos,
     lo que también quita la ubicación GPS de una foto de celular— y se guarda
-    embebida como `data:` en la regla y en cada borrador. Se prefirió a un
+    embebida como `data:` en la regla y en cada borrador. Se guarda un tercio
+    más grande que la historia para que acercarla en el panel siga mostrando
+    píxeles de verdad; el costo es una copia de 0,4 a 1,5 MB por borrador. Se prefirió a un
     `MediaAsset` en Cloudinary porque no necesita un circuito asíncrono nuevo
     ni llevar credenciales de Cloudinary fuera del worker, y porque el
-    documento embebido se recompone igual aunque la URL cambie. El costo es una
-    copia por borrador, de 200 a 800 KB, y respuestas idempotentes de hasta
-    4 MB. La API acepta cuerpos de hasta 4 MB sólo en las tres rutas que llevan
+    documento embebido se recompone igual aunque la URL cambie. El costo es esa
+    copia por borrador y respuestas idempotentes de hasta 4 MB. La API acepta cuerpos de hasta 4 MB sólo en las tres rutas que llevan
     la foto; el resto conserva 100 KB, incluido el login. La API y el motor
     comprueban que los bytes sean de verdad el JPEG o PNG que declaran. Se
     revisa si entra otra persona a operar o si la base crece más de lo
@@ -144,7 +145,12 @@ imágenes».
     vigente de esa sucursal, con el botón «Pedí tu turno»: el turno se toma por
     WhatsApp o en el local (`KN-002`). Sin foto propia usa la del mostrador de
     lubricantes de la biblioteca.
-18. Ninguna pieza rotula su foto como ilustrativa. Es una decisión del dueño del
+18. Los datos de un marco se apoyan en una tarjeta que no llega al borde del
+    lienzo: la foto sigue detrás y debajo. Con la tarjeta abajo del todo, de una
+    foto vertical se ven la cara y las patas de la gata, y del taller, el piso
+    y la fosa. Es lo que pidió el dueño el 2026-09-20: «que la gata se vea
+    bien», porque ocupa la mayor parte de la historia.
+19. Ninguna pieza rotula su foto como ilustrativa. Es una decisión del dueño del
     2026-09-19: la aclaración le resta a la historia y la foto es material suyo,
     no una afirmación del sistema.
 

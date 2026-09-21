@@ -162,17 +162,20 @@ test("la imagen propia sin imagen y una sucursal sin horario no inventan una his
 });
 
 test("una foto se achica sin deformarse y nunca se agranda", () => {
-  assert.deepEqual(fitWithin(3024, 4032), { height: 1440, width: 1080 });
-  assert.deepEqual(fitWithin(4032, 3024), { height: 810, width: 1080 });
-  assert.deepEqual(fitWithin(1080, 1920), { height: 1920, width: 1080 });
+  // La foto se guarda un tercio más grande que la historia: acercarla sigue
+  // mostrando píxeles de verdad.
+  assert.deepEqual(fitWithin(3024, 4032), { height: 1920, width: 1440 });
+  assert.deepEqual(fitWithin(4032, 3024), { height: 1080, width: 1440 });
+  assert.deepEqual(fitWithin(1440, 2560), { height: 2560, width: 1440 });
   assert.deepEqual(fitWithin(600, 800), { height: 800, width: 600 });
 });
 
 test("se elige la mejor calidad que entra en el límite", () => {
   const sizes = new Map([
-    [0.86, 5_000],
-    [0.74, 3_000],
-    [0.62, 1_000],
+    [0.9, 5_000],
+    [0.8, 3_000],
+    [0.7, 2_000],
+    [0.6, 1_000],
   ]);
   const encode = (quality: number): string =>
     "x".repeat(sizes.get(quality) ?? 0);
