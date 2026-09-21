@@ -30,7 +30,7 @@
     "    @72,361 936×81 div",
     "      @72,361 936×81 h1[data-opening-headline] «Taladro percutor 650 W» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 94px · font-weight 900 · letter-spacing -1px · line-height 80.84px · text-transform uppercase",
     "    @72,462 936×82 p[data-opening-subline] «Consultá modelos disponibles, accesorios y mechas para cada trabajo.» 2 líneas · font-size 34px · font-weight 700 · line-height 40.8px",
-    "    @736,568 272×406 aside[data-frame-card][data-panel] · background-color rgb(182, 42, 18) · box-shadow rgba(13, 13, 13, 0.28) 0px 12px 32px 0px · overflow-x hidden · overflow-y hidden · border-radius 22px",
+    "    @736,568 272×406 aside[data-frame-card=esquina][data-panel] · background-color rgb(182, 42, 18) · box-shadow rgba(13, 13, 13, 0.28) 0px 12px 32px 0px · overflow-x hidden · overflow-y hidden · border-radius 22px",
     "      @736,568 272×294 div",
     "        @756,592 232×32 div[data-opening-detail]",
     "          @756,592 30×32 span",

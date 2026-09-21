@@ -85,8 +85,9 @@ const frames: Readonly<
       value: "cartel",
     },
     {
-      description: "La foto a pantalla completa, con los datos en una placa.",
-      label: "Placa abajo",
+      description:
+        "La foto entera, con los datos en una tarjeta abajo del todo.",
+      label: "Datos abajo",
       value: "placa",
     },
     {
@@ -108,8 +109,9 @@ const frames: Readonly<
       value: "ventana",
     },
     {
-      description: "La foto a pantalla completa, con los datos en una placa.",
-      label: "Placa abajo",
+      description:
+        "La foto entera, con los datos en una tarjeta abajo del todo.",
+      label: "Datos abajo",
       value: "placa",
     },
     {

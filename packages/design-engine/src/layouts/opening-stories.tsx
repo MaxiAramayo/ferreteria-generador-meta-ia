@@ -663,6 +663,62 @@ function FeatureGrid({
   );
 }
 
+/**
+ * Rubros o servicios en una tarjeta baja: los mismos datos sin recuadro, para
+ * que la tarjeta ocupe lo mínimo y la foto se vea entera.
+ */
+function FeatureList({
+  features,
+  palette,
+}: {
+  readonly features: readonly DesignFeature[];
+  readonly palette: OpeningPalette;
+}): ReactElement {
+  return (
+    <div
+      data-opening-features=""
+      style={{
+        display: "grid",
+        gap: 10,
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+      }}
+    >
+      {features.slice(0, 6).map((feature) => (
+        <div
+          data-opening-feature=""
+          key={feature.label}
+          style={{
+            alignItems: "center",
+            color: palette.plateText,
+            display: "flex",
+            gap: 10,
+          }}
+        >
+          <span style={{ display: "grid", flexShrink: 0 }}>
+            <Icon
+              color={palette.icon}
+              name={feature.icon}
+              size={32}
+              strokeWidth={2.4}
+            />
+          </span>
+          <span
+            style={{
+              fontFamily: TYPOGRAPHY.body.cssStack,
+              fontSize: 24,
+              fontWeight: FONT_WEIGHTS.extrabold,
+              lineHeight: 1.05,
+              minWidth: 0,
+            }}
+          >
+            {feature.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Tilde dibujada: el glifo ✓ no está en las fuentes de la marca. */
 function CheckMark({ color }: { readonly color: string }): ReactElement {
   return (
@@ -693,11 +749,13 @@ function Highlights({
       style={{
         alignItems: "center",
         color,
-        columnGap: 16,
+        // Los tres argumentos entran en un renglón incluso dentro de la
+        // tarjeta baja, que es más angosta que la placa.
+        columnGap: 14,
         display: "flex",
         flexWrap: "wrap",
         fontFamily: TYPOGRAPHY.body.cssStack,
-        fontSize: 23,
+        fontSize: 22,
         fontWeight: FONT_WEIGHTS.semibold,
         lineHeight: 1.2,
         margin: 0,
@@ -1047,44 +1105,6 @@ function SafetyStripe({
   );
 }
 
-/** Borde ondulado del cartel, ahora como remate de la placa de datos. */
-function PlateWave({ color }: { readonly color: string }): ReactElement {
-  return (
-    <svg
-      aria-hidden="true"
-      data-plate-wave=""
-      height={40}
-      preserveAspectRatio="none"
-      style={{ left: 0, position: "absolute", top: -39 }}
-      viewBox="0 0 1080 40"
-      width="100%"
-    >
-      <path
-        d="M0 40V21C190 2 352 10 548 22C742 34 918 3 1080 19V40Z"
-        fill={color}
-      />
-    </svg>
-  );
-}
-
-/**
- * El remate de la placa según la marca: la franja de la fosa en el lubricentro
- * y la onda del cartel en la ferretería.
- */
-function PlateEdge({
-  palette,
-  theme,
-}: {
-  readonly palette: OpeningPalette;
-  readonly theme: Theme;
-}): ReactElement {
-  return theme.brand === "lubricentro" ? (
-    <SafetyStripe />
-  ) : (
-    <PlateWave color={palette.plate} />
-  );
-}
-
 /**
  * Hasta dónde llega el tramo denso del velo: un poco más abajo que la bajada de
  * cada cabecera. Después se desvanece en `frameVeilFade`, para oscurecer lo
@@ -1199,13 +1219,19 @@ function FrameHeader({
 }
 
 /** Rubros o servicios, argumentos y datos prácticos, a lo ancho. */
-function FrameDetails({ content, palette }: FrameBlockProps): ReactElement {
+function FrameDetails({
+  compact = false,
+  content,
+  palette,
+}: FrameBlockProps & { readonly compact?: boolean | undefined }): ReactElement {
   const features = content.features ?? [];
   const highlights = content.highlights ?? [];
 
   return (
     <>
-      {features.length === 0 ? null : (
+      {features.length === 0 ? null : compact ? (
+        <FeatureList features={features} palette={palette} />
+      ) : (
         <FeatureGrid features={features} palette={palette} />
       )}
       {highlights.length === 0 ? null : (
@@ -1221,8 +1247,52 @@ function FrameDetails({ content, palette }: FrameBlockProps): ReactElement {
 }
 
 /**
+ * Tarjeta de datos apoyada abajo del todo.
+ *
+ * No llega al borde del lienzo: la foto sigue detrás y debajo, así que lo que
+ * quede bajo la tarjeta —las patas de la gata, el piso del taller— se sigue
+ * viendo. Ocupa lo mínimo que necesitan los datos.
+ */
+function BottomCard({
+  children,
+  palette,
+  theme,
+}: {
+  readonly children: ReactNode;
+  readonly palette: OpeningPalette;
+  readonly theme: Theme;
+}): ReactElement {
+  const lubricentro = theme.brand === "lubricentro";
+
+  return (
+    <aside
+      data-frame-card="abajo"
+      data-panel=""
+      style={{
+        backgroundColor: palette.plate,
+        borderRadius: 24,
+        boxShadow: liftShadow,
+        color: palette.plateText,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        // Empuja la tarjeta al pie de la zona segura.
+        marginTop: "auto",
+        overflow: "hidden",
+        padding: lubricentro ? "32px 24px 22px" : "22px 24px",
+        position: "relative",
+      }}
+    >
+      {lubricentro ? <SafetyStripe style={{ top: 0 }} /> : null}
+      {children}
+    </aside>
+  );
+}
+
+/**
  * Marco «placa»: la foto a sangre con la cabecera arriba y los datos en una
- * placa abajo. Sirve cuando lo importante de la foto está arriba o al medio.
+ * tarjeta apoyada abajo del todo. Sirve cuando lo importante de la foto está
+ * arriba o al medio, y deja ver lo que pasa por debajo de la tarjeta.
  */
 export function HistoriaMarcoPlaca(props: LayoutProps): ReactElement {
   const { content, context, document, format, theme } = props;
@@ -1248,20 +1318,14 @@ export function HistoriaMarcoPlaca(props: LayoutProps): ReactElement {
           palette={palette}
           theme={theme}
         />
-        <div style={{ flex: "1 1 auto", minHeight: 160 }} />
-        <Plate
-          format={format}
-          palette={palette}
-          style={{ gap: 12, paddingTop: 30 }}
-        >
-          <PlateEdge palette={palette} theme={theme} />
-          <FrameDetails content={content} palette={palette} />
+        <BottomCard palette={palette} theme={theme}>
+          <FrameDetails compact content={content} palette={palette} />
           <ContactBar
             accent={accent}
             callToAction={content.callToAction}
             phone={context.brand.phone}
           />
-        </Plate>
+        </BottomCard>
       </SafeArea>
     </>
   );
@@ -1439,7 +1503,7 @@ function CornerCard({
 
   return (
     <aside
-      data-frame-card=""
+      data-frame-card="esquina"
       data-panel=""
       style={{
         alignSelf: "flex-end",

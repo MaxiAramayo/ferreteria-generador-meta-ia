@@ -10,11 +10,18 @@ import { recurringStoryPhotoLimits } from "@aramayo/domain";
  * que entra en cada borrador (`ADR-030`).
  */
 
-export const openingPhotoBounds = Object.freeze({ height: 1920, width: 1080 });
+/**
+ * Tamaño con el que se guarda la foto.
+ *
+ * La historia se renderiza a 1080×1920, así que con ese tamaño alcanzaría para
+ * verla nítida sin acercar. Se guarda un tercio más grande para que acercarla
+ * hasta el 135 % siga mostrando píxeles de verdad y no un estirón.
+ */
+export const openingPhotoBounds = Object.freeze({ height: 2560, width: 1440 });
 
 /** Un archivo más pesado que esto no se intenta abrir. */
 const sourceBytesMaximum = 25 * 1024 * 1024;
-const qualities = Object.freeze([0.86, 0.74, 0.62]);
+const qualities = Object.freeze([0.9, 0.8, 0.7, 0.6]);
 
 export const defaultOpeningPhotoAlt = "Foto propia de la historia";
 

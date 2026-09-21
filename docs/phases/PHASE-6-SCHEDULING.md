@@ -1315,7 +1315,7 @@ pedir un diseño nuevo por cada imagen.
 
 ### Notas de progreso
 
-- Fecha: 2026-09-19.
+- Fecha: 2026-09-20.
 - Estado real: completada. Pedido del usuario del 2026-09-19, con dos fotos del
   lubricentro —una camioneta en la fosa y una moto en el cambio de aceite— y la
   jerarquía escrita para «Ya abrimos».
@@ -1333,6 +1333,10 @@ pedir un diseño nuevo por cada imagen.
   `pnpm e2e:recurring-story` —catorce comprobaciones en Chrome real, con el
   encuadre arrastrado— y `pnpm visual:regression`, en verde el 2026-09-20.
   Revisión visual del panel en escritorio y teléfono, sin desborde horizontal.
+- Ajuste posterior del mismo día, pedido sobre los renders: los datos de los
+  marcos «datos abajo» y «tarjeta a la derecha» viven en una tarjeta que no
+  llega al borde, así la foto se ve entera —la gata con su chaleco y sus patas—
+  y la foto se guarda a 1440×2560 para que acercarla no la ablande.
 
 ### Evidencia de cierre
 

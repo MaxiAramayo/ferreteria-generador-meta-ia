@@ -336,17 +336,20 @@ test("cada marco del lubricentro lleva su cartel, sus servicios y su turno", () 
   }
 });
 
-test("el marco de la esquina deja libre el pie de la foto", () => {
+test("cada marco apoya su tarjeta donde dice su nombre", () => {
   const corner = openingMarkup(
     openingDocument("historia-apertura-esquina", {}),
   );
-  const plate = openingMarkup(openingDocument("historia-apertura-placa", {}));
+  const bottom = openingMarkup(openingDocument("historia-apertura-placa", {}));
+  const band = openingMarkup(openingDocument("historia-apertura-cartel", {}));
 
-  // La tarjeta se apoya arriba a la derecha; la placa ocupa el ancho abajo.
-  assert.match(corner, /data-frame-card=""/u);
+  assert.match(corner, /data-frame-card="esquina"/u);
+  assert.match(bottom, /data-frame-card="abajo"/u);
+  // Ninguna de las dos tarjetas llega al borde del lienzo: la foto sigue
+  // detrás y debajo. La banda, en cambio, sí apoya su placa en el borde.
   assert.ok(!corner.includes('data-opening-plate=""'));
-  assert.match(plate, /data-opening-plate=""/u);
-  assert.ok(!plate.includes('data-frame-card=""'));
+  assert.ok(!bottom.includes('data-opening-plate=""'));
+  assert.match(band, /data-opening-plate=""/u);
 });
 
 test("una apertura sin saludo ancla la localidad del perfil", () => {

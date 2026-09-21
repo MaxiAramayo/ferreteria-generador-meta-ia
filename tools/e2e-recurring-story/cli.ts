@@ -562,7 +562,7 @@ async function main(): Promise<void> {
         .getByRole("heading", { name: "Editá lo que verá tu cliente." })
         .waitFor({ timeout: startupTimeoutMs });
       await page.getByLabel("Titular").fill("¡Abrimos temprano!");
-      await page.getByText("Placa abajo", { exact: true }).click();
+      await page.getByText("Datos abajo", { exact: true }).click();
       await page.getByText("Claro", { exact: true }).click();
       const saveDraftResponse = page.waitForResponse(
         (response) =>
