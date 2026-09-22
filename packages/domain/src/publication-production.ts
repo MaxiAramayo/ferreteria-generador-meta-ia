@@ -85,12 +85,44 @@ export type ApprovePublicationResult =
   | Readonly<{ status: "invalid-state" }>
   | Readonly<{ status: "not-found" }>;
 
+/**
+ * Eliminar para siempre una pieza que no va a publicarse.
+ *
+ * Borra de verdad: la pieza, sus revisiones y la foto embebida que llevan
+ * adentro. Lo único que sobrevive es el renglón de auditoría, que dice quién
+ * la eliminó y cuándo —un registro de la acción, no una copia de la pieza.
+ *
+ * Sólo alcanza a lo que nunca fue evidencia: sin aprobación, sin programación
+ * y sin orden de publicación. Una pieza aprobada o publicada no se elimina
+ * desde acá; sacarla exige reconciliar lo que ya salió.
+ */
+export interface DeletePublicationInput {
+  readonly actorMembershipId: string;
+  readonly expectedVersion: number;
+  readonly organizationId: string;
+  readonly publicationId: string;
+  readonly reliableOperation: ReliableMutationContext;
+}
+
+export type DeletePublicationResult =
+  | Readonly<{
+      publicationId: string;
+      replayed?: true;
+      status: "deleted";
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "not-found" }>;
+
 export interface PublicationProductionRepository {
   approve(input: ApprovePublicationInput): Promise<ApprovePublicationResult>;
   completeRender(
     job: PublicationRenderJob,
     output: PublicationRenderOutput,
   ): Promise<PublicationRenderCompletionResult>;
+  delete(input: DeletePublicationInput): Promise<DeletePublicationResult>;
   failRender(
     input: PublicationRenderFailureInput,
   ): Promise<PublicationRenderCompletionResult>;

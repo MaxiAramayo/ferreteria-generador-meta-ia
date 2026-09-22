@@ -1,5 +1,6 @@
 import type {
   PublicationApprovalResponse,
+  PublicationDeleteResponse,
   PublicationRenderRequestResponse,
 } from "@aramayo/contracts";
 import {
@@ -78,6 +79,61 @@ export class PublicationProductionService {
       case "invalid-state":
         throw new ConflictException(
           "La publicación no admite render en su estado actual.",
+        );
+      case "not-found":
+        throw new NotFoundException("No se encontró la publicación.");
+    }
+  }
+
+  /**
+   * Eliminar para siempre una pieza que no va a publicarse.
+   *
+   * Requiere `content:edit`, igual que crearla: quien puede armar un borrador
+   * puede tirarlo. No alcanza a una pieza aprobada o publicada; ahí el
+   * repositorio responde `invalid-state` y la pieza queda como está.
+   */
+  async delete(
+    actor: AuthenticatedActor,
+    publicationId: string,
+    expectedVersion: number,
+    idempotencyKey?: string,
+  ): Promise<PublicationDeleteResponse> {
+    this.#require(actor, "content:edit");
+    const reliableOperation = this.#prepare(
+      actor,
+      "content.publication:delete",
+      idempotencyKey,
+      { expectedVersion, publicationId },
+    );
+    const result = await this.#repository.delete({
+      actorMembershipId: actor.membershipId,
+      expectedVersion,
+      organizationId: actor.organizationId,
+      publicationId,
+      reliableOperation,
+    });
+    switch (result.status) {
+      case "deleted":
+        return Object.freeze({
+          publicationId: result.publicationId,
+          status: result.status,
+        });
+      case "conflict":
+        throw new ConflictException(
+          "La publicación cambió. Recargá antes de eliminarla.",
+        );
+      case "idempotency-conflict":
+        throw new ConflictException(
+          "La clave idempotente ya fue usada con otra solicitud.",
+        );
+      case "in-progress":
+        throw new ConflictException({
+          message: "La misma eliminación todavía está en curso.",
+          retryAfter: result.retryAfter,
+        });
+      case "invalid-state":
+        throw new ConflictException(
+          "Una pieza aprobada, programada o publicada no se elimina: ya es evidencia de lo que salió.",
         );
       case "not-found":
         throw new NotFoundException("No se encontró la publicación.");

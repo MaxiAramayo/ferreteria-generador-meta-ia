@@ -49,7 +49,9 @@ function PublicationComposerProvider({
   readonly canEdit: boolean;
   readonly canSchedule: boolean;
   readonly children: ReactNode;
-  readonly onDraftSaved: (title: string) => void;
+  readonly onDraftSaved: (
+    publication: Readonly<{ id: string; title: string }>,
+  ) => void;
   readonly variant: PublicationComposerVariant;
 }) {
   const [draft, setState] = useState<ComposerDraft>({
@@ -146,7 +148,7 @@ function PublicationComposerProvider({
         switch (result.kind) {
           case "saved":
             idempotencyKey.current = null;
-            onDraftSaved(result.publication.title);
+            onDraftSaved(result.publication);
             setState((current) => ({
               ...current,
               notice: `Borrador guardado como “${result.publication.title}”.`,

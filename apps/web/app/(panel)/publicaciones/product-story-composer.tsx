@@ -32,7 +32,7 @@ export function ProductStoryComposer({
 }: Readonly<{
   apiBaseUrl: string;
   canEdit: boolean;
-  onDraftSaved: (title: string) => void;
+  onDraftSaved: (publication: Readonly<{ id: string; title: string }>) => void;
 }>) {
   const photoInputId = useId();
   const [draft, setDraft] = useState<ProductStoryDraft>(emptyProductStoryDraft);
@@ -98,8 +98,8 @@ export function ProductStoryComposer({
       startTransition(() => {
         setSaving(false);
         if (result.kind === "saved") {
-          onDraftSaved(result.title);
-          setNotice(`Borrador guardado como “${result.title}”.`);
+          onDraftSaved(result.publication);
+          setNotice(`Borrador guardado como “${result.publication.title}”.`);
           return;
         }
         setNotice(

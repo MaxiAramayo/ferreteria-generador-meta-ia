@@ -173,7 +173,10 @@ export function productStoryDocument(
 export type ProductStorySaveResult =
   | Readonly<{ kind: "forbidden" }>
   | Readonly<{ kind: "error"; message: string }>
-  | Readonly<{ kind: "saved"; title: string }>;
+  | Readonly<{
+      kind: "saved";
+      publication: Readonly<{ id: string; title: string }>;
+    }>;
 
 async function payload(response: Response): Promise<unknown> {
   try {
@@ -264,7 +267,7 @@ export async function saveProductStoryDraft(
     }
     const publication = savedPublication(await payload(response));
     return response.ok && publication !== null
-      ? { kind: "saved", title: publication.title }
+      ? { kind: "saved", publication }
       : {
           kind: "error",
           message: "El borrador no se guardó. Revisá los campos y reintentá.",

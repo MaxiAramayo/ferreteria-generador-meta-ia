@@ -130,7 +130,13 @@ test("guardar manda la foto embebida con su encuadre y un caption sin precio", a
     title: "Guantes de trabajo",
   });
 
-  assert.deepEqual(result, { kind: "saved", title: "Guantes de trabajo" });
+  assert.deepEqual(result, {
+    kind: "saved",
+    publication: {
+      id: "904729f9-07a2-46aa-9342-7f17e4a953cd",
+      title: "Guantes de trabajo",
+    },
+  });
   const saveCall = calls[1];
   assert.ok(saveCall);
   assert.equal(saveCall.path, "/publications");

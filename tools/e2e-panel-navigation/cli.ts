@@ -15,7 +15,8 @@
  * - **moverse**: desde cualquier pantalla, Configuración y Cuenta incluidas, se
  *   llega a las demás sin escribir la dirección;
  * - **cada flujo compone**: la historia de producto arma la pieza con la foto
- *   que se sube y cambia de marco sin perderla;
+ *   que se sube, cambia de marco sin perderla, y al guardar el panel lleva a
+ *   la pieza con su PNG listo para aprobar;
  * - **salir**: cerrar sesión la revoca en la API;
  * - **API caída**: el panel lo dice en vez de mandar a iniciar sesión.
  *
@@ -440,44 +441,40 @@ async function main(): Promise<void> {
         });
     });
     await editorPage.getByRole("button", { name: "Guardar borrador" }).click();
-    // El aviso dice qué pasó: esperar sólo el éxito convertiría cualquier
-    // rechazo de la API en un timeout sin motivo.
+    // Guardar termina en la pieza: el panel navega solo. Si no navega, el
+    // aviso del compositor dice por qué, en vez de dejar un timeout mudo.
     const productNotice = editorPage
       .locator('[data-variant="product-story"] [role="status"]')
       .first();
-    await productNotice.waitFor({ timeout: uiTimeoutMs });
-    await editorPage.waitForFunction(
-      () =>
-        !(
-          document.querySelector(
-            '[data-variant="product-story"] [role="status"]',
-          )?.textContent ?? "Guardando"
-        ).includes("Guardando"),
-      undefined,
-      { timeout: uiTimeoutMs },
-    );
-    const savedNotice = (await productNotice.textContent()) ?? "";
-    assert.match(
-      savedNotice,
-      /Borrador guardado como/u,
-      `Guardar la historia de producto falló: ${savedNotice} — la API respondió ${saveOutcome}`,
-    );
-    reportCheck(
-      "guardar la historia de producto deja el borrador con su foto embebida",
-    );
-
-    assert.equal((await navigation(editorPage)).current, "Publicaciones");
-    await editorPage
-      .getByRole("navigation", { name: "Publicaciones" })
-      .getByRole("link", { name: "Listado" })
-      .click();
-    await editorPage.waitForURL(`${webBaseUrl}/publicaciones`, {
-      waitUntil: "commit",
-    });
+    try {
+      await editorPage.waitForURL(/\/publicaciones\?revisar=/u, {
+        timeout: uiTimeoutMs,
+      });
+    } catch (cause) {
+      const notice = (await productNotice.textContent()) ?? "(sin aviso)";
+      throw new Error(
+        `Guardar la historia de producto falló: ${notice} — la API respondió ${saveOutcome}`,
+        cause instanceof Error ? { cause } : undefined,
+      );
+    }
     await waitForHeading(
       editorPage,
       "De la idea al borrador, sin saltos ocultos.",
     );
+    reportCheck(
+      "guardar la historia de producto lleva a la pieza, con su foto embebida",
+    );
+
+    // El PNG se pide solo al llegar: sin esto habría que pedirlo a mano,
+    // esperar y abrirlo, que es justo el ir y venir que se quería sacar.
+    await editorPage
+      .getByText("PNG pedido. El estado se actualiza solo cuando esté listo.")
+      .waitFor({ timeout: uiTimeoutMs });
+    reportCheck(
+      "al llegar a la pieza el panel pide el PNG sin que se lo pidan",
+    );
+
+    assert.equal((await navigation(editorPage)).current, "Publicaciones");
     assert.equal(
       await flows.count(),
       0,
@@ -486,6 +483,49 @@ async function main(): Promise<void> {
     reportCheck(
       "«Crear pieza» abre cada flujo en su dirección y recargar lo conserva",
     );
+
+    // --- Eliminar borra la pieza del listado, con confirmación ---
+    const productRow = editorPage
+      .locator(".publication-list li")
+      .filter({ hasText: "Guantes de trabajo" });
+    await productRow.first().waitFor({ timeout: uiTimeoutMs });
+    await productRow.first().getByRole("button", { name: "Eliminar" }).click();
+    // Sin confirmar no pasa nada: tirar trabajo no es un clic suelto.
+    await editorPage.getByRole("button", { name: "No" }).click();
+    assert.equal(
+      await productRow.count(),
+      1,
+      "Cancelar la confirmación no debe eliminar la pieza.",
+    );
+    await productRow.first().getByRole("button", { name: "Eliminar" }).click();
+    const deleted = editorPage.waitForResponse((response) =>
+      response.url().endsWith("/delete"),
+    );
+    await editorPage.getByRole("button", { name: "Sí, eliminar" }).click();
+    const deleteResponse = await deleted;
+    const deleteOutcome = `${String(deleteResponse.status())} ${(await deleteResponse.text()).slice(0, 240)}`;
+    const deleteNotice = editorPage.locator(".publication-command-notice");
+    await editorPage.waitForFunction(
+      () =>
+        !(
+          document.querySelector(".publication-command-notice")?.textContent ??
+          "Eliminando"
+        ).includes("Eliminando"),
+      undefined,
+      { timeout: uiTimeoutMs },
+    );
+    const deleteText = (await deleteNotice.first().textContent()) ?? "";
+    assert.match(
+      deleteText,
+      /se eliminó para siempre/u,
+      `El panel dijo «${deleteText}»; la API respondió ${deleteOutcome}`,
+    );
+    // La fila se va del DOM: la pieza ya no existe en la base.
+    await productRow
+      .first()
+      .waitFor({ state: "detached", timeout: uiTimeoutMs });
+    assert.equal(await productRow.count(), 0);
+    reportCheck("eliminar borra la pieza del listado y pide confirmación");
 
     const editorBar = editorPage.getByRole("navigation", {
       name: "Secciones del panel",

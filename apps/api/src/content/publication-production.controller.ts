@@ -1,5 +1,6 @@
 import type {
   PublicationApprovalResponse,
+  PublicationDeleteResponse,
   PublicationRenderRequestResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
@@ -36,6 +37,27 @@ export class PublicationProductionController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationRenderRequestResponse> {
     return this.#service.requestRender(
+      session.actor,
+      publicationId,
+      body.expectedVersion,
+      idempotencyKey,
+    );
+  }
+
+  /**
+   * Eliminar para siempre. Es `POST` y no `DELETE` porque lleva cuerpo —la
+   * versión esperada— y encabezado de idempotencia, como el resto de los
+   * comandos de esta API.
+   */
+  @Post(":publicationId/delete")
+  @RequirePermission("content:edit")
+  delete(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
+    @Body() body: PublicationVersionCommandDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<PublicationDeleteResponse> {
+    return this.#service.delete(
       session.actor,
       publicationId,
       body.expectedVersion,

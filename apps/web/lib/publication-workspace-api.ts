@@ -234,7 +234,7 @@ async function publicationCommand(
   apiBaseUrl: string,
   publicationId: string,
   expectedVersion: number,
-  command: "approve" | "render",
+  command: "approve" | "delete" | "render",
   idempotencyKey: string,
 ): Promise<PublicationCommandResult> {
   try {
@@ -259,21 +259,19 @@ async function publicationCommand(
     if (response.status === 401 || response.status === 403) {
       return { kind: "forbidden" };
     }
+    const done: Readonly<Record<typeof command, string>> = {
+      approve: "Revisión aprobada y conservada.",
+      delete: "La pieza se eliminó para siempre.",
+      render: "PNG pedido. El estado se actualiza solo cuando esté listo.",
+    };
+    const failed: Readonly<Record<typeof command, string>> = {
+      approve: "No se pudo aprobar. Recargá el estado.",
+      delete: "No se pudo eliminar. Recargá el estado.",
+      render: "No se pudo pedir el PNG. Recargá el estado.",
+    };
     return response.ok
-      ? {
-          kind: "completed",
-          message:
-            command === "render"
-              ? "PNG pedido. El estado se actualiza solo cuando esté listo."
-              : "Revisión aprobada y conservada.",
-        }
-      : {
-          kind: "error",
-          message:
-            command === "render"
-              ? "No se pudo pedir el PNG. Recargá el estado."
-              : "No se pudo aprobar. Recargá el estado.",
-        };
+      ? { kind: "completed", message: done[command] }
+      : { kind: "error", message: failed[command] };
   } catch {
     return {
       kind: "error",
@@ -293,6 +291,22 @@ export function requestPublicationRender(
     publicationId,
     expectedVersion,
     "render",
+    idempotencyKey,
+  );
+}
+
+/** Eliminar para siempre una pieza que nunca fue evidencia. */
+export function deletePublication(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+): Promise<PublicationCommandResult> {
+  return publicationCommand(
+    apiBaseUrl,
+    publicationId,
+    expectedVersion,
+    "delete",
     idempotencyKey,
   );
 }

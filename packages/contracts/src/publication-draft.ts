@@ -134,6 +134,12 @@ export interface PublicationApprovalResponse {
   readonly version: number;
 }
 
+/** Eliminar para siempre una pieza que nunca fue evidencia. */
+export interface PublicationDeleteResponse {
+  readonly publicationId: string;
+  readonly status: "deleted";
+}
+
 /**
  * Destino de una orden de publicación. El contrato público no reutiliza el tipo
  * del dominio: un destino nuevo tiene que ser una decisión explícita del

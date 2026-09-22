@@ -6,7 +6,7 @@ import type {
   PublicationProductionRepository,
   ReliableOperationRepository,
 } from "@aramayo/domain";
-import { ForbiddenException } from "@nestjs/common";
+import { ConflictException, ForbiddenException } from "@nestjs/common";
 
 import { ReliableOperationService } from "../audit/reliable-operation.service.ts";
 import { PublicationProductionService } from "./publication-production.service.ts";
@@ -47,6 +47,11 @@ function repositoryDouble(): PublicationProductionRepository {
         version: input.expectedVersion + 1,
       }),
     completeRender: () => Promise.resolve({ status: "conflict" }),
+    delete: (input) =>
+      Promise.resolve({
+        publicationId: input.publicationId,
+        status: "deleted",
+      }),
     failRender: () => Promise.resolve({ status: "conflict" }),
     findRenderJob: () => Promise.resolve(null),
     requestRender: (input) =>
@@ -104,5 +109,61 @@ test("approver aprueba pero no obtiene edición implícita", async () => {
       "idempotency-key-0004",
     ),
     ForbiddenException,
+  );
+});
+
+test("eliminar es de quien edita, no de quien sólo aprueba", async () => {
+  const production = service(repositoryDouble());
+  assert.deepEqual(
+    await production.delete(
+      actor(["editor"]),
+      "publication-1",
+      1,
+      "idempotency-key-0005",
+    ),
+    { publicationId: "publication-1", status: "deleted" },
+  );
+  await assert.rejects(
+    production.delete(
+      actor(["approver"]),
+      "publication-1",
+      1,
+      "idempotency-key-0006",
+    ),
+    ForbiddenException,
+  );
+});
+
+test("una pieza que ya es evidencia no se elimina", async () => {
+  const production = service({
+    ...repositoryDouble(),
+    delete: () => Promise.resolve({ status: "invalid-state" }),
+  });
+  await assert.rejects(
+    production.delete(
+      actor(["editor"]),
+      "publication-1",
+      1,
+      "idempotency-key-0007",
+    ),
+    (error: unknown) =>
+      error instanceof ConflictException &&
+      /ya es evidencia/u.test(error.message),
+  );
+});
+
+test("eliminar con una versión vieja no borra otra cosa", async () => {
+  const production = service({
+    ...repositoryDouble(),
+    delete: () => Promise.resolve({ status: "conflict" }),
+  });
+  await assert.rejects(
+    production.delete(
+      actor(["editor"]),
+      "publication-1",
+      1,
+      "idempotency-key-0008",
+    ),
+    ConflictException,
   );
 });

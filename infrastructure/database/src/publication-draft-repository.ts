@@ -848,7 +848,12 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
       ...(filter.locationId === undefined
         ? {}
         : { locationId: filter.locationId }),
-      ...(filter.status === undefined ? {} : { status: filter.status }),
+      // Lo descartado sale del listado, y con él del conteo: una página que
+      // dice 20 y muestra 13 es peor que no mostrarlo. Pedirlo por estado
+      // sigue funcionando, para poder auditarlo.
+      ...(filter.status === undefined
+        ? { status: { not: "cancelled" as const } }
+        : { status: filter.status }),
     } satisfies Prisma.PublicationWhereInput;
     const [rows, total] = await this.#database.$transaction([
       this.#database.publication.findMany({

@@ -688,6 +688,7 @@ evidencia que protege a los precios citables.
 - [x] Prueba de `productStoryDocument` y `saveProductStoryDraft` sobre los
       cuatro marcos, el precio anterior huérfano y el caption sin importe.
 - [x] E2E que guarda el borrador de verdad, con la foto embebida en el cuerpo.
+- [x] E2E que elimina la pieza y confirma que sale del listado.
 - [x] Regresión visual de los cuatro layouts nuevos.
 - [x] `pnpm verify` completo.
 
@@ -719,6 +720,16 @@ evidencia que protege a los precios citables.
   segundo es peor que lo primero: invita a reintentar y a duplicar borradores.
   Ahora el E2E guarda de verdad, y la lectura de la respuesta vive en un solo
   lugar (`savedPublication`).
+- 2026-09-22: el panel no tenía forma de tirar un borrador, así que se sumó
+  **eliminar**, y guardar dejó de terminar en un aviso: ahora lleva a la pieza,
+  le pide el PNG solo y la abre para aprobarla. Eran diez idas y vueltas para
+  publicar una historia.
+- El borrado obligó a tocar la base. El historial de publicaciones era
+  inborrable en tres disparadores —revisiones, sus medios y las transiciones—,
+  y esa garantía protege lo que salió, no un borrador que nadie aprobó. Los tres
+  pasaron a ser condicionales, con la misma condición evaluada por la base: si
+  hay snapshot de aprobación, no se borra nada. Queda en
+  [`ADR-032`](../architecture/decisions/ADR-032-DELETE-UNAPPROVED-PUBLICATIONS.md).
 
 ### Evidencia de cierre
 

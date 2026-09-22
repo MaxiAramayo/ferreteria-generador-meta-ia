@@ -10304,3 +10304,135 @@ test("el costo de IA del tablero suma sólo el mes en curso de esa organización
   assert.equal(signals.generationCommittedMicrousd, 2_500_000);
   assert.equal(signals.generationBudgetMicrousd, 20_000_000);
 });
+
+test("eliminar borra la pieza y su foto, y deja el renglón de auditoría", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const publicationId = randomUUID();
+  const approvedPublicationId = randomUUID();
+
+  await database.organization.create({
+    data: {
+      displayName: "Organización de descarte",
+      id: organizationId,
+      legalName: "Organización de descarte",
+      slug: `descarte-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  for (const [id, status, title] of [
+    [publicationId, "draft", "Borrador que no va"],
+    [approvedPublicationId, "approved", "Pieza aprobada"],
+  ] as const) {
+    await database.publication.create({
+      data: {
+        createdByMembershipId: membershipId,
+        id,
+        organizationId,
+        status,
+        title,
+      },
+    });
+    await database.publicationRevision.create({
+      data: {
+        content: { title },
+        contentHash: randomHash(),
+        createdByMembershipId: membershipId,
+        designDocument: { layout: "historia-producto-precio-abajo" },
+        id: randomUUID(),
+        organizationId,
+        publicationId: id,
+        revisionNumber: 1,
+        schemaVersion: 1,
+        status: status === "approved" ? "approved" : "draft",
+      },
+    });
+  }
+
+  const production = new PrismaPublicationProductionRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.publication:delete",
+  );
+  assert.deepEqual(
+    await production.delete({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: operation,
+    }),
+    { publicationId, status: "deleted" },
+  );
+  // Repetir la misma clave devuelve lo mismo y no borra otra cosa.
+  assert.deepEqual(
+    await production.delete({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: operation,
+    }),
+    { publicationId, replayed: true, status: "deleted" },
+  );
+  // La pieza y su revisión —con la foto embebida adentro— ya no están.
+  assert.equal(
+    await database.publication.count({ where: { id: publicationId } }),
+    0,
+  );
+  assert.equal(
+    await database.publicationRevision.count({
+      where: { organizationId, publicationId },
+    }),
+    0,
+  );
+  const audit = await database.auditEvent.findMany({
+    select: { actorMembershipId: true, operation: true },
+    where: { entityId: publicationId, organizationId },
+  });
+  assert.deepEqual(audit, [
+    {
+      actorMembershipId: membershipId,
+      operation: "content.publication:delete",
+    },
+  ]);
+
+  // Una pieza aprobada ya es evidencia: no se elimina.
+  assert.deepEqual(
+    await production.delete({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId: approvedPublicationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.publication:delete",
+      ),
+    }),
+    { status: "invalid-state" },
+  );
+
+  // El listado sólo trae lo que queda.
+  const listed = await new PrismaPublicationDraftRepository(database).list({
+    limit: 20,
+    organizationId,
+    page: 1,
+  });
+  assert.deepEqual(
+    listed.items.map((item) => item.id),
+    [approvedPublicationId],
+  );
+  assert.equal(listed.total, 1);
+});
