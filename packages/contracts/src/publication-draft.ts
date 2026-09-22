@@ -134,6 +134,13 @@ export interface PublicationApprovalResponse {
   readonly version: number;
 }
 
+/** Descartar una pieza que no va a publicarse: sale del panel, no de la auditoría. */
+export interface PublicationDiscardResponse {
+  readonly publicationId: string;
+  readonly status: "cancelled";
+  readonly version: number;
+}
+
 /**
  * Destino de una orden de publicación. El contrato público no reutiliza el tipo
  * del dominio: un destino nuevo tiene que ser una decisión explícita del

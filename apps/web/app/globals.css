@@ -2217,6 +2217,52 @@ a {
   color: var(--workspace-paper);
 }
 
+/* Descartar es la acción que tira trabajo: se lee distinto del resto. */
+.publication-row-actions button.publication-discard {
+  border-color: color-mix(in srgb, var(--workspace-ink) 45%, transparent);
+  color: color-mix(in srgb, var(--workspace-ink) 70%, transparent);
+}
+
+.publication-row-actions button.publication-discard:hover {
+  background: var(--workspace-orange);
+  border-color: var(--workspace-orange);
+  color: var(--workspace-paper);
+}
+
+.publication-discard-confirm {
+  border: 2px solid var(--workspace-ink);
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+}
+
+.publication-discard-confirm p {
+  margin: 0 0 0.7rem;
+}
+
+.publication-discard-confirm div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.publication-discard-confirm button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    700 0.8rem/1 "Archivo",
+    sans-serif;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.publication-discard-confirm button:first-child:hover {
+  background: var(--workspace-orange);
+  border-color: var(--workspace-orange);
+  color: var(--workspace-paper);
+}
+
 .publication-command-notice {
   border-left: 4px solid var(--workspace-orange);
   margin: 1rem 0 0;

@@ -520,6 +520,8 @@ export {
   publicationRenderTopic,
   type ApprovePublicationInput,
   type ApprovePublicationResult,
+  type DiscardPublicationInput,
+  type DiscardPublicationResult,
   type PublicationProductionRepository,
   type PublicationRenderCompletionResult,
   type PublicationRenderFailureInput,

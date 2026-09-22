@@ -1,5 +1,6 @@
 import type {
   PublicationApprovalResponse,
+  PublicationDiscardResponse,
   PublicationRenderRequestResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
@@ -36,6 +37,22 @@ export class PublicationProductionController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationRenderRequestResponse> {
     return this.#service.requestRender(
+      session.actor,
+      publicationId,
+      body.expectedVersion,
+      idempotencyKey,
+    );
+  }
+
+  @Post(":publicationId/discard")
+  @RequirePermission("content:edit")
+  discard(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
+    @Body() body: PublicationVersionCommandDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<PublicationDiscardResponse> {
+    return this.#service.discard(
       session.actor,
       publicationId,
       body.expectedVersion,

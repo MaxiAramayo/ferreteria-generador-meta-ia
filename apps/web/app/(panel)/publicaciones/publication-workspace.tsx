@@ -31,6 +31,7 @@ import { PublishConfirmation } from "./publish-confirmation.tsx";
 import {
   approvePublication,
   loadPublicationWorkspace,
+  discardPublication,
   loadPublicationPreview,
   requestPublicationRender,
   type PublicationPreviewResult,
@@ -76,6 +77,7 @@ function PublicationRow({
   canSchedule,
   gate,
   onApprove,
+  onDiscard,
   onEdit,
   onHistory,
   onPreview,
@@ -90,6 +92,7 @@ function PublicationRow({
   readonly onApprove: (publication: PublicationSummaryResponse) => void;
   readonly onEdit: (publication: PublicationSummaryResponse) => void;
   readonly onHistory: (publication: PublicationSummaryResponse) => void;
+  readonly onDiscard: (publication: PublicationSummaryResponse) => void;
   readonly onPreview: (publication: PublicationSummaryResponse) => void;
   readonly onPublish: (publication: PublicationSummaryResponse) => void;
   readonly onRender: (publication: PublicationSummaryResponse) => void;
@@ -167,6 +170,19 @@ function PublicationRow({
             Ver PNG
           </button>
         )}
+        {discardableStatus(publication.status) && canEdit ? (
+          // Descartar no borra la fila: la saca del panel y deja quién y
+          // cuándo en la auditoría. Por eso el texto dice «descartar».
+          <button
+            className="publication-discard"
+            onClick={() => {
+              onDiscard(publication);
+            }}
+            type="button"
+          >
+            Descartar
+          </button>
+        ) : null}
         {publication.status === "ready_for_review" && canApprove ? (
           <button
             onClick={() => {
@@ -256,6 +272,24 @@ function WorkspaceStatus({
   );
 }
 
+/**
+ * Estados desde los que descartar es tirar trabajo propio.
+ *
+ * Espeja lo que admite la API: una pieza aprobada, programada o publicada ya
+ * es evidencia y no se descarta desde acá.
+ */
+function discardableStatus(
+  status: PublicationSummaryResponse["status"],
+): boolean {
+  return (
+    status === "draft" ||
+    status === "generation_failed" ||
+    status === "missing_information" ||
+    status === "ready_for_review" ||
+    status === "validation_failed"
+  );
+}
+
 export function PublicationWorkspace({
   apiBaseUrl,
 }: {
@@ -281,6 +315,9 @@ export function PublicationWorkspace({
   const [editing, setEditing] = useState<PublicationSummaryResponse | null>(
     null,
   );
+  /** Pieza cuyo descarte se está confirmando: tirar trabajo no se hace de un clic. */
+  const [discarding, setDiscarding] =
+    useState<PublicationSummaryResponse | null>(null);
   const anchoredToLink = useRef(false);
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
@@ -289,10 +326,14 @@ export function PublicationWorkspace({
   const runCommand = useCallback(
     async (
       publication: PublicationSummaryResponse,
-      command: "approve" | "render",
+      command: "approve" | "discard" | "render",
     ): Promise<void> => {
       setCommandNotice(
-        command === "render" ? "Pidiendo el PNG…" : "Aprobando revisión…",
+        command === "render"
+          ? "Pidiendo el PNG…"
+          : command === "discard"
+            ? "Descartando la pieza…"
+            : "Aprobando revisión…",
       );
       const result =
         command === "render"
@@ -302,12 +343,19 @@ export function PublicationWorkspace({
               publication.version,
               crypto.randomUUID(),
             )
-          : await approvePublication(
-              apiBaseUrl,
-              publication.id,
-              publication.version,
-              crypto.randomUUID(),
-            );
+          : command === "discard"
+            ? await discardPublication(
+                apiBaseUrl,
+                publication.id,
+                publication.version,
+                crypto.randomUUID(),
+              )
+            : await approvePublication(
+                apiBaseUrl,
+                publication.id,
+                publication.version,
+                crypto.randomUUID(),
+              );
       setCommandNotice(
         result.kind === "completed"
           ? result.message
@@ -459,6 +507,9 @@ export function PublicationWorkspace({
                 onApprove={(selected) => {
                   void runCommand(selected, "approve");
                 }}
+                onDiscard={(selected) => {
+                  setDiscarding(selected);
+                }}
                 onEdit={(selected) => {
                   setEditing(selected);
                 }}
@@ -480,6 +531,34 @@ export function PublicationWorkspace({
               />
             ))}
           </ul>
+        )}
+        {discarding === null ? null : (
+          <div className="publication-discard-confirm" role="dialog">
+            <p>
+              ¿Descartar <strong>{discarding.title}</strong>? Sale del listado y
+              no se puede recuperar desde el panel.
+            </p>
+            <div>
+              <button
+                onClick={() => {
+                  const selected = discarding;
+                  setDiscarding(null);
+                  void runCommand(selected, "discard");
+                }}
+                type="button"
+              >
+                Sí, descartar
+              </button>
+              <button
+                onClick={() => {
+                  setDiscarding(null);
+                }}
+                type="button"
+              >
+                No
+              </button>
+            </div>
+          </div>
         )}
         {confirming === null
           ? null

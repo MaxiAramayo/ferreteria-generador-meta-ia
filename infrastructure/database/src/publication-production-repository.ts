@@ -9,6 +9,8 @@ import {
   type ApprovePublicationResult,
   type ContentBrief,
   type ContentBriefEvidenceEntry,
+  type DiscardPublicationInput,
+  type DiscardPublicationResult,
   type PublicationProductionRepository,
   type PublicationRenderCompletionResult,
   type PublicationRenderFailureInput,
@@ -44,6 +46,36 @@ function replayedRender(body: SafeJsonObject): PublicationRenderRequestResult {
     replayed: true,
     revisionId,
     status: "accepted",
+    version,
+  });
+}
+
+/**
+ * Estados desde los que descartar es sólo tirar trabajo propio.
+ *
+ * Una pieza aprobada, programada o publicada queda afuera a propósito: ya es
+ * evidencia o ya salió, y sacarla exige reconciliar lo que se publicó, que es
+ * otro camino.
+ */
+const discardableStatuses = Object.freeze([
+  "draft",
+  "generation_failed",
+  "missing_information",
+  "ready_for_review",
+  "retrieving_context",
+  "validation_failed",
+] as const);
+
+function replayedDiscard(body: SafeJsonObject): DiscardPublicationResult {
+  const publicationId = body["publicationId"];
+  const version = body["version"];
+  if (typeof publicationId !== "string" || typeof version !== "number") {
+    throw new Error("La respuesta idempotente de descarte no es válida.");
+  }
+  return Object.freeze({
+    publicationId,
+    replayed: true,
+    status: "cancelled",
     version,
   });
 }
@@ -694,6 +726,97 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         },
       });
       return Object.freeze({ status: "completed", version });
+    });
+  }
+
+  async discard(
+    input: DiscardPublicationInput,
+  ): Promise<DiscardPublicationResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed":
+          return replayedDiscard(claim.responseBody);
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "claimed":
+          break;
+      }
+      const publication = await transaction.publication.findFirst({
+        select: { status: true, version: true },
+        where: {
+          id: input.publicationId,
+          organizationId: input.organizationId,
+        },
+      });
+      if (publication === null) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-found" });
+      }
+      if (publication.version !== input.expectedVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "conflict" });
+      }
+      const fromStatus = publication.status;
+      if (!discardableStatuses.some((candidate) => candidate === fromStatus)) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-state" });
+      }
+      const occurredAt = new Date(input.reliableOperation.occurredAt);
+      const version = publication.version + 1;
+      // La condición repite estado y versión: si otra solicitud ganó la
+      // carrera, esta no descarta una pieza que ya es otra cosa.
+      const updated = await transaction.publication.updateMany({
+        data: { status: "cancelled", version },
+        where: {
+          id: input.publicationId,
+          organizationId: input.organizationId,
+          status: fromStatus,
+          version: publication.version,
+        },
+      });
+      if (updated.count !== 1) {
+        throw new Error("La publicación perdió la carrera de descarte.");
+      }
+      await transaction.publicationStateTransition.create({
+        data: {
+          actorMembershipId: input.actorMembershipId,
+          commandType: "cancel",
+          fromStatus,
+          fromVersion: publication.version,
+          occurredAt,
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+          toStatus: "cancelled",
+          toVersion: version,
+        },
+      });
+      const responseBody = {
+        publicationId: input.publicationId,
+        version,
+      } satisfies SafeJsonObject;
+      const commit = reliableCommit(input, claim.recordId, responseBody, {
+        entityId: input.publicationId,
+        entityType: "publication",
+        metadata: { fromStatus, version },
+        outbox: [],
+      });
+      if (!(await commitReliableOperation(transaction, commit))) {
+        throw new Error("No se pudo confirmar el descarte idempotente.");
+      }
+      return Object.freeze({
+        publicationId: input.publicationId,
+        status: "cancelled",
+        version,
+      });
     });
   }
 

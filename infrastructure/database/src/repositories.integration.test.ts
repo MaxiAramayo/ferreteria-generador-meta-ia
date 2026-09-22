@@ -10304,3 +10304,132 @@ test("el costo de IA del tablero suma sólo el mes en curso de esa organización
   assert.equal(signals.generationCommittedMicrousd, 2_500_000);
   assert.equal(signals.generationBudgetMicrousd, 20_000_000);
 });
+
+test("descartar saca la pieza del listado y deja quién la descartó", async () => {
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const publicationId = randomUUID();
+  const approvedPublicationId = randomUUID();
+
+  await database.organization.create({
+    data: {
+      displayName: "Organización de descarte",
+      id: organizationId,
+      legalName: "Organización de descarte",
+      slug: `descarte-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora",
+      email: `${userId}@example.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  for (const [id, status, title] of [
+    [publicationId, "draft", "Borrador que no va"],
+    [approvedPublicationId, "approved", "Pieza aprobada"],
+  ] as const) {
+    await database.publication.create({
+      data: {
+        createdByMembershipId: membershipId,
+        id,
+        organizationId,
+        status,
+        title,
+      },
+    });
+    await database.publicationRevision.create({
+      data: {
+        content: { title },
+        contentHash: randomHash(),
+        createdByMembershipId: membershipId,
+        designDocument: { layout: "historia-producto-precio-abajo" },
+        id: randomUUID(),
+        organizationId,
+        publicationId: id,
+        revisionNumber: 1,
+        schemaVersion: 1,
+        status: status === "approved" ? "approved" : "draft",
+      },
+    });
+  }
+
+  const production = new PrismaPublicationProductionRepository(database);
+  const operation = reliableMutation(
+    organizationId,
+    membershipId,
+    "content.publication:discard",
+  );
+  assert.deepEqual(
+    await production.discard({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: operation,
+    }),
+    { publicationId, status: "cancelled", version: 2 },
+  );
+  // Repetir la misma clave devuelve lo mismo y no vuelve a transicionar.
+  assert.deepEqual(
+    await production.discard({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: operation,
+    }),
+    { publicationId, replayed: true, status: "cancelled", version: 2 },
+  );
+  assert.equal(
+    (
+      await database.publicationStateTransition.findMany({
+        where: { organizationId, publicationId, toStatus: "cancelled" },
+      })
+    ).length,
+    1,
+  );
+  const audit = await database.auditEvent.findMany({
+    select: { actorMembershipId: true, operation: true },
+    where: { entityId: publicationId, organizationId },
+  });
+  assert.deepEqual(audit, [
+    {
+      actorMembershipId: membershipId,
+      operation: "content.publication:discard",
+    },
+  ]);
+
+  // Una pieza aprobada ya es evidencia: no se descarta.
+  assert.deepEqual(
+    await production.discard({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId: approvedPublicationId,
+      reliableOperation: reliableMutation(
+        organizationId,
+        membershipId,
+        "content.publication:discard",
+      ),
+    }),
+    { status: "invalid-state" },
+  );
+
+  // El listado deja de mostrarla, y el total la deja de contar.
+  const listed = await new PrismaPublicationDraftRepository(database).list({
+    limit: 20,
+    organizationId,
+    page: 1,
+  });
+  assert.deepEqual(
+    listed.items.map((item) => item.id),
+    [approvedPublicationId],
+  );
+  assert.equal(listed.total, 1);
+});

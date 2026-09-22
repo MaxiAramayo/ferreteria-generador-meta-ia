@@ -487,6 +487,31 @@ async function main(): Promise<void> {
       "«Crear pieza» abre cada flujo en su dirección y recargar lo conserva",
     );
 
+    // --- Descartar saca la pieza del listado, con confirmación ---
+    const productRow = editorPage
+      .locator(".publication-list li")
+      .filter({ hasText: "Guantes de trabajo" });
+    await productRow.first().waitFor({ timeout: uiTimeoutMs });
+    await productRow.first().getByRole("button", { name: "Descartar" }).click();
+    // Sin confirmar no pasa nada: tirar trabajo no es un clic suelto.
+    await editorPage.getByRole("button", { name: "No" }).click();
+    assert.equal(
+      await productRow.count(),
+      1,
+      "Cancelar la confirmación no debe descartar la pieza.",
+    );
+    await productRow.first().getByRole("button", { name: "Descartar" }).click();
+    await editorPage.getByRole("button", { name: "Sí, descartar" }).click();
+    await editorPage
+      .getByText("La pieza se descartó y sale del listado.")
+      .waitFor({ timeout: uiTimeoutMs });
+    // La fila se va del DOM: el listado ya no la trae desde la API.
+    await productRow
+      .first()
+      .waitFor({ state: "detached", timeout: uiTimeoutMs });
+    assert.equal(await productRow.count(), 0);
+    reportCheck("descartar saca la pieza del listado y pide confirmación");
+
     const editorBar = editorPage.getByRole("navigation", {
       name: "Secciones del panel",
     });

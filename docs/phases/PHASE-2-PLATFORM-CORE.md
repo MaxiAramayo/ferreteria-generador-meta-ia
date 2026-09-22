@@ -688,6 +688,7 @@ evidencia que protege a los precios citables.
 - [x] Prueba de `productStoryDocument` y `saveProductStoryDraft` sobre los
       cuatro marcos, el precio anterior huérfano y el caption sin importe.
 - [x] E2E que guarda el borrador de verdad, con la foto embebida en el cuerpo.
+- [x] E2E que descarta la pieza y confirma que sale del listado.
 - [x] Regresión visual de los cuatro layouts nuevos.
 - [x] `pnpm verify` completo.
 
@@ -719,6 +720,14 @@ evidencia que protege a los precios citables.
   segundo es peor que lo primero: invita a reintentar y a duplicar borradores.
   Ahora el E2E guarda de verdad, y la lectura de la respuesta vive en un solo
   lugar (`savedPublication`).
+- 2026-09-22: el panel no tenía forma de tirar un borrador, así que se sumó
+  **descartar**. No es un borrado de la fila: es la transición `cancel` que el
+  flujo ya admitía desde `draft`, con confirmación, versión esperada,
+  idempotencia y auditoría. Alcanza sólo a lo que todavía no es evidencia
+  —borrador, revisión, fallo de generación o validación—; una pieza aprobada,
+  programada o publicada responde `invalid-state`. El listado deja de traer lo
+  descartado, y el conteo tampoco lo cuenta: una página que dice 20 y muestra 13
+  es peor que no mostrarlo.
 
 ### Evidencia de cierre
 
