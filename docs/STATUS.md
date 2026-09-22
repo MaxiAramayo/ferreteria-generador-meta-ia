@@ -226,6 +226,16 @@ inventada, así que avisaba «no se guardó» sobre un `201`: invitaba a reinten
 y a duplicar borradores. Se corrigió en `888004e` y el E2E ahora guarda de
 verdad.
 
+El 2026-09-22 el panel ganó **eliminar** y un camino más corto: guardar lleva a
+la pieza, le pide el PNG solo y la abre para aprobarla, en vez de terminar en un
+aviso con un enlace al listado. Eliminar borra de verdad —la pieza, sus
+revisiones y la foto embebida—, y para eso los tres disparadores que hacían
+inborrable el historial pasaron a ser condicionales: si hay snapshot de
+aprobación, no se borra nada. La decisión está en
+[`ADR-032`](architecture/decisions/ADR-032-DELETE-UNAPPROVED-PUBLICATIONS.md) y
+necesita la migración `20260922120000_delete_unapproved_publications` al
+desplegar.
+
 La release `888004e3326dd02adc58393290cb41a2241c3209` se promovió a producción
 el 2026-09-21, con copia previa verificada
 (`aramayo-production-20260921T221347Z`) porque arrastraba tres migraciones

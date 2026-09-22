@@ -9,8 +9,8 @@ import {
   type ApprovePublicationResult,
   type ContentBrief,
   type ContentBriefEvidenceEntry,
-  type DiscardPublicationInput,
-  type DiscardPublicationResult,
+  type DeletePublicationInput,
+  type DeletePublicationResult,
   type PublicationProductionRepository,
   type PublicationRenderCompletionResult,
   type PublicationRenderFailureInput,
@@ -51,14 +51,18 @@ function replayedRender(body: SafeJsonObject): PublicationRenderRequestResult {
 }
 
 /**
- * Estados desde los que descartar es sólo tirar trabajo propio.
+ * Estados desde los que eliminar es sólo tirar trabajo propio.
  *
  * Una pieza aprobada, programada o publicada queda afuera a propósito: ya es
  * evidencia o ya salió, y sacarla exige reconciliar lo que se publicó, que es
  * otro camino.
  */
-const discardableStatuses = Object.freeze([
+const deletableStatuses = Object.freeze([
   "draft",
+  // Con el PNG en curso también: si el worker está caído, una pieza no puede
+  // quedar trabada para siempre. Un render que llega tarde no encuentra la
+  // publicación y termina en `not-found`.
+  "generating_assets",
   "generation_failed",
   "missing_information",
   "ready_for_review",
@@ -66,17 +70,15 @@ const discardableStatuses = Object.freeze([
   "validation_failed",
 ] as const);
 
-function replayedDiscard(body: SafeJsonObject): DiscardPublicationResult {
+function replayedDeletion(body: SafeJsonObject): DeletePublicationResult {
   const publicationId = body["publicationId"];
-  const version = body["version"];
-  if (typeof publicationId !== "string" || typeof version !== "number") {
-    throw new Error("La respuesta idempotente de descarte no es válida.");
+  if (typeof publicationId !== "string") {
+    throw new Error("La respuesta idempotente de eliminación no es válida.");
   }
   return Object.freeze({
     publicationId,
     replayed: true,
-    status: "cancelled",
-    version,
+    status: "deleted",
   });
 }
 
@@ -729,9 +731,9 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
     });
   }
 
-  async discard(
-    input: DiscardPublicationInput,
-  ): Promise<DiscardPublicationResult> {
+  async delete(
+    input: DeletePublicationInput,
+  ): Promise<DeletePublicationResult> {
     return this.#database.$transaction(async (transaction) => {
       const claim = await claimReliableOperation(
         transaction,
@@ -739,7 +741,7 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
       );
       switch (claim.status) {
         case "replayed":
-          return replayedDiscard(claim.responseBody);
+          return replayedDeletion(claim.responseBody);
         case "request-conflict":
           return Object.freeze({ status: "idempotency-conflict" });
         case "in-progress":
@@ -751,7 +753,18 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           break;
       }
       const publication = await transaction.publication.findFirst({
-        select: { status: true, version: true },
+        select: {
+          _count: {
+            select: {
+              approvalSnapshots: true,
+              publishingOrders: true,
+              schedules: true,
+            },
+          },
+          status: true,
+          title: true,
+          version: true,
+        },
         where: {
           id: input.publicationId,
           organizationId: input.organizationId,
@@ -766,16 +779,52 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         return Object.freeze({ status: "conflict" });
       }
       const fromStatus = publication.status;
-      if (!discardableStatuses.some((candidate) => candidate === fromStatus)) {
+      // El estado dice qué es hoy; los conteos, qué llegó a ser alguna vez.
+      // Las dos preguntas hacen falta: una pieza aprobada y devuelta a
+      // borrador conserva su snapshot, que es evidencia.
+      if (
+        !deletableStatuses.some((candidate) => candidate === fromStatus) ||
+        publication._count.approvalSnapshots > 0 ||
+        publication._count.publishingOrders > 0 ||
+        publication._count.schedules > 0
+      ) {
         await discardReliableOperationClaim(transaction, claim.recordId);
         return Object.freeze({ status: "invalid-state" });
       }
-      const occurredAt = new Date(input.reliableOperation.occurredAt);
-      const version = publication.version + 1;
-      // La condición repite estado y versión: si otra solicitud ganó la
-      // carrera, esta no descarta una pieza que ya es otra cosa.
-      const updated = await transaction.publication.updateMany({
-        data: { status: "cancelled", version },
+      // Nada se borra en cascada en este esquema: cada hijo sale nombrado, y
+      // en orden, para que un pariente olvidado falle acá y no en producción.
+      const revisions = await transaction.publicationRevision.findMany({
+        select: { id: true },
+        where: {
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+        },
+      });
+      await transaction.publicationRevisionMedia.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          revisionId: { in: revisions.map((revision) => revision.id) },
+        },
+      });
+      await transaction.publicationStateTransition.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+        },
+      });
+      await transaction.recurringStoryMaterialization.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+        },
+      });
+      await transaction.publicationRevision.deleteMany({
+        where: {
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+        },
+      });
+      const removed = await transaction.publication.deleteMany({
         where: {
           id: input.publicationId,
           organizationId: input.organizationId,
@@ -783,39 +832,30 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
           version: publication.version,
         },
       });
-      if (updated.count !== 1) {
-        throw new Error("La publicación perdió la carrera de descarte.");
+      if (removed.count !== 1) {
+        throw new Error("La publicación perdió la carrera de eliminación.");
       }
-      await transaction.publicationStateTransition.create({
-        data: {
-          actorMembershipId: input.actorMembershipId,
-          commandType: "cancel",
-          fromStatus,
-          fromVersion: publication.version,
-          occurredAt,
-          organizationId: input.organizationId,
-          publicationId: input.publicationId,
-          toStatus: "cancelled",
-          toVersion: version,
-        },
-      });
       const responseBody = {
         publicationId: input.publicationId,
-        version,
       } satisfies SafeJsonObject;
+      // La auditoría conserva que se eliminó, con el título: un registro de la
+      // acción, no una copia de la pieza.
       const commit = reliableCommit(input, claim.recordId, responseBody, {
         entityId: input.publicationId,
         entityType: "publication",
-        metadata: { fromStatus, version },
+        metadata: {
+          fromStatus,
+          revisions: revisions.length,
+          title: publication.title,
+        },
         outbox: [],
       });
       if (!(await commitReliableOperation(transaction, commit))) {
-        throw new Error("No se pudo confirmar el descarte idempotente.");
+        throw new Error("No se pudo confirmar la eliminación idempotente.");
       }
       return Object.freeze({
         publicationId: input.publicationId,
-        status: "cancelled",
-        version,
+        status: "deleted",
       });
     });
   }

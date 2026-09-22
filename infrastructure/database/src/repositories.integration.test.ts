@@ -10305,7 +10305,7 @@ test("el costo de IA del tablero suma sólo el mes en curso de esa organización
   assert.equal(signals.generationBudgetMicrousd, 20_000_000);
 });
 
-test("descartar saca la pieza del listado y deja quién la descartó", async () => {
+test("eliminar borra la pieza y su foto, y deja el renglón de auditoría", async () => {
   const organizationId = randomUUID();
   const userId = randomUUID();
   const membershipId = randomUUID();
@@ -10363,36 +10363,39 @@ test("descartar saca la pieza del listado y deja quién la descartó", async () 
   const operation = reliableMutation(
     organizationId,
     membershipId,
-    "content.publication:discard",
+    "content.publication:delete",
   );
   assert.deepEqual(
-    await production.discard({
+    await production.delete({
       actorMembershipId: membershipId,
       expectedVersion: 1,
       organizationId,
       publicationId,
       reliableOperation: operation,
     }),
-    { publicationId, status: "cancelled", version: 2 },
+    { publicationId, status: "deleted" },
   );
-  // Repetir la misma clave devuelve lo mismo y no vuelve a transicionar.
+  // Repetir la misma clave devuelve lo mismo y no borra otra cosa.
   assert.deepEqual(
-    await production.discard({
+    await production.delete({
       actorMembershipId: membershipId,
       expectedVersion: 1,
       organizationId,
       publicationId,
       reliableOperation: operation,
     }),
-    { publicationId, replayed: true, status: "cancelled", version: 2 },
+    { publicationId, replayed: true, status: "deleted" },
+  );
+  // La pieza y su revisión —con la foto embebida adentro— ya no están.
+  assert.equal(
+    await database.publication.count({ where: { id: publicationId } }),
+    0,
   );
   assert.equal(
-    (
-      await database.publicationStateTransition.findMany({
-        where: { organizationId, publicationId, toStatus: "cancelled" },
-      })
-    ).length,
-    1,
+    await database.publicationRevision.count({
+      where: { organizationId, publicationId },
+    }),
+    0,
   );
   const audit = await database.auditEvent.findMany({
     select: { actorMembershipId: true, operation: true },
@@ -10401,13 +10404,13 @@ test("descartar saca la pieza del listado y deja quién la descartó", async () 
   assert.deepEqual(audit, [
     {
       actorMembershipId: membershipId,
-      operation: "content.publication:discard",
+      operation: "content.publication:delete",
     },
   ]);
 
-  // Una pieza aprobada ya es evidencia: no se descarta.
+  // Una pieza aprobada ya es evidencia: no se elimina.
   assert.deepEqual(
-    await production.discard({
+    await production.delete({
       actorMembershipId: membershipId,
       expectedVersion: 1,
       organizationId,
@@ -10415,13 +10418,13 @@ test("descartar saca la pieza del listado y deja quién la descartó", async () 
       reliableOperation: reliableMutation(
         organizationId,
         membershipId,
-        "content.publication:discard",
+        "content.publication:delete",
       ),
     }),
     { status: "invalid-state" },
   );
 
-  // El listado deja de mostrarla, y el total la deja de contar.
+  // El listado sólo trae lo que queda.
   const listed = await new PrismaPublicationDraftRepository(database).list({
     limit: 20,
     organizationId,

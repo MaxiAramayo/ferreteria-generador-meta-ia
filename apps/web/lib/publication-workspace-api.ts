@@ -234,7 +234,7 @@ async function publicationCommand(
   apiBaseUrl: string,
   publicationId: string,
   expectedVersion: number,
-  command: "approve" | "discard" | "render",
+  command: "approve" | "delete" | "render",
   idempotencyKey: string,
 ): Promise<PublicationCommandResult> {
   try {
@@ -261,12 +261,12 @@ async function publicationCommand(
     }
     const done: Readonly<Record<typeof command, string>> = {
       approve: "Revisión aprobada y conservada.",
-      discard: "La pieza se descartó y sale del listado.",
+      delete: "La pieza se eliminó para siempre.",
       render: "PNG pedido. El estado se actualiza solo cuando esté listo.",
     };
     const failed: Readonly<Record<typeof command, string>> = {
       approve: "No se pudo aprobar. Recargá el estado.",
-      discard: "No se pudo descartar. Recargá el estado.",
+      delete: "No se pudo eliminar. Recargá el estado.",
       render: "No se pudo pedir el PNG. Recargá el estado.",
     };
     return response.ok
@@ -295,8 +295,8 @@ export function requestPublicationRender(
   );
 }
 
-/** Descartar una pieza que no va a publicarse (`cancel` del flujo). */
-export function discardPublication(
+/** Eliminar para siempre una pieza que nunca fue evidencia. */
+export function deletePublication(
   apiBaseUrl: string,
   publicationId: string,
   expectedVersion: number,
@@ -306,7 +306,7 @@ export function discardPublication(
     apiBaseUrl,
     publicationId,
     expectedVersion,
-    "discard",
+    "delete",
     idempotencyKey,
   );
 }

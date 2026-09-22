@@ -86,15 +86,17 @@ export type ApprovePublicationResult =
   | Readonly<{ status: "not-found" }>;
 
 /**
- * Descartar un borrador que no va a publicarse.
+ * Eliminar para siempre una pieza que no va a publicarse.
  *
- * Es la transición `cancel` que el flujo ya admite desde `draft`, no un
- * borrado: la pieza sale del panel y la auditoría conserva quién la descartó y
- * cuándo. Sólo alcanza a lo que todavía no es evidencia —un borrador o una
- * pieza en revisión—; una aprobada, programada o publicada se cancela por su
- * propio camino, que reconcilia lo que ya salió.
+ * Borra de verdad: la pieza, sus revisiones y la foto embebida que llevan
+ * adentro. Lo único que sobrevive es el renglón de auditoría, que dice quién
+ * la eliminó y cuándo —un registro de la acción, no una copia de la pieza.
+ *
+ * Sólo alcanza a lo que nunca fue evidencia: sin aprobación, sin programación
+ * y sin orden de publicación. Una pieza aprobada o publicada no se elimina
+ * desde acá; sacarla exige reconciliar lo que ya salió.
  */
-export interface DiscardPublicationInput {
+export interface DeletePublicationInput {
   readonly actorMembershipId: string;
   readonly expectedVersion: number;
   readonly organizationId: string;
@@ -102,12 +104,11 @@ export interface DiscardPublicationInput {
   readonly reliableOperation: ReliableMutationContext;
 }
 
-export type DiscardPublicationResult =
+export type DeletePublicationResult =
   | Readonly<{
       publicationId: string;
       replayed?: true;
-      status: "cancelled";
-      version: number;
+      status: "deleted";
     }>
   | Readonly<{ status: "conflict" }>
   | Readonly<{ status: "idempotency-conflict" }>
@@ -121,7 +122,7 @@ export interface PublicationProductionRepository {
     job: PublicationRenderJob,
     output: PublicationRenderOutput,
   ): Promise<PublicationRenderCompletionResult>;
-  discard(input: DiscardPublicationInput): Promise<DiscardPublicationResult>;
+  delete(input: DeletePublicationInput): Promise<DeletePublicationResult>;
   failRender(
     input: PublicationRenderFailureInput,
   ): Promise<PublicationRenderCompletionResult>;

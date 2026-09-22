@@ -31,7 +31,7 @@ import { PublishConfirmation } from "./publish-confirmation.tsx";
 import {
   approvePublication,
   loadPublicationWorkspace,
-  discardPublication,
+  deletePublication,
   loadPublicationPreview,
   requestPublicationRender,
   type PublicationPreviewResult,
@@ -77,7 +77,7 @@ function PublicationRow({
   canSchedule,
   gate,
   onApprove,
-  onDiscard,
+  onDelete,
   onEdit,
   onHistory,
   onPreview,
@@ -92,7 +92,7 @@ function PublicationRow({
   readonly onApprove: (publication: PublicationSummaryResponse) => void;
   readonly onEdit: (publication: PublicationSummaryResponse) => void;
   readonly onHistory: (publication: PublicationSummaryResponse) => void;
-  readonly onDiscard: (publication: PublicationSummaryResponse) => void;
+  readonly onDelete: (publication: PublicationSummaryResponse) => void;
   readonly onPreview: (publication: PublicationSummaryResponse) => void;
   readonly onPublish: (publication: PublicationSummaryResponse) => void;
   readonly onRender: (publication: PublicationSummaryResponse) => void;
@@ -170,17 +170,17 @@ function PublicationRow({
             Ver PNG
           </button>
         )}
-        {discardableStatus(publication.status) && canEdit ? (
-          // Descartar no borra la fila: la saca del panel y deja quién y
-          // cuándo en la auditoría. Por eso el texto dice «descartar».
+        {deletableStatus(publication.status) && canEdit ? (
+          // Elimina de verdad: la pieza y su foto. Lo único que queda es el
+          // renglón de auditoría, que dice que se eliminó.
           <button
             className="publication-discard"
             onClick={() => {
-              onDiscard(publication);
+              onDelete(publication);
             }}
             type="button"
           >
-            Descartar
+            Eliminar
           </button>
         ) : null}
         {publication.status === "ready_for_review" && canApprove ? (
@@ -273,16 +273,17 @@ function WorkspaceStatus({
 }
 
 /**
- * Estados desde los que descartar es tirar trabajo propio.
+ * Estados desde los que eliminar es tirar trabajo propio.
  *
  * Espeja lo que admite la API: una pieza aprobada, programada o publicada ya
- * es evidencia y no se descarta desde acá.
+ * es evidencia y no se elimina desde acá.
  */
-function discardableStatus(
+function deletableStatus(
   status: PublicationSummaryResponse["status"],
 ): boolean {
   return (
     status === "draft" ||
+    status === "generating_assets" ||
     status === "generation_failed" ||
     status === "missing_information" ||
     status === "ready_for_review" ||
@@ -315,10 +316,19 @@ export function PublicationWorkspace({
   const [editing, setEditing] = useState<PublicationSummaryResponse | null>(
     null,
   );
-  /** Pieza cuyo descarte se está confirmando: tirar trabajo no se hace de un clic. */
-  const [discarding, setDiscarding] =
-    useState<PublicationSummaryResponse | null>(null);
+  /** Pieza cuya eliminación se está confirmando: borrar no se hace de un clic. */
+  const [deleting, setDeleting] = useState<PublicationSummaryResponse | null>(
+    null,
+  );
   const anchoredToLink = useRef(false);
+  /**
+   * Pieza recién creada que hay que dejar lista para mirar: se le pide el PNG
+   * una vez y se abre la vista cuando está. Sin esto, guardar termina en un
+   * listado donde hay que pedir el PNG, esperar y abrirlo a mano.
+   */
+  const reviewing = useRef<Readonly<{ id: string; rendered: boolean }> | null>(
+    null,
+  );
   const reload = useCallback(() => {
     setInitial({ kind: "loading" });
     setReloadToken((token) => token + 1);
@@ -326,13 +336,13 @@ export function PublicationWorkspace({
   const runCommand = useCallback(
     async (
       publication: PublicationSummaryResponse,
-      command: "approve" | "discard" | "render",
+      command: "approve" | "delete" | "render",
     ): Promise<void> => {
       setCommandNotice(
         command === "render"
           ? "Pidiendo el PNG…"
-          : command === "discard"
-            ? "Descartando la pieza…"
+          : command === "delete"
+            ? "Eliminando la pieza…"
             : "Aprobando revisión…",
       );
       const result =
@@ -343,8 +353,8 @@ export function PublicationWorkspace({
               publication.version,
               crypto.randomUUID(),
             )
-          : command === "discard"
-            ? await discardPublication(
+          : command === "delete"
+            ? await deletePublication(
                 apiBaseUrl,
                 publication.id,
                 publication.version,
@@ -417,6 +427,38 @@ export function PublicationWorkspace({
       clearTimeout(refresh);
     };
   }, [initial]);
+  // Al llegar desde «Crear pieza» con `?revisar=`, la pieza se prepara sola:
+  // se le pide el PNG y, cuando está, se abre. Es una sola vez por pieza; el
+  // refresco periódico no puede volver a pedirlo.
+  useEffect(() => {
+    if (initial.kind !== "ready") return;
+    if (reviewing.current === null) {
+      const requested = new URLSearchParams(window.location.search).get(
+        "revisar",
+      );
+      if (requested === null) return;
+      reviewing.current = { id: requested, rendered: false };
+    }
+    const pending = reviewing.current;
+    const publication = initial.publications.items.find(
+      (item) => item.id === pending.id,
+    );
+    if (publication === undefined) return;
+    if (
+      !pending.rendered &&
+      publication.status === "draft" &&
+      initial.canEdit
+    ) {
+      reviewing.current = { ...pending, rendered: true };
+      void runCommand(publication, "render");
+      return;
+    }
+    if (publication.status === "ready_for_review") {
+      reviewing.current = null;
+      void showPreview(publication);
+    }
+  }, [initial, runCommand, showPreview]);
+
   // Una alerta o un turno enlazan a una pieza puntual (`#publicacion-…`). El
   // enlace llega antes que el listado, así que la fila se busca cuando ya
   // cargó, y una sola vez: el refresco periódico no puede mover la página.
@@ -507,8 +549,8 @@ export function PublicationWorkspace({
                 onApprove={(selected) => {
                   void runCommand(selected, "approve");
                 }}
-                onDiscard={(selected) => {
-                  setDiscarding(selected);
+                onDelete={(selected) => {
+                  setDeleting(selected);
                 }}
                 onEdit={(selected) => {
                   setEditing(selected);
@@ -532,26 +574,26 @@ export function PublicationWorkspace({
             ))}
           </ul>
         )}
-        {discarding === null ? null : (
+        {deleting === null ? null : (
           <div className="publication-discard-confirm" role="dialog">
             <p>
-              ¿Descartar <strong>{discarding.title}</strong>? Sale del listado y
-              no se puede recuperar desde el panel.
+              ¿Eliminar <strong>{deleting.title}</strong>? Se borra para
+              siempre, con su foto. No se puede deshacer.
             </p>
             <div>
               <button
                 onClick={() => {
-                  const selected = discarding;
-                  setDiscarding(null);
-                  void runCommand(selected, "discard");
+                  const selected = deleting;
+                  setDeleting(null);
+                  void runCommand(selected, "delete");
                 }}
                 type="button"
               >
-                Sí, descartar
+                Sí, eliminar
               </button>
               <button
                 onClick={() => {
-                  setDiscarding(null);
+                  setDeleting(null);
                 }}
                 type="button"
               >

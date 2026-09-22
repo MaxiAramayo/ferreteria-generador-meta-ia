@@ -134,11 +134,10 @@ export interface PublicationApprovalResponse {
   readonly version: number;
 }
 
-/** Descartar una pieza que no va a publicarse: sale del panel, no de la auditoría. */
-export interface PublicationDiscardResponse {
+/** Eliminar para siempre una pieza que nunca fue evidencia. */
+export interface PublicationDeleteResponse {
   readonly publicationId: string;
-  readonly status: "cancelled";
-  readonly version: number;
+  readonly status: "deleted";
 }
 
 /**

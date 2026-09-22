@@ -43,7 +43,10 @@ export interface PublicationComposerMeta {
   readonly canSchedule: boolean;
   readonly formId: string;
   /** Un flujo que guarda su propio borrador avisa por acá al terminar. */
-  readonly onDraftSaved: (title: string) => void;
+  /** La pieza recién guardada: el panel la abre para verla y aprobarla. */
+  readonly onDraftSaved: (
+    publication: Readonly<{ id: string; title: string }>,
+  ) => void;
 }
 
 export interface PublicationComposerContextValue {

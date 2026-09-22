@@ -1,6 +1,6 @@
 import type {
   PublicationApprovalResponse,
-  PublicationDiscardResponse,
+  PublicationDeleteResponse,
   PublicationRenderRequestResponse,
 } from "@aramayo/contracts";
 import {
@@ -86,26 +86,26 @@ export class PublicationProductionService {
   }
 
   /**
-   * Descartar una pieza que no va a publicarse.
+   * Eliminar para siempre una pieza que no va a publicarse.
    *
    * Requiere `content:edit`, igual que crearla: quien puede armar un borrador
    * puede tirarlo. No alcanza a una pieza aprobada o publicada; ahí el
    * repositorio responde `invalid-state` y la pieza queda como está.
    */
-  async discard(
+  async delete(
     actor: AuthenticatedActor,
     publicationId: string,
     expectedVersion: number,
     idempotencyKey?: string,
-  ): Promise<PublicationDiscardResponse> {
+  ): Promise<PublicationDeleteResponse> {
     this.#require(actor, "content:edit");
     const reliableOperation = this.#prepare(
       actor,
-      "content.publication:discard",
+      "content.publication:delete",
       idempotencyKey,
       { expectedVersion, publicationId },
     );
-    const result = await this.#repository.discard({
+    const result = await this.#repository.delete({
       actorMembershipId: actor.membershipId,
       expectedVersion,
       organizationId: actor.organizationId,
@@ -113,15 +113,14 @@ export class PublicationProductionService {
       reliableOperation,
     });
     switch (result.status) {
-      case "cancelled":
+      case "deleted":
         return Object.freeze({
           publicationId: result.publicationId,
           status: result.status,
-          version: result.version,
         });
       case "conflict":
         throw new ConflictException(
-          "La publicación cambió. Recargá antes de descartarla.",
+          "La publicación cambió. Recargá antes de eliminarla.",
         );
       case "idempotency-conflict":
         throw new ConflictException(
@@ -129,12 +128,12 @@ export class PublicationProductionService {
         );
       case "in-progress":
         throw new ConflictException({
-          message: "El mismo descarte todavía está en curso.",
+          message: "La misma eliminación todavía está en curso.",
           retryAfter: result.retryAfter,
         });
       case "invalid-state":
         throw new ConflictException(
-          "Una pieza aprobada, programada o publicada no se descarta: ya es evidencia de lo que salió.",
+          "Una pieza aprobada, programada o publicada no se elimina: ya es evidencia de lo que salió.",
         );
       case "not-found":
         throw new NotFoundException("No se encontró la publicación.");

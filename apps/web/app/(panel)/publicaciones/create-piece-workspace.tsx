@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { actorCan } from "../../../lib/panel-navigation.ts";
@@ -28,6 +28,7 @@ export function CreatePieceWorkspace({
   const actor = usePanelActor();
   const canEdit = actorCan(actor, "content:edit");
   const canSchedule = actorCan(actor, "content:schedule");
+  const router = useRouter();
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   const variant =
     requestedVariant ?? defaultComposerVariant({ canEdit, canSchedule });
@@ -40,8 +41,8 @@ export function CreatePieceWorkspace({
           <h1 id="crear-pieza">Elegí cómo nace la pieza.</h1>
         </div>
         <p>
-          Cada flujo tiene su dirección. Guardar deja un borrador o una regla:
-          revisar, aprobar y publicar siguen en el listado.
+          Cada flujo tiene su dirección. Al guardar te llevamos a la pieza, con
+          su imagen final, para aprobarla o seguir editándola.
         </p>
       </section>
 
@@ -57,7 +58,14 @@ export function CreatePieceWorkspace({
         apiBaseUrl={apiBaseUrl}
         canEdit={canEdit}
         canSchedule={canSchedule}
-        onDraftSaved={setSavedTitle}
+        onDraftSaved={(publication) => {
+          // Guardar termina en la pieza, no en un aviso: el listado la abre,
+          // le pide el PNG y la muestra para aprobarla.
+          setSavedTitle(publication.title);
+          router.push(
+            `/publicaciones?revisar=${publication.id}#publicacion-${publication.id}`,
+          );
+        }}
         variant={variant}
       >
         <section className="composer-section">
@@ -69,8 +77,7 @@ export function CreatePieceWorkspace({
 
       {savedTitle === null ? null : (
         <p aria-live="polite" className="publication-command-notice">
-          «{savedTitle}» quedó como borrador.{" "}
-          <Link href="/publicaciones">Verlo en el listado</Link>
+          «{savedTitle}» quedó como borrador. Te llevamos a verlo.
         </p>
       )}
     </main>

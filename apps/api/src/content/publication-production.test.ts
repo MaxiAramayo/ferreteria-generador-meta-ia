@@ -47,11 +47,10 @@ function repositoryDouble(): PublicationProductionRepository {
         version: input.expectedVersion + 1,
       }),
     completeRender: () => Promise.resolve({ status: "conflict" }),
-    discard: (input) =>
+    delete: (input) =>
       Promise.resolve({
         publicationId: input.publicationId,
-        status: "cancelled",
-        version: input.expectedVersion + 1,
+        status: "deleted",
       }),
     failRender: () => Promise.resolve({ status: "conflict" }),
     findRenderJob: () => Promise.resolve(null),
@@ -113,19 +112,19 @@ test("approver aprueba pero no obtiene edición implícita", async () => {
   );
 });
 
-test("descartar es de quien edita, no de quien sólo aprueba", async () => {
+test("eliminar es de quien edita, no de quien sólo aprueba", async () => {
   const production = service(repositoryDouble());
   assert.deepEqual(
-    await production.discard(
+    await production.delete(
       actor(["editor"]),
       "publication-1",
       1,
       "idempotency-key-0005",
     ),
-    { publicationId: "publication-1", status: "cancelled", version: 2 },
+    { publicationId: "publication-1", status: "deleted" },
   );
   await assert.rejects(
-    production.discard(
+    production.delete(
       actor(["approver"]),
       "publication-1",
       1,
@@ -135,13 +134,13 @@ test("descartar es de quien edita, no de quien sólo aprueba", async () => {
   );
 });
 
-test("una pieza que ya es evidencia no se descarta", async () => {
+test("una pieza que ya es evidencia no se elimina", async () => {
   const production = service({
     ...repositoryDouble(),
-    discard: () => Promise.resolve({ status: "invalid-state" }),
+    delete: () => Promise.resolve({ status: "invalid-state" }),
   });
   await assert.rejects(
-    production.discard(
+    production.delete(
       actor(["editor"]),
       "publication-1",
       1,
@@ -153,13 +152,13 @@ test("una pieza que ya es evidencia no se descarta", async () => {
   );
 });
 
-test("descartar con una versión vieja no descarta otra cosa", async () => {
+test("eliminar con una versión vieja no borra otra cosa", async () => {
   const production = service({
     ...repositoryDouble(),
-    discard: () => Promise.resolve({ status: "conflict" }),
+    delete: () => Promise.resolve({ status: "conflict" }),
   });
   await assert.rejects(
-    production.discard(
+    production.delete(
       actor(["editor"]),
       "publication-1",
       1,
