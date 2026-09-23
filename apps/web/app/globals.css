@@ -1022,26 +1022,48 @@ a {
 }
 
 .recurring-weekdays > div {
-  display: grid;
-  gap: 0.35rem;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   margin-top: 0.55rem;
 }
 
+/* Los días se tocan con el pulgar y se leen de un vistazo. */
 .recurring-weekdays button {
-  aspect-ratio: 1;
-  background: transparent;
-  border: 1px solid var(--workspace-ink);
+  background: #fff;
+  border: 2px solid var(--workspace-ink);
   color: var(--workspace-ink);
   cursor: pointer;
-  font:
-    800 0.8rem/1 "Archivo",
-    sans-serif;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-height: 2.9rem;
+  min-width: 2.9rem;
+  text-transform: uppercase;
 }
 
 .recurring-weekdays button[aria-pressed="true"] {
-  background: var(--workspace-ink);
-  color: var(--workspace-paper);
+  background: var(--workspace-rust);
+  border-color: var(--workspace-rust);
+  color: #fff;
+}
+
+/* Lo que se confirma antes de apretar, dicho en palabras. */
+.recurring-when-summary {
+  display: grid;
+  gap: 0.2rem;
+  margin-bottom: 0.6rem;
+}
+
+.recurring-when-summary strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.recurring-when-summary small {
+  color: var(--workspace-muted);
 }
 
 .recurring-visual-style {

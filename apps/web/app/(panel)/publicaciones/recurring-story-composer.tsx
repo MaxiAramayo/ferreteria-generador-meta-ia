@@ -151,6 +151,26 @@ const weekdayFullNames = [
   "domingo",
 ] as const;
 
+/** Cómo se dicen los días en voz alta, que es como se confirman. */
+function weekdayPhrase(selected: readonly number[]): string {
+  const ordered = [...selected].sort((left, right) => left - right);
+  if (ordered.length === 7) return "todos los días";
+  const runsFromMonday = ordered.every(
+    (day, index) => day === (ordered[0] ?? 1) + index,
+  );
+  const first = ordered[0];
+  const last = ordered.at(-1);
+  if (
+    ordered.length > 2 &&
+    runsFromMonday &&
+    first !== undefined &&
+    last !== undefined
+  ) {
+    return `de ${weekdayFullNames[first - 1] ?? ""} a ${weekdayFullNames[last - 1] ?? ""}`;
+  }
+  return weekdayNames(ordered);
+}
+
 function weekdayNames(weekdays: readonly number[]): string {
   const names = weekdays
     .map((day) => weekdayFullNames[day - 1])
@@ -711,12 +731,24 @@ export function RecurringStoryRuleComposer({
                   : `${String(selectedLocations.length)} sucursales`
               }. Se vuelve a consultar al crear cada borrador.`}
           </p>
+          <div className="recurring-when-summary">
+            <strong>
+              {selectedWeekdays.length === 0
+                ? "Elegí al menos un día."
+                : `Sale ${weekdayPhrase(selectedWeekdays)} a las ${localTime}.`}
+            </strong>
+            <small>
+              {approvalPolicy === "human-each-cycle"
+                ? "Cada vez te la deja lista y vos apretás publicar."
+                : "Se publica sola, sin que la mires."}
+            </small>
+          </div>
           <button
             className="workspace-primary-action"
             disabled={!canSchedule || saving}
             type="submit"
           >
-            {saving ? "Guardando…" : "Activar regla"}
+            {saving ? "Programando…" : "Programar"}
           </button>
         </div>
         {loadState.workspace.rules.length === 0 ? null : (
