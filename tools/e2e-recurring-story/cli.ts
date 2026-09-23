@@ -323,6 +323,15 @@ async function main(): Promise<void> {
     await page
       .getByRole("button", { name: "Programar" })
       .waitFor({ timeout: startupTimeoutMs });
+    await page
+      .getByText("Aprobar y publicar rutina", { exact: true })
+      .waitFor({ timeout: startupTimeoutMs });
+    await page
+      .getByText("Renderiza y publica al horario elegido", { exact: false })
+      .waitFor({ timeout: startupTimeoutMs });
+    reportCheck(
+      "la política automática explica que la rutina normal se renderiza y publica sin revisión diaria",
+    );
 
     // --- La vista previa monta el mismo documento del motor ---
     const format = FORMATS.historia;

@@ -309,9 +309,11 @@ Una materialización tiene dos desenlaces posibles:
 - **bloqueo**: sucursal inactiva, día cerrado u horario faltante quedan
   registrados con su código de causa y sin publicación.
 
-Aprobar el borrador —una persona, o la política automática al terminar el
-render— crea una programación `once` con destino `instagram_story` y su única
-ocurrencia. Un cambio posterior de la fuente factual de la sucursal invalida
+Una rutina automática solicita el render en la misma transacción que crea el
+borrador y su evento outbox; después de renderizar, vuelve a comprobar los
+roles vigentes antes de aprobar, crear una programación `once` con destino
+`instagram_story` y su única ocurrencia. Una persona sigue aprobando los demás
+borradores. Un cambio posterior de la fuente factual de la sucursal invalida
 toda materialización aún no publicada. Está en
 [`ADR-025`](decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
 

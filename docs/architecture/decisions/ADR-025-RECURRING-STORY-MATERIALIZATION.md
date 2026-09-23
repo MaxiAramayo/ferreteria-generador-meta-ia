@@ -44,11 +44,14 @@ autoridad que su autor pudo haber perdido.
 4. **Una excepción siempre vuelve a revisión humana.** Un horario especial se
    cita como fuente y fuerza aprobación humana aunque la regla sea automática.
    Una regla de rutina tiene autoridad sobre la rutina, no sobre el día raro.
-5. **La política automática aprueba al terminar el render, no al materializar.**
-   Antes no hay pieza que aprobar. En ese momento se vuelve a comprobar que
-   quien creó la regla siga activo y conserve `admin` y `approver`. Si los
-   perdió, la materialización pasa a exigir revisión humana: la automatización
-   puede reducirse sola, nunca ampliarse.
+5. **Una rutina automática solicita el render al materializar.** La creación
+   de borrador, la transición a `generating_assets` y el evento outbox de render
+   se escriben en la misma transacción, así que ningún clic diario completa el
+   hueco entre borrador y PNG. La política aprueba recién al terminar ese
+   render, porque antes no hay pieza que aprobar. En ese momento se vuelve a
+   comprobar que quien creó la regla siga activo y conserve `admin` y
+   `approver`. Si los perdió, la materialización pasa a exigir revisión humana:
+   la automatización puede reducirse sola, nunca ampliarse.
 6. **Aprobar una historia recurrente la programa.** La aprobación —humana o
    automática— crea una programación `once` con destino `instagram_story` y una
    única ocurrencia en el instante materializado. Por eso la aprobación pasa a
@@ -76,6 +79,10 @@ autoridad que su autor pudo haber perdido.
   las automatizaciones que esa persona había dejado activas.
 - Un borrador invalidado conserva su historia completa —transición, auditoría y
   snapshot de fuente— para explicar por qué no salió.
+- Si el render falla, la publicación queda en `generation_failed` y no existe
+  snapshot, programación ni orden remota. Si Meta falla después, conserva el
+  flujo ya idempotente de reintento o reconciliación; una respuesta ambigua no
+  vuelve a publicar sola.
 
 ## Alternativas descartadas
 

@@ -711,9 +711,10 @@ export function RecurringStoryRuleComposer({
               type="radio"
             />
             <span>
-              <strong>Aprobar rutina normal</strong>
+              <strong>Aprobar y publicar rutina</strong>
               <small>
-                Sólo administradores; una excepción exige revisión igual.
+                Renderiza y publica al horario elegido; una excepción o Imagen
+                propia exige revisión igual.
               </small>
             </span>
           </label>

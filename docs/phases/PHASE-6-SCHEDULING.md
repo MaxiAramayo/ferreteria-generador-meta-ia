@@ -1346,9 +1346,89 @@ pedir un diseño nuevo por cada imagen.
   `down.sql`.
 - `pnpm visual:regression`: cambian las aperturas y los marcos nuevos.
 
+## P6-T14 — Publicar rutinas ya aprobadas sin revisión diaria
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P6-T05`, `P6-T13`
+- Riesgo: Alto
+
+### Objetivo
+
+Que elegir «Aprobar y publicar rutina» apruebe la intención editorial de la
+regla y, en cada día normal, encadene borrador, render, snapshot, programación
+y publicación sin pedir cuatro acciones diarias en el panel.
+
+### Restricciones e invariantes
+
+- La aprobación automática sólo cubre la rutina creada por una membresía que
+  siga activa con `admin` y `approver`; perder esos roles vuelve el resultado a
+  revisión humana.
+- Horarios excepcionales e «Imagen propia» siguen exigiendo revisión humana.
+- El render se solicita transaccionalmente con su outbox; un fallo no crea
+  snapshot, programación ni orden de publicación.
+- La publicación mantiene validación factual, idempotencia por ocurrencia y la
+  reconciliación existente frente a resultados remotos ambiguos.
+
+### Entregables
+
+- Materialización automática que solicita el render del borrador en el worker.
+- Auditoría y evento outbox atómicos para esa solicitud.
+- Etiqueta del panel que describe el efecto completo de la opción.
+- ADR y documentación de dominio coherentes con el flujo.
+
+### Criterios de aceptación
+
+- [x] Una regla automática normal crea un único trabajo de render sin acción
+      diaria y, al completarlo, queda aprobada y programada para su horario.
+- [x] Una excepción, una imagen propia o la pérdida de roles no automatizan la
+      publicación.
+- [x] Un render fallido no programa ni publica; un fallo de Meta conserva su
+      reintento o reconciliación sin duplicar el destino.
+- [x] El panel llama a la opción «Aprobar y publicar rutina» y explica sus
+      límites.
+
+### Verificación obligatoria
+
+- [x] Integración PostgreSQL: outbox, estado `generating_assets`, aprobación,
+      programación y pérdida de rol.
+- [x] Pruebas afectadas, lint, typecheck, `pnpm verify:plan` y revisión final.
+
+### Fuera de alcance
+
+- Publicar una historia real sin la autorización concreta de `P5-T09`.
+- Convertir excepciones o imágenes propias en publicaciones sin revisión.
+
+### Notas de progreso
+
+- Fecha: 2026-09-23.
+- Estado real: completada. La materialización normal crea el borrador, lo pasa
+  a `generating_assets` y registra un único evento de render en el outbox de la
+  misma transacción. El render ya existente vuelve a validar roles, aprueba,
+  crea snapshot y programa la única ocurrencia.
+- Invariantes revisados: snapshot inmutable tras PNG, roles vigentes antes de
+  autoaprobar, excepción/imagen propia manuales, outbox transaccional e
+  idempotencia de ocurrencia/destino.
+- Archivos modificados: repositorio recurrente y su integración PostgreSQL,
+  etiqueta del compositor, E2E de historia recurrente, `DOMAIN`, `ADR-025`,
+  este plan y `STATUS`.
+- Verificaciones ejecutadas: `pnpm db:test`, `pnpm e2e:recurring-story`,
+  `pnpm queue:integration`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
+  `pnpm format:check`, `pnpm baseline:verify`, `pnpm smoke` y
+  `pnpm verify:plan`, todas en verde.
+
+### Evidencia de cierre
+
+- Commit: pendiente de versionar.
+- Comandos y resultados: migración y repositorios, navegador real, cola,
+  tipos, lint, formato, pruebas, baseline, smoke y plan en verde.
+- Evidencia visual o remota: el E2E verificó el texto de la opción en Chrome;
+  no se contactó Meta ni se publicó una historia real.
+- Desviaciones aprobadas: ninguna.
+
 ## Criterios de salida de Fase 6
 
-- [ ] `P6-T01` a `P6-T13` están completas.
+- [ ] `P6-T01` a `P6-T14` están completas.
 - [ ] Programaciones sobreviven reinicios sin pérdidas ni duplicados.
 - [ ] Historias recurrentes respetan horario, ubicación y excepciones.
 - [ ] Validación previa bloquea contenido inválido o vencido.

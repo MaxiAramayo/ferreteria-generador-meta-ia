@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   planOccurrences,
+  publicationRenderTopic,
   recurringStoryDesignDocument,
   recurringStorySourceToJson,
   resolveEveryLocationStoryDraft,
@@ -887,6 +888,55 @@ export class PrismaRecurringStoryRepository
             status: "draft_created",
           },
         });
+        if (!resolution.requiresHumanApproval) {
+          // La política automática autoriza la rutina, no un bitmap inexistente.
+          // Por eso la materialización sólo pide el render; `completeRender`
+          // vuelve a comprobar los roles antes de crear el snapshot, programar y
+          // dejar que el dispatcher publique en el horario elegido.
+          await transaction.publication.update({
+            data: { status: "generating_assets", version: 2 },
+            where: { id: publicationId },
+          });
+          await transaction.publicationStateTransition.create({
+            data: {
+              actorMembershipId: rule.createdByMembershipId,
+              commandType: "advance",
+              fromStatus: "draft",
+              fromVersion: 1,
+              occurredAt: new Date(capturedAt),
+              organizationId: rule.organizationId,
+              publicationId,
+              reasonCode: "recurring-story-policy",
+              toStatus: "generating_assets",
+              toVersion: 2,
+            },
+          });
+          const renderEventId = randomUUID();
+          await transaction.outboxMessage.create({
+            data: {
+              aggregateId: publicationId,
+              aggregateType: "publication",
+              availableAt: new Date(capturedAt),
+              id: renderEventId,
+              organizationId: rule.organizationId,
+              payload: { publicationId, revisionId },
+              topic: publicationRenderTopic,
+            },
+          });
+          await transaction.auditEvent.create({
+            data: {
+              actorMembershipId: rule.createdByMembershipId,
+              entityId: publicationId,
+              entityType: "publication",
+              id: randomUUID(),
+              metadata: { materializationRuleId: rule.id, revisionId },
+              occurredAt: new Date(capturedAt),
+              operation: "scheduling.recurring-story:auto-render-request",
+              organizationId: rule.organizationId,
+              outcome: "success",
+            },
+          });
+        }
         await transaction.auditEvent.create({
           data: {
             actorMembershipId: rule.createdByMembershipId,
@@ -896,6 +946,7 @@ export class PrismaRecurringStoryRepository
             metadata: {
               locationVersion,
               occurrenceKey: occurrence.occurrenceKey,
+              renderRequestedAutomatically: !resolution.requiresHumanApproval,
               requiresHumanApproval: resolution.requiresHumanApproval,
               ruleId: rule.id,
             },

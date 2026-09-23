@@ -9202,7 +9202,7 @@ test("feriado, horario especial, cierre y dato faltante se materializan sin adiv
   assert.match(JSON.stringify(special.sourceSnapshot), /09:00 a 12:00/u);
 });
 
-test("la rutina automática aprueba al terminar el render y una pérdida de rol la devuelve a revisión", async () => {
+test("la rutina automática solicita el render, aprueba al terminar y una pérdida de rol la devuelve a revisión", async () => {
   const organizationId = randomUUID();
   const brandId = randomUUID();
   const locationId = randomUUID();
@@ -9328,24 +9328,27 @@ test("la rutina automática aprueba al terminar el render y una pérdida de rol 
       materializationId: materialization.id,
       publicationId,
     });
-    const renderRequest = await production.requestRender({
-      actorMembershipId: routineMembershipId,
-      expectedVersion: 1,
-      organizationId,
-      publicationId,
-      reliableOperation: reliableMutation(
-        organizationId,
-        routineMembershipId,
-        "content.publication:request-render",
-      ),
+    const revision = await database.publicationRevision.findFirstOrThrow({
+      select: { id: true },
+      where: { organizationId, publicationId },
     });
-    assert.equal(renderRequest.status, "accepted");
     const renderJob = await production.findRenderJob(
       organizationId,
       publicationId,
-      renderRequest.revisionId,
+      revision.id,
     );
     assert.ok(renderJob);
+    assert.equal(renderJob.publicationVersion, 2);
+    assert.equal(
+      await database.outboxMessage.count({
+        where: {
+          aggregateId: publicationId,
+          organizationId,
+          topic: "content.publication.render-requested",
+        },
+      }),
+      1,
+    );
     const mediaAssetId = randomUUID();
     await database.mediaAsset.create({
       data: {
@@ -9356,7 +9359,7 @@ test("la rutina automática aprueba al terminar el render y una pérdida de rol 
         mimeType: "image/png",
         organizationId,
         origin: "generated",
-        originalFileName: `${renderRequest.revisionId}.png`,
+        originalFileName: `${renderJob.revisionId}.png`,
         ownerMembershipId: routineMembershipId,
         secureUrl: "https://media.example.invalid/routine-story.png",
         status: "available",
