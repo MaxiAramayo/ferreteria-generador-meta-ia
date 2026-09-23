@@ -71,3 +71,15 @@ export interface UpdateRecurringStoryVisualStyleResponse {
   readonly rule: RecurringStoryRuleResponse;
   readonly status: "updated";
 }
+
+/** Pausar o reanudar una regla: la devuelve con su estado nuevo. */
+export interface RecurringStoryRuleStatusResponse {
+  readonly rule: RecurringStoryRuleResponse;
+  readonly status: "updated";
+}
+
+/** Borrar una regla: se va ella y el vínculo con lo que materializó. */
+export interface DeleteRecurringStoryRuleResponse {
+  readonly ruleId: string;
+  readonly status: "deleted";
+}

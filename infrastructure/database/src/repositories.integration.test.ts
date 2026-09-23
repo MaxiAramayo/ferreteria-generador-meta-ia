@@ -8317,6 +8317,97 @@ test("la imagen propia exige su imagen y siempre pide aprobación humana", async
   const document = JSON.stringify(revision.designDocument);
   assert.match(document, /"layout":"historia-apertura-imagen"/u);
   assert.ok(document.includes(recurringStoryPhotoFixture.dataUrl));
+
+  // --- Pausar frena la materialización; reanudar la retoma ---
+  const pausada = await recurring.setStatus({
+    actor,
+    expectedVersion: created.rule.version,
+    idempotencyKey: `pause-${randomUUID()}`,
+    occurredAt: "2026-09-07T12:05:00.000Z",
+    ruleId: created.rule.id,
+    status: "paused",
+  });
+  assert.equal(pausada.status, "updated");
+  assert.deepEqual(
+    await recurring.materializeDue({
+      at: "2026-09-14T12:00:00.000Z",
+      limit: 10,
+      organizationId,
+    }),
+    { blocked: 0, created: 0, reviewed: 0 },
+    "una regla en pausa no arma nada",
+  );
+  // Pedir el estado que ya tiene no falla ni gasta una versión.
+  assert.equal(
+    (
+      await recurring.setStatus({
+        actor,
+        expectedVersion: 999,
+        idempotencyKey: `pause-otra-${randomUUID()}`,
+        occurredAt: "2026-09-07T12:06:00.000Z",
+        ruleId: created.rule.id,
+        status: "paused",
+      })
+    ).status,
+    "updated",
+  );
+
+  // --- Borrar la regla: se va con su vínculo, no con lo publicado ---
+  const publicationId = materialization.publicationId;
+  assert.equal(
+    (
+      await recurring.delete({
+        actor,
+        expectedVersion: 1,
+        idempotencyKey: `borrar-viejo-${randomUUID()}`,
+        occurredAt: "2026-09-07T12:07:00.000Z",
+        ruleId: created.rule.id,
+      })
+    ).status,
+    "version-conflict",
+    "una versión vieja no borra la regla",
+  );
+  const vigente = await database.recurringStoryRule.findUniqueOrThrow({
+    where: { organizationId_id: { id: created.rule.id, organizationId } },
+  });
+  assert.deepEqual(
+    await recurring.delete({
+      actor,
+      expectedVersion: vigente.version,
+      idempotencyKey: `borrar-${randomUUID()}`,
+      occurredAt: "2026-09-07T12:08:00.000Z",
+      ruleId: created.rule.id,
+    }),
+    { ruleId: created.rule.id, status: "deleted" },
+  );
+  assert.equal(
+    await database.recurringStoryRule.count({
+      where: { id: created.rule.id, organizationId },
+    }),
+    0,
+  );
+  assert.equal(
+    await database.recurringStoryMaterialization.count({
+      where: { organizationId, ruleId: created.rule.id },
+    }),
+    0,
+  );
+  // La historia que la regla ya había armado sigue existiendo.
+  assert.equal(
+    await database.publication.count({
+      where: { id: publicationId, organizationId },
+    }),
+    1,
+  );
+  const auditoria = await database.auditEvent.findMany({
+    select: { operation: true },
+    where: { entityId: created.rule.id, organizationId },
+  });
+  assert.ok(
+    auditoria.some(
+      (evento) => evento.operation === "scheduling.recurring-story:delete",
+    ),
+  );
 });
 
 test("una regla recurrente materializa, aprueba y crea una ocurrencia sin publicar", async () => {

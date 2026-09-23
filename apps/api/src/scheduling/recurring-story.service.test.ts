@@ -108,8 +108,30 @@ class FakeRules implements RecurringStoryRuleRepository {
     return Promise.resolve({ rule: storedRule, status: "created" });
   }
 
+  lifecycleInput:
+    | Parameters<RecurringStoryRuleRepository["setStatus"]>[0]
+    | Parameters<RecurringStoryRuleRepository["delete"]>[0]
+    | undefined;
+
   list(): Promise<readonly RecurringStoryRuleRecord[]> {
     return Promise.resolve([storedRule]);
+  }
+
+  setStatus(
+    input: Parameters<RecurringStoryRuleRepository["setStatus"]>[0],
+  ): ReturnType<RecurringStoryRuleRepository["setStatus"]> {
+    this.lifecycleInput = input;
+    return Promise.resolve({
+      rule: { ...storedRule, status: input.status, version: 2 },
+      status: "updated",
+    });
+  }
+
+  delete(
+    input: Parameters<RecurringStoryRuleRepository["delete"]>[0],
+  ): ReturnType<RecurringStoryRuleRepository["delete"]> {
+    this.lifecycleInput = input;
+    return Promise.resolve({ ruleId: input.ruleId, status: "deleted" });
   }
 
   updateVisualStyle(
@@ -453,4 +475,63 @@ test("cambiar el estilo exige decir qué pasa con la foto", async () => {
     BadRequestException,
   );
   assert.equal(rules.visualStyleInput, undefined);
+});
+
+test("pausar y reanudar cambian el estado y dejan la clave idempotente", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+
+  const pausada = await service.setStatus(
+    actor(["approver"]),
+    storedRule.id,
+    { expectedVersion: storedRule.version, status: "paused" },
+    "rule-pause-idempotency-0001",
+  );
+
+  assert.equal(pausada.rule.status, "paused");
+  const pedido = rules.lifecycleInput;
+  assert.ok(pedido);
+  assert.equal(pedido.idempotencyKey, "rule-pause-idempotency-0001");
+  assert.equal(pedido.expectedVersion, storedRule.version);
+
+  const activa = await service.setStatus(
+    actor(["approver"]),
+    storedRule.id,
+    { expectedVersion: storedRule.version, status: "active" },
+    "rule-resume-idempotency-0001",
+  );
+  assert.equal(activa.rule.status, "active");
+});
+
+test("borrar la regla devuelve su identificador y exige permiso de programación", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+
+  assert.deepEqual(
+    await service.delete(
+      actor(["approver"]),
+      storedRule.id,
+      storedRule.version,
+      "rule-delete-idempotency-0001",
+    ),
+    { ruleId: storedRule.id, status: "deleted" },
+  );
+});
+
+test("sin clave idempotente no se pausa ni se borra", async () => {
+  const rules = new FakeRules();
+  const service = new RecurringStoryService(rules, new FakeConfiguration());
+
+  await assert.rejects(
+    service.setStatus(actor(["approver"]), storedRule.id, {
+      expectedVersion: storedRule.version,
+      status: "paused",
+    }),
+    BadRequestException,
+  );
+  await assert.rejects(
+    service.delete(actor(["approver"]), storedRule.id, storedRule.version),
+    BadRequestException,
+  );
+  assert.equal(rules.lifecycleInput, undefined);
 });

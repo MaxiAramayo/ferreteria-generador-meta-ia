@@ -475,12 +475,42 @@ export type CreateRecurringStoryRuleResult =
   | Readonly<{ status: "idempotency-conflict" }>
   | Readonly<{ status: "location-not-found" }>;
 
+/**
+ * Pausar, reanudar o borrar una regla.
+ *
+ * Pausar deja de materializar y se puede volver atrás; borrar saca la regla y
+ * sus materializaciones, que son el vínculo entre la regla y cada borrador que
+ * produjo. Las publicaciones no se tocan: lo que ya salió sigue existiendo, y
+ * su snapshot conserva la fuente que citó.
+ */
+export interface RecurringStoryRuleLifecycleCommand {
+  readonly actor: AuthenticatedActor;
+  readonly expectedVersion: number;
+  readonly idempotencyKey: string;
+  readonly occurredAt: string;
+  readonly ruleId: string;
+}
+
+export type RecurringStoryRuleLifecycleResult =
+  | Readonly<{ rule: RecurringStoryRuleRecord; status: "updated" }>
+  | Readonly<{ ruleId: string; status: "deleted" }>
+  | Readonly<{ status: "not-found" }>
+  | Readonly<{ status: "version-conflict" }>;
+
 export interface RecurringStoryRuleRepository {
   create(
     command: CreateRecurringStoryRuleCommand &
       Readonly<{ idempotencyKey: string; occurredAt: string }>,
   ): Promise<CreateRecurringStoryRuleResult>;
+  delete(
+    command: RecurringStoryRuleLifecycleCommand,
+  ): Promise<RecurringStoryRuleLifecycleResult>;
   list(organizationId: string): Promise<readonly RecurringStoryRuleRecord[]>;
+  /** `paused` frena la materialización; `active` la retoma. */
+  setStatus(
+    command: RecurringStoryRuleLifecycleCommand &
+      Readonly<{ status: "active" | "paused" }>,
+  ): Promise<RecurringStoryRuleLifecycleResult>;
   updateVisualStyle(
     command: Readonly<{
       accent: RecurringStoryAccent;

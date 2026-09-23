@@ -1,5 +1,7 @@
 import type {
   CreateRecurringStoryRuleResponse,
+  DeleteRecurringStoryRuleResponse,
+  RecurringStoryRuleStatusResponse,
   RecurringStoryRuleResponse,
   RecurringStoryWorkspaceResponse,
   UpdateRecurringStoryVisualStyleResponse,
@@ -35,6 +37,7 @@ import {
   RECURRING_STORY_RULE_REPOSITORY,
 } from "../database/database.tokens.ts";
 import type { CreateRecurringStoryRuleDto } from "./dto/create-recurring-story-rule.dto.ts";
+import type { RecurringStoryRuleStatusDto } from "./dto/recurring-story-lifecycle.dto.ts";
 import type { UpdateRecurringStoryVisualStyleDto } from "./dto/update-recurring-story-visual-style.dto.ts";
 
 function response(rule: RecurringStoryRuleRecord): RecurringStoryRuleResponse {
@@ -316,5 +319,79 @@ export class RecurringStoryService {
       );
     }
     return Object.freeze({ rule: response(result.rule), status: "updated" });
+  }
+
+  /** Pausar frena la materialización; reanudar la retoma. */
+  async setStatus(
+    actor: AuthenticatedActor,
+    ruleId: string,
+    input: RecurringStoryRuleStatusDto,
+    idempotencyKey?: string,
+  ): Promise<RecurringStoryRuleStatusResponse> {
+    const result = await this.#rules.setStatus({
+      actor,
+      expectedVersion: input.expectedVersion,
+      idempotencyKey: this.#requireKey(idempotencyKey),
+      occurredAt: new Date().toISOString(),
+      ruleId,
+      status: input.status,
+    });
+    if (result.status === "not-found") {
+      throw new NotFoundException("No se encontró la regla recurrente.");
+    }
+    if (result.status === "version-conflict") {
+      throw new ConflictException(
+        "La regla cambió. Recargá antes de pausarla.",
+      );
+    }
+    if (result.status === "deleted") {
+      throw new NotFoundException("No se encontró la regla recurrente.");
+    }
+    return Object.freeze({ rule: response(result.rule), status: "updated" });
+  }
+
+  /**
+   * Borrar la regla y el vínculo con lo que materializó. Las publicaciones que
+   * ya produjo no se tocan: cada una conserva su propia evidencia.
+   */
+  async delete(
+    actor: AuthenticatedActor,
+    ruleId: string,
+    expectedVersion: number,
+    idempotencyKey?: string,
+  ): Promise<DeleteRecurringStoryRuleResponse> {
+    const result = await this.#rules.delete({
+      actor,
+      expectedVersion,
+      idempotencyKey: this.#requireKey(idempotencyKey),
+      occurredAt: new Date().toISOString(),
+      ruleId,
+    });
+    if (result.status === "not-found") {
+      throw new NotFoundException("No se encontró la regla recurrente.");
+    }
+    if (result.status === "version-conflict") {
+      throw new ConflictException(
+        "La regla cambió. Recargá antes de borrarla.",
+      );
+    }
+    if (result.status === "updated") {
+      throw new ConflictException("La regla no se pudo borrar.");
+    }
+    return Object.freeze({ ruleId: result.ruleId, status: "deleted" });
+  }
+
+  #requireKey(idempotencyKey?: string): string {
+    const normalized = idempotencyKey?.trim();
+    if (
+      normalized === undefined ||
+      normalized.length < 8 ||
+      normalized.length > 128
+    ) {
+      throw new BadRequestException(
+        "El encabezado Idempotency-Key es obligatorio y debe ser válido.",
+      );
+    }
+    return normalized;
   }
 }

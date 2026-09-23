@@ -1096,6 +1096,84 @@ a {
   text-transform: none;
 }
 
+/* Los días de una regla: lo que la distingue de otra de un vistazo. */
+.recurring-rule-weekdays {
+  display: flex;
+  gap: 0.2rem;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.recurring-rule-weekdays i {
+  background: var(--workspace-cream);
+  color: color-mix(in srgb, var(--workspace-ink) 40%, transparent);
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+}
+
+.recurring-rule-weekdays i[data-activo="true"] {
+  background: var(--workspace-rust);
+  color: var(--workspace-paper);
+}
+
+.recurring-rule-list
+  li[data-estado="paused"]
+  .recurring-rule-weekdays
+  i[data-activo="true"] {
+  background: color-mix(in srgb, var(--workspace-ink) 35%, transparent);
+}
+
+.recurring-rule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.recurring-rule-actions .recurring-rule-delete {
+  border-color: color-mix(in srgb, var(--workspace-ink) 45%, transparent);
+  color: color-mix(in srgb, var(--workspace-ink) 68%, transparent);
+}
+
+.recurring-rule-confirm {
+  background: var(--workspace-paper);
+  border: 2px solid var(--workspace-ink);
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.recurring-rule-confirm p {
+  margin: 0 0 0.6rem;
+}
+
+.recurring-rule-confirm div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.recurring-rule-confirm button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  cursor: pointer;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.recurring-rule-confirm button:first-child:hover {
+  background: var(--workspace-rust);
+  border-color: var(--workspace-rust);
+  color: var(--workspace-paper);
+}
+
 .recurring-flow {
   border-bottom: 1px solid var(--workspace-ink);
   border-top: 1px solid var(--workspace-ink);

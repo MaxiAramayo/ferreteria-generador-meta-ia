@@ -19,6 +19,8 @@ import {
   type RecurringStoryLocationSource,
   type RecurringStoryMaterializationRepository,
   type RecurringStoryPhoto,
+  type RecurringStoryRuleLifecycleCommand,
+  type RecurringStoryRuleLifecycleResult,
   type RecurringStoryRuleRecord,
   type RecurringStoryRuleRepository,
   type RecurringStoryTheme,
@@ -474,6 +476,116 @@ export class PrismaRecurringStoryRepository
         },
       });
       return Object.freeze({ rule: mapRule(rule), status: "updated" });
+    });
+  }
+
+  async setStatus(
+    command: RecurringStoryRuleLifecycleCommand &
+      Readonly<{ status: "active" | "paused" }>,
+  ): Promise<RecurringStoryRuleLifecycleResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const existing = await transaction.recurringStoryRule.findUnique({
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      if (existing === null) {
+        return Object.freeze({ status: "not-found" });
+      }
+      // Pedir el estado que ya tiene no es un error ni gasta una versión:
+      // dos toques al mismo botón dejan la regla como se pidió.
+      if (existing.status === command.status) {
+        return Object.freeze({ rule: mapRule(existing), status: "updated" });
+      }
+      if (existing.version !== command.expectedVersion) {
+        return Object.freeze({ status: "version-conflict" });
+      }
+      const rule = await transaction.recurringStoryRule.update({
+        data: { status: command.status, version: { increment: 1 } },
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          actorMembershipId: command.actor.membershipId,
+          entityId: rule.id,
+          entityType: "recurring_story_rule",
+          id: randomUUID(),
+          metadata: { from: existing.status, to: command.status },
+          occurredAt: new Date(command.occurredAt),
+          operation:
+            command.status === "paused"
+              ? "scheduling.recurring-story:pause"
+              : "scheduling.recurring-story:resume",
+          organizationId: command.actor.organizationId,
+          outcome: "success",
+        },
+      });
+      return Object.freeze({ rule: mapRule(rule), status: "updated" });
+    });
+  }
+
+  async delete(
+    command: RecurringStoryRuleLifecycleCommand,
+  ): Promise<RecurringStoryRuleLifecycleResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const existing = await transaction.recurringStoryRule.findUnique({
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      if (existing === null) {
+        return Object.freeze({ status: "not-found" });
+      }
+      if (existing.version !== command.expectedVersion) {
+        return Object.freeze({ status: "version-conflict" });
+      }
+      // Las materializaciones son el vínculo entre la regla y cada borrador
+      // que produjo. Se van con ella; las publicaciones no se tocan, y su
+      // snapshot ya conserva la fuente que citaron.
+      const { count } =
+        await transaction.recurringStoryMaterialization.deleteMany({
+          where: {
+            organizationId: command.actor.organizationId,
+            ruleId: command.ruleId,
+          },
+        });
+      await transaction.recurringStoryRule.delete({
+        where: {
+          organizationId_id: {
+            id: command.ruleId,
+            organizationId: command.actor.organizationId,
+          },
+        },
+      });
+      await transaction.auditEvent.create({
+        data: {
+          actorMembershipId: command.actor.membershipId,
+          entityId: command.ruleId,
+          entityType: "recurring_story_rule",
+          id: randomUUID(),
+          metadata: {
+            materializations: count,
+            name: existing.name,
+            weekdays: existing.weekdays,
+          },
+          occurredAt: new Date(command.occurredAt),
+          operation: "scheduling.recurring-story:delete",
+          organizationId: command.actor.organizationId,
+          outcome: "success",
+        },
+      });
+      return Object.freeze({ ruleId: command.ruleId, status: "deleted" });
     });
   }
 
