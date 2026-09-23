@@ -37,6 +37,17 @@ estaban activos.
 
 ## Estado de producción verificado
 
+El 2026-09-23 se promovió `d85854f4b2dcb3ee0566ab3ba40a08cfd5d1f9c5`, con las
+imágenes de la corrida `35862941815` y copia previa verificada
+(`aramayo-production-20260923T124950Z`). Trae el borrado real de piezas y su
+migración `20260922120000_delete_unapproved_publications`, que vuelve
+condicionales los tres disparadores del historial (`ADR-032`). Se comprobó en
+la base de producción que la función `publication_has_approval` existe y que el
+disparador de revisiones sigue rechazando el borrado de una pieza aprobada.
+`/health`, `/ready`, el panel y las rutas legales respondieron `200` por HTTPS,
+y `POST /publications/<id>/delete` responde `401` sin sesión, que es la prueba
+de que la ruta está publicada y protegida. `888004e…` queda para rollback.
+
 El 2026-09-21 se promovió `888004e3326dd02adc58393290cb41a2241c3209`, con las
 imágenes publicadas en la corrida `35661475543`. Antes de migrar se tomó una
 copia fuera de horario —`aramayo-production-20260921T221347Z`,

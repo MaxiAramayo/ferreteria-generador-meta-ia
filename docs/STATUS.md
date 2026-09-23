@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-21
+Actualizado: 2026-09-23
 
 ## Fase activa
 
@@ -233,8 +233,11 @@ revisiones y la foto embebida—, y para eso los tres disparadores que hacían
 inborrable el historial pasaron a ser condicionales: si hay snapshot de
 aprobación, no se borra nada. La decisión está en
 [`ADR-032`](architecture/decisions/ADR-032-DELETE-UNAPPROVED-PUBLICATIONS.md) y
-necesita la migración `20260922120000_delete_unapproved_publications` al
-desplegar.
+se desplegó a producción el 2026-09-23 en
+`d85854f4b2dcb3ee0566ab3ba40a08cfd5d1f9c5`, con copia previa verificada y la
+migración `20260922120000_delete_unapproved_publications` aplicada. Se comprobó
+contra la base de producción que el disparador sigue rechazando el borrado de
+una pieza aprobada.
 
 La release `888004e3326dd02adc58393290cb41a2241c3209` se promovió a producción
 el 2026-09-21, con copia previa verificada
