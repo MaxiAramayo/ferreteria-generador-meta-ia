@@ -5,6 +5,7 @@ import type {
 } from "@aramayo/contracts";
 import {
   authorizeActor,
+  type ApprovePublicationSchedule,
   type AuthenticatedActor,
   type PublicationProductionRepository,
   type ReliableMutationContext,
@@ -145,13 +146,18 @@ export class PublicationProductionService {
     publicationId: string,
     expectedVersion: number,
     idempotencyKey?: string,
+    schedule?: ApprovePublicationSchedule,
   ): Promise<PublicationApprovalResponse> {
     this.#require(actor, "content:approve");
     const reliableOperation = this.#prepare(
       actor,
       "content.publication:approve",
       idempotencyKey,
-      { expectedVersion, publicationId },
+      {
+        expectedVersion,
+        publicationId,
+        ...(schedule === undefined ? {} : { schedule }),
+      },
     );
     const result = await this.#repository.approve({
       actorMembershipId: actor.membershipId,
@@ -159,6 +165,7 @@ export class PublicationProductionService {
       organizationId: actor.organizationId,
       publicationId,
       reliableOperation,
+      ...(schedule === undefined ? {} : { schedule }),
     });
     switch (result.status) {
       case "approved":
@@ -184,7 +191,9 @@ export class PublicationProductionService {
         });
       case "invalid-state":
         throw new ConflictException(
-          "La publicación debe tener un PNG listo para revisión.",
+          schedule === undefined
+            ? "La publicación debe tener un PNG listo para revisión."
+            : "La publicación no está lista, o el día y la hora elegidos no existen en la zona de la sucursal.",
         );
       case "not-found":
         throw new NotFoundException("No se encontró la publicación.");

@@ -2341,6 +2341,125 @@ a {
   color: var(--workspace-paper);
 }
 
+/* Elegir el día: un mes por vez, con el pulgar. */
+.publication-schedule-approval {
+  border-top: 2px solid var(--workspace-ink);
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+
+.publication-schedule-approval > p {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.publication-schedule-approval label {
+  align-items: center;
+  display: flex;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  gap: 0.5rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.publication-schedule-approval input[type="time"] {
+  border: 2px solid var(--workspace-ink);
+  font: inherit;
+  font-family: "Archivo", system-ui, sans-serif;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.5rem;
+  text-transform: none;
+}
+
+.publication-schedule-approval small {
+  color: var(--workspace-muted);
+}
+
+.schedule-picker-month {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.schedule-picker-month strong {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.schedule-picker-month button {
+  background: var(--workspace-paper);
+  border: 2px solid var(--workspace-ink);
+  cursor: pointer;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+.schedule-picker-month button[disabled] {
+  color: color-mix(in srgb, var(--workspace-ink) 30%, transparent);
+  cursor: default;
+}
+
+.schedule-picker-grid {
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: repeat(7, 1fr);
+  margin-top: 0.5rem;
+  max-width: 24rem;
+}
+
+.schedule-picker-grid > span {
+  color: var(--workspace-muted);
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.schedule-picker-grid > i {
+  display: block;
+}
+
+.schedule-picker-grid > button {
+  aspect-ratio: 1;
+  background: var(--workspace-paper);
+  border: 2px solid var(--workspace-ink);
+  cursor: pointer;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+.schedule-picker-grid > button[disabled] {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--workspace-ink) 12%, transparent);
+  color: color-mix(in srgb, var(--workspace-ink) 28%, transparent);
+  cursor: default;
+}
+
+.schedule-picker-grid > button[data-today="true"] {
+  box-shadow: inset 0 -0.3rem 0 var(--workspace-safety);
+}
+
+.schedule-picker-grid > button[aria-pressed="true"] {
+  background: var(--workspace-rust);
+  border-color: var(--workspace-rust);
+  color: var(--workspace-paper);
+}
+
 .publication-command-notice {
   border-left: 4px solid var(--workspace-orange);
   margin: 1rem 0 0;

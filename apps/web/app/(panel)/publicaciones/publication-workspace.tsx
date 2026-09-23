@@ -26,6 +26,11 @@ import {
   type PublishGate,
 } from "../../../lib/publication-publishing-presentation.ts";
 import { PublicationOrderPanel } from "./publication-order-panel.tsx";
+import {
+  localDateText,
+  scheduleInWords,
+  SchedulePicker,
+} from "./schedule-picker";
 import { PublishConfirmation } from "./publish-confirmation.tsx";
 
 import {
@@ -302,6 +307,13 @@ export function PublicationWorkspace({
   >({ kind: "loading" });
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<PublicationPreviewResult | null>(null);
+  /** Pieza cuyo PNG se está mirando: es la que se aprueba y se programa. */
+  const [previewing, setPreviewing] =
+    useState<PublicationSummaryResponse | null>(null);
+  const [scheduleDate, setScheduleDate] = useState(() =>
+    localDateText(new Date()),
+  );
+  const [scheduleTime, setScheduleTime] = useState("08:30");
   const [readiness, setReadiness] =
     useState<PublishingReadinessResponse | null>(null);
   /**
@@ -337,6 +349,11 @@ export function PublicationWorkspace({
     async (
       publication: PublicationSummaryResponse,
       command: "approve" | "delete" | "render",
+      schedule?: Readonly<{
+        localDate: string;
+        localTime: string;
+        targets: readonly string[];
+      }>,
     ): Promise<void> => {
       setCommandNotice(
         command === "render"
@@ -365,6 +382,7 @@ export function PublicationWorkspace({
                 publication.id,
                 publication.version,
                 crypto.randomUUID(),
+                schedule,
               );
       setCommandNotice(
         result.kind === "completed"
@@ -382,6 +400,7 @@ export function PublicationWorkspace({
   const showPreview = useCallback(
     async (publication: PublicationSummaryResponse): Promise<void> => {
       setPreview(null);
+      setPreviewing(publication);
       const result = await loadPublicationPreview(apiBaseUrl, publication.id);
       setPreview(result);
     },
@@ -671,6 +690,48 @@ export function PublicationWorkspace({
               PNG confirmado · SHA-256{" "}
               <code>{preview.preview.checksumSha256.slice(0, 12)}…</code>
             </figcaption>
+            {/* Aprobar y decidir cuándo sale son un solo gesto: la segunda
+                pantalla era el ir y venir que sobraba. */}
+            {previewing === null ||
+            previewing.status !== "ready_for_review" ||
+            !initial.canApprove ||
+            !initial.canSchedule ? null : (
+              <div className="publication-schedule-approval">
+                <p>¿Cuándo sale?</p>
+                <SchedulePicker
+                  disabled={commandNotice === "Aprobando revisión…"}
+                  onChange={setScheduleDate}
+                  value={scheduleDate}
+                />
+                <label>
+                  A las
+                  <input
+                    onChange={(event) => {
+                      setScheduleTime(event.currentTarget.value);
+                    }}
+                    type="time"
+                    value={scheduleTime}
+                  />
+                </label>
+                <button
+                  className="workspace-primary-action"
+                  onClick={() => {
+                    void runCommand(previewing, "approve", {
+                      localDate: scheduleDate,
+                      localTime: scheduleTime,
+                      targets: ["instagram_story"],
+                    });
+                  }}
+                  type="button"
+                >
+                  Aprobar y programar
+                </button>
+                <small>
+                  Sale {scheduleInWords(scheduleDate, scheduleTime)}. Publicar
+                  sigue necesitando tu confirmación.
+                </small>
+              </div>
+            )}
           </figure>
         )}
       </section>
