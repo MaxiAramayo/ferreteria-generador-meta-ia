@@ -405,3 +405,98 @@ export async function saveRecurringStoryVisualStyle(
     };
   }
 }
+
+export type RecurringStoryLifecycleResult =
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>
+  | Readonly<{ kind: "deleted"; ruleId: string }>
+  | Readonly<{ kind: "saved"; rule: RecurringStoryRuleResponse }>;
+
+/** Pausar frena la materialización; reanudar la retoma. */
+export async function setRecurringStoryRuleStatus(
+  apiBaseUrl: string,
+  submission: Readonly<{
+    expectedVersion: number;
+    idempotencyKey: string;
+    ruleId: string;
+    status: "active" | "paused";
+  }>,
+): Promise<RecurringStoryLifecycleResult> {
+  return lifecycleCommand(
+    apiBaseUrl,
+    `scheduling/recurring-stories/${submission.ruleId}/status`,
+    "PATCH",
+    {
+      expectedVersion: submission.expectedVersion,
+      status: submission.status,
+    },
+    submission.idempotencyKey,
+    submission.status === "paused"
+      ? "No se pudo pausar la regla."
+      : "No se pudo reanudar la regla.",
+  );
+}
+
+/** Borrar la regla. Lo que ya se publicó no se toca. */
+export async function deleteRecurringStoryRule(
+  apiBaseUrl: string,
+  submission: Readonly<{
+    expectedVersion: number;
+    idempotencyKey: string;
+    ruleId: string;
+  }>,
+): Promise<RecurringStoryLifecycleResult> {
+  return lifecycleCommand(
+    apiBaseUrl,
+    `scheduling/recurring-stories/${submission.ruleId}/delete`,
+    "POST",
+    { expectedVersion: submission.expectedVersion },
+    submission.idempotencyKey,
+    "No se pudo borrar la regla.",
+  );
+}
+
+async function lifecycleCommand(
+  apiBaseUrl: string,
+  path: string,
+  method: "PATCH" | "POST",
+  body: Readonly<Record<string, unknown>>,
+  idempotencyKey: string,
+  fallback: string,
+): Promise<RecurringStoryLifecycleResult> {
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) return { kind: "forbidden" };
+    const response = await fetch(new URL(path, apiBaseUrl), {
+      body: JSON.stringify(body),
+      credentials: "include",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "idempotency-key": idempotencyKey,
+        "x-csrf-token": csrf,
+      },
+      method,
+    });
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const payloadBody = record(await payload(response));
+    if (response.ok && payloadBody?.["status"] === "deleted") {
+      const ruleId = payloadBody["ruleId"];
+      if (typeof ruleId === "string") return { kind: "deleted", ruleId };
+    }
+    const parsed = rule(payloadBody?.["rule"]);
+    return response.ok && parsed !== null
+      ? { kind: "saved", rule: parsed }
+      : {
+          kind: "error",
+          message:
+            typeof payloadBody?.["message"] === "string"
+              ? payloadBody["message"]
+              : fallback,
+        };
+  } catch {
+    return { kind: "error", message: "No se pudo conectar con la API." };
+  }
+}

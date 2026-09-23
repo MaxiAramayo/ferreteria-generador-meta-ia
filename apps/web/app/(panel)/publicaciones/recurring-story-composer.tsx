@@ -21,7 +21,9 @@ import {
 
 import { openingStoryPreviewDocument } from "../../../lib/opening-story-preview.ts";
 import {
+  deleteRecurringStoryRule,
   loadRecurringStoryWorkspace,
+  setRecurringStoryRuleStatus,
   saveRecurringStoryVisualStyle,
   saveRecurringStoryRule,
 } from "../../../lib/recurring-story-api.ts";
@@ -137,6 +139,25 @@ function MaterializationRail({
   );
 }
 
+/** Iniciales de la semana, de lunes a domingo, como se leen en el panel. */
+const weekdayInitials = ["L", "M", "M", "J", "V", "S", "D"] as const;
+const weekdayFullNames = [
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+  "domingo",
+] as const;
+
+function weekdayNames(weekdays: readonly number[]): string {
+  const names = weekdays
+    .map((day) => weekdayFullNames[day - 1])
+    .filter((name) => name !== undefined);
+  return names.length === 0 ? "ninguno" : names.join(", ");
+}
+
 export function RecurringStoryRuleComposer({
   apiBaseUrl,
   canSchedule,
@@ -163,6 +184,9 @@ export function RecurringStoryRuleComposer({
   );
   const [saving, setSaving] = useState(false);
   const [savingRuleId, setSavingRuleId] = useState<string | null>(null);
+  /** Regla cuyo borrado se está confirmando: sacarla no es un clic suelto. */
+  const [deletingRule, setDeletingRule] =
+    useState<RecurringStoryRuleResponse | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const idempotencyKey = useRef<string | null>(null);
   const visualStyleIdempotencyKey = useRef<string | null>(null);
@@ -311,6 +335,67 @@ export function RecurringStoryRuleComposer({
             : result.message,
         );
       });
+    });
+  }
+
+  /** Recarga el espacio de trabajo después de tocar una regla. */
+  function refreshWorkspace(): void {
+    void loadRecurringStoryWorkspace(apiBaseUrl).then((result) => {
+      startTransition(() => {
+        if (result.kind === "ready") {
+          setLoadState({ kind: "ready", workspace: result.workspace });
+        }
+      });
+    });
+  }
+
+  async function changeRuleStatus(
+    rule: RecurringStoryRuleResponse,
+    status: "active" | "paused",
+  ): Promise<void> {
+    setSavingRuleId(rule.id);
+    const result = await setRecurringStoryRuleStatus(apiBaseUrl, {
+      expectedVersion: rule.version,
+      idempotencyKey: crypto.randomUUID(),
+      ruleId: rule.id,
+      status,
+    });
+    startTransition(() => {
+      setSavingRuleId(null);
+      setNotice(
+        result.kind === "saved"
+          ? status === "paused"
+            ? `«${rule.name}» quedó en pausa. No se arma hasta que la reanudes.`
+            : `«${rule.name}» vuelve a armarse los días elegidos.`
+          : result.kind === "forbidden"
+            ? "La sesión no permite cambiar esta regla."
+            : result.kind === "error"
+              ? result.message
+              : "La regla no cambió de estado.",
+      );
+      if (result.kind === "saved") refreshWorkspace();
+    });
+  }
+
+  async function removeRule(rule: RecurringStoryRuleResponse): Promise<void> {
+    setSavingRuleId(rule.id);
+    const result = await deleteRecurringStoryRule(apiBaseUrl, {
+      expectedVersion: rule.version,
+      idempotencyKey: crypto.randomUUID(),
+      ruleId: rule.id,
+    });
+    startTransition(() => {
+      setSavingRuleId(null);
+      setNotice(
+        result.kind === "deleted"
+          ? `«${rule.name}» se borró. Lo que ya publicó sigue en el listado.`
+          : result.kind === "forbidden"
+            ? "La sesión no permite borrar esta regla."
+            : result.kind === "error"
+              ? result.message
+              : "La regla no se borró.",
+      );
+      if (result.kind === "deleted") refreshWorkspace();
     });
   }
 
@@ -639,9 +724,26 @@ export function RecurringStoryRuleComposer({
             <span>Reglas activas</span>
             <ul>
               {loadState.workspace.rules.slice(0, 3).map((rule) => (
-                <li key={rule.id}>
+                <li data-estado={rule.status} key={rule.id}>
                   <strong>{rule.name}</strong>
+                  {/* Los días son lo que distingue una regla de otra: sin
+                      ellos, dos reglas distintas se leen idénticas. */}
+                  <span
+                    aria-label={`Días: ${weekdayNames(rule.weekdays)}`}
+                    className="recurring-rule-weekdays"
+                  >
+                    {weekdayInitials.map((inicial: string, indice: number) => (
+                      <i
+                        aria-hidden="true"
+                        data-activo={String(rule.weekdays.includes(indice + 1))}
+                        key={indice}
+                      >
+                        {inicial}
+                      </i>
+                    ))}
+                  </span>
                   <small>
+                    {rule.status === "paused" ? "En pausa · " : ""}
                     {rule.kind === "lubricentro" ? "Lubricentro · " : ""}
                     {rule.locationId === null
                       ? "Ambas sucursales"
@@ -653,15 +755,66 @@ export function RecurringStoryRuleComposer({
                       ? "revisión por ciclo"
                       : "rutina automática"}
                   </small>
-                  <button
-                    disabled={!canSchedule || savingRuleId === rule.id}
-                    onClick={() => {
-                      beginVisualStyleEdit(rule);
-                    }}
-                    type="button"
-                  >
-                    Cambiar estilo
-                  </button>
+                  <div className="recurring-rule-actions">
+                    <button
+                      disabled={!canSchedule || savingRuleId === rule.id}
+                      onClick={() => {
+                        beginVisualStyleEdit(rule);
+                      }}
+                      type="button"
+                    >
+                      Cambiar estilo
+                    </button>
+                    <button
+                      disabled={!canSchedule || savingRuleId === rule.id}
+                      onClick={() => {
+                        void changeRuleStatus(
+                          rule,
+                          rule.status === "paused" ? "active" : "paused",
+                        );
+                      }}
+                      type="button"
+                    >
+                      {rule.status === "paused" ? "Reanudar" : "Pausar"}
+                    </button>
+                    <button
+                      className="recurring-rule-delete"
+                      disabled={!canSchedule || savingRuleId === rule.id}
+                      onClick={() => {
+                        setDeletingRule(rule);
+                      }}
+                      type="button"
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                  {deletingRule?.id !== rule.id ? null : (
+                    <div className="recurring-rule-confirm" role="dialog">
+                      <p>
+                        ¿Borrar «{rule.name}»? Deja de armarse sola. Las
+                        historias que ya publicó no se tocan.
+                      </p>
+                      <div>
+                        <button
+                          onClick={() => {
+                            setDeletingRule(null);
+                            void removeRule(rule);
+                          }}
+                          type="button"
+                        >
+                          Sí, borrar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeletingRule(null);
+                          }}
+                          type="button"
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {editingRuleId !== rule.id ? null : (
                     <fieldset className="recurring-rule-design-editor">
                       <legend>Estilo de {rule.name}</legend>
