@@ -321,7 +321,7 @@ async function main(): Promise<void> {
       { waitUntil: "load" },
     );
     await page
-      .getByRole("button", { name: "Activar regla" })
+      .getByRole("button", { name: "Programar" })
       .waitFor({ timeout: startupTimeoutMs });
 
     // --- La vista previa monta el mismo documento del motor ---
@@ -352,7 +352,7 @@ async function main(): Promise<void> {
     await page
       .getByText("Subí la imagen que querés publicar para verla acá.")
       .waitFor({ timeout: 10_000 });
-    await page.getByRole("button", { name: "Activar regla" }).click();
+    await page.getByRole("button", { name: "Programar" }).click();
     await page
       .getByText("«Imagen propia» no tiene otra cosa que mostrar", {
         exact: false,
@@ -455,7 +455,7 @@ async function main(): Promise<void> {
     await page.getByLabel("Anticipación").selectOption(String(leadTimeMinutes));
     await page.getByLabel("Vigente desde").fill(tomorrow.localDate);
     await page.getByLabel("Nombre de la regla").fill("Ya abrimos E2E");
-    await page.getByRole("button", { name: "Activar regla" }).click();
+    await page.getByRole("button", { name: "Programar" }).click();
     await page
       .getByText("Regla “Ya abrimos E2E” activa", { exact: false })
       .waitFor({ timeout: 30_000 });
