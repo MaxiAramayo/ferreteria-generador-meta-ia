@@ -249,6 +249,12 @@ silenciosa; quedan en sus flujos de revisión, fallo o reconciliación. Pasaron
 la base efímera, el navegador real, cola, tipos, lint, pruebas, baseline, smoke
 y validación del plan; no se contactó Meta.
 
+La release `3d70aa9eb832e2d0c9be98ba92e8a336a61ab24f` se promovió a producción
+el 2026-09-23, después de CI y la publicación de sus cuatro imágenes por SHA.
+No trae migraciones pendientes. API, web, Caddy, PostgreSQL y Redis quedaron
+saludables; `/health` y `/ready` respondieron `200`. La release
+`23c6df98b087c2f9387ff2a0ef9d933903f1176d` se conserva para rollback.
+
 La release `888004e3326dd02adc58393290cb41a2241c3209` se promovió a producción
 el 2026-09-21, con copia previa verificada
 (`aramayo-production-20260921T221347Z`) porque arrastraba tres migraciones

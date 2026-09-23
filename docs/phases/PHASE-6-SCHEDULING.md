@@ -1419,11 +1419,14 @@ y publicación sin pedir cuatro acciones diarias en el panel.
 
 ### Evidencia de cierre
 
-- Commit: pendiente de versionar.
+- Commit: `3d70aa9eb832e2d0c9be98ba92e8a336a61ab24f`.
 - Comandos y resultados: migración y repositorios, navegador real, cola,
   tipos, lint, formato, pruebas, baseline, smoke y plan en verde.
 - Evidencia visual o remota: el E2E verificó el texto de la opción en Chrome;
-  no se contactó Meta ni se publicó una historia real.
+  CI, build/publicación de cuatro imágenes y promoción en producción en verde.
+  API, web, Caddy, PostgreSQL y Redis quedaron saludables; `/health` y
+  `/ready` respondieron `200`. No se contactó Meta ni se publicó una historia
+  real.
 - Desviaciones aprobadas: ninguna.
 
 ## Criterios de salida de Fase 6
