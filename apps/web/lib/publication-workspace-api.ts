@@ -236,6 +236,12 @@ async function publicationCommand(
   expectedVersion: number,
   command: "approve" | "delete" | "render",
   idempotencyKey: string,
+  /** Sólo al aprobar: el turno viaja con la aprobación, no en otra pantalla. */
+  schedule?: Readonly<{
+    localDate: string;
+    localTime: string;
+    targets: readonly string[];
+  }>,
 ): Promise<PublicationCommandResult> {
   try {
     const csrf = await csrfToken(apiBaseUrl);
@@ -245,7 +251,10 @@ async function publicationCommand(
     const response = await fetch(
       new URL(`publications/${publicationId}/${command}`, apiBaseUrl),
       {
-        body: JSON.stringify({ expectedVersion }),
+        body: JSON.stringify({
+          expectedVersion,
+          ...(schedule === undefined ? {} : { schedule }),
+        }),
         credentials: "include",
         headers: {
           accept: "application/json",
@@ -260,7 +269,10 @@ async function publicationCommand(
       return { kind: "forbidden" };
     }
     const done: Readonly<Record<typeof command, string>> = {
-      approve: "Revisión aprobada y conservada.",
+      approve:
+        schedule === undefined
+          ? "Revisión aprobada y conservada."
+          : "Aprobada y programada.",
       delete: "La pieza se eliminó para siempre.",
       render: "PNG pedido. El estado se actualiza solo cuando esté listo.",
     };
@@ -316,6 +328,12 @@ export function approvePublication(
   publicationId: string,
   expectedVersion: number,
   idempotencyKey: string,
+  /** Con turno, aprobar y programar son un solo gesto. */
+  schedule?: Readonly<{
+    localDate: string;
+    localTime: string;
+    targets: readonly string[];
+  }>,
 ): Promise<PublicationCommandResult> {
   return publicationCommand(
     apiBaseUrl,
@@ -323,6 +341,7 @@ export function approvePublication(
     expectedVersion,
     "approve",
     idempotencyKey,
+    schedule,
   );
 }
 

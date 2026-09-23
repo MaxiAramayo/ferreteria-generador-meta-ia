@@ -63,12 +63,34 @@ export interface PublicationRenderFailureInput {
   readonly safeMessage: string;
 }
 
+/**
+ * Cuándo sale la pieza que se está aprobando.
+ *
+ * Aprobar y programar son dos decisiones, pero para quien opera son un solo
+ * gesto: «esto está bien, sale el martes». Van juntas en la misma transacción
+ * para que no exista una pieza aprobada que nadie agendó porque la segunda
+ * pantalla se cerró antes.
+ *
+ * La hora es local del negocio. La zona no viaja: es la que la publicación ya
+ * tiene guardada, para que el navegador de quien aprueba no la decida.
+ */
+export interface ApprovePublicationSchedule {
+  readonly localDate: string;
+  readonly localTime: string;
+  readonly targets: readonly PublicationScheduleTarget[];
+}
+
+export type PublicationScheduleTarget =
+  "facebook_page" | "instagram_feed" | "instagram_story";
+
 export interface ApprovePublicationInput {
   readonly actorMembershipId: string;
   readonly expectedVersion: number;
   readonly organizationId: string;
   readonly publicationId: string;
   readonly reliableOperation: ReliableMutationContext;
+  /** Ausente: aprobar y nada más, como hasta ahora. */
+  readonly schedule?: ApprovePublicationSchedule;
 }
 
 export type ApprovePublicationResult =

@@ -828,6 +828,7 @@ test("render y aprobación confirman una sola salida y un snapshot inmutable", a
       ?.alreadyCompleted,
     true,
   );
+  // Aprobar diciendo cuándo sale: las dos decisiones, una sola transacción.
   const approval = await repository.approve({
     actorMembershipId: approverMembershipId,
     expectedVersion: 3,
@@ -838,8 +839,36 @@ test("render y aprobación confirman una sola salida y un snapshot inmutable", a
       approverMembershipId,
       "content.publication:approve",
     ),
+    schedule: {
+      localDate: "2026-12-15",
+      localTime: "08:30",
+      targets: ["instagram_story"],
+    },
   });
-  assert.equal(approval.status, "approved");
+  assert.equal(approval.status, "scheduled");
+  const programada = await database.publicationSchedule.findFirstOrThrow({
+    include: { occurrences: true },
+    where: { organizationId, publicationId },
+  });
+  assert.equal(programada.approvalSnapshotId, approval.snapshotId);
+  assert.equal(programada.kind, "once");
+  assert.equal(programada.localTime, "08:30");
+  assert.deepEqual(programada.targets, ["instagram_story"]);
+  // La zona sale de la publicación, no del navegador de quien aprueba.
+  assert.equal(programada.timeZone, "America/Argentina/Cordoba");
+  assert.deepEqual(
+    programada.occurrences.map((turno) => turno.occurrenceKey),
+    ["2026-12-15T08:30"],
+  );
+  assert.equal(
+    (
+      await database.publication.findUniqueOrThrow({
+        where: { organizationId_id: { id: publicationId, organizationId } },
+      })
+    ).status,
+    "scheduled",
+    "aprobar con turno deja la pieza programada, no sólo aprobada",
+  );
   const snapshot = await database.approvalSnapshot.findUniqueOrThrow({
     where: { id: approval.snapshotId },
   });

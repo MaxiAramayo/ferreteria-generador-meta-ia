@@ -520,6 +520,7 @@ export {
   publicationRenderTopic,
   type ApprovePublicationInput,
   type ApprovePublicationResult,
+  type ApprovePublicationSchedule,
   type DeletePublicationInput,
   type DeletePublicationResult,
   type PublicationProductionRepository,

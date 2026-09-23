@@ -17,7 +17,10 @@ import {
   CurrentSession,
   RequirePermission,
 } from "../identity/identity.decorators.ts";
-import { PublicationVersionCommandDto } from "./dto/publication-production.dto.ts";
+import {
+  ApprovePublicationDto,
+  PublicationVersionCommandDto,
+} from "./dto/publication-production.dto.ts";
 import { PublicationProductionService } from "./publication-production.service.ts";
 
 @Controller("publications")
@@ -65,12 +68,13 @@ export class PublicationProductionController {
     );
   }
 
+  /** Aprobar, y si viene el turno, programar en el mismo gesto. */
   @Post(":publicationId/approve")
   @RequirePermission("content:approve")
   approve(
     @CurrentSession() session: AuthenticatedSessionRecord,
     @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
-    @Body() body: PublicationVersionCommandDto,
+    @Body() body: ApprovePublicationDto,
     @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationApprovalResponse> {
     return this.#service.approve(
@@ -78,6 +82,7 @@ export class PublicationProductionController {
       publicationId,
       body.expectedVersion,
       idempotencyKey,
+      body.schedule,
     );
   }
 }

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   publicationRenderTopic,
   createApprovalPrePublishProfile,
+  singleOccurrenceRule,
   readRecurringStorySourceSnapshot,
   recurringStorySourceToJson,
   type ApprovePublicationInput,
@@ -228,6 +229,7 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
             take: 1,
           },
           status: true,
+          timeZone: true,
           version: true,
         },
         where: {
@@ -898,6 +900,7 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
             take: 1,
           },
           status: true,
+          timeZone: true,
           version: true,
         },
         where: {
@@ -1028,6 +1031,68 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
       });
       let approvalStatus: "approved" | "scheduled" = "approved";
       let finalVersion = version;
+      // Aprobar y programar en el mismo gesto: quien opera dice «esto está
+      // bien, sale el martes». Si la pieza viene de una regla recurrente, el
+      // turno ya está decidido y manda el de la regla.
+      if (input.schedule !== undefined && recurringMaterialization === null) {
+        const rule = singleOccurrenceRule({
+          gapPolicy: "skip",
+          localDate: input.schedule.localDate,
+          localTime: input.schedule.localTime,
+          timeZone: publication.timeZone,
+        });
+        if (rule === undefined) {
+          await discardReliableOperationClaim(transaction, claim.recordId);
+          return Object.freeze({ status: "invalid-state" });
+        }
+        const scheduleId = randomUUID();
+        await transaction.publicationSchedule.create({
+          data: {
+            approvalSnapshotId: snapshotId,
+            createdByMembershipId: input.actorMembershipId,
+            effectiveFrom: new Date(rule.effectiveFrom),
+            effectiveUntil: new Date(rule.effectiveFrom),
+            gapPolicy: "skip",
+            id: scheduleId,
+            kind: "once",
+            lateToleranceMinutes: 15,
+            localTime: input.schedule.localTime,
+            missedPolicy: "skip",
+            organizationId: input.organizationId,
+            publicationId: input.publicationId,
+            targets: [...input.schedule.targets],
+            timeZone: publication.timeZone,
+          },
+        });
+        await transaction.publicationScheduleOccurrence.create({
+          data: {
+            occurrenceKey: `${input.schedule.localDate}T${input.schedule.localTime}`,
+            organizationId: input.organizationId,
+            resolution: "exact",
+            scheduleId,
+            scheduledAt: new Date(rule.effectiveFrom),
+          },
+        });
+        finalVersion = version + 1;
+        await transaction.publication.update({
+          data: { status: "scheduled", version: finalVersion },
+          where: { id: input.publicationId },
+        });
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId: input.actorMembershipId,
+            commandType: "advance",
+            fromStatus: "approved",
+            fromVersion: version,
+            occurredAt: approvedAt,
+            organizationId: input.organizationId,
+            publicationId: input.publicationId,
+            toStatus: "scheduled",
+            toVersion: finalVersion,
+          },
+        });
+        approvalStatus = "scheduled";
+      }
       if (
         recurringMaterialization !== null &&
         recurringMaterialization.status === "draft_created"
