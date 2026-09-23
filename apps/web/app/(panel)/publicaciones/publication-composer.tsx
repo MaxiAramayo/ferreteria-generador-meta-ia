@@ -231,14 +231,33 @@ function ComposerFrame({ children }: { readonly children: ReactNode }) {
 function ComposerVariantNavigation() {
   const actions = usePublicationComposerActions();
   const state = usePublicationComposerState();
+  // Cada opción dice qué arma, no con qué mecanismo: quien publica piensa en
+  // «una historia de producto», no en «el compositor de plantilla».
   const variants: readonly Readonly<{
+    hint: string;
     label: string;
     value: PublicationComposerVariant;
   }>[] = [
-    { label: "Plantilla", value: "template" },
-    { label: "Producto", value: "product-story" },
-    { label: "Creatividad IA", value: "ai-creative" },
-    { label: "Historia recurrente", value: "recurring-story" },
+    {
+      hint: "Foto propia, precio si querés.",
+      label: "Producto",
+      value: "product-story",
+    },
+    {
+      hint: "La apertura o el service, los días que elijas.",
+      label: "Historia recurrente",
+      value: "recurring-story",
+    },
+    {
+      hint: "Una pieza del catálogo, lista para escribir.",
+      label: "Plantilla",
+      value: "template",
+    },
+    {
+      hint: "El fondo lo genera un modelo; la marca la compone el sistema.",
+      label: "Creatividad IA",
+      value: "ai-creative",
+    },
   ];
   return (
     <nav aria-label="Flujos para crear una pieza" className="composer-variants">
@@ -252,7 +271,8 @@ function ComposerVariantNavigation() {
           }}
           scroll={false}
         >
-          {variant.label}
+          <strong>{variant.label}</strong>
+          <small>{variant.hint}</small>
         </Link>
       ))}
     </nav>

@@ -344,11 +344,16 @@ async function main(): Promise<void> {
     await editorPage.waitForURL(`${webBaseUrl}/publicaciones/nueva`, {
       waitUntil: "commit",
     });
-    await waitForHeading(editorPage, "Elegí cómo nace la pieza.");
+    await waitForHeading(editorPage, "¿Qué querés publicar?");
+    await editorPage.screenshot({
+      fullPage: true,
+      path: `${outputDirectory}/crear-pieza.png`,
+    });
     const flows = editorPage.getByRole("navigation", {
       name: "Flujos para crear una pieza",
     });
-    const currentFlow = flows.locator('a[aria-current="page"]');
+    // El nombre del flujo es el rótulo fuerte; debajo va su explicación.
+    const currentFlow = flows.locator('a[aria-current="page"] strong');
     assert.equal(await currentFlow.textContent(), "Plantilla");
     await flows.getByRole("link", { name: "Creatividad IA" }).click();
     await editorPage.waitForURL(
@@ -359,7 +364,7 @@ async function main(): Promise<void> {
       .getByRole("region", { name: "Compositor de creatividad con IA" })
       .waitFor({ timeout: uiTimeoutMs });
     await editorPage.reload({ waitUntil: "load" });
-    await waitForHeading(editorPage, "Elegí cómo nace la pieza.");
+    await waitForHeading(editorPage, "¿Qué querés publicar?");
     assert.equal(await currentFlow.textContent(), "Creatividad IA");
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
 

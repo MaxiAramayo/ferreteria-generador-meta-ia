@@ -9,6 +9,7 @@ import {
   type PublicationComposerVariant,
 } from "../../../lib/publication-composer-contract.ts";
 import { usePanelActor } from "../panel-shell.tsx";
+import { FlowSteps } from "./flow-steps";
 import { PublicationComposer } from "./publication-composer";
 import { PublicationsSubnav } from "./publications-subnav";
 
@@ -38,7 +39,7 @@ export function CreatePieceWorkspace({
       <section aria-labelledby="crear-pieza" className="workspace-intro">
         <div>
           <p className="workspace-eyebrow">Nueva pieza</p>
-          <h1 id="crear-pieza">Elegí cómo nace la pieza.</h1>
+          <h1 id="crear-pieza">¿Qué querés publicar?</h1>
         </div>
         <p>
           Cada flujo tiene su dirección. Al guardar te llevamos a la pieza, con
@@ -47,6 +48,8 @@ export function CreatePieceWorkspace({
       </section>
 
       <PublicationsSubnav canCreate={canEdit || canSchedule} />
+
+      <FlowSteps current={2} />
 
       {canEdit || canSchedule ? null : (
         <p className="schedule-boundary" role="status">
