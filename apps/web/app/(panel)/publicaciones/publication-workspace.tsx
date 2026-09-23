@@ -31,6 +31,7 @@ import {
   scheduleInWords,
   SchedulePicker,
 } from "./schedule-picker";
+import { FlowSteps } from "./flow-steps";
 import { PublishConfirmation } from "./publish-confirmation.tsx";
 
 import {
@@ -697,6 +698,7 @@ export function PublicationWorkspace({
             !initial.canApprove ||
             !initial.canSchedule ? null : (
               <div className="publication-schedule-approval">
+                <FlowSteps current={3} />
                 <p>¿Cuándo sale?</p>
                 <SchedulePicker
                   disabled={commandNotice === "Aprobando revisión…"}

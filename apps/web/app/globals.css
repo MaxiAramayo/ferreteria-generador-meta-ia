@@ -695,28 +695,88 @@ a {
   margin-top: 1rem;
 }
 
+/* Dónde estás en el camino: elegir, armar, cuándo, confirmar. */
+.flow-steps {
+  border-bottom: 2px solid var(--workspace-ink);
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0 0 1.1rem;
+  overflow-x: auto;
+  padding: 0 0 0.7rem;
+}
+
+.flow-steps li {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 0.9rem;
+  gap: 0.4rem;
+  letter-spacing: 0.03em;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+.flow-steps li[data-state="current"],
+.flow-steps li[data-state="done"] {
+  opacity: 1;
+}
+
+.flow-steps li span {
+  background: var(--workspace-cream);
+  border: 2px solid var(--workspace-ink);
+  font-weight: 800;
+  line-height: 1.4rem;
+  min-width: 1.8rem;
+  text-align: center;
+}
+
+.flow-steps li[data-state="current"] span {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.flow-steps li[data-state="done"] span {
+  background: var(--workspace-verde);
+  border-color: var(--workspace-verde);
+  color: #fff;
+}
+
 .composer-variants {
   display: grid;
-  gap: 0.5rem;
-  grid-template-columns: repeat(3, 1fr);
-  margin-bottom: 0.75rem;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin-bottom: 1.1rem;
 }
 
 /* Los flujos son enlaces: cada uno tiene su dirección. */
 .composer-variants a {
-  align-items: center;
   background: transparent;
-  border: 1px solid var(--workspace-ink);
+  border: 2px solid var(--workspace-ink);
   color: var(--workspace-ink);
-  display: flex;
-  font-size: 0.78rem;
-  font-weight: 800;
-  justify-content: center;
+  display: block;
   min-height: 3rem;
-  padding: 0.6rem;
-  text-align: center;
+  padding: 0.8rem;
   text-decoration: none;
+}
+
+.composer-variants a strong {
+  display: block;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+.composer-variants a small {
+  color: var(--workspace-muted);
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.composer-variants a[aria-current="page"] small {
+  color: var(--workspace-cream);
 }
 
 .composer-variants a[aria-current="page"] {
