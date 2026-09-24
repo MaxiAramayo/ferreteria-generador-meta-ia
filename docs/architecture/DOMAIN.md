@@ -313,8 +313,10 @@ Una rutina automática solicita el render en la misma transacción que crea el
 borrador y su evento outbox; después de renderizar, vuelve a comprobar los
 roles vigentes antes de aprobar, crear una programación `once` con destino
 `instagram_story` y su única ocurrencia. Una persona sigue aprobando los demás
-borradores. Un cambio posterior de la fuente factual de la sucursal invalida
-toda materialización aún no publicada. Está en
+borradores. Esa ocurrencia admite hasta 15 minutos de demora operativa para que
+el barrido del worker no pierda el minuto elegido; fuera de esa ventana queda
+omitida, nunca se publica tarde sin límite. Un cambio posterior de la fuente
+factual de la sucursal invalida toda materialización aún no publicada. Está en
 [`ADR-025`](decisions/ADR-025-RECURRING-STORY-MATERIALIZATION.md).
 
 ### LocationDayOverride

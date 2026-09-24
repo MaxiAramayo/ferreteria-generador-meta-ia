@@ -56,7 +56,11 @@ autoridad que su autor pudo haber perdido.
    automática— crea una programación `once` con destino `instagram_story` y una
    única ocurrencia en el instante materializado. Por eso la aprobación pasa a
    responder `approved` o `scheduled`: quien la pide necesita saber si además
-   quedó programada. La orden de publicación sigue naciendo en `P6-T03`.
+   quedó programada. La orden de publicación sigue naciendo en `P6-T03`. La
+   programación automática usa `run-late` con una tolerancia máxima de 15
+   minutos: el barrido del worker puede llegar después del minuto exacto sin
+   perder una historia ya aprobada, pero no puede publicar una historia vieja
+   sin límite.
 7. **Un cambio de la fuente factual invalida lo que todavía no se publicó.**
    Editar dirección, ciudad, provincia, nombre, horario, zona o actividad de la
    sucursal cancela la programación y sus ocurrencias planificadas, lleva la

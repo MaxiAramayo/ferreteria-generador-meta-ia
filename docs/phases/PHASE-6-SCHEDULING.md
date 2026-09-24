@@ -1369,6 +1369,8 @@ y publicación sin pedir cuatro acciones diarias en el panel.
   snapshot, programación ni orden de publicación.
 - La publicación mantiene validación factual, idempotencia por ocurrencia y la
   reconciliación existente frente a resultados remotos ambiguos.
+- La ocurrencia automática admite hasta 15 minutos de demora de worker; pasado
+  ese límite se omite en vez de publicar una historia desactualizada.
 
 ### Entregables
 
@@ -1416,6 +1418,11 @@ y publicación sin pedir cuatro acciones diarias en el panel.
   `pnpm queue:integration`, `pnpm lint`, `pnpm typecheck`, `pnpm test`,
   `pnpm format:check`, `pnpm baseline:verify`, `pnpm smoke` y
   `pnpm verify:plan`, todas en verde.
+- Corrección de producción 2026-09-24: las dos primeras rutinas automáticas
+  llegaron a `approved_scheduled`, pero su programación `once` usaba
+  `missedPolicy: skip`; el barrido posterior al minuto exacto las omitió aun
+  con tolerancia configurada. La política automática pasa a `run-late` con 15
+  minutos y la integración reclama una ocurrencia 10 segundos tarde.
 
 ### Evidencia de cierre
 

@@ -9395,8 +9395,23 @@ test("la rutina automática solicita el render, aprueba al terminar y una pérdi
   const approvedSchedule = approved.schedule;
   assert.ok(approvedSchedule);
   assert.deepEqual(approvedSchedule.targets, ["instagram_story"]);
+  assert.equal(approvedSchedule.missedPolicy, "run_late");
+  assert.equal(approvedSchedule.lateToleranceMinutes, 15);
   assert.equal(approvedSchedule.occurrences.length, 1);
   assert.equal(approvedSchedule.occurrences[0]?.status, "planned");
+  const lateAutomaticDispatch =
+    await new PrismaPublicationScheduleDispatchRepository(database).claimDue({
+      at: "2026-09-08T11:30:10.000Z",
+      limit: 10,
+      organizationId,
+    });
+  assert.deepEqual(
+    {
+      dispatchRequested: lateAutomaticDispatch.dispatchRequested,
+      skipped: lateAutomaticDispatch.skipped,
+    },
+    { dispatchRequested: 1, skipped: 0 },
+  );
   const approvedPublication = await database.publication.findUniqueOrThrow({
     where: { id: routine.publicationId },
   });

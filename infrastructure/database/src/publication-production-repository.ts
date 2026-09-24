@@ -602,7 +602,11 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
             kind: "once",
             lateToleranceMinutes: 15,
             localTime: automaticMaterialization.rule.localTime,
-            missedPolicy: "skip",
+            // El worker barre por intervalos: una rutina ya aprobada no debe
+            // perderse por llegar algunos segundos después de su minuto. La
+            // tolerancia conserva un límite explícito para no publicar una
+            // historia vieja.
+            missedPolicy: "run_late",
             organizationId: job.organizationId,
             publicationId: job.publicationId,
             targets: ["instagram_story"],
