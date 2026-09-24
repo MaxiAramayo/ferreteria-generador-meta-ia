@@ -255,6 +255,16 @@ No trae migraciones pendientes. API, web, Caddy, PostgreSQL y Redis quedaron
 saludables; `/health` y `/ready` respondieron `200`. La release
 `23c6df98b087c2f9387ff2a0ef9d933903f1176d` se conserva para rollback.
 
+La primera ejecución real del 2026-09-24 reveló que dos historias automáticas
+llegaron a `approved_scheduled`, pero el barrido del worker posterior al minuto
+exacto las omitió antes de contactar Meta: el cronograma automático tenía una
+tolerancia de 15 minutos que quedaba anulada por `missedPolicy: skip`. La
+release `76ec1b7937ef89c8abbc4b7876ea22e397bde092` cambia exclusivamente las
+rutinas automáticas a `run-late` durante esos 15 minutos, y se promovió tras
+CI, publicación de imágenes y verificación de API, web, worker, Caddy,
+PostgreSQL, Redis, `/health` y `/ready` el 2026-09-24. Las dos historias ya
+omitidas no se reintentaron fuera de horario.
+
 La release `888004e3326dd02adc58393290cb41a2241c3209` se promovió a producción
 el 2026-09-21, con copia previa verificada
 (`aramayo-production-20260921T221347Z`) porque arrastraba tres migraciones
