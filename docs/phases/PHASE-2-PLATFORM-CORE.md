@@ -822,6 +822,14 @@ qué se ve: nombre, descripción, precio, etiqueta, medidas, vigencia y botón.
   campos cargados, la versión de alturas fijas empujaba el botón fuera de la
   zona segura de la historia. La geometría se midió con el script de
   `pnpm design:review` sobre 24 muestras.
+- 2026-09-26, revisión posterior al merge: una prueba de estrés con todos los
+  campos al tope del panel —nombre de 90 caracteres, descripción de 150, tres
+  medidas, vigencia y botón largos— encontró que la ficha **sacaba el precio y
+  el botón de la zona segura**, en historia y en post. La foto recuadrada tenía
+  un alto mínimo de 520 px que no cedía; la línea base mergeada lo mostraba con
+  la placa terminando en y=2120, fuera del lienzo. El mínimo bajó a 300 px en
+  historia y 200 en post: con mucho texto, la foto cede. Los 28 casos de estrés
+  —siete marcos, dos formatos, dos marcas— quedaron sin hallazgos.
 
 ### Evidencia de cierre
 
