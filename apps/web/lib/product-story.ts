@@ -1,86 +1,141 @@
 import type { RecurringStoryPhotoPayload } from "@aramayo/contracts";
-import type { DesignDocument } from "@aramayo/design-engine";
+import {
+  layoutSpecFor,
+  type ContentFieldKey,
+  type DesignDocument,
+  type ProductPhotoLayoutId,
+} from "@aramayo/design-engine";
 import { parseDesignDocument } from "@aramayo/design-engine/validation";
 
 import { savedPublication } from "./publication-workspace-api.ts";
 
 /**
- * Historia de producto con foto propia (`ADR-031`).
+ * Pieza de producto con foto propia, en post o historia (`ADR-033`).
  *
- * El producto manda: la foto ocupa el lienzo y los datos se apoyan en una
- * tarjeta que no la tapa. Acá se arma el documento que dibuja el motor —el
- * mismo que renderiza el worker— y se guarda como borrador.
+ * Quien publica sube la foto, elige el marco según dónde quedó el producto y
+ * decide qué se ve. Acá se arma el documento que dibuja el motor —el mismo que
+ * renderiza el worker— y se guarda como borrador.
  *
  * El precio lo escribe quien publica y vive en la pieza, nunca en el caption:
  * un importe en el texto exige evidencia vigente del catálogo y este camino no
- * la tiene. Sin precio, el marco invita a consultarlo.
+ * la tiene (`ADR-031`).
  */
 
 export const productStoryFrames = Object.freeze([
   {
-    description: "La foto entera y el precio en una tarjeta abajo del todo.",
-    label: "Precio abajo",
-    layout: "historia-producto-precio-abajo",
-    value: "precio-abajo",
+    description:
+      "El letrero del frente arriba; nombre, precio y botón en una placa abajo.",
+    label: "Cartel",
+    layout: "foto-producto-cartel",
+    value: "cartel",
   },
   {
-    description: "El importe como etiqueta colgada sobre la foto.",
-    label: "Etiqueta de precio",
-    layout: "historia-producto-etiqueta",
-    value: "etiqueta",
+    description:
+      "La foto como la vidriera del local, sin nada encima; los datos en el zócalo.",
+    label: "Vidriera",
+    layout: "foto-producto-vidriera",
+    value: "vidriera",
   },
   {
-    description: "Los datos en una tarjeta; el producto libre a la izquierda.",
-    label: "Tarjeta a la derecha",
-    layout: "historia-producto-tarjeta",
-    value: "tarjeta",
+    description: "El precio en la etiqueta del estante, del lado izquierdo.",
+    label: "Góndola a la izquierda",
+    layout: "foto-producto-gondola-izquierda",
+    value: "gondola-izquierda",
   },
   {
-    description: "La foto enmarcada sobre el fondo de marca, datos abajo.",
-    label: "Foto enmarcada",
-    layout: "historia-producto-ventana",
-    value: "ventana",
+    description: "El precio en la etiqueta del estante, del lado derecho.",
+    label: "Góndola a la derecha",
+    layout: "foto-producto-gondola-derecha",
+    value: "gondola-derecha",
   },
-] as const);
+  {
+    description: "El cartel chico y, si querés, nombre, precio y botón abajo.",
+    label: "Solo la foto",
+    layout: "foto-producto-libre",
+    value: "libre",
+  },
+  {
+    description: "Papel de marca y la foto recuadrada; para fotos de catálogo.",
+    label: "Ficha",
+    layout: "foto-producto-ficha",
+    value: "ficha",
+  },
+  {
+    description: "La foto arriba y el precio enorme abajo; para ofertas.",
+    label: "Precio grande",
+    layout: "foto-producto-precio-grande",
+    value: "precio-grande",
+  },
+] as const satisfies readonly Readonly<{
+  description: string;
+  label: string;
+  layout: ProductPhotoLayoutId;
+  value: string;
+}>[]);
 
 export type ProductStoryFrame = (typeof productStoryFrames)[number]["value"];
 
-export const productStoryThemes = Object.freeze([
-  { label: "Rojo Aramayo", value: "promo" },
-  { label: "Taller", value: "taller" },
-  { label: "Claro", value: "claro" },
+export const productStoryFormats = Object.freeze([
+  { label: "Historia", ratio: "9:16", value: "historia" },
+  { label: "Post", ratio: "4:5", value: "feed" },
 ] as const);
 
-export type ProductStoryTheme = (typeof productStoryThemes)[number]["value"];
+export type ProductStoryFormat = (typeof productStoryFormats)[number]["value"];
+
+/** La marca decide el cartel: rojo de la ferretería o amarillo del lubricentro. */
+export const productStoryBrands = Object.freeze([
+  { label: "Ferretería", theme: "taller", value: "ferreteria" },
+  { label: "Lubricentro", theme: "lubricentro", value: "lubricentro" },
+] as const);
+
+export type ProductStoryBrand = (typeof productStoryBrands)[number]["value"];
+
+/** Qué dice la pieza del precio: el importe, que se consulte, o nada. */
+export const productStoryPriceModes = Object.freeze([
+  { label: "Mostrar el precio", value: "amount" },
+  { label: "«Consultá precio»", value: "consult" },
+  { label: "No hablar del precio", value: "none" },
+] as const);
+
+export type ProductStoryPriceMode =
+  (typeof productStoryPriceModes)[number]["value"];
 
 export interface ProductStoryDraft {
   readonly badge: string;
+  readonly brand: ProductStoryBrand;
   readonly callToAction: string;
   readonly caption: string;
-  readonly category: string;
+  readonly format: ProductStoryFormat;
   readonly frame: ProductStoryFrame;
   readonly items: readonly string[];
   readonly photo: RecurringStoryPhotoPayload | null;
   readonly previousPrice: string;
   readonly price: string;
+  readonly priceMode: ProductStoryPriceMode;
+  readonly priceUnit: string;
+  readonly showButton: boolean;
+  readonly showTitle: boolean;
   readonly subtitle: string;
-  readonly theme: ProductStoryTheme;
   readonly title: string;
   readonly validity: string;
 }
 
 export const emptyProductStoryDraft: ProductStoryDraft = Object.freeze({
   badge: "",
-  callToAction: "Consultanos",
+  brand: "ferreteria",
+  callToAction: "Consultanos por WhatsApp",
   caption: "",
-  category: "",
-  frame: "precio-abajo",
+  format: "historia",
+  frame: "cartel",
   items: Object.freeze([]),
   photo: null,
   previousPrice: "",
   price: "",
+  priceMode: "amount",
+  priceUnit: "",
+  showButton: true,
+  showTitle: true,
   subtitle: "",
-  theme: "promo",
   title: "",
   validity: "",
 });
@@ -90,10 +145,24 @@ export type ProductStoryPreview =
   | Readonly<{ kind: "blocked"; message: string }>
   | Readonly<{ kind: "needs-photo" }>;
 
-function layoutFor(frame: ProductStoryFrame): string {
+export function layoutFor(frame: ProductStoryFrame): ProductPhotoLayoutId {
   return (
     productStoryFrames.find((candidate) => candidate.value === frame)?.layout ??
-    "historia-producto-precio-abajo"
+    "foto-producto-cartel"
+  );
+}
+
+/**
+ * Lo que el marco dibuja. Sale de la especificación del motor: un dato que el
+ * marco no muestra no se guarda como si se hubiera publicado.
+ */
+export function frameShows(
+  frame: ProductStoryFrame,
+  field: ContentFieldKey,
+): boolean {
+  const spec = layoutSpecFor(layoutFor(frame));
+  return (
+    spec.requiredFields.includes(field) || spec.optionalFields.includes(field)
   );
 }
 
@@ -107,6 +176,50 @@ function filledItems(items: readonly string[]): readonly string[] {
   return items.map((item) => item.trim()).filter((item) => item.length > 0);
 }
 
+function themeFor(brand: ProductStoryBrand): "lubricentro" | "taller" {
+  return (
+    productStoryBrands.find((candidate) => candidate.value === brand)?.theme ??
+    "taller"
+  );
+}
+
+/** Lo que el marco dibuja y quien publica escribió; lo demás no viaja. */
+function pieceContent(
+  draft: ProductStoryDraft,
+  title: string,
+): Readonly<Record<string, unknown>> {
+  const shows = (field: ContentFieldKey): boolean =>
+    frameShows(draft.frame, field);
+  const text = (field: ContentFieldKey, value: string) => {
+    const filled = trimmed(value);
+    return filled !== undefined && shows(field) ? { [field]: filled } : {};
+  };
+  const items = filledItems(draft.items);
+  const price = draft.priceMode === "amount" ? trimmed(draft.price) : undefined;
+  const hidden = [
+    ...(draft.showTitle ? [] : ["title"]),
+    ...(draft.priceMode === "none" ? ["price"] : []),
+  ];
+
+  return {
+    ...text("badge", draft.badge),
+    ...(draft.showButton ? text("callToAction", draft.callToAction) : {}),
+    ...(hidden.length === 0 ? {} : { hidden }),
+    ...(items.length > 0 && shows("items") ? { items } : {}),
+    // El precio anterior y la unidad sólo acompañan a un importe.
+    ...(price === undefined
+      ? {}
+      : {
+          price,
+          ...text("previousPrice", draft.previousPrice),
+          ...text("priceUnit", draft.priceUnit),
+        }),
+    ...text("subtitle", draft.subtitle),
+    title,
+    ...text("validity", draft.validity),
+  };
+}
+
 export function productStoryDocument(
   draft: ProductStoryDraft,
 ): ProductStoryPreview {
@@ -117,37 +230,19 @@ export function productStoryDocument(
   if (title === undefined) {
     return {
       kind: "blocked",
-      message: "Escribí el nombre del producto para ver la historia.",
+      message: "Escribí el nombre del producto para ver la pieza.",
     };
   }
-  const items = filledItems(draft.items);
-  // El precio anterior sin uno nuevo no compara nada: se omite.
-  const price = trimmed(draft.price);
-  const previousPrice =
-    price === undefined ? undefined : trimmed(draft.previousPrice);
+  if (draft.priceMode === "amount" && trimmed(draft.price) === undefined) {
+    return {
+      kind: "blocked",
+      message:
+        "Escribí el precio, o elegí «Consultá precio» o no hablar del precio.",
+    };
+  }
   const parsed = parseDesignDocument({
-    content: {
-      ...(trimmed(draft.badge) === undefined
-        ? {}
-        : { badge: trimmed(draft.badge) }),
-      ...(trimmed(draft.callToAction) === undefined
-        ? {}
-        : { callToAction: trimmed(draft.callToAction) }),
-      ...(trimmed(draft.category) === undefined
-        ? {}
-        : { category: trimmed(draft.category) }),
-      ...(items.length === 0 ? {} : { items }),
-      ...(previousPrice === undefined ? {} : { previousPrice }),
-      ...(price === undefined ? {} : { price }),
-      ...(trimmed(draft.subtitle) === undefined
-        ? {}
-        : { subtitle: trimmed(draft.subtitle) }),
-      title,
-      ...(trimmed(draft.validity) === undefined
-        ? {}
-        : { validity: trimmed(draft.validity) }),
-    },
-    format: "historia",
+    content: pieceContent(draft, title),
+    format: draft.format,
     layout: layoutFor(draft.frame),
     media: [
       {
@@ -159,15 +254,54 @@ export function productStoryDocument(
       },
     ],
     schemaVersion: 1,
-    slug: "historia-producto",
-    theme: draft.theme,
+    slug: "foto-producto",
+    theme: themeFor(draft.brand),
   });
   return parsed.ok
     ? { document: parsed.document, kind: "ready" }
     : {
         kind: "blocked",
-        message: "La historia no se puede componer con estos datos.",
+        message: "La pieza no se puede componer con estos datos.",
       };
+}
+
+/**
+ * La miniatura de cada marco en la galería: la pieza de verdad con la foto y
+ * los datos que se cargaron. Mientras falten, una foto de la biblioteca y un
+ * nombre de muestra dejan ver la forma del marco.
+ */
+export function productFrameThumbnail(
+  draft: ProductStoryDraft,
+  frame: ProductStoryFrame,
+): DesignDocument | null {
+  const own = productStoryDocument({ ...draft, frame });
+  if (own.kind === "ready") {
+    return own.document;
+  }
+  const sample = parseDesignDocument({
+    content: {
+      ...(frameShows(frame, "callToAction")
+        ? { callToAction: draft.callToAction.trim() || "Consultanos" }
+        : {}),
+      price: "$ 24.500",
+      title: trimmed(draft.title) ?? "Tu producto",
+    },
+    format: draft.format,
+    layout: layoutFor(frame),
+    media: [
+      {
+        alt: "Herramientas sobre un banco de trabajo",
+        reference: {
+          assetId: "stock-herramientas-electricas",
+          source: "brand-library",
+        },
+      },
+    ],
+    schemaVersion: 1,
+    slug: "foto-producto-muestra",
+    theme: themeFor(draft.brand),
+  });
+  return sample.ok ? sample.document : null;
 }
 
 export type ProductStorySaveResult =
@@ -218,7 +352,7 @@ export async function saveProductStoryDraft(
   if (media === undefined || media.reference.source !== "inline") {
     return {
       kind: "error",
-      message: "La historia necesita la foto del producto.",
+      message: "La pieza necesita la foto del producto.",
     };
   }
   try {

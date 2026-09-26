@@ -22,6 +22,7 @@
 export {
   contentLimits,
   DESIGN_SCHEMA_VERSION,
+  HIDEABLE_CONTENT_FIELDS,
   inlineAssetLimits,
   mediaDefaults,
   mediaLimits,
@@ -30,6 +31,7 @@ export {
   type DesignFeature,
   type DesignDocument,
   type DesignSchemaVersion,
+  type HideableContentField,
   type MediaAsset,
   type MediaFit,
   type MediaFocus,
@@ -83,6 +85,7 @@ export type {
   FrameLayoutId,
   HighlightLayoutId,
   LayoutId,
+  ProductPhotoLayoutId,
   PublicationLayoutId,
   StoryLayoutId,
 } from "./registry/layout-id.ts";

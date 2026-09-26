@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-23
+Actualizado: 2026-09-26
 
 ## Fase activa
 
@@ -217,6 +217,20 @@ precio, la pieza invita a consultarlo. Las decisiones están en
 [`ADR-031`](architecture/decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md). No
 necesita migración: el borrador viaja por el camino de publicación que ya
 existía.
+
+`P2-T10` cerró el 2026-09-26, a pedido del usuario: el producto con foto propia
+sale ahora **en post y en historia**, con siete marcos sacados del local —cartel,
+vidriera, etiqueta de góndola a cada lado, solo la foto, ficha y precio grande—
+y el mismo cartel «Ferretería Aramayo · En Frías» en todos (amarillo en el
+lubricentro). Quien publica decide qué se ve según la foto: el nombre y el
+precio se pueden callar, y el precio es un importe con anterior y unidad,
+«Consultá precio» o nada. La galería del panel muestra cada marco con la foto y
+los datos cargados, dibujado por el motor. Ningún texto baja de 28 px y cada par
+de color con texto pasa 4,5:1. Los cuatro marcos de `P2-T09` salen del panel y
+siguen componiendo los borradores guardados. El precio sigue fuera del caption.
+Las decisiones están en
+[`ADR-033`](architecture/decisions/ADR-033-PRODUCT-PHOTO-FRAMES.md). No necesita
+migración.
 
 La revisión posterior al merge encontró que **guardar no funcionaba**, y el E2E
 no lo veía porque componía la vista previa sin apretar «Guardar». `POST

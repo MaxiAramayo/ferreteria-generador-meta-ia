@@ -107,6 +107,24 @@ export type FrameLayoutId =
   | "marco-zocalo"
   | "marco-vitrina";
 
+/**
+ * Piezas de producto con foto propia (`ADR-033`).
+ *
+ * Quien publica sube la foto y escribe lo que la pieza afirma. Cada marco sale
+ * de un objeto real del local —el cartel del frente, la vidriera, la etiqueta
+ * de la góndola— y se compone igual en post e historia. El nombre describe el
+ * marco; la etiqueta de góndola a cada lado es un identificador propio, como
+ * las columnas de `ADR-029`.
+ */
+export type ProductPhotoLayoutId =
+  | "foto-producto-cartel"
+  | "foto-producto-vidriera"
+  | "foto-producto-gondola-izquierda"
+  | "foto-producto-gondola-derecha"
+  | "foto-producto-libre"
+  | "foto-producto-ficha"
+  | "foto-producto-precio-grande";
+
 export type BannerLayoutId = "banner-marca";
 
 export type HighlightLayoutId = "destacada-cover";
@@ -117,5 +135,6 @@ export type LayoutId =
   | ComposedLayoutId
   | FrameLayoutId
   | HighlightLayoutId
+  | ProductPhotoLayoutId
   | PublicationLayoutId
   | StoryLayoutId;

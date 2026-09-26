@@ -712,3 +712,63 @@ test("el flujo HTTP crea, edita, versiona, filtra y consulta el borrador", async
     2,
   );
 });
+
+test("un post de producto con foto propia guarda lo que calla y la unidad del precio", async () => {
+  // `ADR-033`: la pieza puede callar el nombre o el precio, y el importe lleva
+  // su unidad. Si el transporte descartara esos campos, el post saldría
+  // diciendo lo que quien publica pidió callar.
+  const base = submission("Manguera corrugada");
+  // Es el cuerpo que manda el panel: se valida en el transporte, no acá.
+  const productPost = (
+    content: Readonly<Record<string, unknown>>,
+  ): Readonly<Record<string, unknown>> => ({
+    ...base,
+    design: {
+      ...base.design,
+      content: { title: "Manguera corrugada", ...content },
+      layout: "foto-producto-cartel",
+      media: [
+        {
+          alt: "Manguera corrugada azul en el depósito",
+          dataUrl: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+          fit: "cover",
+          focus: { x: 50, y: 70 },
+        },
+      ],
+      slug: "foto-producto-manguera",
+    },
+  });
+
+  const created = await supertest(baseUrl)
+    .post("/publications")
+    .set("Idempotency-Key", "http-product-photo-0001")
+    .send(
+      productPost({
+        hidden: ["title"],
+        price: "$ 3.200",
+        priceUnit: "el metro",
+      }),
+    );
+  assert.equal(created.status, 201);
+  const createdPayload: unknown = created.body;
+  const design = jsonObject(
+    jsonObject(jsonObject(createdPayload)["latestRevision"])["designDocument"],
+  );
+  const content = jsonObject(design["content"]);
+  assert.equal(design["layout"], "foto-producto-cartel");
+  assert.deepEqual(content["hidden"], ["title"]);
+  assert.equal(content["priceUnit"], "el metro");
+
+  const unknownHidden = await supertest(baseUrl)
+    .post("/publications")
+    .set("Idempotency-Key", "http-product-photo-0002")
+    .send(productPost({ hidden: ["subtitle"] }));
+  assert.equal(unknownHidden.status, 400);
+
+  // Un importe que además se pide callar no tiene forma de dibujarse.
+  const contradictory = await supertest(baseUrl)
+    .post("/publications")
+    .set("Idempotency-Key", "http-product-photo-0003")
+    .send(productPost({ hidden: ["price"], price: "$ 3.200" }));
+  assert.equal(contradictory.status, 400);
+});

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   emptyProductStoryDraft,
+  frameShows,
+  productFrameThumbnail,
   productStoryDocument,
   productStoryFrames,
   saveProductStoryDraft,
@@ -17,38 +19,55 @@ const photo = {
 };
 const apiBaseUrl = "https://api.invalid/";
 
-test("la historia de producto compone el documento que renderiza el motor", () => {
+test("la pieza de producto compone el documento que renderiza el motor", () => {
   const preview = productStoryDocument({
     ...emptyProductStoryDraft,
     badge: "Oferta",
-    category: "Seguridad industrial",
-    frame: "etiqueta",
-    items: ["Talles 8 al 11", "  ", "Palma reforzada"],
+    frame: "cartel",
+    items: ["1 1/4″", "  ", "1 1/2″"],
     photo: { ...photo, focusX: 100, focusY: 0, zoom: 140 },
-    previousPrice: "$ 62.400",
-    price: "$ 48.900",
-    subtitle: "Con agarre reforzado",
-    title: "Guantes de trabajo",
+    previousPrice: "$ 4.100",
+    price: "$ 3.200",
+    priceUnit: "el metro",
+    subtitle: "Flexible, no se aplasta",
+    title: "Manguera corrugada",
     validity: "Hasta el sábado",
   });
 
   assert.equal(preview.kind, "ready");
   const { document } = preview;
-  assert.equal(document.layout, "historia-producto-etiqueta");
-  assert.equal(document.content.price, "$ 48.900");
-  assert.equal(document.content.previousPrice, "$ 62.400");
+  assert.equal(document.layout, "foto-producto-cartel");
+  assert.equal(document.format, "historia");
+  assert.equal(document.theme, "taller");
+  assert.equal(document.content.price, "$ 3.200");
+  assert.equal(document.content.previousPrice, "$ 4.100");
+  assert.equal(document.content.priceUnit, "el metro");
+  assert.equal(document.content.callToAction, "Consultanos por WhatsApp");
+  assert.equal(document.content.hidden, undefined);
   // Un renglón en blanco no viaja: el motor rechaza una lista con huecos.
-  assert.deepEqual(document.content.items, [
-    "Talles 8 al 11",
-    "Palma reforzada",
-  ]);
+  assert.deepEqual(document.content.items, ["1 1/4″", "1 1/2″"]);
   const [media] = document.media;
   assert.ok(media);
   assert.deepEqual(media.focus, { x: 100, y: 0 });
   assert.equal(media.zoom, 1.4);
 });
 
-test("sin foto o sin nombre la historia dice qué falta, en vez de componerse a medias", () => {
+test("el mismo borrador sale como post y con el cartel del lubricentro", () => {
+  const preview = productStoryDocument({
+    ...emptyProductStoryDraft,
+    brand: "lubricentro",
+    format: "feed",
+    photo,
+    priceMode: "consult",
+    title: "Filtros Wega",
+  });
+
+  assert.equal(preview.kind, "ready");
+  assert.equal(preview.document.format, "feed");
+  assert.equal(preview.document.theme, "lubricentro");
+});
+
+test("sin foto, sin nombre o sin importe la pieza dice qué falta", () => {
   assert.deepEqual(
     productStoryDocument({ ...emptyProductStoryDraft, title: "Manguera" }),
     { kind: "needs-photo" },
@@ -56,31 +75,108 @@ test("sin foto o sin nombre la historia dice qué falta, en vez de componerse a 
   const sinNombre = productStoryDocument({ ...emptyProductStoryDraft, photo });
   assert.equal(sinNombre.kind, "blocked");
   assert.match(sinNombre.message, /nombre del producto/u);
+  // «Mostrar el precio» sin importe no se completa solo con «Consultá».
+  const sinImporte = productStoryDocument({
+    ...emptyProductStoryDraft,
+    photo,
+    title: "Manguera",
+  });
+  assert.equal(sinImporte.kind, "blocked");
+  assert.match(sinImporte.message, /precio/u);
 });
 
-test("un precio anterior sin precio nuevo no compara nada y no se dibuja", () => {
+test("callar el nombre y el precio viaja como pedido explícito", () => {
   const preview = productStoryDocument({
     ...emptyProductStoryDraft,
     photo,
-    previousPrice: "$ 62.400",
-    title: "Caño IPS bicapa",
+    price: "$ 3.200",
+    previousPrice: "$ 4.100",
+    priceMode: "none",
+    showButton: false,
+    showTitle: false,
+    title: "Manguera corrugada",
+  });
+
+  assert.equal(preview.kind, "ready");
+  const { content } = preview.document;
+  assert.deepEqual(content.hidden, ["title", "price"]);
+  // El nombre sigue identificando el borrador aunque no se dibuje.
+  assert.equal(content.title, "Manguera corrugada");
+  // El importe escrito antes de callarlo no viaja, ni su comparación.
+  assert.equal(content.price, undefined);
+  assert.equal(content.previousPrice, undefined);
+  assert.equal(content.callToAction, undefined);
+});
+
+test("«Consultá precio» no manda importe ni deja uno viejo escondido", () => {
+  const preview = productStoryDocument({
+    ...emptyProductStoryDraft,
+    photo,
+    price: "$ 3.200",
+    priceMode: "consult",
+    priceUnit: "el metro",
+    title: "Manguera corrugada",
   });
 
   assert.equal(preview.kind, "ready");
   assert.equal(preview.document.content.price, undefined);
-  assert.equal(preview.document.content.previousPrice, undefined);
+  assert.equal(preview.document.content.priceUnit, undefined);
+  assert.equal(preview.document.content.hidden, undefined);
 });
 
-test("cada marco de producto nombra un layout del motor", () => {
+test("un dato que el marco no dibuja no se guarda como si se publicara", () => {
+  const preview = productStoryDocument({
+    ...emptyProductStoryDraft,
+    badge: "Oferta",
+    frame: "libre",
+    items: ["40", "50"],
+    photo,
+    price: "$ 850",
+    subtitle: "Para caño de PVC",
+    title: "Tapas de PVC",
+    validity: "Hasta el sábado",
+  });
+
+  assert.equal(preview.kind, "ready");
+  const { content } = preview.document;
+  assert.equal(frameShows("libre", "subtitle"), false);
+  assert.equal(content.subtitle, undefined);
+  assert.equal(content.badge, undefined);
+  assert.equal(content.items, undefined);
+  assert.equal(content.validity, undefined);
+  assert.equal(content.price, "$ 850");
+});
+
+test("cada marco de producto nombra un layout del motor en los dos formatos", () => {
   for (const frame of productStoryFrames) {
-    const preview = productStoryDocument({
-      ...emptyProductStoryDraft,
-      frame: frame.value,
-      photo,
-      title: "Machete Biassoni",
-    });
-    assert.equal(preview.kind, "ready");
-    assert.equal(preview.document.layout, frame.layout);
+    for (const format of ["feed", "historia"] as const) {
+      const preview = productStoryDocument({
+        ...emptyProductStoryDraft,
+        format,
+        frame: frame.value,
+        photo,
+        priceMode: "consult",
+        title: "Machete Biassoni",
+      });
+      assert.equal(preview.kind, "ready", `${frame.value} ${format}`);
+      assert.equal(preview.document.layout, frame.layout);
+    }
+  }
+});
+
+test("la galería muestra cada marco aunque todavía no haya foto", () => {
+  for (const frame of productStoryFrames) {
+    const sample = productFrameThumbnail(emptyProductStoryDraft, frame.value);
+    assert.ok(sample, frame.value);
+    assert.equal(sample.layout, frame.layout);
+
+    const own = productFrameThumbnail(
+      { ...emptyProductStoryDraft, photo, priceMode: "consult", title: "Pala" },
+      frame.value,
+    );
+    assert.ok(own, frame.value);
+    assert.equal(own.content.title, "Pala");
+    assert.equal(own.media[0]?.reference.source, "inline");
   }
 });
 
@@ -151,7 +247,7 @@ test("guardar manda la foto embebida con su encuadre y un caption sin precio", a
       }[];
     };
   };
-  assert.equal(body.design.layout, "historia-producto-precio-abajo");
+  assert.equal(body.design.layout, "foto-producto-cartel");
   const [savedMedia] = body.design.media;
   assert.ok(savedMedia);
   assert.equal(savedMedia.dataUrl, photo.dataUrl);

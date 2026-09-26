@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   ArrayMinSize,
+  ArrayUnique,
   Equals,
   IsArray,
   IsIn,
@@ -21,6 +22,7 @@ import {
   ACCENT_NAMES,
   DESIGN_SCHEMA_VERSION,
   FORMAT_IDS,
+  HIDEABLE_CONTENT_FIELDS,
   ICON_NAMES,
   LAYOUT_IDS,
   THEME_IDS,
@@ -107,6 +109,14 @@ export class DraftDesignContentDto {
   @MaxLength(240)
   declare greeting?: string;
 
+  /** Lo que una pieza con foto propia no dibuja (`ADR-033`). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsIn(HIDEABLE_CONTENT_FIELDS, { each: true })
+  declare hidden?: string[];
+
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
@@ -144,6 +154,12 @@ export class DraftDesignContentDto {
   @MinLength(1)
   @MaxLength(240)
   declare price?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(240)
+  declare priceUnit?: string;
 
   @IsOptional()
   @IsString()

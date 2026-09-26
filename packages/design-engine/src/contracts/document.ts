@@ -72,6 +72,21 @@ export interface DesignFeature {
   readonly label: string;
 }
 
+/**
+ * Lo que una pieza de producto con foto propia puede callar (`ADR-033`).
+ *
+ * `title` sigue siendo obligatorio —nombra el borrador y el texto alternativo—,
+ * pero quien publica puede pedir que no se dibuje. Callar `price` distingue «no
+ * hablar del precio» de la invitación a consultarlo, que es lo que dibuja una
+ * pieza sin importe.
+ */
+export const HIDEABLE_CONTENT_FIELDS = Object.freeze([
+  "price",
+  "title",
+] as const);
+
+export type HideableContentField = (typeof HIDEABLE_CONTENT_FIELDS)[number];
+
 export interface DesignContent {
   /** Color de la etiqueta de estado y del botón; sin él decide el tema. */
   readonly accent?: AccentName;
@@ -85,6 +100,8 @@ export interface DesignContent {
   readonly features?: readonly DesignFeature[];
   /** Saludo breve del encabezado, por ejemplo «Buen día, Frías». */
   readonly greeting?: string;
+  /** Campos que la pieza no dibuja; ver `HIDEABLE_CONTENT_FIELDS`. */
+  readonly hidden?: readonly HideableContentField[];
   /** Argumentos secundarios en una línea: «Variedad de marcas». */
   readonly highlights?: readonly string[];
   readonly icon?: IconName;
@@ -92,6 +109,8 @@ export interface DesignContent {
   readonly phone?: string;
   readonly previousPrice?: string;
   readonly price?: string;
+  /** Unidad del importe: «el metro», «c/u». Sólo acompaña a un precio. */
+  readonly priceUnit?: string;
   readonly subtitle?: string;
   readonly title: string;
   readonly validity?: string;
