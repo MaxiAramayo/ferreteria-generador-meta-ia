@@ -566,7 +566,7 @@ export function FotoProductoFicha(props: LayoutProps): ReactElement {
           boxShadow: `12px 12px 0 ${palette.accent}`,
           flex: "1 1 auto",
           margin: `36px ${String(metrics.side)}px 0`,
-          minHeight: metrics.story ? 520 : 400,
+          minHeight: metrics.story ? 300 : 200,
           overflow: "hidden",
           position: "relative",
         }}
