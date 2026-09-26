@@ -14,7 +14,7 @@
  * - **por rol**: cada persona ve sólo sus secciones y su «Para hoy»;
  * - **moverse**: desde cualquier pantalla, Configuración y Cuenta incluidas, se
  *   llega a las demás sin escribir la dirección;
- * - **cada flujo compone**: la historia de producto arma la pieza con la foto
+ * - **cada flujo compone**: el producto arma la pieza con la foto
  *   que se sube, cambia de marco sin perderla, y al guardar el panel lleva a
  *   la pieza con su PNG listo para aprobar;
  * - **salir**: cerrar sesión la revoca en la API;
@@ -63,6 +63,8 @@ const uiTimeoutMs = 20_000;
 const desktop = Object.freeze({ height: 900, width: 1280 });
 const phone = Object.freeze({ height: 844, width: 390 });
 const todayHeading = "Lo que hay que mover hoy.";
+/** Marcos que ofrece el compositor de producto (`ADR-033`). */
+const productFrameCount = 7;
 
 function requiredDatabaseUrl(): string {
   const databaseUrl = process.env["DATABASE_URL"];
@@ -368,9 +370,9 @@ async function main(): Promise<void> {
     assert.equal(await currentFlow.textContent(), "Creatividad IA");
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
 
-    // --- La historia de producto arma la pieza con la foto que se sube ---
-    // Cambiar de marco es lo que pidió el dueño: el mismo producto, otra zona
-    // de la foto libre (`ADR-031`).
+    // --- El producto arma la pieza con la foto que se sube ---
+    // Cambiar de marco y de formato es lo que pidió el dueño: el mismo
+    // producto, otra zona de la foto libre, en historia o en post (`ADR-033`).
     await flows.getByRole("link", { name: "Producto" }).click();
     await editorPage.waitForURL(
       `${webBaseUrl}/publicaciones/nueva?flujo=producto`,
@@ -379,7 +381,7 @@ async function main(): Promise<void> {
       },
     );
     const productComposer = editorPage.getByRole("region", {
-      name: "Compositor de historia de producto",
+      name: "Compositor de producto con foto propia",
     });
     await productComposer.waitFor({ timeout: uiTimeoutMs });
     await editorPage
@@ -398,25 +400,47 @@ async function main(): Promise<void> {
       mimeType: "image/jpeg",
       name: "guantes.jpg",
     });
-    const productPreview = editorPage.locator(
+    // Las miniaturas de la galería también son piezas del motor: la vista
+    // previa se busca dentro de su propio panel.
+    const productPreviewPanel = editorPage.getByRole("complementary", {
+      name: "Vista previa real de la pieza",
+    });
+    const productPreview = productPreviewPanel.locator(
       '[data-card][data-format="historia"]',
     );
     await productPreview
       .locator('img[src^="data:image/jpeg;base64,"]')
       .waitFor({ timeout: 30_000 });
     await productPreview
-      .locator('[data-frame-card="abajo"]')
+      .locator("[data-product-plate]")
       .waitFor({ timeout: uiTimeoutMs });
     assert.ok(
-      await productPreview.getByText("$ 48.900").count(),
+      await productPreview.getByText("48.900").count(),
       "El precio se dibuja en la pieza, que es donde vive.",
     );
-    await editorPage.getByText("Tarjeta a la derecha", { exact: true }).click();
-    await productPreview
-      .locator('[data-frame-card="esquina"]')
+    // Cada miniatura de la galería muestra la foto subida en su marco. Se
+    // dibujan con el borrador diferido, así que se espera a la séptima.
+    await productComposer
+      .locator('.product-frame-thumb img[src^="data:image/jpeg;base64,"]')
+      .nth(productFrameCount - 1)
       .waitFor({ timeout: uiTimeoutMs });
+    await editorPage.getByText("Vidriera", { exact: true }).click();
+    await productPreview
+      .locator("[data-frame-window]")
+      .waitFor({ timeout: uiTimeoutMs });
+    await productComposer
+      .getByRole("radiogroup", { name: "Formato de la pieza" })
+      .getByText("Post")
+      .click();
+    await productPreviewPanel
+      .locator('[data-card][data-format="feed"] [data-frame-window]')
+      .waitFor({ timeout: uiTimeoutMs });
+    await editorPage.screenshot({
+      fullPage: true,
+      path: `${outputDirectory}/producto-post.png`,
+    });
     reportCheck(
-      "la historia de producto compone la foto subida y cambia de marco sin perderla",
+      "el producto compone la foto subida y cambia de marco y de formato sin perderla",
     );
 
     // Guardar de verdad: la foto embebida viaja en el cuerpo del POST y la
@@ -458,7 +482,7 @@ async function main(): Promise<void> {
     } catch (cause) {
       const notice = (await productNotice.textContent()) ?? "(sin aviso)";
       throw new Error(
-        `Guardar la historia de producto falló: ${notice} — la API respondió ${saveOutcome}`,
+        `Guardar el producto falló: ${notice} — la API respondió ${saveOutcome}`,
         cause instanceof Error ? { cause } : undefined,
       );
     }
@@ -466,9 +490,7 @@ async function main(): Promise<void> {
       editorPage,
       "De la idea al borrador, sin saltos ocultos.",
     );
-    reportCheck(
-      "guardar la historia de producto lleva a la pieza, con su foto embebida",
-    );
+    reportCheck("guardar el producto lleva a la pieza, con su foto embebida");
 
     // El PNG se pide solo al llegar: sin esto habría que pedirlo a mano,
     // esperar y abrirlo, que es justo el ir y venir que se quería sacar.

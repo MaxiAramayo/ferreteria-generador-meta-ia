@@ -1,0 +1,39 @@
+{
+  "id": "catalogo-foto-producto-libre-historia",
+  "format": "historia",
+  "fonts": [
+    "Archivo 600 normal",
+    "Saira Condensed 800 normal",
+    "Saira Condensed 900 normal"
+  ],
+  "nodes": [
+    "@0,0 1080×1920 div[data-card][data-format=historia][data-safe-area={\"bottom\":300,\"left\":72,\"right\":72,\"top\":250}][data-theme=taller] · color rgb(246, 241, 234) · font-family Archivo, system-ui, sans-serif · font-size 16px · font-style normal · font-weight 400 · letter-spacing normal · line-height normal · text-align start · text-shadow none · text-transform none · visibility visible · background-color rgb(28, 26, 25) · overflow-x hidden · overflow-y hidden",
+    "  @0,0 1080×1920 div[class=opening-photo] · overflow-x hidden · overflow-y hidden",
+    "    @0,0 1080×1920 img imagen assets/stock-herramientas-electricas.jpg 1400×2100 · object-fit cover · overflow-x clip · overflow-y clip",
+    "  @72,250 788×104 div[data-letrero=compact] · box-shadow rgba(13, 13, 13, 0.28) 0px 12px 32px 0px · z-index 20",
+    "    @72,250 624×104 div · color rgb(255, 255, 255) · background-color rgb(182, 42, 18)",
+    "      @83,261 602×82 span · border 4px solid rgba(255, 255, 255, 0.9) · border-radius 2px",
+    "      @102,273 560×58 span[data-logo][data-role=logo]",
+    "        @102,275 55×55 svg[viewBox=0 0 120 120] · fill none · overflow-x hidden · overflow-y hidden",
+    "          @105,280 50×43 polygon forma 8054943f · stroke rgb(255, 255, 255) · stroke-linejoin round · stroke-width 8px",
+    "          @118,286 24×34 path forma 84f97282 · stroke rgb(255, 255, 255) · stroke-linecap round · stroke-linejoin round · stroke-width 12px",
+    "          @123,309 14×0 path forma 019592ec · stroke rgb(255, 255, 255) · stroke-linecap round · stroke-width 12px",
+    "        @173,273 489×58 span «Ferretería Aramayo» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 58px · font-weight 900 · letter-spacing 0.5px · line-height 58px · text-transform uppercase",
+    "    @696,250 164×104 div[data-role=localidad] «En Frías» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 31px · font-weight 800 · letter-spacing 1.5px · line-height 31px · text-transform uppercase · background-color rgb(20, 20, 20)",
+    "  @72,1254 936×366 div[data-product-plate]",
+    "    @72,1254 739×100 div · background-color rgb(20, 20, 20) · box-shadow rgba(13, 13, 13, 0.35) 0px 12px 30px 0px",
+    "      @98,1272 687×68 h1[data-role=titulo] «Taladro percutor 650 W» 1 línea · color rgb(255, 255, 255) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 72px · font-weight 900 · letter-spacing -1px · line-height 67.68px · text-transform uppercase",
+    "    @72,1353 342×157 div · background-color rgb(182, 42, 18)",
+    "      @98,1371 290×123 div[data-price][data-role=precio] · color rgb(255, 255, 255)",
+    "        @98,1371 205×30 span[data-previous-price] «Antes» 1 línea · color rgb(246, 241, 234) · font-size 30px · font-weight 600 · line-height 30px",
+    "          @185,1370 118×32 s «$ 32.000» 1 línea · text-decoration line-through rgb(246, 241, 234)",
+    "        @98,1409 290×85 span «24.500» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 104px · font-weight 900 · letter-spacing -1px · line-height 85.28px",
+    "          @98,1414 17×44 span «$» 1 línea · font-size 43.68px · line-height 43.68px",
+    "    @72,1511 359×110 div[data-cta][data-role=cta] · color rgb(20, 20, 20) · background-color rgb(246, 241, 234) · border-radius 14px",
+    "      @96,1543 44×44 svg[class=lucide lucide-phone][viewBox=0 0 24 24] · fill none · stroke rgb(20, 20, 20) · stroke-linecap round · stroke-linejoin round · stroke-width 2.6px · overflow-x hidden · overflow-y hidden",
+    "        @100,1547 37×37 path forma 8ba7682b",
+    "      @157,1526 250×80 span",
+    "        @157,1526 250×28 span «Consultá stock» 1 línea · color rgb(58, 55, 52) · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 28px · font-weight 800 · letter-spacing 1.2px · line-height 28px · text-transform uppercase",
+    "        @157,1558 250×48 span «3854 403534» 1 línea · font-family \"Saira Condensed\", Archivo, system-ui, sans-serif · font-size 50px · font-weight 900 · letter-spacing 0.5px · line-height 47.5px"
+  ]
+}

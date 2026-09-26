@@ -6,6 +6,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   CATALOG_STATUS,
   catalogStatusFor,
+  COLORS,
+  contrastRatio,
+  CONTRAST_THRESHOLDS,
   DESIGN_SCHEMA_VERSION,
   DesignEngineError,
   FORMATS,
@@ -16,6 +19,7 @@ import {
   type LayoutId,
 } from "../../dist/index.js";
 import {
+  consultPriceLabel,
   DesignPiece,
   isLayoutMigrated,
   layoutComponentFor,
@@ -580,4 +584,156 @@ test("una pieza sin sucursal declarada muestra la dirección, sin rótulo", () =
   assert.ok(html.includes(context.brand.central));
   assert.ok(!html.includes(`Sucursal · ${context.brand.branch}`));
   assert.ok(!html.includes("Casa Central ·"));
+});
+
+const productPhotoLayouts: readonly LayoutId[] = [
+  "foto-producto-cartel",
+  "foto-producto-vidriera",
+  "foto-producto-gondola-izquierda",
+  "foto-producto-gondola-derecha",
+  "foto-producto-libre",
+  "foto-producto-ficha",
+  "foto-producto-precio-grande",
+];
+
+function productPhotoMarkup(
+  layout: LayoutId,
+  content: Record<string, unknown>,
+  overrides: Record<string, unknown> = {},
+): string {
+  return renderToStaticMarkup(
+    createElement(DesignPiece, {
+      context,
+      document: documentFor(layout, {
+        content: { title: "Manguera corrugada", ...content },
+        ...overrides,
+      }),
+    }),
+  );
+}
+
+test("cada pieza con foto propia compone en post y en historia", () => {
+  for (const layout of productPhotoLayouts) {
+    assert.deepEqual(LAYOUT_SPECS[layout].formats, ["feed", "historia"]);
+    for (const format of ["feed", "historia"] as const) {
+      const html = productPhotoMarkup(
+        layout,
+        { callToAction: "Consultanos por WhatsApp", price: "$ 3.200" },
+        { format },
+      );
+      const { height, width } = FORMATS[format];
+
+      assert.ok(
+        html.includes(`height:${String(height)}px`),
+        `${layout} ${format}`,
+      );
+      assert.ok(
+        html.includes(`width:${String(width)}px`),
+        `${layout} ${format}`,
+      );
+      assert.ok(html.includes("Manguera corrugada"), `${layout} ${format}`);
+      assert.ok(html.includes("3.200"), `${layout} ${format}`);
+      assert.ok(html.includes(context.brand.phone), `${layout} ${format}`);
+      assert.ok(html.includes("En Frías"), `${layout} ${format}`);
+    }
+  }
+});
+
+test("lo que se pide callar no se dibuja, y sin importe se invita a consultar", () => {
+  for (const layout of productPhotoLayouts) {
+    const consult = productPhotoMarkup(layout, {});
+    assert.ok(consult.includes(consultPriceLabel), layout);
+    assert.ok(consult.includes("<h1"), layout);
+
+    const silent = productPhotoMarkup(layout, { hidden: ["price", "title"] });
+    assert.ok(!silent.includes(consultPriceLabel), layout);
+    assert.ok(!silent.includes("data-price"), layout);
+    assert.ok(!silent.includes("<h1"), layout);
+    assert.ok(!silent.includes("Manguera corrugada"), layout);
+  }
+});
+
+test("sin llamado la pieza no lleva botón de contacto", () => {
+  for (const layout of productPhotoLayouts) {
+    const html = productPhotoMarkup(layout, { price: "$ 3.200" });
+    assert.ok(!html.includes("data-cta"), layout);
+    assert.ok(!html.includes(context.brand.phone), layout);
+  }
+});
+
+test("el importe lleva su unidad y el precio anterior se lee tachado", () => {
+  const html = productPhotoMarkup("foto-producto-cartel", {
+    previousPrice: "$ 4.100",
+    price: "$ 3.200",
+    priceUnit: "el metro",
+  });
+
+  assert.ok(html.includes("el metro"));
+  assert.match(html, /<s[^>]*>\$ 4\.100<\/s>/u);
+});
+
+test("el cartel nombra la marca del tema: ferretería o lubricentro", () => {
+  const store = productPhotoMarkup("foto-producto-cartel", {});
+  const lubricentro = productPhotoMarkup(
+    "foto-producto-cartel",
+    {},
+    { theme: "lubricentro" },
+  );
+
+  assert.ok(store.includes("Ferretería Aramayo"));
+  assert.ok(lubricentro.includes("Lubricentro Aramayo"));
+});
+
+test("ningún texto de una pieza con foto propia queda por debajo de 28 px", () => {
+  // 28 px del lienzo de 1080 son unos 10 pt en un teléfono: por debajo, las
+  // medidas y la vigencia dejaban de leerse en las historias anteriores.
+  const full = {
+    badge: "Oferta",
+    callToAction: "Consultanos por WhatsApp",
+    items: ["1 1/4″", "1 1/2″"],
+    previousPrice: "$ 4.100",
+    price: "$ 3.200",
+    priceUnit: "el metro",
+    subtitle: "Flexible, no se aplasta.",
+    validity: "Hasta el sábado",
+  };
+
+  for (const layout of productPhotoLayouts) {
+    const admitted = new Set<string>([
+      ...LAYOUT_SPECS[layout].requiredFields,
+      ...LAYOUT_SPECS[layout].optionalFields,
+    ]);
+    const content = Object.fromEntries(
+      Object.entries(full).filter(([field]) => admitted.has(field)),
+    );
+    for (const format of ["feed", "historia"] as const) {
+      const html = productPhotoMarkup(layout, content, { format });
+      for (const [, size] of html.matchAll(/font-size:(\d+)px/gu)) {
+        assert.ok(
+          Number(size) >= 28,
+          `${layout} ${format} dibuja texto de ${String(size)} px.`,
+        );
+      }
+    }
+  }
+});
+
+test("los pares de color con texto de las piezas con foto propia pasan AA", () => {
+  const pairs: readonly (readonly [string, string, string])[] = [
+    ["cartel y zócalo", COLORS.white, COLORS.rustDeep],
+    ["texto chico sobre el rojo", COLORS.paper, COLORS.rustDeep],
+    ["lubricentro", COLORS.graphite, COLORS.safety],
+    ["placa grafito", COLORS.cream, COLORS.graphite],
+    ["etiqueta de góndola", COLORS.steel, COLORS.white],
+    ["ficha", COLORS.inkSoft, COLORS.paper],
+    ["precio en la ficha", COLORS.rustDeep, COLORS.paper],
+    ["localidad", COLORS.paper, COLORS.graphite],
+  ];
+
+  for (const [name, foreground, background] of pairs) {
+    assert.ok(
+      contrastRatio(foreground, background) >= CONTRAST_THRESHOLDS.text,
+      `${name}: ${contrastRatio(foreground, background).toFixed(2)}:1`,
+    );
+  }
 });

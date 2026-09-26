@@ -524,3 +524,92 @@ test("un slug inválido se rechaza antes de persistir la pieza", () => {
     "invalid-format",
   );
 });
+
+function productPhotoDocument(
+  content: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...validDocument(),
+    content: { title: "Manguera corrugada", ...content },
+    layout: "foto-producto-cartel",
+    slug: "foto-producto-manguera",
+  };
+}
+
+test("una pieza con foto propia puede callar el nombre y el precio", () => {
+  const result = parseDesignDocument(
+    productPhotoDocument({ hidden: ["title", "price"] }),
+  );
+
+  assert.equal(result.ok, true);
+  assert.ok(result.ok);
+  assert.deepEqual(result.document.content.hidden, ["title", "price"]);
+  // El nombre se calla en la pieza, pero sigue nombrando el borrador.
+  assert.equal(result.document.content.title, "Manguera corrugada");
+});
+
+test("callar un campo fuera de la lista, o dos veces, se rechaza", () => {
+  assertIssue(
+    parseInvalid(productPhotoDocument({ hidden: ["subtitle"] })),
+    "content.hidden[0]",
+    "invalid-value",
+  );
+  assertIssue(
+    parseInvalid(productPhotoDocument({ hidden: ["price", "price"] })),
+    "content.hidden[1]",
+    "invalid-value",
+  );
+  assertIssue(
+    parseInvalid(productPhotoDocument({ hidden: [] })),
+    "content.hidden",
+    "missing",
+  );
+  assertIssue(
+    parseInvalid(productPhotoDocument({ hidden: "price" })),
+    "content.hidden",
+    "invalid-type",
+  );
+});
+
+test("un importe que además se pide callar no se puede dibujar", () => {
+  assertIssue(
+    parseInvalid(productPhotoDocument({ hidden: ["price"], price: "$ 3.200" })),
+    "content.hidden",
+    "invalid-value",
+  );
+});
+
+test("la unidad acompaña a un importe y nunca va sola", () => {
+  const result = parseDesignDocument(
+    productPhotoDocument({ price: "$ 3.200", priceUnit: "el metro" }),
+  );
+  assert.equal(result.ok, true);
+
+  assertIssue(
+    parseInvalid(productPhotoDocument({ priceUnit: "el metro" })),
+    "content.priceUnit",
+    "invalid-value",
+  );
+});
+
+test("callar campos y la unidad son sólo de las piezas con foto propia", () => {
+  const issues = parseInvalid({
+    ...validDocument(),
+    content: {
+      hidden: ["price"],
+      priceUnit: "c/u",
+      title: "Taladros para resolver en el día",
+    },
+  });
+
+  assertIssue(issues, "content.hidden", "field-not-supported");
+  assertIssue(issues, "content.priceUnit", "field-not-supported");
+});
+
+test("una pieza con foto propia exige la foto", () => {
+  assertIssue(
+    parseInvalid({ ...productPhotoDocument({}), media: [] }),
+    "media",
+    "missing",
+  );
+});

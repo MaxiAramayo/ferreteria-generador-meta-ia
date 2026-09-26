@@ -22,7 +22,7 @@ test("cada variante expone únicamente sus acciones válidas", () => {
     [...allowedComposerActions("ai-creative")],
     ["accept-brief", "request-brief"],
   );
-  // La historia de producto guarda su propio borrador, con foto y marco.
+  // La pieza de producto guarda su propio borrador, con foto y marco.
   assert.deepEqual(
     [...allowedComposerActions("product-story")],
     ["save-draft"],

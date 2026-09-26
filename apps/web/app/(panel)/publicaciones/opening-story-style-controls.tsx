@@ -238,6 +238,7 @@ const keyboardStep = 2;
 export function OpeningStoryPreview({
   caption,
   disabled = false,
+  formatLabel = "Historia · 9:16",
   heading = "Vista real",
   onPhotoChange,
   photo = null,
@@ -245,6 +246,8 @@ export function OpeningStoryPreview({
 }: Readonly<{
   caption: string;
   disabled?: boolean;
+  /** Formato que se muestra; la pieza de producto también sale en post. */
+  formatLabel?: string | undefined;
   heading?: string;
   /** Sin esto, la vista previa sólo muestra: no se puede mover la foto. */
   onPhotoChange?: (photo: RecurringStoryPhotoPayload) => void;
@@ -348,12 +351,12 @@ export function OpeningStoryPreview({
 
   return (
     <aside
-      aria-label="Vista previa real de la historia"
+      aria-label="Vista previa real de la pieza"
       className="recurring-story-engine-preview"
     >
       <div className="recurring-story-preview-heading">
         <span>{heading}</span>
-        <small>Historia · 9:16</small>
+        <small>{formatLabel}</small>
       </div>
       {preview.kind === "ready" && overflow === null ? (
         <div
@@ -374,6 +377,7 @@ export function OpeningStoryPreview({
               }
             : {})}
           className="recurring-story-engine-scale"
+          data-format={preview.document.format}
           data-movable={String(movable)}
           ref={surface}
         >

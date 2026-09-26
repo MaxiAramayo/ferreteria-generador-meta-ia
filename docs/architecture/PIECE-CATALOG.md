@@ -84,7 +84,30 @@ Las cuatro `historia-producto-*` llevan foto propia y el precio lo escribe
 quien publica: se dibuja en la pieza y nunca en el caption, porque un importe
 en el texto exige evidencia vigente del catálogo
 ([`ADR-031`](decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md)). Sin precio, la
-pieza invita a consultarlo en lugar de dejar un hueco.
+pieza invita a consultarlo en lugar de dejar un hueco. Desde `P2-T10` el panel
+ya no las ofrece: siguen vigentes sólo para que los borradores guardados con
+ellas se sigan componiendo.
+
+### Producto con foto propia, en post e historia (1080×1350 y 1080×1920)
+
+Una familia nacida de objetos reales del local —el cartel del frente, la
+vidriera, la etiqueta de la góndola—, con el mismo cartel en todas. Quien
+publica elige el marco según dónde quedó el producto y decide qué se ve: el
+nombre y el precio se pueden callar, y el precio es un importe (con anterior y
+unidad), «Consultá precio» o nada
+([`ADR-033`](decisions/ADR-033-PRODUCT-PHOTO-FRAMES.md)).
+
+| Pieza | Objetivo | Muestra | CTA |
+|---|---|---|---|
+| `foto-producto-cartel` | El producto al medio, los datos en una placa abajo | Nombre, descripción, etiqueta, medidas, precio, vigencia | Teléfono, opcional |
+| `foto-producto-vidriera` | La foto sin nada encima, como la vidriera | Nombre, descripción, etiqueta, precio | Teléfono, opcional |
+| `foto-producto-gondola-izquierda` | El precio en la etiqueta del estante, a la izquierda | Nombre, etiqueta, medidas, precio, vigencia | Teléfono, opcional |
+| `foto-producto-gondola-derecha` | El precio en la etiqueta del estante, a la derecha | Nombre, etiqueta, medidas, precio, vigencia | Teléfono, opcional |
+| `foto-producto-libre` | La foto se explica sola | Nombre y precio, si se piden | Teléfono, opcional |
+| `foto-producto-ficha` | Foto de catálogo o producto que se explica | Nombre, descripción, etiqueta, medidas, precio, vigencia | Teléfono, opcional |
+| `foto-producto-precio-grande` | Una oferta: el importe manda | Nombre, etiqueta, medidas, precio, vigencia | Teléfono, opcional |
+
+El precio se dibuja en la pieza y nunca en el caption, igual que en `ADR-031`.
 
 ### Cuadrado (1080×1080)
 

@@ -79,8 +79,71 @@ const productFrameFields: readonly ContentFieldKey[] = [
   "validity",
 ];
 
+/**
+ * Piezas de producto con foto propia (`ADR-033`): la foto es obligatoria y el
+ * resto lo escribe quien publica. Cada marco admite sólo lo que dibuja, así un
+ * dato que el marco no muestra no se guarda como si se hubiera publicado.
+ */
+const productPhoto: MediaCapacity = { maximum: 1, minimum: 1 };
+const productPhotoFormats: readonly FormatId[] = ["feed", "historia"];
+const productPhotoPrice: readonly ContentFieldKey[] = [
+  "hidden",
+  "previousPrice",
+  "price",
+  "priceUnit",
+];
+
+function productPhotoSpec(
+  id: LayoutId,
+  optionalFields: readonly ContentFieldKey[],
+): LayoutSpec {
+  return specFor(
+    id,
+    "publicacion",
+    productPhotoFormats,
+    ["title"],
+    [...productPhotoPrice, ...optionalFields],
+    productPhoto,
+  );
+}
+
 export const LAYOUT_SPECS: Readonly<Record<LayoutId, LayoutSpec>> =
   Object.freeze({
+    "foto-producto-cartel": productPhotoSpec("foto-producto-cartel", [
+      "badge",
+      "callToAction",
+      "items",
+      "subtitle",
+      "validity",
+    ]),
+    "foto-producto-vidriera": productPhotoSpec("foto-producto-vidriera", [
+      "badge",
+      "callToAction",
+      "subtitle",
+    ]),
+    "foto-producto-gondola-izquierda": productPhotoSpec(
+      "foto-producto-gondola-izquierda",
+      ["badge", "callToAction", "items", "validity"],
+    ),
+    "foto-producto-gondola-derecha": productPhotoSpec(
+      "foto-producto-gondola-derecha",
+      ["badge", "callToAction", "items", "validity"],
+    ),
+    "foto-producto-libre": productPhotoSpec("foto-producto-libre", [
+      "callToAction",
+    ]),
+    "foto-producto-ficha": productPhotoSpec("foto-producto-ficha", [
+      "badge",
+      "callToAction",
+      "items",
+      "subtitle",
+      "validity",
+    ]),
+    "foto-producto-precio-grande": productPhotoSpec(
+      "foto-producto-precio-grande",
+      ["badge", "callToAction", "items", "validity"],
+    ),
+
     "historia-producto-etiqueta": specFor(
       "historia-producto-etiqueta",
       "historia",

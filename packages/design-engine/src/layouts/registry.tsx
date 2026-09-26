@@ -62,6 +62,15 @@ import {
 } from "./product-stories.tsx";
 import type { LayoutContext, LayoutProps } from "./layout-context.ts";
 import {
+  FotoProductoCartel,
+  FotoProductoFicha,
+  FotoProductoGondolaDerecha,
+  FotoProductoGondolaIzquierda,
+  FotoProductoLibre,
+  FotoProductoPrecioGrande,
+  FotoProductoVidriera,
+} from "./product-photo-frames.tsx";
+import {
   EppSeguridad,
   HistoriaProducto,
   LubricentroServicio,
@@ -106,6 +115,13 @@ const LAYOUT_COMPONENTS: Readonly<Partial<Record<LayoutId, LayoutComponent>>> =
     "composicion-tercio-inferior": ComposicionTercioInferior,
     "destacada-cover": DestacadaCover,
     "epp-seguridad": EppSeguridad,
+    "foto-producto-cartel": FotoProductoCartel,
+    "foto-producto-ficha": FotoProductoFicha,
+    "foto-producto-gondola-derecha": FotoProductoGondolaDerecha,
+    "foto-producto-gondola-izquierda": FotoProductoGondolaIzquierda,
+    "foto-producto-libre": FotoProductoLibre,
+    "foto-producto-precio-grande": FotoProductoPrecioGrande,
+    "foto-producto-vidriera": FotoProductoVidriera,
     "ficha-variantes": FichaVariantes,
     "guia-aplicacion": GuiaAplicacion,
     "historia-ficha-variantes": HistoriaFichaVariantes,
@@ -255,10 +271,18 @@ export function DesignPiece({
   const format = formatFor(document.format);
   const theme = themeFor(document.theme);
   const Layout = layoutComponentFor(document.layout);
-  // Las aperturas dibujan su propia trama de cartel (`ADR-030`).
+  // Las aperturas dibujan su propia trama de cartel (`ADR-030`) y las piezas
+  // de producto con foto propia, su foto o su papel de marca (`ADR-033`).
   const withoutBackdrop: ReadonlySet<string> = new Set([
     "banner-marca",
     "destacada-cover",
+    "foto-producto-cartel",
+    "foto-producto-ficha",
+    "foto-producto-gondola-derecha",
+    "foto-producto-gondola-izquierda",
+    "foto-producto-libre",
+    "foto-producto-precio-grande",
+    "foto-producto-vidriera",
     "historia-apertura-cartel",
     "historia-apertura-esquina",
     "historia-apertura-horario",

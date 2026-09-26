@@ -232,14 +232,14 @@ function ComposerVariantNavigation() {
   const actions = usePublicationComposerActions();
   const state = usePublicationComposerState();
   // Cada opción dice qué arma, no con qué mecanismo: quien publica piensa en
-  // «una historia de producto», no en «el compositor de plantilla».
+  // «un producto con su foto», no en «el compositor de plantilla».
   const variants: readonly Readonly<{
     hint: string;
     label: string;
     value: PublicationComposerVariant;
   }>[] = [
     {
-      hint: "Foto propia, precio si querés.",
+      hint: "Post o historia con tu foto; elegís qué se ve.",
       label: "Producto",
       value: "product-story",
     },

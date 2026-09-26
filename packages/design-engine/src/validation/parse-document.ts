@@ -1,6 +1,7 @@
 import {
   contentLimits,
   DESIGN_SCHEMA_VERSION,
+  HIDEABLE_CONTENT_FIELDS,
   inlineAssetLimits,
   mediaDefaults,
   mediaLimits,
@@ -8,6 +9,7 @@ import {
   type DesignContent,
   type DesignDocument,
   type DesignFeature,
+  type HideableContentField,
   type MediaAsset,
   type MediaFit,
 } from "../contracts/document.ts";
@@ -64,12 +66,14 @@ const contentFieldKeys: readonly ContentFieldKey[] = [
   "disclaimer",
   "features",
   "greeting",
+  "hidden",
   "highlights",
   "icon",
   "items",
   "phone",
   "previousPrice",
   "price",
+  "priceUnit",
   "subtitle",
   "title",
   "validity",
@@ -80,6 +84,7 @@ const knownContentFields: ReadonlySet<string> = new Set(contentFieldKeys);
 const structuredFieldKeys: ReadonlySet<ContentFieldKey> = new Set([
   "accent",
   "features",
+  "hidden",
   "highlights",
   "icon",
   "items",
@@ -295,6 +300,37 @@ function readFeatures(
     }
   }
   return features.length === value.length ? Object.freeze(features) : undefined;
+}
+
+const hideableFields: ReadonlySet<string> = new Set(HIDEABLE_CONTENT_FIELDS);
+
+function isHideableField(value: unknown): value is HideableContentField {
+  return typeof value === "string" && hideableFields.has(value);
+}
+
+/** Lista sin repetidos de campos que la pieza no dibuja. */
+function readHidden(
+  value: unknown,
+  path: string,
+  issues: DesignIssue[],
+): readonly HideableContentField[] | undefined {
+  if (!Array.isArray(value)) {
+    issues.push(issue("invalid-type", path));
+    return undefined;
+  }
+  if (value.length === 0) {
+    issues.push(issue("missing", path));
+    return undefined;
+  }
+  const hidden: HideableContentField[] = [];
+  for (const [index, entry] of value.entries()) {
+    if (!isHideableField(entry) || hidden.includes(entry)) {
+      issues.push(issue("invalid-value", `${path}[${String(index)}]`));
+      continue;
+    }
+    hidden.push(entry);
+  }
+  return hidden.length === value.length ? Object.freeze(hidden) : undefined;
 }
 
 function readNumber(
@@ -568,6 +604,20 @@ function parseContent(
     );
   }
 
+  let hidden: readonly HideableContentField[] | undefined;
+  if (record["hidden"] !== undefined && allowedFields.has("hidden")) {
+    hidden = readHidden(record["hidden"], "content.hidden", issues);
+  }
+
+  // Un importe que además se pide callar, o una unidad sin importe, son
+  // estados que ninguna pieza puede dibujar sin mentir o sin dejar un hueco.
+  if (texts.has("price") && hidden?.includes("price") === true) {
+    issues.push(issue("invalid-value", "content.hidden"));
+  }
+  if (texts.has("priceUnit") && !texts.has("price")) {
+    issues.push(issue("invalid-value", "content.priceUnit"));
+  }
+
   const title = texts.get("title");
 
   if (title === undefined) {
@@ -578,6 +628,7 @@ function parseContent(
     ...Object.fromEntries(texts),
     ...(accent === undefined ? {} : { accent }),
     ...(features === undefined ? {} : { features }),
+    ...(hidden === undefined ? {} : { hidden }),
     ...(highlights === undefined ? {} : { highlights }),
     ...(icon === undefined ? {} : { icon }),
     ...(items === undefined ? {} : { items }),

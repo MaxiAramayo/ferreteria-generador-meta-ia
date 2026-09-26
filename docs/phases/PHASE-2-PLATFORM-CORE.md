@@ -742,9 +742,103 @@ evidencia que protege a los precios citables.
   el envío de la foto con su encuadre.
 - Decisiones: [`ADR-031`](../architecture/decisions/ADR-031-PRODUCT-STORY-OWN-PHOTO.md).
 
+## P2-T10 — Marcos de producto con foto propia en post e historia
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P2-T09`
+- Riesgo: Medio
+
+### Objetivo
+
+Que quien opera publique un producto con su propia foto en post o en historia,
+eligiendo entre marcos con la identidad del local y decidiendo, según la foto,
+qué se ve: nombre, descripción, precio, etiqueta, medidas, vigencia y botón.
+
+### Entregables
+
+- Siete layouts `foto-producto-*` en `feed` e `historia`, sacados de objetos
+  reales del local: cartel, vidriera, etiqueta de góndola a cada lado, solo la
+  foto, ficha y precio grande.
+- Campos `hidden` y `priceUnit` en el contrato del documento, validados en el
+  borde del motor y en el DTO de la API.
+- Compositor de panel con formato, marca, galería de miniaturas reales y «Qué
+  muestra la pieza».
+- [`ADR-033`](../architecture/decisions/ADR-033-PRODUCT-PHOTO-FRAMES.md) y las
+  entradas del catálogo.
+
+### Criterios de aceptación
+
+- [x] Cada marco compone en post e historia, con lo que se lee dentro de la
+      zona segura aunque todos los campos estén cargados.
+- [x] El nombre y el precio se pueden callar; sin importe la pieza invita a
+      consultar, y callar el precio no deja ninguna invitación.
+- [x] Un importe callado o una unidad sin importe no pasan la validación.
+- [x] Cada marco admite sólo lo que dibuja y el panel deshabilita el resto.
+- [x] Ningún texto de la familia baja de 28 px y cada par de color con texto
+      pasa 4,5:1.
+- [x] El precio sigue fuera del caption y la validación previa no cambia.
+- [x] Los cuatro marcos de `P2-T09` salen del panel y siguen componiendo los
+      borradores guardados.
+
+### Verificación obligatoria
+
+- [x] Pruebas del motor: validación de `hidden` y `priceUnit`, composición en
+      los dos formatos, lo callado, el botón, la marca, letra mínima y
+      contraste.
+- [x] Prueba HTTP de la API con los campos nuevos y sus rechazos.
+- [x] Pruebas del panel sobre el documento, los tres casos de precio, los
+      campos que el marco no dibuja y la galería sin foto.
+- [x] E2E que sube la foto, cambia de marco y de formato, y guarda un post.
+- [x] Regresión visual de las catorce piezas nuevas sin cambios en el resto.
+- [x] `pnpm verify` completo.
+
+### Fuera de alcance
+
+- Leer el catálogo de Odoo para completar precio o stock.
+- Llevar esta familia a «Creatividad IA», que sigue con los marcos de
+  `ADR-029`.
+- Publicación externa y programación de estas piezas.
+
+### Notas de progreso
+
+- 2026-09-26: el dueño pidió revisar los marcos de producto: «que dependa de
+  cómo sea la foto se vea si quiero el precio, una descripción, y demás.
+  También el producto», con marcos «lindos, bien hechos, bien entendibles y
+  con la identidad de la ferretería», para posts e historias.
+- La revisión encontró que no había post con foto propia, que los cuatro
+  marcos compartían la cabecera sobre un velo que tapaba siempre la parte de
+  arriba de la foto, que no se podía callar nada y que medidas, vigencia y
+  teléfono quedaban en unos 9 pt en el teléfono.
+- Se prototiparon ocho marcos en HTML descartable, con las fuentes, colores,
+  isotipo y fotos aprobados, renderizados en el Chromium del worker. El dueño
+  aprobó cartel, etiqueta de góndola, solo la foto, vidriera, ficha y precio
+  grande; descartó el sello hexagonal y la columna. Eligió decidir el precio
+  en cada pieza y reemplazar los marcos anteriores en el panel.
+- Al llevarlos al motor, las superficies con texto pasaron del rojo vivo del
+  prototipo (4,19:1 con blanco) al rojo profundo (6,31:1); el rojo vivo queda
+  para riel, filetes y bordes.
+- Vidriera, ficha y precio grande se reescribieron como columnas: con todos los
+  campos cargados, la versión de alturas fijas empujaba el botón fuera de la
+  zona segura de la historia. La geometría se midió con el script de
+  `pnpm design:review` sobre 24 muestras.
+
+### Evidencia de cierre
+
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck, pruebas,
+  baseline visual y smoke aprobados.
+- Pruebas: motor 108/108, API de borradores 11/11, panel 9/9 en la pieza de
+  producto (148/148 en todo el panel).
+- `pnpm e2e:navigation`: sube la foto, compone la pieza, cambia a vidriera y a
+  post sin perderla, guarda el post y llega a la pieza con el PNG pedido.
+  Captura en `output/e2e-panel-navigation/producto-post.png`.
+- `pnpm visual:regression -- --update`: cambiaron exactamente las catorce piezas
+  nuevas; el resto del catálogo, perfiles, deterministas y temas no cambió.
+- Decisiones: [`ADR-033`](../architecture/decisions/ADR-033-PRODUCT-PHOTO-FRAMES.md).
+
 ## Criterios de salida de Fase 2
 
-- [x] `P2-T01` a `P2-T09` están completas.
+- [x] `P2-T01` a `P2-T10` están completas.
 - [x] Aislamiento, autorización e idempotencia tienen pruebas.
 - [x] Existe un flujo determinista aprobado de punta a punta.
 - [x] Ninguna acción del panel publica o llama a IA de forma implícita.

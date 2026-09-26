@@ -287,7 +287,7 @@ const displayAdvance: ReadonlyMap<string, number> = new Map(
 
 const unmeasuredAdvance = 0.78;
 
-function displayWidthEm(text: string): number {
+export function displayWidthEm(text: string): number {
   let width = 0;
   for (const character of text.toLocaleUpperCase("es-AR")) {
     // «Á» avanza como «A» y «Ñ» como «N».

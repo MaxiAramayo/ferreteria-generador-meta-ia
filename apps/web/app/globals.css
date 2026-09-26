@@ -2988,72 +2988,150 @@ a {
   background: var(--workspace-safety);
 }
 
-/* Marcos de producto: la foto manda y el dato se apoya donde dice el nombre. */
-.opening-layout-illustration--producto-precio-abajo i:nth-child(2),
-.opening-layout-illustration--producto-etiqueta i:nth-child(2),
-.opening-layout-illustration--producto-tarjeta i:nth-child(2) {
-  inset: 0;
+/* Producto con foto propia (ADR-033): cada miniatura de la galería es la
+ * pieza del motor, con la foto y los datos cargados, escalada a 120 px. */
+.product-frame-gallery {
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
 }
 
-.opening-layout-illustration--producto-precio-abajo::after {
+.product-frame-gallery .opening-layout-option {
+  min-height: 0;
+}
+
+.product-frame-thumb {
+  background: var(--workspace-ink);
+  display: block;
+  height: 13.3333rem;
+  justify-self: center;
+  overflow: hidden;
+  pointer-events: none;
+  position: relative;
+  width: 7.5rem;
+}
+
+.product-frame-thumb[data-format="feed"] {
+  height: 9.375rem;
+}
+
+.product-frame-thumb > [data-card] {
+  transform: scale(0.1111111);
+  transform-origin: top left;
+}
+
+.recurring-story-engine-scale[data-format="feed"] {
+  height: 25rem;
+}
+
+.product-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.product-segmented {
+  border: 1px solid var(--workspace-ink);
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+
+.recurring-story-form .product-segmented label {
+  align-items: baseline;
+  cursor: pointer;
+  display: flex;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.95rem;
+  position: relative;
+}
+
+.product-segmented label + label {
+  border-left: 1px solid var(--workspace-ink);
+}
+
+.product-segmented label[data-selected="true"] {
   background: var(--workspace-rust-deep);
-  border-radius: 0.3rem;
-  bottom: 0.5rem;
-  content: "";
-  height: 1.9rem;
-  left: 0.5rem;
+  color: var(--workspace-paper);
+}
+
+.product-segmented label:focus-within {
+  outline: 3px solid var(--workspace-safety);
+  outline-offset: 2px;
+}
+
+.product-segmented input {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
   position: absolute;
-  right: 0.5rem;
+  white-space: nowrap;
 }
 
-.opening-layout-illustration--producto-etiqueta::after {
-  background: var(--workspace-paper);
-  border-radius: 0.25rem;
-  content: "";
-  height: 1.1rem;
-  position: absolute;
-  right: 0.6rem;
-  top: 3.4rem;
-  transform: rotate(-3deg);
-  width: 2.6rem;
+.product-segmented small {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.75;
 }
 
-.opening-layout-illustration--producto-tarjeta::after {
-  background: var(--workspace-rust-deep);
-  border-radius: 0.3rem;
-  bottom: 2.6rem;
-  content: "";
-  position: absolute;
-  right: 0.5rem;
-  top: 2.6rem;
-  width: 2.9rem;
+.recurring-story-form .product-toggle {
+  align-items: center;
+  column-gap: 0.6rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  text-transform: none;
 }
 
-.opening-layout-illustration--producto-precio-abajo i:nth-child(1),
-.opening-layout-illustration--producto-precio-abajo i:nth-child(3),
-.opening-layout-illustration--producto-precio-abajo::before,
-.opening-layout-illustration--producto-etiqueta i:nth-child(1),
-.opening-layout-illustration--producto-etiqueta i:nth-child(3),
-.opening-layout-illustration--producto-etiqueta::before,
-.opening-layout-illustration--producto-tarjeta i:nth-child(1),
-.opening-layout-illustration--producto-tarjeta i:nth-child(3),
-.opening-layout-illustration--producto-tarjeta::before {
-  z-index: 1;
+.recurring-story-form .product-toggle input[type="checkbox"] {
+  accent-color: var(--workspace-rust-deep);
+  height: 1.3rem;
+  min-height: 0;
+  padding: 0;
+  width: 1.3rem;
 }
 
-.opening-layout-illustration--producto-etiqueta i:nth-child(3),
-.opening-layout-illustration--producto-tarjeta i:nth-child(3) {
-  bottom: 0.55rem;
-  height: 0.7rem;
+.product-toggle small {
+  color: var(--workspace-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+  grid-column: 2;
 }
 
-.opening-layout-illustration--producto-ventana i:nth-child(2) {
-  border: 0.16rem solid var(--workspace-paper);
-  border-radius: 0.3rem;
-  height: 3.4rem;
-  left: 0.55rem;
-  right: 0.55rem;
-  top: 2.3rem;
+/* Un aviso debajo de un campo no estira a su vecino de fila. */
+[data-variant="product-story"] .recurring-draft-editor-grid > label {
+  align-content: start;
+}
+
+/* Lo que el marco elegido no dibuja se ve apagado, no roto. */
+[data-variant="product-story"] input:disabled:not([type="radio"]) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.product-field-note {
+  color: var(--workspace-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.product-price-fieldset {
+  border: 0;
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+}
+
+.product-price-fields {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 40rem) {
+  .product-price-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 .opening-layout-illustration--imagen {
