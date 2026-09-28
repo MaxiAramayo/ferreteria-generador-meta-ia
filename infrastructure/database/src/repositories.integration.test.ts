@@ -924,6 +924,181 @@ test("render y aprobación confirman una sola salida y un snapshot inmutable", a
   ]);
 });
 
+test("editar una pieza en revisión la devuelve a borrador y el listado la muestra", async () => {
+  // `P2-T11`: el listado trae formato, marco e imagen de cada pieza, y una
+  // pieza en revisión vuelve a borrador para editarse, con su transición.
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  const publicationId = randomUUID();
+  const revisionId = randomUUID();
+  const mediaAssetId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización de reapertura",
+      id: organizationId,
+      legalName: "Organización de reapertura",
+      slug: `reapertura-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora de reapertura",
+      email: `${userId}@reapertura.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  await database.publication.create({
+    data: {
+      createdByMembershipId: membershipId,
+      id: publicationId,
+      organizationId,
+      title: "Manguera corrugada",
+    },
+  });
+  await database.publicationRevision.create({
+    data: {
+      content: { caption: "Consultanos", products: [] },
+      contentHash: "d".repeat(64),
+      createdByMembershipId: membershipId,
+      designDocument: {
+        content: { price: "$ 3.200", title: "Manguera corrugada" },
+        format: "feed",
+        layout: "foto-producto-cartel",
+        media: [],
+        schemaVersion: 1,
+        slug: "foto-producto",
+        theme: "taller",
+      },
+      id: revisionId,
+      organizationId,
+      publicationId,
+      revisionNumber: 1,
+      schemaVersion: 1,
+    },
+  });
+  const production = new PrismaPublicationProductionRepository(database);
+  const drafts = new PrismaPublicationDraftRepository(database);
+  const mutation = (): ReliableMutationContext =>
+    reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:reopen",
+    );
+
+  // Un borrador no «vuelve» a borrador: no hay nada que reabrir.
+  assert.deepEqual(
+    await production.reopenDraft({
+      actorMembershipId: membershipId,
+      expectedVersion: 1,
+      organizationId,
+      publicationId,
+      reliableOperation: mutation(),
+    }),
+    { status: "invalid-state" },
+  );
+
+  const renderRequest = await production.requestRender({
+    actorMembershipId: membershipId,
+    expectedVersion: 1,
+    organizationId,
+    publicationId,
+    reliableOperation: reliableMutation(
+      organizationId,
+      membershipId,
+      "content.publication:request-render",
+    ),
+  });
+  assert.equal(renderRequest.status, "accepted");
+  const job = await production.findRenderJob(
+    organizationId,
+    publicationId,
+    revisionId,
+  );
+  assert.ok(job);
+  await database.mediaAsset.create({
+    data: {
+      byteSize: 128n,
+      checksumSha256: "e".repeat(64),
+      height: 1350,
+      id: mediaAssetId,
+      mimeType: "image/png",
+      organizationId,
+      origin: "generated",
+      originalFileName: `${revisionId}.png`,
+      ownerMembershipId: membershipId,
+      secureUrl: "https://media.example.invalid/manguera.png",
+      status: "available",
+      storageKey: `render/${mediaAssetId}`,
+      storageProvider: "cloudinary",
+      storageVersion: 1,
+      width: 1080,
+    },
+  });
+  assert.deepEqual(
+    await production.completeRender(job, {
+      byteSize: "128",
+      checksumSha256: "e".repeat(64),
+      height: 1350,
+      mediaAssetId,
+      mimeType: "image/png",
+      renderedAt: new Date().toISOString(),
+      secureUrl: "https://media.example.invalid/manguera.png",
+      storageVersion: 1,
+      width: 1080,
+    }),
+    { status: "completed", version: 3 },
+  );
+
+  const listed = await drafts.list({ limit: 10, organizationId, page: 1 });
+  const [item] = listed.items;
+  assert.ok(item);
+  assert.equal(item.status, "ready_for_review");
+  assert.equal(item.format, "feed");
+  assert.equal(item.layout, "foto-producto-cartel");
+  assert.equal(item.previewUrl, "https://media.example.invalid/manguera.png");
+
+  // Con una versión vieja no se reabre otra cosa.
+  assert.deepEqual(
+    await production.reopenDraft({
+      actorMembershipId: membershipId,
+      expectedVersion: 2,
+      organizationId,
+      publicationId,
+      reliableOperation: mutation(),
+    }),
+    { status: "conflict" },
+  );
+  assert.deepEqual(
+    await production.reopenDraft({
+      actorMembershipId: membershipId,
+      expectedVersion: 3,
+      organizationId,
+      publicationId,
+      reliableOperation: mutation(),
+    }),
+    { publicationId, status: "reopened", version: 4 },
+  );
+  const reopened = await database.publication.findUniqueOrThrow({
+    where: { organizationId_id: { id: publicationId, organizationId } },
+  });
+  assert.equal(reopened.status, "draft");
+  assert.equal(reopened.version, 4);
+  const transition = await database.publicationStateTransition.findFirstOrThrow(
+    {
+      orderBy: { toVersion: "desc" },
+      where: { organizationId, publicationId },
+    },
+  );
+  assert.equal(transition.fromStatus, "ready_for_review");
+  assert.equal(transition.toStatus, "draft");
+  assert.equal(transition.fromVersion, 3);
+  assert.equal(transition.toVersion, 4);
+});
+
 test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias", async () => {
   const organizationId = randomUUID();
   const otherOrganizationId = randomUUID();

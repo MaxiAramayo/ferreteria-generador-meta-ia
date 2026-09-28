@@ -54,10 +54,11 @@ test("cada flujo tiene su dirección y la URL decide cuál se abre", () => {
   assert.equal(composerVariantFromSlug(undefined), null);
 });
 
-test("sin flujo en la URL, quien sólo programa empieza por lo que puede hacer", () => {
+test("sin flujo en la URL, «Crear» abre el producto y quien sólo programa, lo suyo", () => {
+  // `P2-T11`: el producto es lo que se publica casi todos los días.
   assert.equal(
     defaultComposerVariant({ canEdit: true, canSchedule: true }),
-    "template",
+    "product-story",
   );
   assert.equal(
     defaultComposerVariant({ canEdit: false, canSchedule: true }),
@@ -65,7 +66,7 @@ test("sin flujo en la URL, quien sólo programa empieza por lo que puede hacer",
   );
   assert.equal(
     defaultComposerVariant({ canEdit: false, canSchedule: false }),
-    "template",
+    "product-story",
   );
 });
 

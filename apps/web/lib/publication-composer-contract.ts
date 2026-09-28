@@ -122,8 +122,9 @@ export function composerVariantFromSlug(
 }
 
 /**
- * El flujo con el que abre «Crear pieza» si la URL no elige uno. Quien programa
- * pero no edita no puede usar la plantilla, así que empieza por la historia
+ * El flujo con el que abre «Crear pieza» si la URL no elige uno: el producto,
+ * que es lo que se publica casi todos los días (`P2-T11`). Quien programa pero
+ * no edita no puede armar un producto, así que empieza por la historia
  * recurrente, que sí puede activar.
  */
 export function defaultComposerVariant(
@@ -131,5 +132,5 @@ export function defaultComposerVariant(
 ): PublicationComposerVariant {
   return !permissions.canEdit && permissions.canSchedule
     ? "recurring-story"
-    : "template";
+    : "product-story";
 }

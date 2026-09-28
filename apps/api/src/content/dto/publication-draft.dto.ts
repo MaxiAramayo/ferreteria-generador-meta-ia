@@ -43,8 +43,8 @@ export class PublicationProductReferenceDto {
 }
 
 export class PublicationDraftContentDto {
+  // Puede ir vacío: una historia no publica texto (`P2-T11`).
   @IsString()
-  @MinLength(1)
   @MaxLength(2_200)
   declare caption: string;
 

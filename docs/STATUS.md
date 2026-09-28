@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-26
+Actualizado: 2026-09-28
 
 ## Fase activa
 
@@ -252,6 +252,22 @@ se desplegó a producción el 2026-09-23 en
 migración `20260922120000_delete_unapproved_publications` aplicada. Se comprobó
 contra la base de producción que el disparador sigue rechazando el borrado de
 una pieza aprobada.
+
+`P2-T11` cerró el 2026-09-28, a pedido del usuario: el panel se usa bien en el
+celular y **una pieza sale en dos toques**. Abajo hay una barra con Inicio,
+Publicaciones, «Crear», Programación y «Más»; crear abre el producto con foto
+propia. Al tocar «Continuar» la pieza se guarda y se abre «¿Cuándo sale?», que
+muestra la imagen final, el texto, el destino y la cuenta: «Publicar ahora»
+aprueba y pide la publicación en el mismo gesto, y «Programar para…» aprueba
+con el turno. La aprobación sigue con su snapshot, su auditoría y su
+idempotencia; lo que desaparece es la pantalla aparte para hacerla
+([`ADR-034`](architecture/decisions/ADR-034-ONE-GESTURE-RELEASE.md)). Un
+producto se edita en su compositor aunque ya esté en revisión, con el comando
+nuevo `POST publications/:id/reopen`, y el texto del post pasó a ser opcional:
+una historia no lo publica. La revisión encontró y corrigió tres errores: «Aprobar
+y programar» mandaba todo a historias aunque fuera un post, «Editar borrador» de
+un producto terminaba en un error y el compositor exigía un texto que la historia
+no usa. No necesita migración.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la

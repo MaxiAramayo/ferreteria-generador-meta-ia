@@ -179,7 +179,13 @@ export function TodayBoard({ apiBaseUrl }: Readonly<{ apiBaseUrl: string }>) {
     };
   }, [apiBaseUrl, now, permissions]);
 
-  const tickets = todayTickets(sources);
+  // Lo que pide algo va primero y en grande; lo que está al día baja a una
+  // fila de una línea. Siete tarjetas en cero tapaban la única que importaba.
+  const allTickets = todayTickets(sources);
+  const tickets = [
+    ...allTickets.filter((ticket) => ticket.tone !== "calm" || ticket.busy),
+    ...allTickets.filter((ticket) => ticket.tone === "calm" && !ticket.busy),
+  ];
   const shortcuts = todayShortcuts(permissions);
   const dateLabel = new Intl.DateTimeFormat("es-AR", {
     day: "numeric",
@@ -194,14 +200,11 @@ export function TodayBoard({ apiBaseUrl }: Readonly<{ apiBaseUrl: string }>) {
         className="workspace-intro today-intro"
       >
         <div>
-          <p className="workspace-eyebrow">Para hoy · {dateLabel}</p>
-          <h1 id="para-hoy">Lo que hay que mover hoy.</h1>
+          <p className="workspace-eyebrow">{dateLabel}</p>
+          <h1 id="para-hoy">Hoy</h1>
         </div>
         <div className="today-intro-aside">
-          <p>
-            {greetingFor(actor.displayName)} Esto es lo que tu rol puede
-            resolver ahora; cada tarjeta lleva a la pantalla donde se hace.
-          </p>
+          <p>{greetingFor(actor.displayName)} Esto es lo pendiente.</p>
           {shortcuts.length === 0 ? null : (
             <nav aria-label="Atajos" className="today-shortcuts">
               {shortcuts.map((shortcut) => (
@@ -225,10 +228,7 @@ export function TodayBoard({ apiBaseUrl }: Readonly<{ apiBaseUrl: string }>) {
       {tickets.length === 0 ? null : (
         <section aria-labelledby="pendientes" className="today-section">
           <div className="workspace-section-heading">
-            <div>
-              <p className="workspace-eyebrow">Según tu rol</p>
-              <h2 id="pendientes">Pendientes</h2>
-            </div>
+            <h2 id="pendientes">Pendientes</h2>
           </div>
           <ul className="today-tickets">
             {tickets.map((ticket) => (
@@ -242,7 +242,7 @@ export function TodayBoard({ apiBaseUrl }: Readonly<{ apiBaseUrl: string }>) {
         <div className="workspace-section-heading">
           <div>
             <p className="workspace-eyebrow">Próximos {upcomingDays} días</p>
-            <h2 id="proximas-salidas">Próximas salidas</h2>
+            <h2 id="proximas-salidas">Qué sale</h2>
           </div>
           <Link className="today-section-link" href="/programacion">
             Abrir Programación

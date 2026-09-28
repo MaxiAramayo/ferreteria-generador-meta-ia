@@ -518,6 +518,7 @@ export {
 } from "./publication-workflow.ts";
 export {
   publicationRenderTopic,
+  REOPENABLE_PUBLICATION_STATUSES,
   type ApprovePublicationInput,
   type ApprovePublicationResult,
   type ApprovePublicationSchedule,
@@ -530,6 +531,8 @@ export {
   type PublicationRenderOutput,
   type PublicationRenderRequestInput,
   type PublicationRenderRequestResult,
+  type ReopenPublicationDraftInput,
+  type ReopenPublicationDraftResult,
 } from "./publication-production.ts";
 export {
   assertImageRequestSupported,

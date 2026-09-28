@@ -564,7 +564,10 @@ async function main(): Promise<void> {
 
       // --- El borrador se puede ajustar antes de pedir el PNG ---
       await page.goto(`${webBaseUrl}/publicaciones`, { waitUntil: "load" });
-      const editButton = page.getByRole("button", { name: "Editar borrador" });
+      const editButton = page.getByRole("button", {
+        name: "Editar",
+        exact: true,
+      });
       await editButton.waitFor({ timeout: startupTimeoutMs });
       await editButton.click();
       await page

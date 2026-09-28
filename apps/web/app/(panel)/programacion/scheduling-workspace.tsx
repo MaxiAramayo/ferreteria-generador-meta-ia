@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { publicationHref } from "../../../lib/panel-navigation.ts";
+import { approvalTargetsFor } from "../../../lib/publication-card.ts";
 import {
   occurrenceStatusLabels,
   scheduleStatusLabels,
@@ -70,6 +71,13 @@ function previousMonth(month: Date): Date {
 
 function nextMonth(month: Date): Date {
   return new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1));
+}
+
+/** El mes de una fecha local `AAAA-MM-DD`, o `null` si no la entiende. */
+function monthOfLocalDate(localDate: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-\d{2}$/u.exec(localDate);
+  if (match === null) return null;
+  return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
 }
 
 function idempotencyKey(): string {
@@ -161,6 +169,15 @@ export function SchedulingWorkspace({
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({ kind: "idle" });
   const requestedPublicationId = useRef(initialPublicationId);
+  const detail = useRef<HTMLElement>(null);
+
+  // En el celular el detalle queda debajo del calendario: al elegir una salida
+  // o abrir el formulario, la pantalla baja hasta él en vez de quedarse arriba.
+  useEffect(() => {
+    if (editor.kind === "closed" && selectedScheduleId === undefined) return;
+    if (!window.matchMedia("(max-width: 48rem)").matches) return;
+    detail.current?.scrollIntoView({ block: "start" });
+  }, [editor.kind, selectedScheduleId]);
 
   const reload = useCallback(async () => {
     setState({ kind: "loading" });
@@ -224,6 +241,20 @@ export function SchedulingWorkspace({
       globalThis.clearTimeout(timer);
     };
   }, [reload]);
+
+  // Después de programar o mover, el calendario va al mes de la salida: si
+  // cae el mes que viene, se ve dónde quedó en vez de desaparecer.
+  const showMonthOf = useCallback(
+    async (localDate: string) => {
+      const target = monthOfLocalDate(localDate);
+      if (target === null || target.getTime() === month.getTime()) {
+        await reload();
+        return;
+      }
+      setMonth(target);
+    },
+    [month, reload],
+  );
 
   const publicationTitles = useMemo(() => {
     if (state.kind !== "ready") return new Map<string, string>();
@@ -304,14 +335,8 @@ export function SchedulingWorkspace({
         aria-labelledby="programacion"
         className="workspace-intro scheduling-intro"
       >
-        <div>
-          <p className="workspace-eyebrow">Planilla de despacho</p>
-          <h1 id="programacion">Cada salida con su turno visible.</h1>
-        </div>
-        <p>
-          Programar no publica. Cada marca conserva la pieza aprobada, su zona
-          horaria y el estado real de la ocurrencia.
-        </p>
+        <h1 id="programacion">Programación</h1>
+        <p>Cuándo sale cada pieza aprobada.</p>
       </section>
 
       <section
@@ -344,7 +369,7 @@ export function SchedulingWorkspace({
           onClick={openCreate}
           type="button"
         >
-          Programar pieza aprobada
+          Programar una pieza
         </button>
       </section>
 
@@ -379,7 +404,7 @@ export function SchedulingWorkspace({
           selectedScheduleId={selectedScheduleId}
         />
 
-        <aside aria-live="polite" className="schedule-detail">
+        <aside aria-live="polite" className="schedule-detail" ref={detail}>
           {editor.kind === "create" ? (
             <>
               <label className="schedule-publication-picker">
@@ -399,6 +424,7 @@ export function SchedulingWorkspace({
               </label>
               {createPublication === undefined ? null : (
                 <ScheduleRuleForm
+                  defaultTargets={approvalTargetsFor(createPublication.format)}
                   key={`create-${createPublication.id}`}
                   kind="create"
                   onCreate={async (rule: ScheduleRuleSubmission) => {
@@ -415,11 +441,11 @@ export function SchedulingWorkspace({
                     if (result.kind === "ready") {
                       setFeedback({
                         kind: "success",
-                        message: `Programación creada con ${String(result.value.materializedOccurrenceCount)} ocurrencias iniciales.`,
+                        message: `Quedó programada: ${String(result.value.materializedOccurrenceCount)} ${result.value.materializedOccurrenceCount === 1 ? "salida" : "salidas"}.`,
                       });
                       setEditor({ kind: "closed" });
                       setSelectedScheduleId(result.value.scheduleId);
-                      await reload();
+                      await showMonthOf(rule.effectiveFromLocalDate);
                       return;
                     }
                     setFeedback({
@@ -472,11 +498,11 @@ export function SchedulingWorkspace({
                 if (result.kind === "ready") {
                   setFeedback({
                     kind: "success",
-                    message: `Regla actualizada: ${String(result.value.createdOccurrenceCount)} creadas, ${String(result.value.rescheduledOccurrenceCount)} reprogramadas y ${String(result.value.frozenOccurrenceCount)} congeladas.`,
+                    message: `Cambio guardado: ${String(result.value.createdOccurrenceCount)} salidas nuevas, ${String(result.value.rescheduledOccurrenceCount)} movidas y ${String(result.value.frozenOccurrenceCount)} que ya no se tocan.`,
                   });
                   setEditor({ kind: "closed" });
                   setPreview(undefined);
-                  await reload();
+                  await showMonthOf(rule.effectiveFromLocalDate);
                   return;
                 }
                 setFeedback({
@@ -492,11 +518,10 @@ export function SchedulingWorkspace({
             />
           ) : activeEntry === undefined ? (
             <div className="schedule-detail-empty">
-              <p className="workspace-eyebrow">Detalle de turno</p>
-              <h2>Elegí una ocurrencia.</h2>
+              <h2>Tocá una salida</h2>
               <p>
-                El calendario muestra la fecha civil junto a la zona de la
-                regla. Nada cambia sólo por seleccionarla.
+                Vas a ver cuándo sale, a dónde y cómo moverla o pausarla.
+                Tocarla no cambia nada.
               </p>
             </div>
           ) : (
@@ -511,15 +536,11 @@ export function SchedulingWorkspace({
               </Link>
               <dl className="schedule-facts">
                 <div>
-                  <dt>Regla</dt>
+                  <dt>Frecuencia</dt>
                   <dd>{recurrenceLabel(activeEntry)}</dd>
                 </div>
                 <div>
-                  <dt>Zona</dt>
-                  <dd>{activeEntry.schedule.timeZone}</dd>
-                </div>
-                <div>
-                  <dt>Destinos</dt>
+                  <dt>Dónde sale</dt>
                   <dd>{scheduleTargetsLabel(activeEntry.schedule.targets)}</dd>
                 </div>
                 <div>
@@ -564,7 +585,7 @@ export function SchedulingWorkspace({
                     }}
                     type="button"
                   >
-                    Mover regla
+                    Mover
                   </button>
                   {activeEntry.schedule.status === "active" ? (
                     <button
@@ -591,7 +612,7 @@ export function SchedulingWorkspace({
                     onClick={() => void action("cancel")}
                     type="button"
                   >
-                    Cancelar regla
+                    Cancelar salida
                   </button>
                 </div>
               ) : null}

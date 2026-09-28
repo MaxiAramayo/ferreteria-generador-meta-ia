@@ -25,9 +25,18 @@ test("normaliza caption y referencias de producto sin perder el orden", () => {
   );
 });
 
-test("rechaza caption vacío y referencias de producto inseguras", () => {
+test("acepta caption vacío y rechaza uno largo y referencias inseguras", () => {
+  // Una historia no publica texto: exigirlo era escribir algo que nadie lee.
+  assert.deepEqual(
+    normalizePublicationDraftContent({ caption: " ", products: [] }),
+    { caption: "", products: [] },
+  );
   assert.throws(
-    () => normalizePublicationDraftContent({ caption: " ", products: [] }),
+    () =>
+      normalizePublicationDraftContent({
+        caption: "a".repeat(2_201),
+        products: [],
+      }),
     (cause: unknown) =>
       cause instanceof PublicationDraftValidationError &&
       cause.code === "caption-invalid",

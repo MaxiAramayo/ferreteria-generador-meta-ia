@@ -844,9 +844,108 @@ qué se ve: nombre, descripción, precio, etiqueta, medidas, vigencia y botón.
   nuevas; el resto del catálogo, perfiles, deterministas y temas no cambió.
 - Decisiones: [`ADR-033`](../architecture/decisions/ADR-033-PRODUCT-PHOTO-FRAMES.md).
 
+## P2-T11 — Panel usable en el celular y salida de una pieza en un gesto
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P2-T10`, `P5-T07`, `P6-T06`
+- Riesgo: Medio
+
+### Objetivo
+
+Que el dueño cree y saque una pieza de producto desde el celular en el menor
+número de toques, sin perder la aprobación con snapshot, la idempotencia ni la
+regla de ver lo que sale antes de que salga.
+
+### Entregables
+
+- Barra de secciones abajo en el celular, con «Crear» al centro y «Más» para
+  Operación, Configuración y la cuenta; títulos cortos en cada pantalla.
+- «Crear pieza» abre el producto con foto propia; plantilla y creatividad IA
+  quedan bajo «Más».
+- Listado en tarjetas con miniatura, estado, una acción principal y el resto en
+  «⋯»; lo que ya salió, plegado al final.
+- Hoja «¿Cuándo sale?» que publica ahora o programa en un toque, aprobando
+  adentro del mismo gesto
+  ([`ADR-034`](../architecture/decisions/ADR-034-ONE-GESTURE-RELEASE.md)).
+- Editar una pieza de producto en su compositor, también ya en revisión, con el
+  comando `POST publications/:id/reopen`.
+- Texto de la publicación opcional; en historia no se pide.
+- Programación, Configuración y el login con rótulos del negocio y lo técnico
+  plegado en «avanzado».
+
+### Criterios de aceptación
+
+- [x] Del compositor a la pieza publicada hay dos toques: «Continuar» y
+      «Publicar ahora».
+- [x] La hoja no habilita el botón hasta tener a la vista la imagen confirmada,
+      el texto, el destino y la cuenta.
+- [x] Un doble toque no aprueba dos veces ni crea dos órdenes; si la
+      publicación se rechaza después de aprobar, la pieza queda aprobada y la
+      hoja lo dice.
+- [x] Una historia sale en historias de Instagram y un post en el feed, con
+      Facebook opcional sólo si hay texto.
+- [x] Reabrir exige `content:edit`, versión esperada y un estado reabrible,
+      audita la transición y es idempotente.
+- [x] Ninguna acción muestra un botón que termina en un error de permisos o de
+      editor inexistente.
+- [x] En 390 px no hay desborde horizontal, los controles miden al menos 44 px
+      y los campos no provocan zoom.
+
+### Verificación obligatoria
+
+- [x] Pruebas de dominio del caption vacío y de la API de reabrir: editor,
+      aprobador sin permiso y estado inválido.
+- [x] Integración de reabrir contra PostgreSQL.
+- [x] Pruebas del panel: acción por estado, destinos por formato, próxima media
+      hora, publicar y programar en un gesto y la ida y vuelta de la edición.
+- [x] `pnpm e2e:navigation`, `pnpm e2e:publishing`, `pnpm e2e:scheduling` y
+      `pnpm e2e:recurring-story`.
+- [x] Capturas en teléfono y computadora del listado, la hoja y el compositor.
+- [x] `pnpm verify` completo.
+
+### Fuera de alcance
+
+- Quitar la aprobación del dominio o publicar sin render confirmado.
+- Eliminar piezas aprobadas o publicadas (`ADR-032`).
+- Cambios en el motor visual o en los marcos.
+
+### Notas de progreso
+
+- 2026-09-27: el dueño pidió mejorar la interfaz completa para que sea más
+  fácil de usar y funcione bien en el celular. Eligió la barra abajo con
+  «Crear», el producto primero, editar en el compositor y títulos cortos.
+- 2026-09-28: pidió revisar la experiencia, sobre todo la aprobación: «siempre
+  se va a querer subir productos o publicaciones rápido sin importar tanto las
+  revisiones», porque las historias son temporales y se pueden borrar.
+- La revisión encontró tres errores reales: «Aprobar y programar» mandaba toda
+  pieza a historias aunque fuera un post; «Editar borrador» en un producto
+  terminaba en un error; y el compositor exigía un texto que una historia no
+  publica.
+- La revisión en navegador real, en 390 px y 1280 px, encontró y corrigió:
+  la nota bajo «Publicar ahora» cortada en el celular, el menú «⋯» saliéndose
+  por la derecha, las acciones de la tarjeta en dos renglones y el editor de la
+  historia recurrente con sus opciones de tema superpuestas dentro de la hoja.
+- `pnpm e2e:scheduling` fallaba a fin de mes: la salida movida caía en el mes
+  siguiente y el calendario seguía en el actual. Ahora, después de programar o
+  mover, el calendario va al mes de la salida.
+
+### Evidencia de cierre
+
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck,
+  pruebas, baseline visual y smoke aprobados.
+- `pnpm db:test`: reabrir contra PostgreSQL devuelve la pieza a borrador y el
+  listado la muestra; migraciones, reversión y reaplicación sin cambios.
+- `pnpm e2e:navigation`, `pnpm e2e:publishing`, `pnpm e2e:scheduling` y
+  `pnpm e2e:recurring-story`: completos.
+- Capturas de teléfono y computadora del listado, el menú de la pieza, la hoja
+  «¿Cuándo sale?» en «Ahora» y «Más tarde», crear, programación y
+  configuración, sin desborde horizontal.
+- Decisiones: [`ADR-034`](../architecture/decisions/ADR-034-ONE-GESTURE-RELEASE.md).
+
 ## Criterios de salida de Fase 2
 
-- [x] `P2-T01` a `P2-T10` están completas.
+- [x] `P2-T01` a `P2-T11` están completas.
 - [x] Aislamiento, autorización e idempotencia tienen pruebas.
 - [x] Existe un flujo determinista aprobado de punta a punta.
 - [x] Ninguna acción del panel publica o llama a IA de forma implícita.

@@ -19,6 +19,9 @@ import {
   type PublicationRenderOutput,
   type PublicationRenderRequestInput,
   type PublicationRenderRequestResult,
+  REOPENABLE_PUBLICATION_STATUSES,
+  type ReopenPublicationDraftInput,
+  type ReopenPublicationDraftResult,
   type SafeJsonObject,
 } from "@aramayo/domain";
 
@@ -47,6 +50,24 @@ function replayedRender(body: SafeJsonObject): PublicationRenderRequestResult {
     replayed: true,
     revisionId,
     status: "accepted",
+    version,
+  });
+}
+
+const reopenableStatuses: ReadonlySet<string> = new Set(
+  REOPENABLE_PUBLICATION_STATUSES,
+);
+
+function replayedReopen(body: SafeJsonObject): ReopenPublicationDraftResult {
+  const publicationId = body["publicationId"];
+  const version = body["version"];
+  if (typeof publicationId !== "string" || typeof version !== "number") {
+    throw new Error("La respuesta idempotente de reapertura no es válida.");
+  }
+  return Object.freeze({
+    publicationId,
+    replayed: true,
+    status: "reopened",
     version,
   });
 }
@@ -315,6 +336,98 @@ export class PrismaPublicationProductionRepository implements PublicationProduct
         throw new Error("No se pudo confirmar la solicitud idempotente.");
       }
       return Object.freeze({ ...responseBody, status: "accepted" });
+    });
+  }
+
+  async reopenDraft(
+    input: ReopenPublicationDraftInput,
+  ): Promise<ReopenPublicationDraftResult> {
+    return this.#database.$transaction(async (transaction) => {
+      const claim = await claimReliableOperation(
+        transaction,
+        input.reliableOperation.claim,
+      );
+      switch (claim.status) {
+        case "replayed":
+          return replayedReopen(claim.responseBody);
+        case "request-conflict":
+          return Object.freeze({ status: "idempotency-conflict" });
+        case "in-progress":
+          return Object.freeze({
+            retryAfter: claim.retryAfter,
+            status: "in-progress",
+          });
+        case "claimed":
+          break;
+      }
+
+      const publication = await transaction.publication.findFirst({
+        select: { status: true, version: true },
+        where: {
+          id: input.publicationId,
+          organizationId: input.organizationId,
+        },
+      });
+      if (publication === null) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "not-found" });
+      }
+      if (publication.version !== input.expectedVersion) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "conflict" });
+      }
+      if (!reopenableStatuses.has(publication.status)) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "invalid-state" });
+      }
+      const version = publication.version + 1;
+      const updated = await transaction.publication.updateMany({
+        data: {
+          failureCode: null,
+          failureMessage: null,
+          failureOccurredAt: null,
+          failureRetryable: null,
+          status: "draft",
+          version,
+        },
+        where: {
+          id: input.publicationId,
+          organizationId: input.organizationId,
+          status: publication.status,
+          version: publication.version,
+        },
+      });
+      if (updated.count !== 1) {
+        await discardReliableOperationClaim(transaction, claim.recordId);
+        return Object.freeze({ status: "conflict" });
+      }
+      await transaction.publicationStateTransition.create({
+        data: {
+          actorMembershipId: input.actorMembershipId,
+          commandType: "advance",
+          fromStatus: publication.status,
+          fromVersion: publication.version,
+          occurredAt: new Date(input.reliableOperation.occurredAt),
+          organizationId: input.organizationId,
+          publicationId: input.publicationId,
+          toStatus: "draft",
+          toVersion: version,
+        },
+      });
+      const responseBody = {
+        publicationId: input.publicationId,
+        version,
+      } satisfies SafeJsonObject;
+      const commit = reliableCommit(input, claim.recordId, responseBody, {
+        entityId: input.publicationId,
+        entityType: "publication",
+        metadata: { fromStatus: publication.status, version },
+        outbox: [],
+      });
+      if (!(await commitReliableOperation(transaction, commit))) {
+        throw new Error("No se pudo confirmar la solicitud idempotente.");
+      }
+      return Object.freeze({ ...responseBody, status: "reopened" });
     });
   }
 

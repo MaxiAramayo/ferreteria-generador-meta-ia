@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import "@fontsource/archivo/400.css";
@@ -19,6 +19,17 @@ export const metadata: Metadata = {
     "Panel interno de creación, revisión y publicación de contenido de Ferretería y Lubricentro Aramayo.",
   robots: { follow: false, index: false },
   title: "Aramayo Content Platform",
+};
+
+/**
+ * El panel se usa en el celular: la barra de abajo respeta el borde del iPhone
+ * (`viewport-fit=cover`) y el color del navegador acompaña al papel de marca.
+ */
+export const viewport: Viewport = {
+  initialScale: 1,
+  themeColor: "#f6f1ea",
+  viewportFit: "cover",
+  width: "device-width",
 };
 
 export default function RootLayout({

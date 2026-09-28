@@ -374,7 +374,7 @@ function StatusView({
     <main className="configuration-shell">
       <section className="configuration-status">
         <p className="configuration-eyebrow">{eyebrow}</p>
-        <h1>Configuración operativa</h1>
+        <h1>Configuración</h1>
         <p>{message}</p>
         {action === "login" ? (
           <Link className="configuration-button" href="/iniciar-sesion">
@@ -828,11 +828,10 @@ function ReadyView({
     <main className="configuration-shell">
       <header className="configuration-hero">
         <div>
-          <p className="configuration-eyebrow">Base comercial aprobada</p>
-          <h1>Configuración operativa</h1>
+          <h1>Configuración</h1>
           <p>
-            Estos datos llegan al copy y a las piezas. Cada cambio queda
-            registrado con su autor.
+            Locales, horarios y datos que llegan a las piezas. Cada cambio queda
+            registrado.
           </p>
         </div>
       </header>
@@ -849,16 +848,6 @@ function ReadyView({
           {state.notice.message}
         </p>
       )}
-      {state.generationPolicy === null ? null : (
-        <GenerationPolicyForm
-          disabled={disabled}
-          generationPolicy={state.generationPolicy}
-        />
-      )}
-      {state.canEdit ? (
-        <MetaConnectionsPanel apiBaseUrl={meta.apiBaseUrl} />
-      ) : null}
-      <BrandForm configuration={state.configuration} disabled={disabled} />
       <section className="configuration-locations">
         <div className="configuration-section-heading">
           <div>
@@ -886,6 +875,21 @@ function ReadyView({
           </div>
         )}
       </section>
+      <BrandForm configuration={state.configuration} disabled={disabled} />
+      {state.canEdit ? (
+        <MetaConnectionsPanel apiBaseUrl={meta.apiBaseUrl} />
+      ) : null}
+      {state.generationPolicy === null ? null : (
+        // Cuotas y retención de la IA se tocan una vez: quedan plegadas al
+        // final, y lo que se usa seguido —sucursales, horarios— va primero.
+        <details className="configuration-advanced">
+          <summary>Generación con IA · avanzado</summary>
+          <GenerationPolicyForm
+            disabled={disabled}
+            generationPolicy={state.generationPolicy}
+          />
+        </details>
+      )}
     </main>
   );
 }

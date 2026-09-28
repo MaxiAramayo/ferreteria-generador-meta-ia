@@ -54,6 +54,12 @@ function repositoryDouble(): PublicationProductionRepository {
       }),
     failRender: () => Promise.resolve({ status: "conflict" }),
     findRenderJob: () => Promise.resolve(null),
+    reopenDraft: (input) =>
+      Promise.resolve({
+        publicationId: input.publicationId,
+        status: "reopened",
+        version: input.expectedVersion + 1,
+      }),
     requestRender: (input) =>
       Promise.resolve({
         publicationId: input.publicationId,
@@ -165,5 +171,44 @@ test("eliminar con una versión vieja no borra otra cosa", async () => {
       "idempotency-key-0008",
     ),
     ConflictException,
+  );
+});
+
+test("volver a borrador para editar es de quien edita", async () => {
+  const production = service(repositoryDouble());
+  assert.deepEqual(
+    await production.reopen(
+      actor(["editor"]),
+      "publication-1",
+      3,
+      "idempotency-key-0009",
+    ),
+    { publicationId: "publication-1", status: "draft", version: 4 },
+  );
+  await assert.rejects(
+    production.reopen(
+      actor(["approver"]),
+      "publication-1",
+      3,
+      "idempotency-key-0010",
+    ),
+    ForbiddenException,
+  );
+});
+
+test("una pieza aprobada no vuelve a borrador por este camino", async () => {
+  const production = service({
+    ...repositoryDouble(),
+    reopenDraft: () => Promise.resolve({ status: "invalid-state" }),
+  });
+  await assert.rejects(
+    production.reopen(
+      actor(["editor"]),
+      "publication-1",
+      1,
+      "idempotency-key-0011",
+    ),
+    (error: unknown) =>
+      error instanceof ConflictException && /aprobada/u.test(error.message),
   );
 });

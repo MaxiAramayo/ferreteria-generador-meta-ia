@@ -11,7 +11,6 @@ import {
 import { usePanelActor } from "../panel-shell.tsx";
 import { FlowSteps } from "./flow-steps";
 import { PublicationComposer } from "./publication-composer";
-import { PublicationsSubnav } from "./publications-subnav";
 
 /**
  * «Crear pieza»: los cuatro flujos, cada uno en su dirección.
@@ -37,17 +36,9 @@ export function CreatePieceWorkspace({
   return (
     <main className="workspace-shell">
       <section aria-labelledby="crear-pieza" className="workspace-intro">
-        <div>
-          <p className="workspace-eyebrow">Nueva pieza</p>
-          <h1 id="crear-pieza">¿Qué querés publicar?</h1>
-        </div>
-        <p>
-          Cada flujo tiene su dirección. Al guardar te llevamos a la pieza, con
-          su imagen final, para aprobarla o seguir editándola.
-        </p>
+        <h1 id="crear-pieza">Crear pieza</h1>
+        <p>Armala y después elegís si sale ahora o más tarde.</p>
       </section>
-
-      <PublicationsSubnav canCreate={canEdit || canSchedule} />
 
       <FlowSteps current={2} />
 

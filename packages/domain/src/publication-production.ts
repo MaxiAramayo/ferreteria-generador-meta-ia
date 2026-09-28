@@ -24,6 +24,36 @@ export type PublicationRenderRequestResult =
   | Readonly<{ status: "invalid-state" }>
   | Readonly<{ status: "not-found" }>;
 
+/**
+ * Volver a borrador una pieza que todavía no se aprobó, para editarla.
+ *
+ * Una pieza en revisión ya tiene su imagen; editarla deja esa imagen atrás, así
+ * que primero vuelve a borrador —la transición que el flujo ya admite— y la
+ * edición crea la revisión nueva. Nunca alcanza a una pieza aprobada: ése es el
+ * camino de `edit_approved`, con su propio snapshot.
+ */
+export type ReopenPublicationDraftInput = PublicationRenderRequestInput;
+
+export type ReopenPublicationDraftResult =
+  | Readonly<{
+      publicationId: string;
+      replayed?: true;
+      status: "reopened";
+      version: number;
+    }>
+  | Readonly<{ status: "conflict" }>
+  | Readonly<{ status: "idempotency-conflict" }>
+  | Readonly<{ retryAfter: string; status: "in-progress" }>
+  | Readonly<{ status: "invalid-state" }>
+  | Readonly<{ status: "not-found" }>;
+
+/** Estados desde los que editar devuelve la pieza a borrador. */
+export const REOPENABLE_PUBLICATION_STATUSES = Object.freeze([
+  "ready_for_review",
+  "generation_failed",
+  "validation_failed",
+] as const);
+
 export interface PublicationRenderJob {
   readonly alreadyCompleted: boolean;
   readonly actorMembershipId: string;
@@ -153,6 +183,9 @@ export interface PublicationProductionRepository {
     publicationId: string,
     revisionId: string,
   ): Promise<PublicationRenderJob | null>;
+  reopenDraft(
+    input: ReopenPublicationDraftInput,
+  ): Promise<ReopenPublicationDraftResult>;
   requestRender(
     input: PublicationRenderRequestInput,
   ): Promise<PublicationRenderRequestResult>;

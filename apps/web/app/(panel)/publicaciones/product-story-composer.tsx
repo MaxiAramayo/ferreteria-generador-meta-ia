@@ -2,9 +2,11 @@
 
 import type { RecurringStoryPhotoPayload } from "@aramayo/contracts";
 import { DesignPiece } from "@aramayo/design-engine/react";
+import { useSearchParams } from "next/navigation";
 import {
   startTransition,
   useDeferredValue,
+  useEffect,
   useId,
   useMemo,
   useState,
@@ -15,13 +17,16 @@ import { prepareOpeningPhoto } from "../../../lib/opening-photo.ts";
 import {
   emptyProductStoryDraft,
   frameShows,
+  loadProductPiece,
   productFrameThumbnail,
   productStoryBrands,
   productStoryDocument,
   productStoryFormats,
   productStoryFrames,
   productStoryPriceModes,
+  saveProductPieceEdit,
   saveProductStoryDraft,
+  type EditableProductPiece,
   type ProductStoryDraft,
 } from "../../../lib/product-story.ts";
 import {
@@ -57,7 +62,14 @@ export function ProductStoryComposer({
   onDraftSaved: (publication: Readonly<{ id: string; title: string }>) => void;
 }>) {
   const photoInputId = useId();
+  const editId = useSearchParams().get("editar");
   const [draft, setDraft] = useState<ProductStoryDraft>(emptyProductStoryDraft);
+  /** La pieza guardada que se está editando; `null` al crear una nueva. */
+  const [editing, setEditing] = useState<Pick<
+    EditableProductPiece,
+    "id" | "status" | "version"
+  > | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(editId !== null);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [photoStatus, setPhotoStatus] = useState<string>("");
@@ -81,6 +93,31 @@ export function ProductStoryComposer({
   const format = productStoryFormats.find(
     (candidate) => candidate.value === draft.format,
   );
+
+  // Con `?editar=` el compositor abre la pieza guardada, con su foto, su marco
+  // y lo que dice, y guardar crea una revisión nueva (`P2-T11`).
+  useEffect(() => {
+    if (editId === null) return;
+    let active = true;
+    void loadProductPiece(apiBaseUrl, editId).then((result) => {
+      if (!active) return;
+      setLoadingEdit(false);
+      if (result.kind === "ready") {
+        const { draft: loaded, ...piece } = result.piece;
+        setDraft(loaded);
+        setEditing(piece);
+        return;
+      }
+      setNotice(
+        result.kind === "forbidden"
+          ? "La sesión no permite abrir esta pieza."
+          : result.message,
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [apiBaseUrl, editId]);
 
   function change(values: Partial<ProductStoryDraft>): void {
     setDraft((current) => ({ ...current, ...values }));
@@ -123,19 +160,25 @@ export function ProductStoryComposer({
       );
       return;
     }
-    const caption = draft.caption.trim();
-    if (caption.length === 0) {
-      setNotice("Escribí el texto que acompaña la publicación.");
-      return;
-    }
+    // Una historia no publica texto: no se pide ni se guarda uno viejo.
+    const caption = draft.format === "historia" ? "" : draft.caption.trim();
     setSaving(true);
-    setNotice("Guardando borrador…");
-    void saveProductStoryDraft(apiBaseUrl, {
-      caption,
-      document: preview.document,
-      idempotencyKey: crypto.randomUUID(),
-      title: draft.title.trim(),
-    }).then((result) => {
+    setNotice(editing === null ? "Guardando borrador…" : "Guardando cambios…");
+    const saved =
+      editing === null
+        ? saveProductStoryDraft(apiBaseUrl, {
+            caption,
+            document: preview.document,
+            idempotencyKey: crypto.randomUUID(),
+            title: draft.title.trim(),
+          })
+        : saveProductPieceEdit(apiBaseUrl, {
+            caption,
+            document: preview.document,
+            piece: editing,
+            title: draft.title.trim(),
+          });
+    void saved.then((result) => {
       startTransition(() => {
         setSaving(false);
         if (result.kind === "saved") {
@@ -159,21 +202,29 @@ export function ProductStoryComposer({
       data-variant="product-story"
     >
       <form
-        className="recurring-story-form"
+        className="recurring-story-form product-composer-form"
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
           save();
         }}
       >
-        <div>
-          <p className="workspace-eyebrow">Producto · Instagram</p>
-          <h2>La foto manda. Vos elegís qué se ve.</h2>
-          <p>
-            Subí la foto, elegí el marco que no tapa el producto y marcá qué
-            dice la pieza. El precio se dibuja en la pieza; el texto que va
-            debajo no lo repite.
+        <div
+          className="product-composer-intro"
+          data-editing={String(editing !== null || loadingEdit)}
+        >
+          <p className="workspace-eyebrow">
+            {editing === null ? "Producto · Instagram" : "Editando"}
           </p>
+          <h2>{editing === null ? "Foto, marco y listo" : draft.title}</h2>
+          {loadingEdit ? (
+            <p aria-busy="true">Abriendo la pieza…</p>
+          ) : (
+            <p>
+              Subí la foto, elegí el marco que no tapa el producto y marcá qué
+              dice. Después elegís si sale ahora o más tarde.
+            </p>
+          )}
         </div>
 
         <div className="opening-photo-control" data-own-image="false">
@@ -199,8 +250,8 @@ export function ProductStoryComposer({
           <div className="opening-photo-copy">
             <strong>Foto del producto</strong>
             <small>
-              Se prepara en el navegador: se achica, se pasa a JPEG y pierde sus
-              metadatos. Arrastrala en la vista previa para acomodarla.
+              Sacala o elegila del teléfono. Después la acomodás arrastrándola
+              en la vista previa.
             </small>
             <div className="opening-photo-actions">
               <label
@@ -372,6 +423,21 @@ export function ProductStoryComposer({
             })}
           </div>
         </fieldset>
+
+        <OpeningStoryPreview
+          caption="Es la misma composición que se renderiza antes de aprobar."
+          disabled={locked}
+          formatLabel={
+            format === undefined
+              ? undefined
+              : `${format.label} · ${format.ratio}`
+          }
+          onPhotoChange={(photo: RecurringStoryPhotoPayload) => {
+            change({ photo });
+          }}
+          photo={draft.photo}
+          preview={preview}
+        />
 
         <fieldset className="recurring-draft-fieldset">
           <legend>Qué muestra la pieza</legend>
@@ -553,47 +619,48 @@ export function ProductStoryComposer({
           </p>
         </fieldset>
 
-        <label className="recurring-draft-caption">
-          Texto que acompaña
-          <textarea
-            disabled={locked}
-            maxLength={2_200}
-            onChange={(event) => {
-              change({ caption: event.currentTarget.value });
-            }}
-            required
-            rows={5}
-            value={draft.caption}
-          />
-        </label>
+        {draft.format === "historia" ? (
+          <p className="product-caption-note">
+            Las historias no llevan texto abajo: todo lo que dice la pieza está
+            en la imagen.
+          </p>
+        ) : (
+          <label className="recurring-draft-caption">
+            Texto del post (opcional)
+            <textarea
+              disabled={locked}
+              maxLength={2_200}
+              onChange={(event) => {
+                change({ caption: event.currentTarget.value });
+              }}
+              placeholder="Consultanos por WhatsApp. Estamos en Frías."
+              rows={4}
+              value={draft.caption}
+            />
+            <small className="product-field-note">
+              Facebook lo necesita; Instagram lo muestra debajo del post. No
+              repitas el precio: va en la imagen.
+            </small>
+          </label>
+        )}
 
-        <div className="recurring-story-actions">
+        <div className="recurring-story-actions product-save-bar">
           <p aria-live="polite" role="status">
-            {notice ??
-              "Guardar deja un borrador: revisar, aprobar y publicar siguen en el listado."}
+            {notice ?? "Después elegís si sale ahora o más tarde."}
           </p>
           <button
             className="workspace-primary-action"
-            disabled={locked}
+            disabled={locked || loadingEdit}
             type="submit"
           >
-            {saving ? "Guardando…" : "Guardar borrador"}
+            {saving
+              ? "Guardando…"
+              : editing === null
+                ? "Continuar"
+                : "Guardar y continuar"}
           </button>
         </div>
       </form>
-
-      <OpeningStoryPreview
-        caption="Es la misma composición que se renderiza antes de aprobar."
-        disabled={locked}
-        formatLabel={
-          format === undefined ? undefined : `${format.label} · ${format.ratio}`
-        }
-        onPhotoChange={(photo: RecurringStoryPhotoPayload) => {
-          change({ photo });
-        }}
-        photo={draft.photo}
-        preview={preview}
-      />
     </section>
   );
 }

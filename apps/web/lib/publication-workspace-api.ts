@@ -274,12 +274,12 @@ async function publicationCommand(
           ? "Revisión aprobada y conservada."
           : "Aprobada y programada.",
       delete: "La pieza se eliminó para siempre.",
-      render: "PNG pedido. El estado se actualiza solo cuando esté listo.",
+      render: "Preparando la imagen. Se abre sola cuando esté lista.",
     };
     const failed: Readonly<Record<typeof command, string>> = {
       approve: "No se pudo aprobar. Recargá el estado.",
       delete: "No se pudo eliminar. Recargá el estado.",
-      render: "No se pudo pedir el PNG. Recargá el estado.",
+      render: "No se pudo preparar la imagen. Recargá el estado.",
     };
     return response.ok
       ? { kind: "completed", message: done[command] }
@@ -453,6 +453,127 @@ export async function saveTemplatePublicationDraft(
     return {
       kind: "error",
       message: "La API no respondió. El borrador no fue confirmado.",
+    };
+  }
+}
+
+export type PublicationReopenResult =
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>
+  | Readonly<{ kind: "reopened"; version: number }>;
+
+/**
+ * Devuelve a borrador una pieza en revisión para editarla (`P2-T11`). La
+ * versión nueva es la que espera el guardado que sigue.
+ */
+export async function reopenPublication(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+): Promise<PublicationReopenResult> {
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) return { kind: "forbidden" };
+    const response = await fetch(
+      new URL(`publications/${publicationId}/reopen`, apiBaseUrl),
+      {
+        body: JSON.stringify({ expectedVersion }),
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+          "x-csrf-token": csrf,
+        },
+        method: "POST",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const body = record(await payload(response));
+    const version = body?.["version"];
+    return response.ok && typeof version === "number"
+      ? { kind: "reopened", version }
+      : {
+          kind: "error",
+          message:
+            "La pieza cambió mientras la editabas. Recargá antes de guardar.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "La API no respondió y la pieza no volvió a borrador.",
+    };
+  }
+}
+
+export type PublicationApproveResult =
+  | Readonly<{ kind: "approved"; status: string; version: number }>
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "error"; message: string }>;
+
+/**
+ * Aprobar y conocer la versión que queda (`P2-T11`): publicar en el mismo
+ * gesto necesita esa versión, que el aviso de `approvePublication` no trae.
+ */
+export async function approvePublicationForRelease(
+  apiBaseUrl: string,
+  publicationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+  schedule?: Readonly<{
+    localDate: string;
+    localTime: string;
+    targets: readonly string[];
+  }>,
+): Promise<PublicationApproveResult> {
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) return { kind: "forbidden" };
+    const response = await fetch(
+      new URL(`publications/${publicationId}/approve`, apiBaseUrl),
+      {
+        body: JSON.stringify({
+          expectedVersion,
+          ...(schedule === undefined ? {} : { schedule }),
+        }),
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "idempotency-key": idempotencyKey,
+          "x-csrf-token": csrf,
+        },
+        method: "POST",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const body = record(await payload(response));
+    const version = body?.["version"];
+    const status = body?.["status"];
+    if (
+      response.ok &&
+      typeof version === "number" &&
+      typeof status === "string"
+    ) {
+      return { kind: "approved", status, version };
+    }
+    const message = body?.["message"];
+    return {
+      kind: "error",
+      message:
+        typeof message === "string" && message.length > 0
+          ? message
+          : "No se pudo aprobar. Recargá el estado.",
+    };
+  } catch {
+    return {
+      kind: "error",
+      message: "La API no respondió y la pieza no quedó aprobada.",
     };
   }
 }
