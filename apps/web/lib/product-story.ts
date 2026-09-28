@@ -7,7 +7,10 @@ import {
 } from "@aramayo/design-engine";
 import { parseDesignDocument } from "@aramayo/design-engine/validation";
 
-import { savedPublication } from "./publication-workspace-api.ts";
+import {
+  reopenPublication,
+  savedPublication,
+} from "./publication-workspace-api.ts";
 
 /**
  * Pieza de producto con foto propia, en post o historia (`ADR-033`).
@@ -338,6 +341,31 @@ async function csrfToken(apiBaseUrl: string): Promise<string | null> {
     : null;
 }
 
+/** El diseño como lo recibe la API: la foto viaja embebida, con su encuadre. */
+function designPayload(
+  document: DesignDocument,
+  media: DesignDocument["media"][number],
+  dataUrl: string,
+): Readonly<Record<string, unknown>> {
+  return {
+    content: document.content,
+    format: document.format,
+    layout: document.layout,
+    media: [
+      {
+        alt: media.alt,
+        dataUrl,
+        fit: media.fit,
+        focus: { x: media.focus.x, y: media.focus.y },
+        zoom: media.zoom,
+      },
+    ],
+    schemaVersion: document.schemaVersion,
+    slug: document.slug,
+    theme: document.theme,
+  };
+}
+
 /** La foto viaja embebida, igual que en las historias recurrentes. */
 export async function saveProductStoryDraft(
   apiBaseUrl: string,
@@ -361,23 +389,7 @@ export async function saveProductStoryDraft(
     const response = await fetch(new URL("publications", apiBaseUrl), {
       body: JSON.stringify({
         content: { caption: input.caption, products: [] },
-        design: {
-          content: input.document.content,
-          format: input.document.format,
-          layout: input.document.layout,
-          media: [
-            {
-              alt: media.alt,
-              dataUrl: media.reference.dataUrl,
-              fit: media.fit,
-              focus: { x: media.focus.x, y: media.focus.y },
-              zoom: media.zoom,
-            },
-          ],
-          schemaVersion: input.document.schemaVersion,
-          slug: input.document.slug,
-          theme: input.document.theme,
-        },
+        design: designPayload(input.document, media, media.reference.dataUrl),
         title: input.title,
       }),
       credentials: "include",
@@ -410,6 +422,219 @@ export async function saveProductStoryDraft(
     return {
       kind: "error",
       message: "La API no respondió. El borrador no fue confirmado.",
+    };
+  }
+}
+
+/** Una pieza de producto ya guardada, lista para seguir editándola. */
+export interface EditableProductPiece {
+  readonly draft: ProductStoryDraft;
+  readonly id: string;
+  readonly status: string;
+  readonly version: number;
+}
+
+function textOf(
+  content: Readonly<Record<string, unknown>>,
+  field: string,
+): string {
+  const value = content[field];
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Convierte la pieza guardada en el borrador del compositor (`P2-T11`).
+ *
+ * Es la inversa de `productStoryDocument`: el marco sale del layout, la marca
+ * del tema y lo callado de `hidden`. Una pieza que no sea de esta familia, o
+ * sin su foto embebida, no se abre acá.
+ */
+export function editableProductPiece(
+  value: unknown,
+): EditableProductPiece | null {
+  const publication = record(value);
+  const revision = record(publication?.["latestRevision"]);
+  const content = record(revision?.["content"]);
+  const parsed = parseDesignDocument(revision?.["designDocument"]);
+  if (
+    publication === null ||
+    content === null ||
+    !parsed.ok ||
+    typeof publication["id"] !== "string" ||
+    typeof publication["status"] !== "string" ||
+    typeof publication["version"] !== "number"
+  ) {
+    return null;
+  }
+  const { document } = parsed;
+  const frame = productStoryFrames.find(
+    (candidate) => candidate.layout === document.layout,
+  );
+  const format = productStoryFormats.find(
+    (candidate) => candidate.value === document.format,
+  );
+  const [media] = document.media;
+  if (
+    frame === undefined ||
+    format === undefined ||
+    media === undefined ||
+    media.reference.source !== "inline"
+  ) {
+    return null;
+  }
+  const piece = record(document.content) ?? {};
+  const hidden = document.content.hidden ?? [];
+  const priceMode: ProductStoryPriceMode =
+    document.content.price !== undefined
+      ? "amount"
+      : hidden.includes("price")
+        ? "none"
+        : "consult";
+  return {
+    draft: {
+      badge: textOf(piece, "badge"),
+      brand: document.theme === "lubricentro" ? "lubricentro" : "ferreteria",
+      callToAction:
+        document.content.callToAction ?? emptyProductStoryDraft.callToAction,
+      caption: typeof content["caption"] === "string" ? content["caption"] : "",
+      format: format.value,
+      frame: frame.value,
+      items: document.content.items ?? [],
+      photo: {
+        alt: media.alt,
+        dataUrl: media.reference.dataUrl,
+        focusX: media.focus.x,
+        focusY: media.focus.y,
+        zoom: Math.round(media.zoom * 100),
+      },
+      previousPrice: textOf(piece, "previousPrice"),
+      price: textOf(piece, "price"),
+      priceMode,
+      priceUnit: textOf(piece, "priceUnit"),
+      showButton: document.content.callToAction !== undefined,
+      showTitle: !hidden.includes("title"),
+      subtitle: textOf(piece, "subtitle"),
+      title: document.content.title,
+      validity: textOf(piece, "validity"),
+    },
+    id: publication["id"],
+    status: publication["status"],
+    version: publication["version"],
+  };
+}
+
+export type ProductPieceLoadResult =
+  | Readonly<{ kind: "error"; message: string }>
+  | Readonly<{ kind: "forbidden" }>
+  | Readonly<{ kind: "ready"; piece: EditableProductPiece }>;
+
+export async function loadProductPiece(
+  apiBaseUrl: string,
+  publicationId: string,
+): Promise<ProductPieceLoadResult> {
+  try {
+    const response = await fetch(
+      new URL(`publications/${publicationId}`, apiBaseUrl),
+      {
+        cache: "no-store",
+        credentials: "include",
+        headers: { accept: "application/json" },
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    const piece = response.ok
+      ? editableProductPiece(await payload(response))
+      : null;
+    return piece === null
+      ? {
+          kind: "error",
+          message: "Esta pieza no se puede abrir en el compositor de producto.",
+        }
+      : { kind: "ready", piece };
+  } catch {
+    return { kind: "error", message: "No se pudo cargar la pieza." };
+  }
+}
+
+/**
+ * Guarda la edición de una pieza de producto como revisión nueva.
+ *
+ * Si la pieza ya estaba en revisión, primero vuelve a borrador: su imagen era
+ * de la revisión anterior y la nueva pide otra. Una pieza aprobada no llega
+ * acá: el listado no ofrece editarla.
+ */
+export async function saveProductPieceEdit(
+  apiBaseUrl: string,
+  input: Readonly<{
+    caption: string;
+    document: DesignDocument;
+    piece: Pick<EditableProductPiece, "id" | "status" | "version">;
+    title: string;
+  }>,
+): Promise<ProductStorySaveResult> {
+  const [media] = input.document.media;
+  if (media === undefined || media.reference.source !== "inline") {
+    return {
+      kind: "error",
+      message: "La pieza necesita la foto del producto.",
+    };
+  }
+  let version = input.piece.version;
+  if (input.piece.status !== "draft") {
+    const reopened = await reopenPublication(
+      apiBaseUrl,
+      input.piece.id,
+      version,
+      crypto.randomUUID(),
+    );
+    if (reopened.kind !== "reopened") return reopened;
+    version = reopened.version;
+  }
+  try {
+    const csrf = await csrfToken(apiBaseUrl);
+    if (csrf === null) return { kind: "forbidden" };
+    const response = await fetch(
+      new URL(`publications/${input.piece.id}`, apiBaseUrl),
+      {
+        body: JSON.stringify({
+          content: { caption: input.caption, products: [] },
+          design: designPayload(input.document, media, media.reference.dataUrl),
+          expectedVersion: version,
+          title: input.title,
+        }),
+        credentials: "include",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "idempotency-key": crypto.randomUUID(),
+          "x-csrf-token": csrf,
+        },
+        method: "PATCH",
+      },
+    );
+    if (response.status === 401 || response.status === 403) {
+      return { kind: "forbidden" };
+    }
+    if (response.status === 413) {
+      return {
+        kind: "error",
+        message:
+          "La foto es demasiado pesada. Probá con otra o recortala antes de subirla.",
+      };
+    }
+    const publication = savedPublication(await payload(response));
+    return response.ok && publication !== null
+      ? { kind: "saved", publication }
+      : {
+          kind: "error",
+          message: "No se guardó la edición. Recargá la pieza y reintentá.",
+        };
+  } catch {
+    return {
+      kind: "error",
+      message: "La API no respondió. La edición no fue confirmada.",
     };
   }
 }

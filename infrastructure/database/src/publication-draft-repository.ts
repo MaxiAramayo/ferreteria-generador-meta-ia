@@ -746,6 +746,31 @@ async function findDetail(
   return mapDetail(detail);
 }
 
+/**
+ * Formato y marco de una revisión, para el listado.
+ *
+ * El documento se validó al escribirse; acá sólo se leen dos textos, y uno que
+ * falte no rompe el listado: la pieza se muestra sin miniatura ni destino
+ * sugerido.
+ */
+function designSummary(
+  designDocument: unknown,
+): Readonly<{ format?: string; layout?: string }> {
+  if (
+    typeof designDocument !== "object" ||
+    designDocument === null ||
+    Array.isArray(designDocument)
+  ) {
+    return {};
+  }
+  const format: unknown = Reflect.get(designDocument, "format");
+  const layout: unknown = Reflect.get(designDocument, "layout");
+  return {
+    ...(typeof format === "string" ? { format } : {}),
+    ...(typeof layout === "string" ? { layout } : {}),
+  };
+}
+
 export class PrismaPublicationDraftRepository implements PublicationDraftRepository {
   readonly #database: DatabaseClient;
 
@@ -869,8 +894,11 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
       items: Object.freeze(
         rows.map((row) => {
           const detail = mapDetail(row);
+          const design = designSummary(detail.latestRevision.designDocument);
+          const previewUrl = detail.latestRevision.renderedMedia?.secureUrl;
           return Object.freeze({
             ...detail.publication,
+            ...design,
             ...(detail.latestRevision.contentBriefRunId === undefined
               ? {}
               : {
@@ -880,6 +908,7 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
             latestContentHash: detail.latestRevision.contentHash,
             latestRevisionId: detail.latestRevision.id,
             latestRevisionNumber: detail.latestRevision.revisionNumber,
+            ...(previewUrl === undefined ? {} : { previewUrl }),
           });
         }),
       ),

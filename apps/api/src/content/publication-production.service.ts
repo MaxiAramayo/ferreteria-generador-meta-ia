@@ -2,6 +2,7 @@ import type {
   PublicationApprovalResponse,
   PublicationDeleteResponse,
   PublicationRenderRequestResponse,
+  PublicationReopenResponse,
 } from "@aramayo/contracts";
 import {
   authorizeActor,
@@ -80,6 +81,61 @@ export class PublicationProductionService {
       case "invalid-state":
         throw new ConflictException(
           "La publicación no admite render en su estado actual.",
+        );
+      case "not-found":
+        throw new NotFoundException("No se encontró la publicación.");
+    }
+  }
+
+  /**
+   * Volver a borrador una pieza en revisión para editarla (`P2-T11`).
+   *
+   * Requiere `content:edit`, igual que editar. No toca una pieza aprobada: ése
+   * es el camino de `edit_approved`, que conserva el snapshot.
+   */
+  async reopen(
+    actor: AuthenticatedActor,
+    publicationId: string,
+    expectedVersion: number,
+    idempotencyKey?: string,
+  ): Promise<PublicationReopenResponse> {
+    this.#require(actor, "content:edit");
+    const reliableOperation = this.#prepare(
+      actor,
+      "content.publication:reopen",
+      idempotencyKey,
+      { expectedVersion, publicationId },
+    );
+    const result = await this.#repository.reopenDraft({
+      actorMembershipId: actor.membershipId,
+      expectedVersion,
+      organizationId: actor.organizationId,
+      publicationId,
+      reliableOperation,
+    });
+    switch (result.status) {
+      case "reopened":
+        return Object.freeze({
+          publicationId: result.publicationId,
+          status: "draft",
+          version: result.version,
+        });
+      case "conflict":
+        throw new ConflictException(
+          "La publicación cambió. Recargá antes de editarla.",
+        );
+      case "idempotency-conflict":
+        throw new ConflictException(
+          "La clave idempotente ya fue usada con otra solicitud.",
+        );
+      case "in-progress":
+        throw new ConflictException({
+          message: "La misma solicitud todavía está en curso.",
+          retryAfter: result.retryAfter,
+        });
+      case "invalid-state":
+        throw new ConflictException(
+          "Sólo una pieza en revisión o con un fallo vuelve a borrador; una aprobada se edita por otro camino.",
         );
       case "not-found":
         throw new NotFoundException("No se encontró la publicación.");

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  editableProductPiece,
   emptyProductStoryDraft,
   frameShows,
   productFrameThumbnail,
@@ -255,4 +256,93 @@ test("guardar manda la foto embebida con su encuadre y un caption sin precio", a
   assert.equal(savedMedia.zoom, 1.2);
   // El precio vive en la pieza: el caption no lo repite.
   assert.doesNotMatch(body.content.caption, /\$/u);
+});
+
+test("una pieza guardada se abre en el compositor y vuelve a ser la misma", () => {
+  const original = productStoryDocument({
+    ...emptyProductStoryDraft,
+    badge: "Oferta",
+    brand: "lubricentro",
+    caption: "Consultanos por WhatsApp.",
+    format: "feed",
+    frame: "gondola-derecha",
+    items: ["1 1/4″", "1 1/2″"],
+    photo: { ...photo, focusX: 30, focusY: 70, zoom: 140 },
+    previousPrice: "$ 4.100",
+    price: "$ 3.200",
+    priceUnit: "el metro",
+    showTitle: false,
+    title: "Manguera corrugada",
+    validity: "Hasta el sábado",
+  });
+  assert.equal(original.kind, "ready");
+
+  const piece = editableProductPiece({
+    id: "904729f9-07a2-46aa-9342-7f17e4a953cd",
+    latestRevision: {
+      content: { caption: "Consultanos por WhatsApp.", products: [] },
+      designDocument: original.document,
+    },
+    status: "ready_for_review",
+    title: "Manguera corrugada",
+    version: 3,
+  });
+  assert.ok(piece);
+  assert.equal(piece.status, "ready_for_review");
+  assert.equal(piece.version, 3);
+  assert.equal(piece.draft.frame, "gondola-derecha");
+  assert.equal(piece.draft.brand, "lubricentro");
+  assert.equal(piece.draft.priceMode, "amount");
+  assert.equal(piece.draft.showTitle, false);
+
+  const reopened = productStoryDocument(piece.draft);
+  assert.equal(reopened.kind, "ready");
+  assert.deepEqual(reopened.document, original.document);
+});
+
+test("callar el precio y apagar el botón también vuelven al abrir la pieza", () => {
+  const original = productStoryDocument({
+    ...emptyProductStoryDraft,
+    photo,
+    priceMode: "none",
+    showButton: false,
+    title: "Tapas de PVC",
+  });
+  assert.equal(original.kind, "ready");
+  const piece = editableProductPiece({
+    id: "p-2",
+    latestRevision: {
+      content: { caption: "", products: [] },
+      designDocument: original.document,
+    },
+    status: "draft",
+    version: 1,
+  });
+  assert.ok(piece);
+  assert.equal(piece.draft.priceMode, "none");
+  assert.equal(piece.draft.showButton, false);
+  assert.equal(piece.draft.caption, "");
+});
+
+test("una pieza que no es de producto con foto propia no se abre acá", () => {
+  assert.equal(
+    editableProductPiece({
+      id: "p-3",
+      latestRevision: {
+        content: { caption: "Hola", products: [] },
+        designDocument: {
+          content: { title: "Consejo" },
+          format: "historia",
+          layout: "historia-tip",
+          media: [],
+          schemaVersion: 1,
+          slug: "consejo",
+          theme: "taller",
+        },
+      },
+      status: "draft",
+      version: 1,
+    }),
+    null,
+  );
 });

@@ -7,6 +7,7 @@ import type {
 import { useMemo, useState } from "react";
 
 import type { ScheduleRuleSubmission } from "../../../lib/publication-schedule-api";
+import { localDateText } from "../publicaciones/schedule-picker";
 
 interface RuleDraft {
   readonly effectiveFromLocalDate: string;
@@ -26,8 +27,12 @@ interface RuleDraft {
   readonly weekdays: readonly number[];
 }
 
+type ScheduleTarget = "facebook_page" | "instagram_feed" | "instagram_story";
+
 type ScheduleRuleFormProps =
   | Readonly<{
+      /** Dónde sale por defecto: lo decide el formato de la pieza. */
+      defaultTargets?: readonly ScheduleTarget[];
       kind: "create";
       onCreate: (rule: ScheduleRuleSubmission) => Promise<void>;
       pending: boolean;
@@ -65,9 +70,9 @@ const targetOptions: readonly Readonly<{
   label: string;
   value: RuleDraft["targets"][number];
 }>[] = Object.freeze([
-  { label: "Instagram feed", value: "instagram_feed" },
-  { label: "Instagram story", value: "instagram_story" },
-  { label: "Facebook Page", value: "facebook_page" },
+  { label: "Instagram · post", value: "instagram_feed" },
+  { label: "Instagram · historia", value: "instagram_story" },
+  { label: "Facebook", value: "facebook_page" },
 ]);
 
 function localDate(instant: string, timeZone: string): string {
@@ -82,12 +87,16 @@ function localDate(instant: string, timeZone: string): string {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function initialDraft(schedule?: PublicationScheduleResponse): RuleDraft {
+function initialDraft(
+  schedule?: PublicationScheduleResponse,
+  defaultTargets: readonly ScheduleTarget[] = ["instagram_feed"],
+): RuleDraft {
   if (schedule === undefined) {
-    const targets: RuleDraft["targets"] = ["instagram_feed"];
+    const targets: RuleDraft["targets"] = [...defaultTargets];
     const weekdays: RuleDraft["weekdays"] = [1];
     return Object.freeze({
-      effectiveFromLocalDate: "",
+      // Empieza hoy: casi siempre se programa algo de esta semana.
+      effectiveFromLocalDate: localDateText(new Date()),
       effectiveUntilLocalDate: "",
       gapPolicy: "skip",
       lateToleranceMinutes: "0",
@@ -206,12 +215,14 @@ function ruleKey(rule: ScheduleRuleSubmission): string {
 }
 
 function impactText(preview: PreviewPublicationScheduleUpdateResponse): string {
-  return `${String(preview.createdOccurrenceCount)} nuevas, ${String(preview.rescheduledOccurrenceCount)} reprogramadas, ${String(preview.cancelledOccurrenceCount)} retiradas y ${String(preview.frozenOccurrenceCount)} congeladas.`;
+  return `${String(preview.createdOccurrenceCount)} salidas nuevas, ${String(preview.rescheduledOccurrenceCount)} movidas, ${String(preview.cancelledOccurrenceCount)} que se retiran y ${String(preview.frozenOccurrenceCount)} que ya no se tocan.`;
 }
 
 export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
   const [draft, setDraft] = useState<RuleDraft>(() =>
-    initialDraft(props.kind === "move" ? props.initial : undefined),
+    props.kind === "move"
+      ? initialDraft(props.initial)
+      : initialDraft(undefined, props.defaultTargets),
   );
   const [previewKey, setPreviewKey] = useState<string | undefined>();
   const currentSubmission = useMemo(() => submission(draft), [draft]);
@@ -224,9 +235,7 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
     setPreviewKey(undefined);
     setDraft((current) => Object.freeze({ ...current, ...next }));
   };
-  const toggleTarget = (
-    target: "facebook_page" | "instagram_feed" | "instagram_story",
-  ): void => {
+  const toggleTarget = (target: ScheduleTarget): void => {
     const hasTarget = draft.targets.includes(target);
     update({
       targets: hasTarget
@@ -267,21 +276,13 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
       }}
     >
       <div>
-        <p className="workspace-eyebrow">
-          {props.kind === "create" ? "Nueva intención" : "Mover regla"}
-        </p>
-        <h2>
-          {props.kind === "create" ? "Definí el turno" : "Calculá el impacto"}
-        </h2>
-        <p>
-          La fecha civil, la hora y la zona IANA son la intención original. El
-          instante UTC se deriva al guardar.
-        </p>
+        <h2>{props.kind === "create" ? "¿Cuándo sale?" : "Mover la salida"}</h2>
+        <p>Guardar la programación no publica: la pieza sale a esa hora.</p>
       </div>
 
       <div className="schedule-rule-grid">
         <label>
-          Fecha local inicial
+          Día de salida
           <input
             onChange={(event) => {
               update({ effectiveFromLocalDate: event.target.value });
@@ -292,7 +293,7 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
           />
         </label>
         <label>
-          Hora local
+          Hora de salida
           <input
             onChange={(event) => {
               update({ localTime: event.target.value });
@@ -300,27 +301,6 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
             required
             type="time"
             value={draft.localTime}
-          />
-        </label>
-        <label>
-          Zona IANA
-          <input
-            onChange={(event) => {
-              update({ timeZone: event.target.value });
-            }}
-            required
-            value={draft.timeZone}
-          />
-        </label>
-        <label>
-          Vigencia final (opcional)
-          <input
-            disabled={draft.recurrenceKind === "once"}
-            onChange={(event) => {
-              update({ effectiveUntilLocalDate: event.target.value });
-            }}
-            type="date"
-            value={draft.effectiveUntilLocalDate}
           />
         </label>
       </div>
@@ -351,7 +331,11 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
 
       {draft.recurrenceKind !== "once" ? (
         <label className="schedule-rule-number">
-          Cada cuántas unidades
+          {draft.recurrenceKind === "daily"
+            ? "Cada cuántos días"
+            : draft.recurrenceKind === "weekly"
+              ? "Cada cuántas semanas"
+              : "Cada cuántos meses"}
           <input
             min="1"
             onChange={(event) => {
@@ -419,8 +403,21 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
         </div>
       ) : null}
 
+      {draft.recurrenceKind === "once" ? null : (
+        <label className="schedule-rule-number">
+          Hasta (opcional)
+          <input
+            onChange={(event) => {
+              update({ effectiveUntilLocalDate: event.target.value });
+            }}
+            type="date"
+            value={draft.effectiveUntilLocalDate}
+          />
+        </label>
+      )}
+
       <fieldset className="schedule-targets">
-        <legend>Destinos aprobados</legend>
+        <legend>Dónde sale</legend>
         {targetOptions.map(({ label, value }) => (
           <label key={value}>
             <input
@@ -435,43 +432,58 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
         ))}
       </fieldset>
 
-      <div className="schedule-rule-grid">
-        <label>
-          Atraso permitido (minutos)
-          <input
-            max="1440"
-            min="0"
-            onChange={(event) => {
-              update({ lateToleranceMinutes: event.target.value });
-            }}
-            required
-            type="number"
-            value={draft.lateToleranceMinutes}
-          />
-        </label>
-        <label>
-          Si llega tarde
-          <select
-            onChange={(event) => {
-              if (
-                event.target.value === "run-late" ||
-                event.target.value === "skip"
-              ) {
-                update({ missedPolicy: event.target.value });
-              }
-            }}
-            value={draft.missedPolicy}
-          >
-            <option value="skip">No publicar</option>
-            <option value="run-late">Publicar dentro de la tolerancia</option>
-          </select>
-        </label>
-      </div>
+      {/* Lo que casi nunca se toca queda plegado: la zona es la del local y
+          las políticas de atraso ya tienen un valor seguro. */}
+      <details className="schedule-advanced">
+        <summary>Opciones avanzadas</summary>
+        <div className="schedule-rule-grid">
+          <label>
+            Zona horaria
+            <input
+              onChange={(event) => {
+                update({ timeZone: event.target.value });
+              }}
+              required
+              value={draft.timeZone}
+            />
+          </label>
+          <label>
+            Atraso permitido (minutos)
+            <input
+              max="1440"
+              min="0"
+              onChange={(event) => {
+                update({ lateToleranceMinutes: event.target.value });
+              }}
+              required
+              type="number"
+              value={draft.lateToleranceMinutes}
+            />
+          </label>
+          <label>
+            Si llega tarde
+            <select
+              onChange={(event) => {
+                if (
+                  event.target.value === "run-late" ||
+                  event.target.value === "skip"
+                ) {
+                  update({ missedPolicy: event.target.value });
+                }
+              }}
+              value={draft.missedPolicy}
+            >
+              <option value="skip">No publicar</option>
+              <option value="run-late">Publicar dentro de la tolerancia</option>
+            </select>
+          </label>
+        </div>
+      </details>
 
       {props.kind === "move" && props.preview !== undefined ? (
         <p aria-live="polite" className="schedule-impact">
-          <strong>Impacto calculado:</strong> {impactText(props.preview)} Las
-          congeladas ya tienen despacho u orden y no se moverán.
+          <strong>Qué cambia:</strong> {impactText(props.preview)} Las que ya
+          salieron o están saliendo no se mueven.
         </p>
       ) : null}
 
@@ -483,7 +495,7 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
             onClick={() => void submitCreate()}
             type="button"
           >
-            Crear programación
+            Programar salida
           </button>
         ) : (
           <>
@@ -493,7 +505,7 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
               onClick={() => void calculateImpact()}
               type="button"
             >
-              Calcular impacto
+              Ver qué cambia
             </button>
             <button
               className="workspace-primary-action"
@@ -507,10 +519,10 @@ export function ScheduleRuleForm(props: ScheduleRuleFormProps) {
         )}
         <span>
           {props.pending
-            ? "Procesando acción…"
+            ? "Guardando…"
             : props.kind === "move" && !canConfirmMove
-              ? "Primero calculá el impacto de esta versión."
-              : "No publica ni despacha esta acción."}
+              ? "Primero mirá qué cambia."
+              : "Guardar no publica nada."}
         </span>
       </div>
     </form>

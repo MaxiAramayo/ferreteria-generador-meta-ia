@@ -82,13 +82,19 @@ export interface PublicationSummaryResponse {
     readonly retryable: boolean;
     readonly safeMessage: string;
   }>;
+  /** Formato de la última revisión (`feed`, `historia`…). */
+  readonly format?: string;
   readonly id: string;
   /** Ejecución del brief que originó la última revisión, si la hubo. */
   readonly latestContentBriefRunId?: string;
   readonly latestContentHash: string;
   readonly latestRevisionId: string;
   readonly latestRevisionNumber: number;
+  /** Marco de la última revisión: decide con qué compositor se edita. */
+  readonly layout?: string;
   readonly locationId?: string;
+  /** Imagen de la última revisión, cuando ya se renderizó. */
+  readonly previewUrl?: string;
   readonly status: PublicationStatusResponse;
   readonly title: string;
   readonly updatedAt: string;
@@ -131,6 +137,13 @@ export interface PublicationApprovalResponse {
   readonly publicationId: string;
   readonly snapshotId: string;
   readonly status: "approved" | "scheduled";
+  readonly version: number;
+}
+
+/** Una pieza que volvió a borrador para editarse. */
+export interface PublicationReopenResponse {
+  readonly publicationId: string;
+  readonly status: "draft";
   readonly version: number;
 }
 

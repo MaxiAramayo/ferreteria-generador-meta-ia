@@ -122,7 +122,7 @@ test("las tarjetas cuentan en singular y plural y marcan qué pide atención", (
       ticket.tone,
     ]),
     [
-      ["readyForReview", "3", "piezas por aprobar", "attention"],
+      ["readyForReview", "3", "listas para salir", "attention"],
       ["drafts", "1", "borrador", "attention"],
       ["needsAttention", "2", "piezas con problemas", "urgent"],
       ["approved", "0", "aprobadas sin programar", "calm"],

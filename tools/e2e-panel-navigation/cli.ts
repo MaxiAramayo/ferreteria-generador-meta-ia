@@ -62,7 +62,7 @@ const startupTimeoutMs = 90_000;
 const uiTimeoutMs = 20_000;
 const desktop = Object.freeze({ height: 900, width: 1280 });
 const phone = Object.freeze({ height: 844, width: 390 });
-const todayHeading = "Lo que hay que mover hoy.";
+const todayHeading = "Hoy";
 /** Marcos que ofrece el compositor de producto (`ADR-033`). */
 const productFrameCount = 7;
 
@@ -152,7 +152,9 @@ function collectPageErrors(page: Page): () => readonly string[] {
 
 async function waitForHeading(page: Page, name: string): Promise<void> {
   try {
-    await page.getByRole("heading", { name }).waitFor({ timeout: uiTimeoutMs });
+    await page
+      .getByRole("heading", { exact: true, name })
+      .waitFor({ timeout: uiTimeoutMs });
   } catch (cause) {
     const visible = await page.locator("body").innerText();
     throw new Error(
@@ -332,7 +334,11 @@ async function main(): Promise<void> {
     await editorPage
       .getByText("No hay salidas en los próximos 14 días.")
       .waitFor({ timeout: uiTimeoutMs });
-    await editorPage.getByRole("link", { name: "Crear pieza" }).waitFor();
+    // «Crear pieza» está en la barra y en los atajos de «Hoy»: se usa la barra.
+    const createLink = editorPage
+      .getByRole("banner")
+      .getByRole("link", { name: "Crear pieza" });
+    await createLink.waitFor();
     await editorPage.screenshot({
       fullPage: true,
       path: `${outputDirectory}/inicio-editora.png`,
@@ -342,11 +348,11 @@ async function main(): Promise<void> {
     );
 
     // --- Crear pieza: cada flujo en su dirección ---
-    await editorPage.getByRole("link", { name: "Crear pieza" }).click();
+    await createLink.click();
     await editorPage.waitForURL(`${webBaseUrl}/publicaciones/nueva`, {
       waitUntil: "commit",
     });
-    await waitForHeading(editorPage, "¿Qué querés publicar?");
+    await waitForHeading(editorPage, "Crear pieza");
     await editorPage.screenshot({
       fullPage: true,
       path: `${outputDirectory}/crear-pieza.png`,
@@ -356,7 +362,9 @@ async function main(): Promise<void> {
     });
     // El nombre del flujo es el rótulo fuerte; debajo va su explicación.
     const currentFlow = flows.locator('a[aria-current="page"] strong');
-    assert.equal(await currentFlow.textContent(), "Plantilla");
+    // «Crear» abre en Producto; plantilla y creatividad IA están en «Más».
+    assert.equal(await currentFlow.textContent(), "Producto");
+    await flows.locator(".composer-variants-more summary").click();
     await flows.getByRole("link", { name: "Creatividad IA" }).click();
     await editorPage.waitForURL(
       `${webBaseUrl}/publicaciones/nueva?flujo=creatividad-ia`,
@@ -366,7 +374,7 @@ async function main(): Promise<void> {
       .getByRole("region", { name: "Compositor de creatividad con IA" })
       .waitFor({ timeout: uiTimeoutMs });
     await editorPage.reload({ waitUntil: "load" });
-    await waitForHeading(editorPage, "¿Qué querés publicar?");
+    await waitForHeading(editorPage, "Crear pieza");
     assert.equal(await currentFlow.textContent(), "Creatividad IA");
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
 
@@ -447,7 +455,7 @@ async function main(): Promise<void> {
     // API tiene que aceptarla. Con el límite por defecto de 100 KB, este paso
     // termina en 413 y el borrador no existe.
     await editorPage
-      .getByLabel("Texto que acompaña")
+      .getByLabel("Texto del post (opcional)")
       .fill("Pasá por el local y probátelos.");
     // Lo que respondió la API, para que un rechazo se lea en el fallo y no
     // haya que adivinarlo desde el aviso del panel.
@@ -469,7 +477,7 @@ async function main(): Promise<void> {
           saveOutcome = `${String(response.status())} (sin cuerpo)`;
         });
     });
-    await editorPage.getByRole("button", { name: "Guardar borrador" }).click();
+    await editorPage.getByRole("button", { name: "Continuar" }).click();
     // Guardar termina en la pieza: el panel navega solo. Si no navega, el
     // aviso del compositor dice por qué, en vez de dejar un timeout mudo.
     const productNotice = editorPage
@@ -486,19 +494,22 @@ async function main(): Promise<void> {
         cause instanceof Error ? { cause } : undefined,
       );
     }
-    await waitForHeading(
-      editorPage,
-      "De la idea al borrador, sin saltos ocultos.",
-    );
+    await waitForHeading(editorPage, "Publicaciones");
     reportCheck("guardar el producto lleva a la pieza, con su foto embebida");
 
     // El PNG se pide solo al llegar: sin esto habría que pedirlo a mano,
     // esperar y abrirlo, que es justo el ir y venir que se quería sacar.
     await editorPage
-      .getByText("PNG pedido. El estado se actualiza solo cuando esté listo.")
+      .getByText("Preparando la imagen. Se abre sola cuando esté lista.")
       .waitFor({ timeout: uiTimeoutMs });
+    // La hoja «¿Cuándo sale?» se abre sola, mientras se prepara la imagen:
+    // no hay que buscar la pieza ni abrirla (`ADR-034`).
+    await editorPage
+      .getByText("Preparando la imagen final…")
+      .waitFor({ timeout: uiTimeoutMs });
+    await editorPage.keyboard.press("Escape");
     reportCheck(
-      "al llegar a la pieza el panel pide el PNG sin que se lo pidan",
+      "al guardar, la pieza prepara su imagen sola y abre «¿Cuándo sale?»",
     );
 
     assert.equal((await navigation(editorPage)).current, "Publicaciones");
@@ -516,6 +527,9 @@ async function main(): Promise<void> {
       .locator(".publication-list li")
       .filter({ hasText: "Guantes de trabajo" });
     await productRow.first().waitFor({ timeout: uiTimeoutMs });
+    // Eliminar vive en «⋯»: no es la acción que sigue, y tirar trabajo no
+    // puede quedar al alcance de un toque suelto.
+    await productRow.first().locator(".publication-more summary").click();
     await productRow.first().getByRole("button", { name: "Eliminar" }).click();
     // Sin confirmar no pasa nada: tirar trabajo no es un clic suelto.
     await editorPage.getByRole("button", { name: "No" }).click();
@@ -524,6 +538,9 @@ async function main(): Promise<void> {
       1,
       "Cancelar la confirmación no debe eliminar la pieza.",
     );
+    // Eliminar vive en «⋯»: no es la acción que sigue, y tirar trabajo no
+    // puede quedar al alcance de un toque suelto.
+    await productRow.first().locator(".publication-more summary").click();
     await productRow.first().getByRole("button", { name: "Eliminar" }).click();
     const deleted = editorPage.waitForResponse((response) =>
       response.url().endsWith("/delete"),
@@ -561,13 +578,13 @@ async function main(): Promise<void> {
     await editorPage.waitForURL(`${webBaseUrl}/programacion`, {
       waitUntil: "commit",
     });
-    await waitForHeading(editorPage, "Cada salida con su turno visible.");
+    await waitForHeading(editorPage, "Programación");
     assert.equal((await navigation(editorPage)).current, "Programación");
     await editorBar.getByRole("link", { name: "Configuración" }).click();
     await editorPage.waitForURL(`${webBaseUrl}/configuracion`, {
       waitUntil: "commit",
     });
-    await waitForHeading(editorPage, "Configuración operativa");
+    await waitForHeading(editorPage, "Configuración");
     assert.equal((await navigation(editorPage)).current, "Configuración");
     await editorPage.screenshot({
       path: `${outputDirectory}/configuracion-con-barra.png`,
@@ -576,10 +593,7 @@ async function main(): Promise<void> {
     await editorPage.waitForURL(`${webBaseUrl}/publicaciones`, {
       waitUntil: "commit",
     });
-    await waitForHeading(
-      editorPage,
-      "De la idea al borrador, sin saltos ocultos.",
-    );
+    await waitForHeading(editorPage, "Publicaciones");
     reportCheck(
       "desde Configuración la barra sigue ahí y lleva a las otras secciones",
     );
@@ -626,9 +640,10 @@ async function main(): Promise<void> {
       "Programación",
       "Configuración",
     ]);
+    // Lo que pide algo va primero; lo que está al día, después.
     assert.deepEqual(await ticketFigures(schedulerPage), [
-      "0 piezas por aprobar",
       "1 aprobada sin programar",
+      "0 listas para salir",
     ]);
     await schedulerPage
       .locator(".today-ticket")
@@ -638,7 +653,7 @@ async function main(): Promise<void> {
     await schedulerPage.waitForURL(`${webBaseUrl}/programacion`, {
       waitUntil: "commit",
     });
-    await waitForHeading(schedulerPage, "Cada salida con su turno visible.");
+    await waitForHeading(schedulerPage, "Programación");
     reportCheck(
       "quien aprueba ve lo aprobado sin programar y la tarjeta lo lleva a Programación",
     );
@@ -708,7 +723,7 @@ async function main(): Promise<void> {
     await publisherPage.waitForURL(`${webBaseUrl}/operacion`, {
       waitUntil: "commit",
     });
-    await waitForHeading(publisherPage, "Lo que necesita una decisión.");
+    await waitForHeading(publisherPage, "Operación");
     reportCheck(
       "quien publica ve Operación y si la conexión está lista antes de publicar",
     );
@@ -738,14 +753,20 @@ async function main(): Promise<void> {
     await phonePage.screenshot({
       path: `${outputDirectory}/inicio-celular.png`,
     });
-    // Entrando directo a la última sección, la barra la deja a la vista sola.
+    // En el celular la barra va abajo, al alcance del pulgar, y marca dónde se
+    // está: Configuración vive en «Más», que queda marcado.
     await phonePage.goto(`${webBaseUrl}/configuracion`, { waitUntil: "load" });
-    await waitForHeading(phonePage, "Configuración operativa");
+    await waitForHeading(phonePage, "Configuración");
     const barBox = await phoneBar.boundingBox();
     const currentBox = await phoneBar
-      .locator('a[aria-current="page"]')
+      .locator('[aria-current="page"]')
+      .first()
       .boundingBox();
     assert.ok(barBox !== null && currentBox !== null, "La barra no se dibujó.");
+    assert.ok(
+      Math.abs(barBox.y + barBox.height - phone.height) <= 1,
+      "La barra del celular no quedó pegada abajo.",
+    );
     assert.ok(
       currentBox.x >= barBox.x &&
         currentBox.x + currentBox.width <= barBox.x + barBox.width + 1,

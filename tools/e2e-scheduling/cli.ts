@@ -136,10 +136,10 @@ async function calendarPage(
   });
   await page.goto(`${input.webBaseUrl}/programacion`, { waitUntil: "load" });
   await page
-    .getByRole("heading", { name: "Cada salida con su turno visible." })
+    .getByRole("heading", { name: "Programación", exact: true })
     .waitFor({ timeout: startupTimeoutMs });
   await page
-    .getByRole("button", { name: "Programar pieza aprobada" })
+    .getByRole("button", { name: "Programar una pieza" })
     .waitFor({ timeout: startupTimeoutMs });
   return page;
 }
@@ -250,7 +250,7 @@ async function main(): Promise<void> {
     // El primer flujo usa teclado: el control adquiere foco y Enter abre el
     // formulario sin depender de un click de mouse.
     const createButton = page.getByRole("button", {
-      name: "Programar pieza aprobada",
+      name: "Programar una pieza",
     });
     await createButton.focus();
     assert.equal(
@@ -261,17 +261,17 @@ async function main(): Promise<void> {
       "El control de crear debe poder recibir foco.",
     );
     await page.keyboard.press("Enter");
-    await page.getByRole("heading", { name: "Definí el turno" }).waitFor({
+    await page.getByRole("heading", { name: "¿Cuándo sale?" }).waitFor({
       timeout: startupTimeoutMs,
     });
 
     const initialDate = localDateAfter(2);
-    await page.getByLabel("Fecha local inicial").fill(initialDate);
-    await page.getByLabel("Hora local").fill("09:00");
-    await page.getByRole("button", { name: "Crear programación" }).click();
+    await page.getByLabel("Día de salida").fill(initialDate);
+    await page.getByLabel("Hora de salida").fill("09:00");
+    await page.getByRole("button", { name: "Programar salida" }).click();
     try {
       await page
-        .getByText("Programación creada con", { exact: false })
+        .getByText("Quedó programada", { exact: false })
         .waitFor({ timeout: startupTimeoutMs });
     } catch (cause: unknown) {
       throw new Error(
@@ -304,17 +304,17 @@ async function main(): Promise<void> {
       );
 
       await selectOccurrence(page);
-      await page.getByRole("button", { name: "Mover regla" }).click();
+      await page.getByRole("button", { name: "Mover", exact: true }).click();
       await page
-        .getByRole("heading", { name: "Calculá el impacto" })
+        .getByRole("heading", { name: "Mover la salida" })
         .waitFor({ timeout: startupTimeoutMs });
       const movedDate = localDateAfter(3);
-      await page.getByLabel("Fecha local inicial").fill(movedDate);
-      await page.getByLabel("Hora local").fill("10:30");
-      await page.getByRole("button", { name: "Calcular impacto" }).click();
+      await page.getByLabel("Día de salida").fill(movedDate);
+      await page.getByLabel("Hora de salida").fill("10:30");
+      await page.getByRole("button", { name: "Ver qué cambia" }).click();
       try {
         await page
-          .getByText("Impacto calculado:", { exact: false })
+          .getByText("Qué cambia:", { exact: false })
           .waitFor({ timeout: 15_000 });
       } catch (cause: unknown) {
         throw new Error(
@@ -323,7 +323,7 @@ async function main(): Promise<void> {
         );
       }
       await page.getByRole("button", { name: "Confirmar cambio" }).click();
-      await page.getByText("Regla actualizada:", { exact: false }).waitFor({
+      await page.getByText("Cambio guardado:", { exact: false }).waitFor({
         timeout: startupTimeoutMs,
       });
       const movedSchedule =
@@ -388,6 +388,10 @@ async function main(): Promise<void> {
         viewport: { height: 844, width: 390 },
         webBaseUrl,
       });
+      // A fin de mes la salida movida cae en el mes siguiente.
+      if (movedDate.slice(0, 7) !== localDateAfter(0).slice(0, 7)) {
+        await mobilePage.getByRole("button", { name: "Mes siguiente" }).click();
+      }
       const mobileEvent = publicationOccurrence(mobilePage);
       await mobileEvent.waitFor({ timeout: startupTimeoutMs });
       const mobileEventText = await mobileEvent.innerText();
@@ -418,7 +422,7 @@ async function main(): Promise<void> {
       );
 
       await selectOccurrence(page);
-      await page.getByRole("button", { name: "Cancelar regla" }).click();
+      await page.getByRole("button", { name: "Cancelar salida" }).click();
       await page
         .getByText("Programación cancelada.", { exact: false })
         .waitFor({

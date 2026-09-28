@@ -47,9 +47,10 @@ function normalizedBoundedText(
   field: string,
   maximum: number,
   code: "caption-invalid" | "product-label-invalid",
+  minimum = 1,
 ): string {
   const normalized = text.trim();
-  if (normalized.length < 1 || normalized.length > maximum) {
+  if (normalized.length < minimum || normalized.length > maximum) {
     throw new PublicationDraftValidationError(
       code,
       field,
@@ -105,11 +106,15 @@ export function normalizePublicationDraftContent(
   });
 
   return Object.freeze({
+    // El texto puede quedar vacío (`P2-T11`): una historia no lo publica, y un
+    // post sin texto es válido en Instagram. Facebook sí lo exige, y lo dice al
+    // validar antes de publicar.
     caption: normalizedBoundedText(
       content.caption,
       "caption",
       publicationDraftLimits.captionMaximum,
       "caption-invalid",
+      0,
     ),
     products: Object.freeze(products),
   });
@@ -170,11 +175,17 @@ export interface PublicationDraftDetailRecord {
 }
 
 export interface PublicationDraftListItemRecord extends PublicationRecord {
+  /** Formato de la última revisión: decide el destino y la miniatura. */
+  readonly format?: string;
   /** Permite llegar desde el listado hasta la ejecución que generó la pieza. */
   readonly latestContentBriefRunId?: string;
   readonly latestContentHash: string;
   readonly latestRevisionId: string;
   readonly latestRevisionNumber: number;
+  /** Marco de la última revisión: decide con qué compositor se edita. */
+  readonly layout?: string;
+  /** Imagen de la última revisión, si ya se renderizó. */
+  readonly previewUrl?: string;
 }
 
 export interface PaginatedRecords<RecordType> {

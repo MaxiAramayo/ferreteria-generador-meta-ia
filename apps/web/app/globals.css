@@ -353,29 +353,40 @@ a {
 
 /* Acceso al panel interno. */
 
+/* El login es la puerta del panel: lleva el papel y el rojo de la marca, no
+ * el gris del arranque (P2-T11). */
 .login-shell {
   align-items: center;
-  background:
-    linear-gradient(135deg, rgb(230 59 30 / 10%), transparent 42%),
-    var(--surface-muted);
+  background: linear-gradient(90deg, #e63b1e 0 0.4rem, transparent 0), #f6f1ea;
+  color: #1c1a19;
+  color-scheme: light;
   display: flex;
+  font-family: "Archivo", system-ui, sans-serif;
+  max-width: none;
   min-height: 100vh;
-  padding-block: 2rem;
+  padding: 2rem 1.25rem;
 }
 
 .login-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  box-shadow: 0 1.5rem 4rem rgb(22 24 29 / 10%);
+  background: #ffffff;
+  border: 2px solid #1c1a19;
+  box-shadow: 0.5rem 0.5rem 0 #1c1a19;
   margin: 0 auto;
-  max-width: 28rem;
-  padding: clamp(1.5rem, 5vw, 2.5rem);
+  max-width: 26rem;
+  padding: clamp(1.5rem, 5vw, 2.25rem);
   width: 100%;
 }
 
+.login-card h1 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
 .login-eyebrow {
-  color: var(--state-error);
+  color: #b62a12;
   font-family: "Saira Condensed", system-ui, sans-serif;
   font-size: 0.875rem;
   font-weight: 800;
@@ -386,7 +397,7 @@ a {
 
 .login-intro,
 .login-back {
-  color: var(--text-muted);
+  color: #6e6a66;
 }
 
 .login-form {
@@ -402,21 +413,26 @@ a {
 }
 
 .login-form input {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.375rem;
-  color: var(--text);
+  background: #ffffff;
+  border: 1px solid #1c1a19;
+  border-radius: 0;
+  color: #1c1a19;
   font: inherit;
-  min-height: 2.75rem;
+  font-size: 1rem;
+  min-height: 2.9rem;
   padding: 0.625rem 0.75rem;
   width: 100%;
 }
 
 .login-form button {
-  background: var(--text);
+  background: #b62a12;
   border: 0;
-  border-radius: 0.375rem;
-  color: var(--surface);
+  border-radius: 0;
+  box-shadow: 0.25rem 0.25rem 0 #1c1a19;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  min-height: 3rem;
+  text-transform: uppercase;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
@@ -530,31 +546,38 @@ a {
   border-bottom: 0.2rem solid var(--workspace-rust);
 }
 
+/* Cada pantalla abre con su nombre y lo que se hace ahí, en una línea: la
+ * primera pantalla del celular es para trabajar, no para un titular. */
 .workspace-intro {
   align-items: end;
-  border-bottom: 0.25rem solid var(--workspace-ink);
-  display: grid;
-  gap: clamp(2rem, 8vw, 8rem);
-  grid-template-columns: minmax(0, 1.35fr) minmax(17rem, 0.65fr);
-  padding: clamp(3rem, 8vw, 6.5rem) 0 2rem;
+  border-bottom: 2px solid var(--workspace-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 2rem;
+  justify-content: space-between;
+  padding: clamp(1.25rem, 3vw, 2.25rem) 0 0.9rem;
 }
 
 .workspace-intro h1,
 .workspace-status h1 {
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
-  font-size: clamp(3.6rem, 8vw, 7.5rem);
+  font-size: clamp(2.1rem, 4.5vw, 3rem);
   font-weight: 900;
-  letter-spacing: -0.045em;
-  line-height: 0.78;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
   margin: 0;
-  max-width: 10ch;
   text-transform: uppercase;
 }
 
 .workspace-intro > p {
-  font-size: 1.05rem;
+  color: var(--workspace-muted);
+  font-size: 0.95rem;
   margin: 0;
-  max-width: 30rem;
+  max-width: 34rem;
+}
+
+.workspace-intro .workspace-eyebrow {
+  margin-bottom: 0.3rem;
 }
 
 .workspace-eyebrow {
@@ -569,6 +592,10 @@ a {
 .publication-board,
 .composer-section {
   padding-top: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.publication-board {
+  padding-top: 1.25rem;
 }
 
 .workspace-section-heading {
@@ -586,10 +613,10 @@ a {
 .recurring-story-form h2,
 .recurring-story-state h2 {
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
-  font-size: clamp(2.2rem, 4vw, 3.75rem);
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
   font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 0.9;
+  letter-spacing: -0.01em;
+  line-height: 0.95;
   margin: 0;
   text-transform: uppercase;
 }
@@ -609,61 +636,106 @@ a {
   padding: 0;
 }
 
-.publication-list li {
-  align-items: stretch;
+/* Cada pieza es una tarjeta: la imagen se reconoce antes que el título, y la
+ * acción que sigue está a un toque (P2-T11). */
+.publication-card {
+  align-items: start;
   border-bottom: 1px solid
-    color-mix(in srgb, var(--workspace-ink) 24%, transparent);
+    color-mix(in srgb, var(--workspace-ink) 22%, transparent);
   display: grid;
-  grid-template-columns: 10rem minmax(0, 1fr) auto;
-  min-height: 5.25rem;
+  gap: 0.9rem;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  padding: 0.9rem 0;
 }
 
-.publication-state-rail {
+.publication-thumb {
   align-items: center;
-  border-left: 0.55rem solid var(--workspace-safety);
-  display: flex;
-  padding: 0 1rem;
-}
-
-.publication-state-rail[data-status="draft"] {
-  border-left-color: var(--workspace-rust);
-}
-
-.publication-state-rail[data-status="approved"],
-.publication-state-rail[data-status="published"] {
-  border-left-color: var(--workspace-ink);
-}
-
-.publication-state-rail span,
-.publication-row-main span,
-.publication-list time {
+  aspect-ratio: 9 / 16;
+  background: var(--workspace-cream);
+  border: 1px solid var(--workspace-ink);
   color: var(--workspace-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
+  display: flex;
+  font-size: 0.68rem;
+  font-weight: 800;
+  justify-content: center;
+  overflow: hidden;
+  text-align: center;
   text-transform: uppercase;
 }
 
-.publication-row-main {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0.9rem 1rem;
+.publication-thumb[data-format="feed"] {
+  aspect-ratio: 4 / 5;
 }
 
-.publication-row-main strong {
+.publication-thumb[data-format="cuadrado"] {
+  aspect-ratio: 1;
+}
+
+.publication-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.publication-card-body {
+  display: grid;
+  gap: 0.3rem;
+  justify-items: start;
+  min-width: 0;
+  position: relative;
+}
+
+.publication-card-title {
   font-size: 1.05rem;
-  margin-bottom: 0.25rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.publication-row-main .publication-failure {
+.publication-card-meta {
+  color: var(--workspace-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* El estado es una etiqueta de color, no una columna que come el ancho. */
+.publication-status {
+  background: var(--workspace-safety);
+  color: var(--workspace-ink);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.45rem;
+  text-transform: uppercase;
+}
+
+.publication-status[data-status="draft"] {
+  background: var(--workspace-cream);
+}
+
+.publication-status[data-status="approved"],
+.publication-status[data-status="scheduled"] {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.publication-status[data-status="published"] {
+  background: var(--workspace-verde);
+  color: #ffffff;
+}
+
+.publication-status[data-status="generation_failed"],
+.publication-status[data-status="validation_failed"],
+.publication-status[data-status="publish_failed"],
+.publication-status[data-status="missing_information"] {
+  background: var(--workspace-rust-deep);
+  color: #ffffff;
+}
+
+.publication-card .publication-failure {
   color: #a02a16;
+  font-size: 0.85rem;
   font-weight: 700;
-  max-width: 52rem;
-}
-
-.publication-list time {
-  align-self: center;
-  padding: 0 1rem;
 }
 
 .publication-empty,
@@ -745,43 +817,95 @@ a {
 
 .composer-variants {
   display: grid;
-  gap: 0.6rem;
-  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 1.1rem;
 }
 
 /* Los flujos son enlaces: cada uno tiene su dirección. */
-.composer-variants a {
+.composer-variants a,
+.composer-variants-more > summary {
   background: transparent;
   border: 2px solid var(--workspace-ink);
   color: var(--workspace-ink);
+  cursor: pointer;
   display: block;
+  list-style: none;
   min-height: 3rem;
-  padding: 0.8rem;
+  padding: 0.65rem 0.8rem;
   text-decoration: none;
 }
 
-.composer-variants a strong {
+.composer-variants-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.composer-variants a strong,
+.composer-variants-more > summary strong {
   display: block;
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
-.composer-variants a small {
+.composer-variants a small,
+.composer-variants-more > summary small {
   color: var(--workspace-muted);
   display: block;
-  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
 }
 
-.composer-variants a[aria-current="page"] small {
+.composer-variants a[aria-current="page"],
+.composer-variants-more > summary[aria-current="page"] {
+  background: var(--workspace-ink);
+  color: var(--workspace-paper);
+}
+
+.composer-variants a[aria-current="page"] small,
+.composer-variants-more > summary[aria-current="page"] small {
   color: var(--workspace-cream);
 }
 
-.composer-variants a[aria-current="page"] {
-  background: var(--workspace-ink);
-  color: var(--workspace-paper);
+.composer-variants-more {
+  position: relative;
+}
+
+.composer-variants-more > div {
+  background: #ffffff;
+  border: 2px solid var(--workspace-ink);
+  box-shadow: 0.3rem 0.3rem 0 var(--workspace-ink);
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  width: max(100%, 15rem);
+  z-index: 6;
+}
+
+@media (max-width: 48rem) {
+  .composer-variants a small,
+  .composer-variants-more > summary small {
+    display: none;
+  }
+
+  .composer-variants a,
+  .composer-variants-more > summary {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    padding: 0.5rem;
+    text-align: center;
+  }
+
+  .composer-variants a strong,
+  .composer-variants-more > summary strong {
+    font-size: 0.95rem;
+    line-height: 1.05;
+  }
 }
 
 .composer-workbench {
@@ -1430,10 +1554,6 @@ a {
 
 /* Planilla de despacho (P6-T06). */
 
-.scheduling-intro {
-  grid-template-columns: minmax(0, 1.05fr) minmax(17rem, 0.95fr);
-}
-
 .scheduling-toolbar {
   align-items: center;
   border-bottom: 1px solid var(--workspace-ink);
@@ -1447,10 +1567,6 @@ a {
  * La franja vertical no es decorativa: conserva la prioridad de cada señal al
  * recorrer la lista y evita que la urgencia dependa sólo de un color o icono.
  */
-
-.operational-intro {
-  grid-template-columns: minmax(0, 1.08fr) minmax(17rem, 0.92fr);
-}
 
 .operational-board {
   padding-top: clamp(2.5rem, 6vw, 4.5rem);
@@ -2282,13 +2398,8 @@ a {
     display: none;
   }
 
-  .workspace-intro,
   .composer-workbench {
     grid-template-columns: 1fr;
-  }
-
-  .workspace-intro {
-    gap: 1.5rem;
   }
 
   .operational-alert {
@@ -2304,18 +2415,6 @@ a {
     justify-content: flex-start;
     max-width: none;
   }
-
-  .composer-variants {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .publication-list li {
-    grid-template-columns: 7.5rem 1fr;
-  }
-
-  .publication-list time {
-    display: none;
-  }
 }
 
 @media (max-width: 34rem) {
@@ -2327,20 +2426,6 @@ a {
 
   .workspace-section-heading > span {
     align-self: flex-start;
-  }
-
-  .composer-variants {
-    grid-template-columns: 1fr;
-  }
-
-  .publication-list li {
-    grid-template-columns: 1fr;
-  }
-
-  .publication-state-rail {
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--workspace-ink) 20%, transparent);
-    min-height: 2.5rem;
   }
 }
 
@@ -2354,45 +2439,95 @@ a {
 }
 
 .publication-row-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-  grid-column: 1 / -1;
-  padding-left: 0.9rem;
+  margin-top: 0.35rem;
 }
 
-.publication-row-actions button {
+.publication-row-actions > button,
+.publication-row-actions > a,
+.publication-more > summary {
+  align-items: center;
   background: transparent;
   border: 1px solid var(--workspace-ink);
   color: var(--workspace-ink);
   cursor: pointer;
+  display: inline-flex;
   font:
-    700 0.78rem/1 "Archivo",
+    700 0.85rem/1 "Archivo",
     sans-serif;
-  padding: 0.55rem 0.7rem;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  text-decoration: none;
 }
 
-.publication-row-actions button:hover {
-  background: var(--workspace-ink);
-  color: var(--workspace-paper);
+/* La acción que sigue se ve primero: es la única llena. */
+.publication-row-actions > .publication-primary {
+  background: var(--workspace-rust-deep);
+  border-color: var(--workspace-rust-deep);
+  box-shadow: 0.16rem 0.16rem 0 var(--workspace-ink);
+  color: #ffffff;
 }
 
-/* Descartar es la acción que tira trabajo: se lee distinto del resto. */
-.publication-row-actions button.publication-discard {
-  border-color: color-mix(in srgb, var(--workspace-ink) 45%, transparent);
-  color: color-mix(in srgb, var(--workspace-ink) 70%, transparent);
+.publication-row-actions > .publication-primary:disabled {
+  background: var(--workspace-cream);
+  border-color: var(--workspace-cream);
+  box-shadow: none;
+  color: var(--workspace-muted);
+  cursor: progress;
 }
 
-.publication-row-actions button.publication-discard:hover {
-  background: var(--workspace-orange);
-  border-color: var(--workspace-orange);
-  color: var(--workspace-paper);
+/* El menú se ancla a la tarjeta y abre hacia la izquierda: aunque «⋯» baje de
+ * renglón, nunca se sale de la pantalla. */
+.publication-more {
+  position: static;
+}
+
+.publication-more > summary {
+  list-style: none;
+}
+
+.publication-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.publication-more > div {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.3rem 0.3rem 0 var(--workspace-ink);
+  display: grid;
+  min-width: 12rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 5;
+}
+
+.publication-more > div button,
+.publication-more > div a {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 14%, transparent);
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font:
+    700 0.92rem/1.2 "Archivo",
+    sans-serif;
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  text-align: left;
+}
+
+/* Eliminar es la acción que tira trabajo: se lee distinto del resto. */
+.publication-more > div button.publication-discard {
+  color: var(--workspace-rust-deep);
 }
 
 .publication-discard-confirm {
-  border: 2px solid var(--workspace-ink);
-  margin-top: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 0.25rem 0 0;
 }
 
 .publication-discard-confirm p {
@@ -2543,20 +2678,29 @@ a {
 }
 
 .publication-command-notice {
-  border-left: 4px solid var(--workspace-orange);
+  background: #ffffff;
+  border-left: 4px solid var(--workspace-rust);
+  font-weight: 600;
   margin: 1rem 0 0;
   padding: 0.65rem 0.8rem;
 }
 
 .publication-render-preview {
-  align-items: flex-start;
-  background: var(--workspace-ink);
-  color: var(--workspace-paper);
   display: grid;
-  gap: 0.75rem;
-  margin: 1.25rem 0 0;
-  max-width: 28rem;
-  padding: 0.75rem;
+  gap: 0.5rem;
+  justify-items: center;
+  margin: 0;
+}
+
+.publication-render-preview img {
+  border: 1px solid var(--workspace-ink);
+  max-height: 60vh;
+  width: auto;
+}
+
+.publication-render-preview figcaption {
+  color: var(--workspace-muted);
+  font-size: 0.85rem;
 }
 
 .recurring-draft-editor {
@@ -3587,10 +3731,6 @@ a {
   max-width: 100%;
 }
 
-.publication-render-preview figcaption {
-  font-size: 0.78rem;
-}
-
 /* Harness de primitivas del motor de diseño (P1-T03). */
 
 .previews {
@@ -3691,33 +3831,35 @@ a {
   color: var(--configuration-ink);
   min-height: 100vh;
   max-width: none;
-  padding: clamp(2rem, 6vw, 5rem) max(1.25rem, calc((100vw - 72rem) / 2));
+  padding: clamp(1.25rem, 3vw, 2.25rem) max(1.25rem, calc((100vw - 72rem) / 2))
+    clamp(2rem, 6vw, 5rem);
 }
 
 .configuration-hero {
-  align-items: start;
-  border-bottom: 0.25rem solid var(--configuration-ink);
+  align-items: end;
+  border-bottom: 2px solid var(--configuration-ink);
   display: flex;
   gap: 2rem;
   justify-content: space-between;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.9rem;
 }
 
 .configuration-hero h1,
 .configuration-status h1 {
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
-  font-size: clamp(3rem, 7vw, 5.75rem);
+  font-size: clamp(2.1rem, 4.5vw, 3rem);
   font-weight: 900;
-  letter-spacing: -0.025em;
-  line-height: 0.82;
-  margin: 0 0 1rem;
-  max-width: 10ch;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  margin: 0 0 0.4rem;
   text-transform: uppercase;
 }
 
 .configuration-hero p:not(.configuration-eyebrow) {
-  font-size: 1.0625rem;
+  color: var(--configuration-muted);
+  font-size: 0.95rem;
+  margin: 0;
   max-width: 41rem;
 }
 
@@ -5093,32 +5235,187 @@ html:has(.panel-shell) {
   margin: 0;
 }
 
+/* Crear está siempre a mano: arriba en la computadora, abajo en el celular. */
+.panel-create {
+  align-items: center;
+  align-self: center;
+  background: var(--workspace-rust-deep);
+  box-shadow: 0.2rem 0.2rem 0 var(--workspace-ink);
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.4rem;
+  letter-spacing: 0.04em;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.panel-bar {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+/* La barra de abajo sólo existe en el celular. */
+.panel-tabbar {
+  display: none;
+}
+
 @media (max-width: 48rem) {
   .panel-bar {
     gap: 0 1rem;
-    grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 0;
-    padding-top: 0.6rem;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 3.5rem;
   }
 
-  .panel-brand span {
+  .panel-brand span,
+  .panel-bar .panel-nav,
+  .panel-bar .panel-create,
+  .panel-bar .panel-account {
     display: none;
   }
 
-  .panel-nav {
-    gap: 1.35rem;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    margin: 0.35rem -1.25rem 0;
-    padding: 0 1.25rem;
+  .panel-content {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
   }
 
-  .panel-nav a {
-    padding: 0.55rem 0;
+  html:has(.panel-shell) {
+    scroll-padding-bottom: 6rem;
+    scroll-padding-top: 4.5rem;
   }
 
-  .panel-account summary strong {
-    max-width: 9rem;
+  .panel-tabbar {
+    align-items: stretch;
+    background: var(--workspace-paper);
+    border-top: 2px solid var(--workspace-ink);
+    bottom: 0;
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    left: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    position: fixed;
+    right: 0;
+    z-index: 35;
+  }
+
+  .panel-tabbar > a,
+  .panel-tabbar-more > summary {
+    align-items: center;
+    border-top: 0.22rem solid transparent;
+    color: var(--workspace-ink);
+    display: flex;
+    flex-direction: column;
+    font-size: 0.7rem;
+    font-weight: 800;
+    gap: 0.2rem;
+    justify-content: center;
+    min-height: 4rem;
+    padding: 0.35rem 0.15rem 0.45rem;
+    text-align: center;
+    text-decoration: none;
+  }
+
+  .panel-tabbar > a[aria-current="page"],
+  .panel-tabbar-more > summary[aria-current="page"] {
+    border-top-color: var(--workspace-rust);
+    color: var(--workspace-rust-deep);
+  }
+
+  .panel-tabbar > a > span,
+  .panel-tabbar-more > summary > span {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    line-height: 1.1;
+  }
+
+  /* El botón de crear sobresale de la barra, como el cartel del frente. */
+  .panel-tabbar > .panel-tabbar-create {
+    border-top: 0;
+    color: var(--workspace-ink);
+  }
+
+  .panel-tabbar-create svg {
+    background: var(--workspace-rust-deep);
+    border: 2px solid var(--workspace-ink);
+    box-shadow: 0.18rem 0.18rem 0 var(--workspace-ink);
+    box-sizing: content-box;
+    color: #ffffff;
+    margin-top: -1.35rem;
+    padding: 0.6rem;
+  }
+
+  .panel-tabbar-create[aria-current="page"] svg {
+    background: var(--workspace-ink);
+  }
+
+  .panel-tabbar-more {
+    display: flex;
+  }
+
+  .panel-tabbar-more > summary {
+    cursor: pointer;
+    flex: 1;
+    list-style: none;
+  }
+
+  .panel-tabbar-more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .panel-tabbar-sheet {
+    background: #ffffff;
+    border: 2px solid var(--workspace-ink);
+    bottom: calc(100% + 0.6rem);
+    box-shadow: 0.35rem 0.35rem 0 var(--workspace-ink);
+    display: grid;
+    left: 0.75rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    position: absolute;
+    right: 0.75rem;
+  }
+
+  .panel-tabbar-sheet .panel-account-identity {
+    padding: 0.9rem 1rem 0.75rem;
+  }
+
+  .panel-tabbar-sheet a,
+  .panel-tabbar-sheet button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid
+      color-mix(in srgb, var(--workspace-ink) 14%, transparent);
+    color: var(--workspace-ink);
+    display: flex;
+    font:
+      700 1rem/1.2 "Archivo",
+      system-ui,
+      sans-serif;
+    gap: 0.5rem;
+    min-height: 3.25rem;
+    padding: 0 1rem;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .panel-tabbar-sheet a[aria-current="page"] {
+    box-shadow: inset 0.3rem 0 0 var(--workspace-rust);
+  }
+
+  .panel-tabbar-sheet button {
+    color: var(--workspace-rust-deep);
+    cursor: pointer;
+  }
+
+  .panel-tabbar-sheet p[role="alert"] {
+    color: #a02a16;
+    margin: 0;
+    padding: 0 1rem 0.75rem;
   }
 }
 
@@ -5126,12 +5423,13 @@ html:has(.panel-shell) {
 
 .today-intro-aside {
   display: grid;
-  gap: 1.25rem;
+  gap: 0.75rem;
   justify-items: start;
 }
 
 .today-intro-aside > p {
-  font-size: 1.05rem;
+  color: var(--workspace-muted);
+  font-size: 0.95rem;
   margin: 0;
   max-width: 30rem;
 }
@@ -5149,7 +5447,7 @@ html:has(.panel-shell) {
 }
 
 .today-section {
-  padding-top: clamp(2.5rem, 6vw, 4.5rem);
+  padding-top: clamp(1.5rem, 4vw, 2.75rem);
 }
 
 .today-section-link {
@@ -5162,11 +5460,41 @@ html:has(.panel-shell) {
 
 .today-tickets {
   display: grid;
-  gap: 1.5rem;
+  gap: 0.9rem;
   grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   list-style: none;
   margin: 0;
-  padding: 0 0.45rem 0.45rem 0;
+  padding: 0 0.3rem 0.3rem 0;
+}
+
+/* Lo que está al día ocupa una línea: área, cifra y el enlace, nada más. */
+.today-ticket[data-tone="calm"][aria-busy="false"] {
+  align-items: baseline;
+  border-left-width: 1px;
+  box-shadow: none;
+  display: grid;
+  gap: 0.2rem 0.75rem;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) auto;
+  padding: 0.6rem 0.9rem;
+}
+
+.today-ticket[data-tone="calm"][aria-busy="false"] .today-ticket-figure strong {
+  font-size: 1.35rem;
+}
+
+.today-ticket[data-tone="calm"][aria-busy="false"] .today-ticket-detail {
+  display: none;
+}
+
+@media (max-width: 34rem) {
+  .today-ticket[data-tone="calm"][aria-busy="false"] {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .today-ticket[data-tone="calm"][aria-busy="false"] .today-ticket-link {
+    grid-column: 1 / -1;
+  }
 }
 
 .today-ticket {
@@ -5207,7 +5535,7 @@ html:has(.panel-shell) {
 
 .today-ticket-figure strong {
   font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
-  font-size: clamp(3.25rem, 6vw, 4.5rem);
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   letter-spacing: -0.03em;
@@ -5382,61 +5710,7 @@ html:has(.panel-shell) {
   text-transform: uppercase;
 }
 
-@media (max-width: 48rem) {
-  /* La fila se desliza: los bordes difuminados avisan que hay más secciones. */
-  .panel-nav {
-    mask-image: linear-gradient(
-      90deg,
-      transparent 0,
-      #000000 1.25rem,
-      #000000 calc(100% - 1.25rem),
-      transparent 100%
-    );
-    scroll-padding-inline: 1.25rem;
-  }
-}
-
 /* Publicaciones: listado y «Crear pieza». */
-
-.publications-subnav {
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
-  display: flex;
-  gap: 1.75rem;
-  margin-top: 1.5rem;
-}
-
-.publications-subnav a {
-  border-bottom: 0.22rem solid transparent;
-  color: var(--workspace-ink);
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 0.6rem 0;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.publications-subnav a[aria-current="page"] {
-  border-bottom-color: var(--workspace-rust);
-}
-
-.publication-row-actions a {
-  align-items: center;
-  border: 1px solid var(--workspace-ink);
-  color: var(--workspace-ink);
-  display: inline-flex;
-  font:
-    700 0.78rem/1 "Archivo",
-    sans-serif;
-  padding: 0.55rem 0.7rem;
-  text-decoration: none;
-}
-
-.publication-row-actions a:hover {
-  background: var(--workspace-ink);
-  color: var(--workspace-paper);
-}
 
 .publication-empty a,
 .publication-command-notice a {
@@ -5445,7 +5719,7 @@ html:has(.panel-shell) {
 }
 
 /* La pieza a la que llevó una alerta o un turno. */
-.publication-list li:target {
+.publication-card:target {
   background: color-mix(in srgb, var(--workspace-safety) 16%, transparent);
   box-shadow: inset 0.3rem 0 0 var(--workspace-safety);
 }
@@ -5458,4 +5732,527 @@ html:has(.panel-shell) {
   margin-bottom: 1rem;
   text-transform: uppercase;
   text-underline-offset: 0.25em;
+}
+
+/* Panel usable en el celular (P2-T11). */
+
+@media (max-width: 48rem) {
+  /* Con menos de 16 px, el iPhone agranda la página al tocar un campo. */
+  .panel-shell
+    .panel-content
+    input:not([type="checkbox"], [type="radio"], [type="range"]),
+  .panel-shell .panel-content select,
+  .panel-shell .panel-content textarea {
+    font-size: 1rem;
+  }
+
+  /* Ningún botón por debajo del tamaño de un dedo. */
+  .panel-shell .panel-content button,
+  .panel-shell .panel-content .workspace-primary-action,
+  .panel-shell .panel-content .workspace-secondary-action {
+    min-height: 2.75rem;
+  }
+}
+
+/* La hoja que se abre sobre la pieza: al centro en la computadora y desde
+ * abajo en el celular. */
+.publication-sheet {
+  background: var(--workspace-paper, #f6f1ea);
+  border: 2px solid #1c1a19;
+  box-shadow: 0.5rem 0.5rem 0 #1c1a19;
+  color: #1c1a19;
+  font-family: "Archivo", system-ui, sans-serif;
+  max-height: min(92vh, 60rem);
+  max-width: 40rem;
+  padding: 0;
+  width: calc(100% - 2rem);
+}
+
+.publication-sheet::backdrop {
+  background: rgb(28 26 25 / 55%);
+}
+
+.publication-sheet-body {
+  --workspace-ink: #1c1a19;
+  --workspace-muted: #6e6a66;
+  --workspace-paper: #f6f1ea;
+  --workspace-cream: #e7e2db;
+  --workspace-rust: #e63b1e;
+  --workspace-rust-deep: #b62a12;
+  --workspace-safety: #ffb200;
+  --workspace-verde: #1e7d3f;
+  --workspace-orange: #e63b1e;
+  display: grid;
+  gap: 1rem;
+  padding: 0 1.25rem 1.5rem;
+}
+
+.publication-sheet-header {
+  align-items: center;
+  background: var(--workspace-paper);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 20%, transparent);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin: 0 -1.25rem;
+  padding: 0.75rem 1.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.publication-sheet-header h2 {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.35rem;
+  line-height: 1.05;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.publication-sheet-header button {
+  background: transparent;
+  border: 1px solid var(--workspace-ink);
+  cursor: pointer;
+  flex: none;
+  font-size: 1.1rem;
+  height: 2.75rem;
+  width: 2.75rem;
+}
+
+.publication-sheet-note {
+  color: var(--workspace-muted);
+  margin: 0;
+}
+
+@media (max-width: 48rem) {
+  .publication-sheet {
+    border-bottom: 0;
+    border-inline: 0;
+    box-shadow: none;
+    margin: auto 0 0;
+    max-height: 92vh;
+    max-width: none;
+    padding-bottom: env(safe-area-inset-bottom);
+    width: 100%;
+  }
+
+  .publication-card {
+    gap: 0.75rem;
+    grid-template-columns: 4.25rem minmax(0, 1fr);
+  }
+
+  .publication-row-actions > button,
+  .publication-row-actions > a {
+    padding: 0 0.75rem;
+  }
+}
+
+/* Compositor de producto (P2-T11): en la computadora, la vista real queda fija
+ * a la derecha mientras se completa; en el celular aparece justo después de
+ * elegir el marco, y guardar queda a mano sobre la barra de abajo. */
+[data-variant="product-story"].composer-workbench {
+  display: block;
+}
+
+.product-composer-form .recurring-story-engine-preview {
+  margin: 0 auto;
+}
+
+.product-save-bar {
+  background: #ffffff;
+  border-top: 2px solid var(--workspace-ink);
+  bottom: 0;
+  margin: 0 calc(-1 * clamp(1rem, 4vw, 3rem));
+  padding: 0.75rem clamp(1rem, 4vw, 3rem);
+  position: sticky;
+  z-index: 4;
+}
+
+@media (min-width: 64rem) {
+  .product-composer-form {
+    align-items: start;
+    column-gap: 2.5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21rem;
+  }
+
+  .product-composer-form > * {
+    grid-column: 1;
+  }
+
+  .product-composer-form > .recurring-story-engine-preview {
+    grid-column: 2;
+    grid-row: 1 / span 12;
+    margin: 0;
+    position: sticky;
+    top: 6rem;
+  }
+}
+
+@media (max-width: 48rem) {
+  [data-variant="product-story"] .recurring-story-form {
+    padding: 1rem;
+  }
+
+  .product-save-bar {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    margin: 0 -1rem;
+    padding: 0.65rem 1rem;
+  }
+
+  .product-save-bar p {
+    display: none;
+  }
+
+  .product-save-bar .workspace-primary-action {
+    flex: 1;
+  }
+
+  .product-frame-gallery {
+    gap: 0.5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .product-frame-gallery .opening-layout-option {
+    gap: 0.35rem;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: 0;
+    padding: 0.35rem;
+  }
+
+  .product-frame-gallery .opening-layout-option small {
+    display: none;
+  }
+
+  .product-frame-gallery .opening-layout-option strong {
+    font-size: 0.74rem;
+    text-align: center;
+  }
+
+  .product-frame-thumb {
+    height: 12rem;
+    width: 6.75rem;
+  }
+
+  .product-frame-thumb[data-format="feed"] {
+    height: 8.4375rem;
+  }
+
+  .product-frame-thumb > [data-card] {
+    transform: scale(0.1);
+  }
+}
+
+/* Programación (P2-T11): lo que casi nunca se toca queda plegado, y en el
+ * celular el aviso de «tocá una salida» no ocupa una pantalla vacía. */
+.schedule-advanced {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  padding-top: 0.75rem;
+}
+
+.schedule-advanced > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-height: 2.75rem;
+  padding: 0.6rem 0;
+}
+
+.schedule-advanced[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 48rem) {
+  .schedule-detail:has(.schedule-detail-empty) {
+    display: none;
+  }
+}
+
+/* Configuración (P2-T11): lo avanzado queda plegado al final. */
+.configuration-advanced {
+  margin-bottom: 2.5rem;
+}
+
+.configuration-advanced > summary {
+  background: #ffffff;
+  border: 1px solid #d8d1c7;
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 3rem;
+  padding: 0.85rem 1rem;
+}
+
+.configuration-advanced[open] > summary {
+  margin-bottom: 1rem;
+}
+
+.product-caption-note {
+  background: var(--workspace-cream);
+  color: var(--workspace-ink);
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+}
+
+/* Hoja de salida: lo que va a salir y un solo botón (P2-T11, ADR-034). */
+.publication-release {
+  display: grid;
+  gap: 1rem;
+}
+
+.publication-release-preparing {
+  align-items: center;
+  animation: publication-release-pulse 1.4s ease-in-out infinite alternate;
+  aspect-ratio: 9 / 16;
+  background: var(--workspace-cream);
+  border: 1px dashed var(--workspace-ink);
+  display: flex;
+  justify-content: center;
+  justify-self: center;
+  max-height: 50vh;
+  padding: 1rem;
+  text-align: center;
+  width: min(100%, 16rem);
+}
+
+.publication-release-preparing[data-format="feed"] {
+  aspect-ratio: 4 / 5;
+}
+
+.publication-release-preparing span {
+  font-weight: 800;
+}
+
+@keyframes publication-release-pulse {
+  from {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .publication-release-preparing {
+    animation: none;
+  }
+}
+
+.publication-release-caption {
+  background: #ffffff;
+  border-left: 3px solid var(--workspace-ink);
+  font-size: 0.92rem;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  white-space: pre-line;
+}
+
+.publication-release-choice {
+  border: 0;
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+}
+
+.publication-release-choice > legend {
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  padding: 0;
+  text-transform: uppercase;
+}
+
+.publication-release .product-segmented {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+}
+
+.publication-release .product-segmented label {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  font-weight: 800;
+  min-height: 2.75rem;
+  padding: 0 1.1rem;
+  position: relative;
+}
+
+.publication-release-later {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.publication-release-later label {
+  display: grid;
+  font-size: 0.8rem;
+  font-weight: 800;
+  gap: 0.3rem;
+}
+
+.publication-release-later input {
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  font:
+    500 1rem/1.2 "Archivo",
+    system-ui,
+    sans-serif;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+}
+
+.publication-release-target {
+  align-items: center;
+  display: flex;
+  font-weight: 700;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+}
+
+.publication-release-target input {
+  accent-color: var(--workspace-rust-deep);
+  height: 1.3rem;
+  width: 1.3rem;
+}
+
+.publication-release-target small {
+  color: var(--workspace-muted);
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.publication-release-warning,
+.publication-release-problem {
+  background: #ffffff;
+  border-left: 4px solid var(--workspace-rust-deep);
+  font-weight: 600;
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+}
+
+.publication-release-warning a {
+  color: var(--workspace-ink);
+}
+
+.publication-release-go {
+  font-size: 1rem;
+  min-height: 3.25rem;
+  width: 100%;
+}
+
+.publication-release-edit {
+  background: transparent;
+  border: 0;
+  color: var(--workspace-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 0;
+  text-decoration: underline;
+}
+
+button.publication-thumb {
+  cursor: pointer;
+  padding: 0;
+}
+
+.publication-done {
+  margin-top: 1.5rem;
+}
+
+.publication-done > summary {
+  border-top: 2px solid var(--workspace-ink);
+  cursor: pointer;
+  font-family: "Saira Condensed", "Archivo", system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  min-height: 2.75rem;
+  padding: 0.75rem 0;
+  text-transform: uppercase;
+}
+
+/* «⋯» en lugar de «Más acciones»: las acciones de la pieza entran en una fila. */
+.publication-more > summary {
+  font-size: 1.3rem;
+  justify-content: center;
+  min-width: 2.75rem;
+  padding: 0 0.6rem;
+}
+
+/* Hoja de salida: el botón queda siempre a la vista, al pie. */
+.publication-release-footer {
+  background: var(--workspace-paper);
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  bottom: 0;
+  display: grid;
+  gap: 0.4rem;
+  margin: 0 -1.25rem -1.5rem;
+  padding: 0.75rem 1.25rem 1rem;
+  position: sticky;
+}
+
+.publication-release-media,
+.publication-release-options {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.publication-release .publication-render-preview img {
+  max-height: 42vh;
+}
+
+/* El editor de la historia recurrente, dentro de la hoja: la hoja ya lo
+ * enmarca, y su columna de vista previa no entra al lado de los campos. */
+.publication-sheet .recurring-draft-editor {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.publication-sheet .recurring-draft-editor-workbench {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.publication-sheet .recurring-draft-live-preview {
+  margin-inline: auto;
+  position: static;
+}
+
+@media (min-width: 48rem) {
+  .publication-sheet[data-wide="true"] {
+    max-width: 56rem;
+  }
+
+  .publication-sheet[data-wide="true"] .publication-release {
+    align-items: start;
+    column-gap: 1.75rem;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
+
+  .publication-sheet[data-wide="true"] .publication-render-preview img {
+    max-height: 70vh;
+  }
+
+  .publication-release-footer {
+    bottom: 0;
+    margin: 0;
+    padding: 0.75rem 0 0;
+  }
+}
+
+@media (max-width: 48rem) {
+  /* En el celular, crear arranca por la foto: los pasos y la presentación del
+   * compositor quedan para la computadora. */
+  .composer-section .flow-steps,
+  main > .flow-steps,
+  .product-composer-intro[data-editing="false"] {
+    display: none;
+  }
 }

@@ -45,6 +45,7 @@ function repositoryDouble(
     delete: () => Promise.resolve({ status: "not-found" }),
     failRender,
     findRenderJob: () => Promise.resolve(job),
+    reopenDraft: () => Promise.resolve({ status: "not-found" }),
     requestRender: () => Promise.resolve({ status: "not-found" }),
   };
 }

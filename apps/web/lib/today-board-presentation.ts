@@ -228,19 +228,19 @@ export function todayTickets(
     tickets.push(
       ticket(
         {
-          area: "Aprobación",
+          area: "Para salir",
           href: "/publicaciones",
           id: "readyForReview",
-          linkLabel: "Revisar publicaciones",
+          linkLabel: "Sacarlas",
         },
         sources.readyForReview,
         (count) => ({
           detail:
             count === 0
-              ? "No hay piezas esperando aprobación."
-              : "Tienen el PNG listo y esperan tu revisión.",
+              ? "No hay piezas esperando salir."
+              : "Tienen la imagen lista: falta elegir cuándo salen.",
           tone: count === 0 ? "calm" : "attention",
-          unit: plural(count, "pieza por aprobar", "piezas por aprobar"),
+          unit: plural(count, "lista para salir", "listas para salir"),
           value: String(count),
         }),
       ),
@@ -250,7 +250,7 @@ export function todayTickets(
     tickets.push(
       ticket(
         {
-          area: "Edición",
+          area: "Borradores",
           href: "/publicaciones",
           id: "drafts",
           linkLabel: "Ver borradores",
@@ -259,8 +259,8 @@ export function todayTickets(
         (count) => ({
           detail:
             count === 0
-              ? "No quedan borradores sin PNG."
-              : "Generá el PNG para mandarlos a revisión.",
+              ? "No hay borradores pendientes."
+              : "Les falta preparar la imagen.",
           tone: count === 0 ? "calm" : "attention",
           unit: plural(count, "borrador", "borradores"),
           value: String(count),
@@ -272,7 +272,7 @@ export function todayTickets(
     tickets.push(
       ticket(
         {
-          area: "Edición",
+          area: "Con problemas",
           href: "/publicaciones",
           id: "needsAttention",
           linkLabel: "Ver cuáles son",
@@ -304,7 +304,7 @@ export function todayTickets(
           detail:
             count === 0
               ? "Todo lo aprobado ya tiene día y hora."
-              : "Están aprobadas y todavía no tienen día ni hora.",
+              : "Están aprobadas y todavía no salieron ni tienen horario.",
           tone: count === 0 ? "calm" : "attention",
           unit: plural(
             count,

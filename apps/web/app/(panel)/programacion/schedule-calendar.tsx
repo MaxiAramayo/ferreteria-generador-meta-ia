@@ -101,13 +101,11 @@ export function ScheduleCalendar({
       className="schedule-calendar"
     >
       <div className="schedule-calendar-heading">
-        <div>
-          <p className="workspace-eyebrow">Turnos de salida</p>
-          <h2 id="calendario-programacion">{monthLabel}</h2>
-        </div>
+        <h2 id="calendario-programacion">{monthLabel}</h2>
         <p>
-          {events.length} ocurrencias visibles · UTC se guarda, hora local se
-          decide.
+          {events.length === 0
+            ? "Nada programado este mes."
+            : `${String(events.length)} ${events.length === 1 ? "salida" : "salidas"} este mes.`}
         </p>
       </div>
       <div

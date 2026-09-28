@@ -259,22 +259,42 @@ function ComposerVariantNavigation() {
       value: "ai-creative",
     },
   ];
+  // Producto e historia recurrente son lo de todos los días; plantilla y
+  // creatividad IA siguen a un toque, en «Más» (`P2-T11`).
+  const everyday = variants.slice(0, 2);
+  const occasional = variants.slice(2);
+  const occasionalCurrent = occasional.find(
+    (variant) => variant.value === state.variant,
+  );
+  const link = (variant: (typeof variants)[number]) => (
+    <Link
+      aria-current={state.variant === variant.value ? "page" : undefined}
+      href={composerVariantHref(variant.value)}
+      key={variant.value}
+      onClick={() => {
+        actions.chooseVariant(variant.value);
+      }}
+      scroll={false}
+    >
+      <strong>{variant.label}</strong>
+      <small>{variant.hint}</small>
+    </Link>
+  );
   return (
     <nav aria-label="Flujos para crear una pieza" className="composer-variants">
-      {variants.map((variant) => (
-        <Link
-          aria-current={state.variant === variant.value ? "page" : undefined}
-          href={composerVariantHref(variant.value)}
-          key={variant.value}
-          onClick={() => {
-            actions.chooseVariant(variant.value);
-          }}
-          scroll={false}
+      {everyday.map(link)}
+      <details
+        className="composer-variants-more"
+        open={occasionalCurrent !== undefined}
+      >
+        <summary
+          aria-current={occasionalCurrent === undefined ? undefined : "page"}
         >
-          <strong>{variant.label}</strong>
-          <small>{variant.hint}</small>
-        </Link>
-      ))}
+          <strong>{occasionalCurrent?.label ?? "Más"}</strong>
+          <small>Plantilla o creatividad IA.</small>
+        </summary>
+        <div>{occasional.map(link)}</div>
+      </details>
     </nav>
   );
 }

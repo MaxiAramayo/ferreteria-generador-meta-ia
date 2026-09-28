@@ -2,6 +2,7 @@ import type {
   PublicationApprovalResponse,
   PublicationDeleteResponse,
   PublicationRenderRequestResponse,
+  PublicationReopenResponse,
 } from "@aramayo/contracts";
 import type { AuthenticatedSessionRecord } from "@aramayo/domain";
 import {
@@ -40,6 +41,23 @@ export class PublicationProductionController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ): Promise<PublicationRenderRequestResponse> {
     return this.#service.requestRender(
+      session.actor,
+      publicationId,
+      body.expectedVersion,
+      idempotencyKey,
+    );
+  }
+
+  /** Volver a borrador una pieza en revisión, para editarla. */
+  @Post(":publicationId/reopen")
+  @RequirePermission("content:edit")
+  reopen(
+    @CurrentSession() session: AuthenticatedSessionRecord,
+    @Param("publicationId", new ParseUUIDPipe()) publicationId: string,
+    @Body() body: PublicationVersionCommandDto,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ): Promise<PublicationReopenResponse> {
+    return this.#service.reopen(
       session.actor,
       publicationId,
       body.expectedVersion,

@@ -22,11 +22,10 @@ export default async function LoginPage({
   return (
     <main className="login-shell">
       <section aria-labelledby="login-title" className="login-card">
-        <p className="login-eyebrow">Panel interno · Aramayo</p>
+        <p className="login-eyebrow">Ferretería Aramayo</p>
         <h1 id="login-title">Iniciar sesión</h1>
         <p className="login-intro">
-          Accedé con la cuenta autorizada para administrar contenido y
-          conexiones.
+          Entrá para crear y publicar las piezas del local.
         </p>
         <LoginForm apiBaseUrl={configuration.apiBaseUrl} returnTo={returnTo} />
       </section>

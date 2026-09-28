@@ -26,6 +26,8 @@ import {
   type PanelSectionId,
 } from "../../lib/panel-navigation.ts";
 import { loadOperationalAlerts } from "../../lib/publication-operational-alert-api.ts";
+import { createPiecePath } from "../../lib/publication-composer-contract.ts";
+import { PanelIcon, type PanelIconName } from "./panel-icons.tsx";
 
 type ShellState =
   | Readonly<{ kind: "loading" }>
@@ -105,19 +107,12 @@ function PanelStatus({
   );
 }
 
-function AccountMenu({
-  actor,
-  apiBaseUrl,
-  current,
-  pathname,
-}: Readonly<{
-  actor: AuthenticatedActor;
-  apiBaseUrl: string;
-  current: PanelSectionId | "cuenta" | null;
-  pathname: string;
-}>) {
+/**
+ * Un menú desplegable que se cierra solo: al cambiar de pantalla, al tocar
+ * afuera y con Escape. Lo usan la cuenta, arriba, y «Más», abajo.
+ */
+function useClosingMenu(pathname: string) {
   const menu = useRef<HTMLDetailsElement>(null);
-  const [signOut, setSignOut] = useState<SignOutState>({ kind: "idle" });
 
   // Cambiar de pantalla cierra el menú: quedaría abierto tapando la nueva.
   useEffect(() => {
@@ -149,6 +144,12 @@ function AccountMenu({
     };
   }, []);
 
+  return menu;
+}
+
+function useSignOut(apiBaseUrl: string) {
+  const [signOut, setSignOut] = useState<SignOutState>({ kind: "idle" });
+
   async function endSession(): Promise<void> {
     setSignOut({ kind: "pending" });
     const result = await logout(apiBaseUrl);
@@ -158,6 +159,40 @@ function AccountMenu({
     }
     setSignOut({ kind: "error", message: result.message });
   }
+
+  return { endSession, signOut };
+}
+
+function SignOutButton({ apiBaseUrl }: Readonly<{ apiBaseUrl: string }>) {
+  const { endSession, signOut } = useSignOut(apiBaseUrl);
+  return (
+    <>
+      <button
+        disabled={signOut.kind === "pending"}
+        onClick={() => {
+          void endSession();
+        }}
+        type="button"
+      >
+        {signOut.kind === "pending" ? "Cerrando sesión…" : "Cerrar sesión"}
+      </button>
+      {signOut.kind === "error" ? <p role="alert">{signOut.message}</p> : null}
+    </>
+  );
+}
+
+function AccountMenu({
+  actor,
+  apiBaseUrl,
+  current,
+  pathname,
+}: Readonly<{
+  actor: AuthenticatedActor;
+  apiBaseUrl: string;
+  current: PanelSectionId | "cuenta" | null;
+  pathname: string;
+}>) {
+  const menu = useClosingMenu(pathname);
 
   return (
     <details className="panel-account" ref={menu}>
@@ -176,20 +211,124 @@ function AccountMenu({
         >
           Cambiar contraseña
         </Link>
-        <button
-          disabled={signOut.kind === "pending"}
-          onClick={() => {
-            void endSession();
-          }}
-          type="button"
-        >
-          {signOut.kind === "pending" ? "Cerrando sesión…" : "Cerrar sesión"}
-        </button>
-        {signOut.kind === "error" ? (
-          <p role="alert">{signOut.message}</p>
-        ) : null}
+        <SignOutButton apiBaseUrl={apiBaseUrl} />
       </div>
     </details>
+  );
+}
+
+/** Lo que va en la barra de abajo; el resto de las secciones, en «Más». */
+const tabSections: ReadonlySet<PanelSectionId> = new Set([
+  "inicio",
+  "publicaciones",
+  "programacion",
+]);
+
+const tabIcons: Readonly<Partial<Record<PanelSectionId, PanelIconName>>> = {
+  inicio: "home",
+  programacion: "calendar",
+  publicaciones: "list",
+};
+
+function AlertCount({ count }: Readonly<{ count: number | null }>) {
+  return count !== null && count > 0 ? (
+    <>
+      <span aria-hidden="true" className="panel-nav-count">
+        {count}
+      </span>
+      <span className="panel-visually-hidden">
+        {`, ${String(count)} ${count === 1 ? "alerta abierta" : "alertas abiertas"}`}
+      </span>
+    </>
+  ) : null;
+}
+
+/**
+ * La barra de abajo del celular: las tres secciones de todos los días, el
+ * botón para crear en el medio —al alcance del pulgar— y «Más» con el resto.
+ */
+function TabBar({
+  actor,
+  apiBaseUrl,
+  canCreate,
+  current,
+  openAlerts,
+  pathname,
+}: Readonly<{
+  actor: AuthenticatedActor;
+  apiBaseUrl: string;
+  canCreate: boolean;
+  current: PanelSectionId | "cuenta" | null;
+  openAlerts: number | null;
+  pathname: string;
+}>) {
+  const menu = useClosingMenu(pathname);
+  const sections = panelNavigationFor(actor);
+  const creating = pathname.startsWith(createPiecePath);
+  const tabs = sections.filter((section) => tabSections.has(section.id));
+  const more = sections.filter((section) => !tabSections.has(section.id));
+  const moreCurrent =
+    current === "cuenta" || more.some((section) => section.id === current);
+  const tab = (section: (typeof sections)[number]) => (
+    <Link
+      aria-current={current === section.id && !creating ? "page" : undefined}
+      href={section.href}
+      key={section.id}
+    >
+      <PanelIcon name={tabIcons[section.id] ?? "list"} />
+      <span>{section.label}</span>
+    </Link>
+  );
+
+  return (
+    <nav aria-label="Secciones del panel" className="panel-tabbar">
+      {tabs.slice(0, 2).map(tab)}
+      {canCreate ? (
+        <Link
+          aria-current={creating ? "page" : undefined}
+          className="panel-tabbar-create"
+          href={createPiecePath}
+        >
+          <PanelIcon name="plus" size={26} />
+          <span>Crear</span>
+        </Link>
+      ) : null}
+      {tabs.slice(2).map(tab)}
+      <details className="panel-tabbar-more" ref={menu}>
+        <summary aria-current={moreCurrent ? "page" : undefined}>
+          <PanelIcon name="menu" />
+          <span>
+            Más
+            <AlertCount count={openAlerts} />
+          </span>
+        </summary>
+        <div className="panel-tabbar-sheet">
+          <p className="panel-account-identity">
+            <strong>{actor.displayName}</strong>
+            <span>{actor.email}</span>
+          </p>
+          {more.map((section) => (
+            <Link
+              aria-current={current === section.id ? "page" : undefined}
+              href={section.href}
+              key={section.id}
+            >
+              {section.label}
+              {section.id === "operacion" ? (
+                <AlertCount count={openAlerts} />
+              ) : null}
+            </Link>
+          ))}
+          <Link
+            aria-current={current === "cuenta" ? "page" : undefined}
+            href="/cuenta"
+          >
+            Cambiar contraseña
+          </Link>
+          <SignOutButton apiBaseUrl={apiBaseUrl} />
+        </div>
+      </details>
+    </nav>
   );
 }
 
@@ -207,7 +346,6 @@ export function PanelShell({
   const [state, setState] = useState<ShellState>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [openAlerts, setOpenAlerts] = useState<number | null>(null);
-  const navigationBar = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -228,6 +366,9 @@ export function PanelShell({
 
   const actor = state.kind === "ready" ? state.actor : null;
   const canOperate = actor !== null && actorCan(actor, "publishing:execute");
+  const canCreate =
+    actor !== null &&
+    (actorCan(actor, "content:edit") || actorCan(actor, "content:schedule"));
 
   // Se vuelve a contar al cambiar de pantalla: revisar una alerta en Operación
   // y salir tiene que bajar el número sin recargar el panel.
@@ -244,14 +385,6 @@ export function PanelShell({
     };
   }, [apiBaseUrl, canOperate, pathname]);
 
-  // En el celular la barra se desliza: la sección actual tiene que quedar a la
-  // vista aunque esté al final de la fila.
-  useEffect(() => {
-    navigationBar.current
-      ?.querySelector('[aria-current="page"]')
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [actor, pathname]);
-
   const current = activePanelSection(pathname);
 
   return (
@@ -265,11 +398,7 @@ export function PanelShell({
         </Link>
         {actor === null ? null : (
           <>
-            <nav
-              aria-label="Secciones del panel"
-              className="panel-nav"
-              ref={navigationBar}
-            >
+            <nav aria-label="Secciones del panel" className="panel-nav">
               {panelNavigationFor(actor).map((item) => (
                 <Link
                   aria-current={current === item.id ? "page" : undefined}
@@ -277,21 +406,18 @@ export function PanelShell({
                   key={item.id}
                 >
                   {item.label}
-                  {item.id === "operacion" &&
-                  openAlerts !== null &&
-                  openAlerts > 0 ? (
-                    <>
-                      <span aria-hidden="true" className="panel-nav-count">
-                        {openAlerts}
-                      </span>
-                      <span className="panel-visually-hidden">
-                        {`, ${String(openAlerts)} ${openAlerts === 1 ? "alerta abierta" : "alertas abiertas"}`}
-                      </span>
-                    </>
+                  {item.id === "operacion" ? (
+                    <AlertCount count={openAlerts} />
                   ) : null}
                 </Link>
               ))}
             </nav>
+            {canCreate ? (
+              <Link className="panel-create" href={createPiecePath}>
+                <PanelIcon name="plus" size={18} />
+                Crear pieza
+              </Link>
+            ) : null}
             <AccountMenu
               actor={actor}
               apiBaseUrl={apiBaseUrl}
@@ -314,6 +440,16 @@ export function PanelShell({
           />
         )}
       </div>
+      {actor === null ? null : (
+        <TabBar
+          actor={actor}
+          apiBaseUrl={apiBaseUrl}
+          canCreate={canCreate}
+          current={current}
+          openAlerts={openAlerts}
+          pathname={pathname}
+        />
+      )}
     </div>
   );
 }

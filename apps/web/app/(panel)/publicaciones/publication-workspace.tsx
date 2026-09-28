@@ -6,32 +6,42 @@ import type {
   PublishingReadinessResponse,
 } from "@aramayo/contracts";
 import Link from "next/link";
-import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   startTransition,
   useCallback,
   useEffect,
   useRef,
   useState,
+  type MouseEvent,
 } from "react";
 
 import {
+  actorCan,
   publicationAnchorId,
   schedulePublicationHref,
 } from "../../../lib/panel-navigation.ts";
-import { createPiecePath } from "../../../lib/publication-composer-contract.ts";
+import {
+  canPublishNow,
+  canScheduleFromCard,
+  editorFor,
+  pieceFormatLabel,
+  primaryActionFor,
+  publishBlockNotice,
+  type CardPermissions,
+} from "../../../lib/publication-card.ts";
+import {
+  composerVariantHref,
+  createPiecePath,
+} from "../../../lib/publication-composer-contract.ts";
 import { loadPublishingReadiness } from "../../../lib/publication-publishing-api.ts";
 import {
   publishGate,
   type PublishGate,
 } from "../../../lib/publication-publishing-presentation.ts";
 import { PublicationOrderPanel } from "./publication-order-panel.tsx";
-import {
-  localDateText,
-  scheduleInWords,
-  SchedulePicker,
-} from "./schedule-picker";
-import { FlowSteps } from "./flow-steps";
+import { PublicationRelease } from "./publication-release.tsx";
+import { PublicationSheet } from "./publication-sheet.tsx";
 import { PublishConfirmation } from "./publish-confirmation.tsx";
 
 import {
@@ -43,7 +53,6 @@ import {
   type PublicationPreviewResult,
   type PublicationWorkspaceLoadResult,
 } from "../../../lib/publication-workspace-api";
-import { PublicationsSubnav } from "./publications-subnav";
 import { RecurringStoryDraftEditor } from "./recurring-story-draft-editor";
 
 function statusLabel(status: PublicationStatusResponse): string {
@@ -51,7 +60,7 @@ function statusLabel(status: PublicationStatusResponse): string {
     case "draft":
       return "Borrador";
     case "ready_for_review":
-      return "Lista para revisión";
+      return "Lista para salir";
     case "approved":
       return "Aprobada";
     case "scheduled":
@@ -77,163 +86,195 @@ function statusLabel(status: PublicationStatusResponse): string {
   }
 }
 
+/** Elegir una opción de «⋯» cierra el menú: el próximo toque lo vuelve a abrir. */
+function closeMenu(event: MouseEvent<HTMLElement>): void {
+  event.currentTarget.closest("details")?.removeAttribute("open");
+}
+
+type RowAction =
+  "delete" | "edit" | "preview" | "publish" | "release" | "render" | "result";
+
 function PublicationRow({
-  canApprove,
-  canEdit,
-  canSchedule,
   gate,
-  onApprove,
-  onDelete,
-  onEdit,
-  onHistory,
-  onPreview,
-  onPublish,
-  onRender,
+  onAction,
+  permissions,
   publication,
 }: {
-  readonly canApprove: boolean;
-  readonly canEdit: boolean;
-  readonly canSchedule: boolean;
   readonly gate: PublishGate;
-  readonly onApprove: (publication: PublicationSummaryResponse) => void;
-  readonly onEdit: (publication: PublicationSummaryResponse) => void;
-  readonly onHistory: (publication: PublicationSummaryResponse) => void;
-  readonly onDelete: (publication: PublicationSummaryResponse) => void;
-  readonly onPreview: (publication: PublicationSummaryResponse) => void;
-  readonly onPublish: (publication: PublicationSummaryResponse) => void;
-  readonly onRender: (publication: PublicationSummaryResponse) => void;
+  readonly onAction: (
+    publication: PublicationSummaryResponse,
+    action: RowAction,
+  ) => void;
+  readonly permissions: CardPermissions;
   readonly publication: PublicationSummaryResponse;
 }) {
+  const primary = primaryActionFor(publication, permissions, gate);
+  const editor = editorFor(publication, permissions);
+  const publishNow = canPublishNow(publication, primary, gate);
+  const scheduleHere = canScheduleFromCard(publication, primary, permissions);
+  const blockNotice = publishBlockNotice(gate);
+  const showImage =
+    publication.previewUrl !== undefined &&
+    primary?.kind !== "release" &&
+    primary?.kind !== "preview";
+  const deletable = deletableStatus(publication.status) && permissions.canEdit;
+  const hasMore = showImage || publishNow || scheduleHere || deletable;
+  // Tocar la imagen abre la pieza: es lo primero que se toca en un celular.
+  const openAction: RowAction | null =
+    primary !== null &&
+    (primary.kind === "release" ||
+      primary.kind === "publish" ||
+      primary.kind === "result" ||
+      primary.kind === "preview")
+      ? primary.kind
+      : publication.previewUrl === undefined
+        ? null
+        : "preview";
+  const thumbnail =
+    publication.previewUrl === undefined ? (
+      <span aria-hidden="true">{pieceFormatLabel(publication.format)}</span>
+    ) : (
+      /* eslint-disable-next-line @next/next/no-img-element -- la imagen ya viene del almacenamiento de medios */
+      <img alt="" loading="lazy" src={publication.previewUrl} />
+    );
   return (
     // El id deja llegar a esta pieza puntual desde una alerta o un turno.
-    <li id={publicationAnchorId(publication.id)}>
-      <div className="publication-state-rail" data-status={publication.status}>
-        <span>{statusLabel(publication.status)}</span>
-      </div>
-      <div className="publication-row-main">
-        <strong>{publication.title}</strong>
-        <span>
-          Revisión {publication.latestRevisionNumber} · versión{" "}
-          {publication.version}
+    <li
+      className="publication-card"
+      data-status={publication.status}
+      id={publicationAnchorId(publication.id)}
+    >
+      {openAction === null ? (
+        <div
+          className="publication-thumb"
+          data-format={publication.format ?? "otro"}
+        >
+          {thumbnail}
+        </div>
+      ) : (
+        <button
+          aria-label={`Abrir ${publication.title}`}
+          className="publication-thumb"
+          data-format={publication.format ?? "otro"}
+          onClick={() => {
+            onAction(publication, openAction);
+          }}
+          type="button"
+        >
+          {thumbnail}
+        </button>
+      )}
+      <div className="publication-card-body">
+        <span className="publication-status" data-status={publication.status}>
+          {statusLabel(publication.status)}
         </span>
-        {publication.latestContentBriefRunId === undefined ? null : (
-          // Desde la pieza se llega a la ejecución que la generó, y desde ahí
-          // a la evidencia que sustenta cada afirmación.
-          <span className="publication-brief-origin">
-            Generada desde el brief{" "}
-            <code>{publication.latestContentBriefRunId.slice(0, 8)}</code>
-          </span>
-        )}
+        <strong className="publication-card-title">{publication.title}</strong>
+        <span className="publication-card-meta">
+          {pieceFormatLabel(publication.format)} ·{" "}
+          <time dateTime={publication.updatedAt}>
+            {new Intl.DateTimeFormat("es-AR", {
+              day: "numeric",
+              month: "short",
+            }).format(new Date(publication.updatedAt))}
+          </time>
+        </span>
         {publication.failure === undefined ? null : (
           <span className="publication-failure">
             {publication.failure.safeMessage}
             {publication.failure.retryable ? " Se puede reintentar." : ""}
           </span>
         )}
-      </div>
-      <time dateTime={publication.updatedAt}>
-        {new Intl.DateTimeFormat("es-AR", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }).format(new Date(publication.updatedAt))}
-      </time>
-      <div className="publication-row-actions">
-        {(publication.status === "draft" ||
-          publication.status === "generation_failed") &&
-        canEdit ? (
-          <>
-            {publication.status === "draft" ? (
-              <button
-                onClick={() => {
-                  onEdit(publication);
-                }}
-                type="button"
-              >
-                Editar borrador
-              </button>
-            ) : null}
+        {blockNotice === null ? null : (
+          // El motivo se muestra en vez de esconder el control: alguien que
+          // esperaba publicar necesita saber qué falta, no un botón ausente.
+          <span className="publication-publish-blocked">{blockNotice}</span>
+        )}
+        <div className="publication-row-actions">
+          {primary === null ? null : primary.kind === "schedule" ? (
+            // Aprobar no publica: elegir día y hora se hace en Programación,
+            // con esta pieza ya elegida.
+            <Link
+              className="publication-primary"
+              href={schedulePublicationHref(publication.id)}
+            >
+              {primary.label}
+            </Link>
+          ) : (
             <button
+              className="publication-primary"
+              disabled={primary.kind === "wait"}
               onClick={() => {
-                onRender(publication);
+                if (primary.kind !== "wait")
+                  onAction(publication, primary.kind);
               }}
               type="button"
             >
-              {publication.status === "generation_failed"
-                ? "Reintentar PNG"
-                : "Generar PNG"}
+              {primary.label}
             </button>
-          </>
-        ) : null}
-        {(publication.status === "ready_for_review" ||
-          publication.status === "approved") && (
-          <button
-            onClick={() => {
-              onPreview(publication);
-            }}
-            type="button"
-          >
-            Ver PNG
-          </button>
-        )}
-        {deletableStatus(publication.status) && canEdit ? (
-          // Elimina de verdad: la pieza y su foto. Lo único que queda es el
-          // renglón de auditoría, que dice que se eliminó.
-          <button
-            className="publication-discard"
-            onClick={() => {
-              onDelete(publication);
-            }}
-            type="button"
-          >
-            Eliminar
-          </button>
-        ) : null}
-        {publication.status === "ready_for_review" && canApprove ? (
-          <button
-            onClick={() => {
-              onApprove(publication);
-            }}
-            type="button"
-          >
-            Aprobar revisión
-          </button>
-        ) : null}
-        {publication.status === "approved" && canSchedule ? (
-          // Aprobar no publica: habilita elegir día y hora, y eso se hace en
-          // Programación con esta pieza ya elegida.
-          <Link href={schedulePublicationHref(publication.id)}>Programar</Link>
-        ) : null}
-        {gate.kind === "ready" ? (
-          // Abre la confirmación; no publica. Los puntos suspensivos son la
-          // convención de «esto sigue en otra pantalla», y acá esa pantalla es
-          // lo único que separa un clic de una acción irreversible.
-          <button
-            onClick={() => {
-              onPublish(publication);
-            }}
-            type="button"
-          >
-            Publicar…
-          </button>
-        ) : gate.reason === "missing-role" ? null : (
-          // El motivo se muestra en vez de esconder el control: alguien que
-          // esperaba publicar necesita saber qué falta, no un botón ausente.
-          <span className="publication-publish-blocked">{gate.message}</span>
-        )}
-        {publication.status === "publishing" ||
-        publication.status === "published" ||
-        publication.status === "partially_published" ||
-        publication.status === "publish_failed" ? (
-          <button
-            onClick={() => {
-              onHistory(publication);
-            }}
-            type="button"
-          >
-            Ver resultado
-          </button>
-        ) : null}
+          )}
+          {editor === null ? null : (
+            <button
+              onClick={() => {
+                onAction(publication, "edit");
+              }}
+              type="button"
+            >
+              Editar
+            </button>
+          )}
+          {hasMore ? (
+            <details className="publication-more">
+              <summary aria-label="Más acciones">
+                <span aria-hidden="true">⋯</span>
+              </summary>
+              <div>
+                {showImage ? (
+                  <button
+                    onClick={(event) => {
+                      closeMenu(event);
+                      onAction(publication, "preview");
+                    }}
+                    type="button"
+                  >
+                    Ver imagen
+                  </button>
+                ) : null}
+                {scheduleHere ? (
+                  <Link href={schedulePublicationHref(publication.id)}>
+                    Programar
+                  </Link>
+                ) : null}
+                {publishNow ? (
+                  // Abre la confirmación; no publica. Los puntos suspensivos
+                  // avisan que sigue otra pantalla antes de algo irreversible.
+                  <button
+                    onClick={(event) => {
+                      closeMenu(event);
+                      onAction(publication, "publish");
+                    }}
+                    type="button"
+                  >
+                    Publicar…
+                  </button>
+                ) : null}
+                {deletable ? (
+                  // Elimina de verdad: la pieza y su foto. Lo único que queda
+                  // es el renglón de auditoría, que dice que se eliminó.
+                  <button
+                    className="publication-discard"
+                    onClick={(event) => {
+                      closeMenu(event);
+                      onAction(publication, "delete");
+                    }}
+                    type="button"
+                  >
+                    Eliminar
+                  </button>
+                ) : null}
+              </div>
+            </details>
+          ) : null}
+        </div>
       </div>
     </li>
   );
@@ -255,10 +296,10 @@ function WorkspaceStatus({
           {kind === "forbidden"
             ? "Acceso requerido"
             : kind === "loading"
-              ? "Cargando sesión y publicaciones"
+              ? "Cargando"
               : "No se pudo cargar"}
         </p>
-        <h1>Mesa de contenido</h1>
+        <h1>Publicaciones</h1>
         <p>{message}</p>
         {onRetry === undefined ? (
           <Link href={kind === "forbidden" ? "/iniciar-sesion" : "/"}>
@@ -277,6 +318,11 @@ function WorkspaceStatus({
     </main>
   );
 }
+
+/** Lo que ya salió o no va a salir: se muestra aparte, plegado. */
+const doneStatuses: ReadonlySet<PublicationSummaryResponse["status"]> = new Set(
+  ["published", "partially_published", "cancelled", "expired"],
+);
 
 /**
  * Estados desde los que eliminar es tirar trabajo propio.
@@ -306,15 +352,14 @@ export function PublicationWorkspace({
   const [initial, setInitial] = useState<
     PublicationWorkspaceLoadResult | Readonly<{ kind: "loading" }>
   >({ kind: "loading" });
+  const router = useRouter();
   const [commandNotice, setCommandNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<PublicationPreviewResult | null>(null);
-  /** Pieza cuyo PNG se está mirando: es la que se aprueba y se programa. */
+  /** Pieza cuya imagen se está mirando: es la que se aprueba y se programa. */
   const [previewing, setPreviewing] =
     useState<PublicationSummaryResponse | null>(null);
-  const [scheduleDate, setScheduleDate] = useState(() =>
-    localDateText(new Date()),
-  );
-  const [scheduleTime, setScheduleTime] = useState("08:30");
+  /** Pieza que se está sacando: la hoja de «¿Cuándo sale?» sigue su estado. */
+  const [releasingId, setReleasingId] = useState<string | null>(null);
   const [readiness, setReadiness] =
     useState<PublishingReadinessResponse | null>(null);
   /**
@@ -342,9 +387,20 @@ export function PublicationWorkspace({
   const reviewing = useRef<Readonly<{ id: string; rendered: boolean }> | null>(
     null,
   );
+  // Refrescar no borra el listado: la pieza que se acaba de tocar sigue a la
+  // vista mientras llega su estado nuevo.
   const reload = useCallback(() => {
-    setInitial({ kind: "loading" });
     setReloadToken((token) => token + 1);
+  }, []);
+  /** Cierra la hoja abierta, sea cual sea. */
+  const closeSheets = useCallback(() => {
+    setPreview(null);
+    setPreviewing(null);
+    setReleasingId(null);
+    setConfirming(null);
+    setInspecting(null);
+    setEditing(null);
+    setDeleting(null);
   }, []);
   const runCommand = useCallback(
     async (
@@ -358,10 +414,10 @@ export function PublicationWorkspace({
     ): Promise<void> => {
       setCommandNotice(
         command === "render"
-          ? "Pidiendo el PNG…"
+          ? "Preparando la imagen…"
           : command === "delete"
             ? "Eliminando la pieza…"
-            : "Aprobando revisión…",
+            : "Aprobando…",
       );
       const result =
         command === "render"
@@ -393,19 +449,65 @@ export function PublicationWorkspace({
             : result.message,
       );
       if (result.kind === "completed") {
+        if (command !== "render") closeSheets();
         reload();
       }
     },
-    [apiBaseUrl, reload],
+    [apiBaseUrl, closeSheets, reload],
   );
   const showPreview = useCallback(
     async (publication: PublicationSummaryResponse): Promise<void> => {
-      setPreview(null);
+      closeSheets();
       setPreviewing(publication);
       const result = await loadPublicationPreview(apiBaseUrl, publication.id);
       setPreview(result);
     },
-    [apiBaseUrl],
+    [apiBaseUrl, closeSheets],
+  );
+  const act = useCallback(
+    (publication: PublicationSummaryResponse, action: RowAction): void => {
+      switch (action) {
+        case "render":
+          // La hoja de salida se abre ya, mientras se prepara la imagen.
+          closeSheets();
+          setReleasingId(publication.id);
+          void runCommand(publication, "render");
+          return;
+        case "release":
+          closeSheets();
+          setReleasingId(publication.id);
+          return;
+        case "preview":
+          void showPreview(publication);
+          return;
+        case "publish":
+          closeSheets();
+          setConfirming(publication);
+          return;
+        case "result":
+          closeSheets();
+          setInspecting(publication);
+          return;
+        case "delete":
+          closeSheets();
+          setDeleting(publication);
+          return;
+        case "edit":
+          if (
+            initial.kind === "ready" &&
+            editorFor(publication, initial) === "product"
+          ) {
+            router.push(
+              `${composerVariantHref("product-story")}&editar=${publication.id}`,
+            );
+            return;
+          }
+          closeSheets();
+          setEditing(publication);
+          return;
+      }
+    },
+    [closeSheets, initial, router, runCommand, showPreview],
   );
 
   useEffect(() => {
@@ -418,6 +520,31 @@ export function PublicationWorkspace({
     };
   }, [apiBaseUrl, reloadToken]);
 
+  // Al llegar desde «Crear pieza» con `?revisar=`, la pieza se prepara sola y
+  // la hoja de salida se abre en el acto: mientras se prepara la imagen dice
+  // que se está preparando, y cuando está deja publicarla. Es una sola vez por
+  // pieza: el refresco periódico no la vuelve a pedir ni recargar la página.
+  const openRequestedPiece = useCallback(
+    (result: PublicationWorkspaceLoadResult): void => {
+      if (result.kind !== "ready" || reviewing.current !== null) return;
+      const requested = new URLSearchParams(window.location.search).get(
+        "revisar",
+      );
+      if (requested === null) return;
+      const publication = result.publications.items.find(
+        (item) => item.id === requested,
+      );
+      if (publication === undefined) return;
+      reviewing.current = { id: requested, rendered: true };
+      window.history.replaceState(null, "", window.location.pathname);
+      setReleasingId(publication.id);
+      if (publication.status === "draft" && result.canEdit) {
+        void runCommand(publication, "render");
+      }
+    },
+    [runCommand],
+  );
+
   useEffect(() => {
     let active = true;
     void loadPublicationWorkspace(apiBaseUrl).then((result) => {
@@ -425,12 +552,13 @@ export function PublicationWorkspace({
         startTransition(() => {
           setInitial(result);
         });
+        openRequestedPiece(result);
       }
     });
     return () => {
       active = false;
     };
-  }, [apiBaseUrl, reloadToken]);
+  }, [apiBaseUrl, openRequestedPiece, reloadToken]);
   useEffect(() => {
     if (
       initial.kind !== "ready" ||
@@ -447,38 +575,6 @@ export function PublicationWorkspace({
       clearTimeout(refresh);
     };
   }, [initial]);
-  // Al llegar desde «Crear pieza» con `?revisar=`, la pieza se prepara sola:
-  // se le pide el PNG y, cuando está, se abre. Es una sola vez por pieza; el
-  // refresco periódico no puede volver a pedirlo.
-  useEffect(() => {
-    if (initial.kind !== "ready") return;
-    if (reviewing.current === null) {
-      const requested = new URLSearchParams(window.location.search).get(
-        "revisar",
-      );
-      if (requested === null) return;
-      reviewing.current = { id: requested, rendered: false };
-    }
-    const pending = reviewing.current;
-    const publication = initial.publications.items.find(
-      (item) => item.id === pending.id,
-    );
-    if (publication === undefined) return;
-    if (
-      !pending.rendered &&
-      publication.status === "draft" &&
-      initial.canEdit
-    ) {
-      reviewing.current = { ...pending, rendered: true };
-      void runCommand(publication, "render");
-      return;
-    }
-    if (publication.status === "ready_for_review") {
-      reviewing.current = null;
-      void showPreview(publication);
-    }
-  }, [initial, runCommand, showPreview]);
-
   // Una alerta o un turno enlazan a una pieza puntual (`#publicacion-…`). El
   // enlace llega antes que el listado, así que la fila se busca cuando ya
   // cargó, y una sola vez: el refresco periódico no puede mover la página.
@@ -518,84 +614,148 @@ export function PublicationWorkspace({
   const publications =
     initial.kind === "ready" ? initial.publications.items : [];
   const canCreate = initial.canEdit || initial.canSchedule;
+  const permissions: CardPermissions = {
+    canApprove: initial.canApprove,
+    canEdit: initial.canEdit,
+    canSchedule: initial.canSchedule,
+  };
+  const confirmGate =
+    confirming === null
+      ? null
+      : publishGate(initial.actor, confirming, readiness);
+  const done = publications.filter((publication) =>
+    doneStatuses.has(publication.status),
+  );
+  const upcoming = publications.filter(
+    (publication) => !doneStatuses.has(publication.status),
+  );
+  const row = (publication: PublicationSummaryResponse) => (
+    <PublicationRow
+      gate={publishGate(initial.actor, publication, readiness)}
+      key={publication.id}
+      onAction={act}
+      permissions={permissions}
+      publication={publication}
+    />
+  );
+  const releasing =
+    releasingId === null
+      ? undefined
+      : publications.find((publication) => publication.id === releasingId);
   return (
     <main className="workspace-shell">
       <section aria-labelledby="mesa-de-contenido" className="workspace-intro">
-        <div>
-          <p className="workspace-eyebrow">Mesa de contenido</p>
-          <h1 id="mesa-de-contenido">
-            De la idea al borrador, sin saltos ocultos.
-          </h1>
-        </div>
-        <p>
-          Cada pieza conserva su estado real. Guardar, revisar, aprobar y
-          publicar siguen siendo acciones distintas.
-        </p>
+        <h1 id="mesa-de-contenido">Publicaciones</h1>
+        <p>Tocá una pieza para verla o sacarla.</p>
       </section>
 
-      <PublicationsSubnav canCreate={canCreate} />
-
-      <section aria-labelledby="publicaciones" className="publication-board">
-        <div className="workspace-section-heading">
-          <div>
-            <p className="workspace-eyebrow">Actividad reciente</p>
-            <h2 id="publicaciones">Publicaciones</h2>
-          </div>
-          <span>{publications.length} visibles</span>
-        </div>
+      <section
+        aria-label="Listado de publicaciones"
+        className="publication-board"
+      >
+        {commandNotice === null ? null : (
+          <p aria-live="polite" className="publication-command-notice">
+            {commandNotice}
+          </p>
+        )}
         {publications.length === 0 ? (
           <div className="publication-empty">
-            <strong>Todavía no hay borradores.</strong>
+            <strong>Todavía no hay piezas.</strong>
             {canCreate ? (
               <p>
-                <Link href={createPiecePath}>Creá la primera pieza</Link>. Nada
-                se publica al guardarla.
+                <Link href={createPiecePath}>Creá la primera</Link>. Nada se
+                publica al guardarla.
               </p>
             ) : (
-              <p>
-                Cuando alguien del equipo cree una pieza, va a aparecer acá.
-              </p>
+              <p>Cuando se cree una pieza, va a aparecer acá.</p>
             )}
           </div>
         ) : (
-          <ul className="publication-list">
-            {publications.map((publication) => (
-              <PublicationRow
-                canApprove={initial.canApprove}
-                canEdit={initial.canEdit}
-                canSchedule={initial.canSchedule}
-                gate={publishGate(initial.actor, publication, readiness)}
-                key={publication.id}
-                onApprove={(selected) => {
-                  void runCommand(selected, "approve");
-                }}
-                onDelete={(selected) => {
-                  setDeleting(selected);
-                }}
-                onEdit={(selected) => {
-                  setEditing(selected);
-                }}
-                onHistory={(selected) => {
-                  setConfirming(null);
-                  setInspecting(selected);
-                }}
-                onPreview={(selected) => {
-                  void showPreview(selected);
-                }}
-                onPublish={(selected) => {
-                  setInspecting(null);
-                  setConfirming(selected);
-                }}
-                onRender={(selected) => {
-                  void runCommand(selected, "render");
-                }}
-                publication={publication}
-              />
-            ))}
-          </ul>
+          <>
+            {upcoming.length === 0 ? (
+              <p className="publication-sheet-note">
+                No hay nada por salir.{" "}
+                {canCreate ? (
+                  <Link href={createPiecePath}>Crear una pieza</Link>
+                ) : null}
+              </p>
+            ) : (
+              <ul aria-label="Por salir" className="publication-list">
+                {upcoming.map(row)}
+              </ul>
+            )}
+            {done.length === 0 ? null : (
+              // Lo que ya salió queda plegado: las historias duran un día y el
+              // listado es para lo que todavía falta.
+              <details className="publication-done">
+                <summary>Ya salieron ({done.length})</summary>
+                <ul aria-label="Ya salieron" className="publication-list">
+                  {done.map(row)}
+                </ul>
+              </details>
+            )}
+          </>
         )}
-        {deleting === null ? null : (
-          <div className="publication-discard-confirm" role="dialog">
+      </section>
+
+      {previewing === null ? null : (
+        <PublicationSheet onClose={closeSheets} title={previewing.title}>
+          {preview === null ? (
+            <p aria-busy="true" className="publication-sheet-note">
+              Cargando la imagen…
+            </p>
+          ) : preview.kind === "error" ? (
+            <p role="alert">{preview.message}</p>
+          ) : (
+            <figure
+              className="publication-render-preview"
+              data-format={previewing.format ?? "historia"}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- la imagen ya viene del almacenamiento de medios */}
+              <img alt={preview.preview.alt} src={preview.preview.secureUrl} />
+              <figcaption>
+                {pieceFormatLabel(previewing.format)} · así sale.
+              </figcaption>
+            </figure>
+          )}
+        </PublicationSheet>
+      )}
+
+      {releasing === undefined ? null : (
+        <PublicationSheet onClose={closeSheets} title={releasing.title} wide>
+          <PublicationRelease
+            apiBaseUrl={apiBaseUrl}
+            canApprove={initial.canApprove}
+            canPublish={actorCan(initial.actor, "publishing:execute")}
+            canSchedule={initial.canSchedule}
+            onEdit={
+              editorFor(releasing, permissions) === "product"
+                ? () => {
+                    act(releasing, "edit");
+                  }
+                : null
+            }
+            onReleased={(result, whenText) => {
+              closeSheets();
+              if (result.kind === "published") {
+                setInspecting(releasing);
+                setCommandNotice(
+                  "Publicación pedida. Seguí el resultado por destino.",
+                );
+              } else {
+                setCommandNotice(`Quedó programada: sale ${whenText}.`);
+              }
+              reload();
+            }}
+            publication={releasing}
+            readiness={readiness}
+          />
+        </PublicationSheet>
+      )}
+
+      {deleting === null ? null : (
+        <PublicationSheet onClose={closeSheets} title="Eliminar la pieza">
+          <div className="publication-discard-confirm">
             <p>
               ¿Eliminar <strong>{deleting.title}</strong>? Se borra para
               siempre, con su foto. No se puede deshacer.
@@ -604,139 +764,72 @@ export function PublicationWorkspace({
               <button
                 onClick={() => {
                   const selected = deleting;
-                  setDeleting(null);
                   void runCommand(selected, "delete");
                 }}
                 type="button"
               >
                 Sí, eliminar
               </button>
-              <button
-                onClick={() => {
-                  setDeleting(null);
-                }}
-                type="button"
-              >
+              <button onClick={closeSheets} type="button">
                 No
               </button>
             </div>
           </div>
-        )}
-        {confirming === null
-          ? null
-          : (() => {
-              const gate = publishGate(initial.actor, confirming, readiness);
-              // Se vuelve a evaluar al dibujar: entre que se abrió la
-              // confirmación y ahora, la pieza o la conexión pudieron cambiar.
-              return gate.kind === "ready" ? (
-                <PublishConfirmation
-                  accountName={gate.accountName}
-                  apiBaseUrl={apiBaseUrl}
-                  availableTargets={gate.targets}
-                  onCancel={() => {
-                    setConfirming(null);
-                    reload();
-                  }}
-                  onPublished={() => {
-                    const published = confirming;
-                    setConfirming(null);
-                    setInspecting(published);
-                    setCommandNotice(
-                      "Publicación pedida. Seguí el resultado por destino.",
-                    );
-                    reload();
-                  }}
-                  publication={confirming}
-                />
-              ) : (
-                <p role="alert">{gate.message}</p>
-              );
-            })()}
-        {inspecting === null ? null : (
+        </PublicationSheet>
+      )}
+
+      {confirming === null || confirmGate === null ? null : (
+        <PublicationSheet onClose={closeSheets} title="Publicar">
+          {/* Se vuelve a evaluar al dibujar: entre que se abrió la
+              confirmación y ahora, la pieza o la conexión pudieron cambiar. */}
+          {confirmGate.kind === "ready" ? (
+            <PublishConfirmation
+              accountName={confirmGate.accountName}
+              apiBaseUrl={apiBaseUrl}
+              availableTargets={confirmGate.targets}
+              onCancel={() => {
+                closeSheets();
+                reload();
+              }}
+              onPublished={() => {
+                const published = confirming;
+                closeSheets();
+                setInspecting(published);
+                setCommandNotice(
+                  "Publicación pedida. Seguí el resultado por destino.",
+                );
+                reload();
+              }}
+              publication={confirming}
+            />
+          ) : (
+            <p role="alert">{confirmGate.message}</p>
+          )}
+        </PublicationSheet>
+      )}
+
+      {inspecting === null ? null : (
+        <PublicationSheet onClose={closeSheets} title={inspecting.title}>
           <PublicationOrderPanel
             actor={initial.actor}
             apiBaseUrl={apiBaseUrl}
             publicationId={inspecting.id}
           />
-        )}
-        {editing === null ? null : (
+        </PublicationSheet>
+      )}
+
+      {editing === null ? null : (
+        <PublicationSheet onClose={closeSheets} title={editing.title} wide>
           <RecurringStoryDraftEditor
             apiBaseUrl={apiBaseUrl}
-            onClose={() => {
-              setEditing(null);
-            }}
+            onClose={closeSheets}
             onSaved={() => {
               reload();
             }}
             publicationId={editing.id}
           />
-        )}
-        {commandNotice === null ? null : (
-          <p aria-live="polite" className="publication-command-notice">
-            {commandNotice}
-          </p>
-        )}
-        {preview === null ? null : preview.kind === "error" ? (
-          <p role="alert">{preview.message}</p>
-        ) : (
-          <figure className="publication-render-preview">
-            <Image
-              alt={preview.preview.alt}
-              height={540}
-              src={preview.preview.secureUrl}
-              unoptimized
-              width={432}
-            />
-            <figcaption>
-              PNG confirmado · SHA-256{" "}
-              <code>{preview.preview.checksumSha256.slice(0, 12)}…</code>
-            </figcaption>
-            {/* Aprobar y decidir cuándo sale son un solo gesto: la segunda
-                pantalla era el ir y venir que sobraba. */}
-            {previewing === null ||
-            previewing.status !== "ready_for_review" ||
-            !initial.canApprove ||
-            !initial.canSchedule ? null : (
-              <div className="publication-schedule-approval">
-                <FlowSteps current={3} />
-                <p>¿Cuándo sale?</p>
-                <SchedulePicker
-                  disabled={commandNotice === "Aprobando revisión…"}
-                  onChange={setScheduleDate}
-                  value={scheduleDate}
-                />
-                <label>
-                  A las
-                  <input
-                    onChange={(event) => {
-                      setScheduleTime(event.currentTarget.value);
-                    }}
-                    type="time"
-                    value={scheduleTime}
-                  />
-                </label>
-                <button
-                  className="workspace-primary-action"
-                  onClick={() => {
-                    void runCommand(previewing, "approve", {
-                      localDate: scheduleDate,
-                      localTime: scheduleTime,
-                      targets: ["instagram_story"],
-                    });
-                  }}
-                  type="button"
-                >
-                  Aprobar y programar
-                </button>
-                <small>
-                  Sale {scheduleInWords(scheduleDate, scheduleTime)}. Publicar
-                  sigue necesitando tu confirmación.
-                </small>
-              </div>
-            )}
-          </figure>
-        )}
-      </section>
+        </PublicationSheet>
+      )}
     </main>
   );
 }

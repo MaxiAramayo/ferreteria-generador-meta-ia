@@ -284,12 +284,14 @@ async function main(): Promise<void> {
       1,
       "Sólo la pieza aprobada ofrece publicar.",
     );
+    // El borrador dice lo que es: el estado alcanza, sin un aviso repetido
+    // en cada pieza (`P2-T11`).
     await publisherPage
-      .getByText("La pieza todavía no está aprobada", { exact: false })
+      .locator(".publication-status", { hasText: "Borrador" })
       .first()
       .waitFor({ timeout: 10_000 });
     reportCheck(
-      "sólo la pieza aprobada ofrece publicar y el borrador explica por qué",
+      "sólo la pieza aprobada ofrece publicar y el borrador dice que lo es",
     );
 
     // --- La confirmación muestra lo que va a salir ---

@@ -269,6 +269,7 @@ function listItemResponse(
   return Object.freeze({
     createdAt: item.createdAt,
     ...(item.failure === undefined ? {} : { failure: item.failure }),
+    ...(item.format === undefined ? {} : { format: item.format }),
     id: item.id,
     ...(item.latestContentBriefRunId === undefined
       ? {}
@@ -276,7 +277,9 @@ function listItemResponse(
     latestContentHash: item.latestContentHash,
     latestRevisionId: item.latestRevisionId,
     latestRevisionNumber: item.latestRevisionNumber,
+    ...(item.layout === undefined ? {} : { layout: item.layout }),
     ...(item.locationId === undefined ? {} : { locationId: item.locationId }),
+    ...(item.previewUrl === undefined ? {} : { previewUrl: item.previewUrl }),
     status: item.status,
     title: item.title,
     updatedAt: item.updatedAt,

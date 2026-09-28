@@ -129,11 +129,28 @@ revisión; al confirmarlo, enlaza `renderedMediaAssetId`, marca la revisión
 `in_review` y mueve la publicación a `ready_for_review`. Un reintento usa la
 misma identidad y no agrega revisión ni medio.
 
+Editar una pieza que ya está en revisión, o cuyo render o validación falló, la
+devuelve primero a `draft` con el comando de reapertura (`P2-T11`): exige
+`content:edit` y la versión vigente, sube la versión y agrega la transición en
+la misma transacción, con respuesta idempotente. La imagen confirmada queda con
+su revisión; el guardado siguiente crea otra y pide otro render. Una pieza
+aprobada no se reabre por este camino: tiene el suyo, que conserva el snapshot.
+
+El texto de la publicación puede ir vacío: una historia no lo publica y un post
+de Instagram lo admite sin texto. Facebook lo exige, y la validación previa a
+publicar lo rechaza con su motivo.
+
 Aprobar exige `content:approve`, la versión vigente y un render confirmado. La
 misma transacción crea `ApprovalSnapshot`, marca la revisión `approved`, mueve
 la publicación a `approved`, agrega la transición, auditoría y respuesta
 idempotente. El snapshot autocontenido conserva contenido, hash, documento y
 versión de diseño, medios de entrada y metadatos exactos del PNG derivado.
+
+El panel ofrece aprobar dentro del gesto que saca la pieza (`ADR-034`): después
+de ver la imagen final, el texto, el destino y la cuenta, «Publicar ahora»
+aprueba y pide la orden de publicación, y «Programar» aprueba con el turno. Son
+los mismos comandos, en ese orden y con sus claves de idempotencia: si la
+publicación se rechaza después de aprobar, la pieza queda aprobada y lo dice.
 
 Antes de cada envío a Meta, el worker vuelve a validar ese snapshot, el medio
 derivado y los permisos del destino. El snapshot aprobado conserva un perfil

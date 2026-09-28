@@ -272,13 +272,10 @@ export function OperationalAlertWorkspace({
         aria-labelledby="operacion"
         className="workspace-intro operational-intro"
       >
-        <div>
-          <p className="workspace-eyebrow">Centro de control</p>
-          <h1 id="operacion">Lo que necesita una decisión.</h1>
-        </div>
+        <h1 id="operacion">Operación</h1>
         <p>
-          Cada alerta conserva el recurso afectado, la causa comprobada y el
-          paso seguro. Esta bandeja no reintenta ni publica por sí sola.
+          Lo que necesita una decisión tuya. Nada de acá reintenta ni publica
+          solo.
         </p>
       </section>
 
