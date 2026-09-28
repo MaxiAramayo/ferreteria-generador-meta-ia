@@ -267,7 +267,9 @@ nuevo `POST publications/:id/reopen`, y el texto del post pasó a ser opcional:
 una historia no lo publica. La revisión encontró y corrigió tres errores: «Aprobar
 y programar» mandaba todo a historias aunque fuera un post, «Editar borrador» de
 un producto terminaba en un error y el compositor exigía un texto que la historia
-no usa. No necesita migración.
+no usa. No necesita migración. Se desplegó a producción el 2026-09-28 en
+`0b6dcf1e69a3f993f8b172f84edb6e4a3bbbe89c`, con copia previa verificada; `76ec1b7…`
+queda para rollback.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la

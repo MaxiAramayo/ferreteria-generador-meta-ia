@@ -37,6 +37,18 @@ estaban activos.
 
 ## Estado de producción verificado
 
+El 2026-09-28 se promovió `0b6dcf1e69a3f993f8b172f84edb6e4a3bbbe89c`, con las
+imágenes de la corrida `36491005913` y copia previa verificada
+(`aramayo-production-20260928T194929Z`, restauración verificada y subida a
+Drive). Trae el panel para el celular y la salida de una pieza en un gesto
+(`P2-T11`, `ADR-034`). No trae migraciones: la de la release respondió «No
+pending migrations to apply». El directorio de la release es idéntico al de
+`76ec1b7…`. `/health`, `/ready`, el panel, el login y las rutas
+`/legal/privacy`, `/legal/terms` y `/legal/data-deletion` respondieron `200`
+por HTTPS; el worker reporta PostgreSQL y Redis arriba, y `POST
+/publications/<id>/reopen` responde `401` sin sesión, que prueba que la ruta
+nueva está publicada y protegida. `76ec1b7…` queda para rollback.
+
 El 2026-09-23 se promovió `d85854f4b2dcb3ee0566ab3ba40a08cfd5d1f9c5`, con las
 imágenes de la corrida `35862941815` y copia previa verificada
 (`aramayo-production-20260923T124950Z`). Trae el borrado real de piezas y su
