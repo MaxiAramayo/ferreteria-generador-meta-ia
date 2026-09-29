@@ -49,6 +49,12 @@ por HTTPS; el worker reporta PostgreSQL y Redis arriba, y `POST
 /publications/<id>/reopen` responde `401` sin sesión, que prueba que la ruta
 nueva está publicada y protegida. `76ec1b7…` queda para rollback.
 
+El 2026-09-29, a pedido del usuario, se podaron por SHA exacto las imágenes de
+las cinco releases que ya no eran rollback elegible: `23c6df9…`, `3d70aa9…`,
+`5f36aa9b…`, `888004e…` y `d85854f…`. El disco pasó de 51 % a 26 % de uso —de
+36 GB a 54 GB libres—, sin tocar volúmenes. Quedan `0b6dcf1…` en curso,
+`76ec1b7…` para rollback y las imágenes de base.
+
 El 2026-09-23 se promovió `d85854f4b2dcb3ee0566ab3ba40a08cfd5d1f9c5`, con las
 imágenes de la corrida `35862941815` y copia previa verificada
 (`aramayo-production-20260923T124950Z`). Trae el borrado real de piezas y su
