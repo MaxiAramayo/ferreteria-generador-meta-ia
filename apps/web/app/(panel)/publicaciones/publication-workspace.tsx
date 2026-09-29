@@ -5,6 +5,7 @@ import type {
   PublicationSummaryResponse,
   PublishingReadinessResponse,
 } from "@aramayo/contracts";
+import { DONE_PUBLICATION_STATUSES } from "@aramayo/domain";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -319,9 +320,9 @@ function WorkspaceStatus({
   );
 }
 
-/** Lo que ya salió o no va a salir: se muestra aparte, plegado. */
+/** Lo que ya salió: se muestra aparte, plegado. Es la misma parte que la API. */
 const doneStatuses: ReadonlySet<PublicationSummaryResponse["status"]> = new Set(
-  ["published", "partially_published", "cancelled", "expired"],
+  DONE_PUBLICATION_STATUSES,
 );
 
 /**
@@ -613,6 +614,7 @@ export function PublicationWorkspace({
   }
   const publications =
     initial.kind === "ready" ? initial.publications.items : [];
+  const doneTotal = initial.kind === "ready" ? initial.doneTotal : 0;
   const canCreate = initial.canEdit || initial.canSchedule;
   const permissions: CardPermissions = {
     canApprove: initial.canApprove,
@@ -688,10 +690,15 @@ export function PublicationWorkspace({
               // Lo que ya salió queda plegado: las historias duran un día y el
               // listado es para lo que todavía falta.
               <details className="publication-done">
-                <summary>Ya salieron ({done.length})</summary>
+                <summary>Ya salieron ({doneTotal})</summary>
                 <ul aria-label="Ya salieron" className="publication-list">
                   {done.map(row)}
                 </ul>
+                {doneTotal > done.length ? (
+                  <p className="publication-sheet-note">
+                    Se muestran las últimas {done.length}.
+                  </p>
+                ) : null}
               </details>
             )}
           </>

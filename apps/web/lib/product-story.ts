@@ -143,6 +143,23 @@ export const emptyProductStoryDraft: ProductStoryDraft = Object.freeze({
   validity: "",
 });
 
+/**
+ * Si la pieza usa algo de «Más datos»: precio anterior, unidad, etiqueta,
+ * vigencia, medidas o un botón distinto del de siempre. El compositor los
+ * pliega para ir rápido y los abre solo cuando la pieza ya dice alguno.
+ */
+export function usesExtraFields(draft: ProductStoryDraft): boolean {
+  return (
+    draft.previousPrice.trim() !== "" ||
+    draft.priceUnit.trim() !== "" ||
+    draft.badge.trim() !== "" ||
+    draft.validity.trim() !== "" ||
+    draft.items.some((item) => item.trim() !== "") ||
+    !draft.showButton ||
+    draft.callToAction.trim() !== emptyProductStoryDraft.callToAction
+  );
+}
+
 export type ProductStoryPreview =
   | Readonly<{ document: DesignDocument; kind: "ready" }>
   | Readonly<{ kind: "blocked"; message: string }>

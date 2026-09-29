@@ -145,6 +145,16 @@ function orderCountFor(
     .finally(() => database.$disconnect());
 }
 
+function approvalCountFor(
+  databaseUrl: string,
+  publicationId: string,
+): Promise<number> {
+  const database = createDatabaseClient(databaseUrl);
+  return database.approvalSnapshot
+    .count({ where: { publicationId } })
+    .finally(() => database.$disconnect());
+}
+
 async function main(): Promise<void> {
   const configuredUrl = requiredDatabaseUrl();
   const databaseName = `e2e_publishing_${randomBytes(6).toString("hex")}`;
@@ -173,7 +183,9 @@ async function main(): Promise<void> {
       buildTimeoutMs,
     );
     assert.equal(migrate.exitCode, 0, `La migración falló:\n${migrate.output}`);
-    const fixture = await seedPublishingFixture(databaseUrl);
+    const fixture = await seedPublishingFixture(databaseUrl, {
+      withReadyPiece: true,
+    });
     process.stdout.write("Base efímera migrada y sembrada.\n");
 
     const apiPort = await reserveEphemeralPort();
@@ -387,6 +399,66 @@ async function main(): Promise<void> {
     reportCheck("volver atrás no duplica ni reabre el control");
 
     await publisherPage.context().close();
+
+    // --- Sacar una pieza en un gesto (`P2-T11`, `ADR-034`) ---
+    // El dueño toca «Publicar…» en una pieza lista y «Publicar ahora» en la
+    // hoja: se aprueba y se pide la publicación en el mismo toque, contra la
+    // API real, y un doble toque no aprueba dos veces ni crea dos órdenes.
+    const ready = fixture.ready;
+    assert.ok(ready !== undefined, "Falta la pieza lista del fixture.");
+    const ownerPage = await pageFor(
+      browser,
+      webBaseUrl,
+      apiBaseUrl,
+      ready.owner.email,
+    );
+    await ownerPage
+      .locator(".publication-card", { hasText: "Taladro percutor" })
+      .getByRole("button", { name: "Publicar…" })
+      .click();
+    await ownerPage
+      .locator(".publication-sheet")
+      .getByRole("heading", { name: "Taladro percutor" })
+      .waitFor({ timeout: 10_000 });
+    await ownerPage
+      .getByText("Sale en Ferretería y Lubricentro Aramayo.")
+      .waitFor({ timeout: 20_000 });
+    const releaseNow = ownerPage.getByRole("button", {
+      name: "Publicar ahora",
+    });
+    // El botón se habilita cuando la hoja tiene la imagen confirmada.
+    await ownerPage
+      .locator("button.publication-release-go:enabled")
+      .waitFor({ timeout: 20_000 });
+    assert.equal(
+      await approvalCountFor(databaseUrl, ready.publicationId),
+      0,
+      "Abrir la hoja no puede aprobar la pieza.",
+    );
+    reportCheck("la hoja muestra la cuenta y no aprueba nada al abrirse");
+
+    await Promise.all([
+      releaseNow.click({ force: true }),
+      releaseNow.click({ force: true, timeout: 5_000 }).catch(() => undefined),
+    ]);
+    await ownerPage
+      .getByText("Publicación pedida", { exact: false })
+      .first()
+      .waitFor({ timeout: 30_000 });
+    assert.equal(
+      await approvalCountFor(databaseUrl, ready.publicationId),
+      1,
+      "El doble toque aprobó más de una vez.",
+    );
+    assert.equal(
+      await orderCountFor(databaseUrl, ready.publicationId),
+      1,
+      "El doble toque creó más de una orden.",
+    );
+    reportCheck(
+      "«Publicar ahora» aprueba y pide una sola orden aunque se toque dos veces",
+    );
+    await ownerPage.context().close();
     process.stdout.write("E2E de publicación completo.\n");
   } finally {
     await browser?.close();

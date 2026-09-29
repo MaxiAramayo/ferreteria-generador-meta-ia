@@ -195,10 +195,25 @@ export interface PaginatedRecords<RecordType> {
   readonly total: number;
 }
 
+/**
+ * Las dos partes del listado del panel: lo que falta sacar y lo que ya salió.
+ * Se piden por separado para que una pieza pendiente no quede fuera de la
+ * página cuando las historias automáticas se acumulan.
+ */
+export const PUBLICATION_LIST_STAGES = ["upcoming", "done"] as const;
+
+export type PublicationListStage = (typeof PUBLICATION_LIST_STAGES)[number];
+
+/** Estados de lo que ya salió. Lo descartado no entra en ninguna parte. */
+export const DONE_PUBLICATION_STATUSES: readonly PublicationStatus[] =
+  Object.freeze(["published", "partially_published", "expired"]);
+
 export interface PublicationDraftListFilter extends OrganizationScope {
   readonly limit: number;
   readonly locationId?: string;
   readonly page: number;
+  /** Ignorado cuando se pide un estado puntual. */
+  readonly stage?: PublicationListStage;
   readonly status?: PublicationStatus;
 }
 

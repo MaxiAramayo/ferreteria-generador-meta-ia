@@ -1,5 +1,6 @@
 import {
   approvalPublicationTargetPolicy,
+  DONE_PUBLICATION_STATUSES,
   PUBLICATION_STATUSES,
 } from "@aramayo/domain";
 import type {
@@ -525,6 +526,21 @@ function replayDetail(
   });
 }
 
+function listStatusFilter(
+  filter: PublicationDraftListFilter,
+): Prisma.PublicationWhereInput {
+  if (filter.status !== undefined) return { status: filter.status };
+  const done = [...DONE_PUBLICATION_STATUSES];
+  if (filter.stage === "done") return { status: { in: done } };
+  if (filter.stage === "upcoming") {
+    return { status: { notIn: [...done, "cancelled"] } };
+  }
+  // Lo descartado sale del listado, y con él del conteo: una página que dice
+  // 20 y muestra 13 es peor que no mostrarlo. Pedirlo por estado sigue
+  // funcionando, para poder auditarlo.
+  return { status: { not: "cancelled" } };
+}
+
 function assertPagination(page: number, limit: number): void {
   if (!Number.isInteger(page) || page < 1 || page > 10_000) {
     throw new RangeError("Page must be between 1 and 10000.");
@@ -873,12 +889,7 @@ export class PrismaPublicationDraftRepository implements PublicationDraftReposit
       ...(filter.locationId === undefined
         ? {}
         : { locationId: filter.locationId }),
-      // Lo descartado sale del listado, y con él del conteo: una página que
-      // dice 20 y muestra 13 es peor que no mostrarlo. Pedirlo por estado
-      // sigue funcionando, para poder auditarlo.
-      ...(filter.status === undefined
-        ? { status: { not: "cancelled" as const } }
-        : { status: filter.status }),
+      ...listStatusFilter(filter),
     } satisfies Prisma.PublicationWhereInput;
     const [rows, total] = await this.#database.$transaction([
       this.#database.publication.findMany({

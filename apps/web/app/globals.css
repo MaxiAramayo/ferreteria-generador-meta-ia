@@ -5901,16 +5901,32 @@ html:has(.panel-shell) {
     padding: 0.65rem 1rem;
   }
 
-  .product-save-bar p {
+  /* En el celular la barra muestra sólo el botón, salvo que haya algo que
+   * avisar: falta la foto o el guardado falló. */
+  .product-save-bar p[data-notice="false"] {
     display: none;
+  }
+
+  .product-save-bar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .product-save-bar p[data-notice="true"] {
+    color: var(--workspace-ink);
+    flex-basis: 100%;
+    font-size: 0.85rem;
+    font-weight: 700;
   }
 
   .product-save-bar .workspace-primary-action {
     flex: 1;
   }
 
+  /* Tres por fila desde un teléfono de 360 px: la miniatura es la pieza a
+   * escala 0,07 (76 px de ancho) y no pisa la casilla de al lado. */
   .product-frame-gallery {
-    gap: 0.5rem;
+    gap: 0.4rem;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -5919,7 +5935,8 @@ html:has(.panel-shell) {
     grid-template-columns: 1fr;
     justify-items: center;
     min-height: 0;
-    padding: 0.35rem;
+    overflow: hidden;
+    padding: 0.25rem;
   }
 
   .product-frame-gallery .opening-layout-option small {
@@ -5932,16 +5949,49 @@ html:has(.panel-shell) {
   }
 
   .product-frame-thumb {
-    height: 12rem;
-    width: 6.75rem;
+    height: 8.4rem;
+    width: 4.725rem;
   }
 
   .product-frame-thumb[data-format="feed"] {
-    height: 8.4375rem;
+    height: 5.90625rem;
   }
 
   .product-frame-thumb > [data-card] {
-    transform: scale(0.1);
+    transform: scale(0.07);
+  }
+}
+
+/* «Más datos»: lo que se usa poco queda plegado para ir rápido. */
+.product-more-fields {
+  border-top: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+  padding-top: 0.25rem;
+}
+
+.product-more-fields > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 800;
+  min-height: 2.75rem;
+}
+
+.product-more-fields[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 48rem) {
+  /* Las tres opciones del precio, una debajo de la otra y a lo ancho. */
+  .product-price-modes {
+    display: grid;
+    width: 100%;
+  }
+
+  .product-price-modes label + label {
+    border-left: 0;
+    border-top: 1px solid var(--workspace-ink);
   }
 }
 

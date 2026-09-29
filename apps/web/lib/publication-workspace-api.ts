@@ -23,9 +23,20 @@ export type PublicationWorkspaceLoadResult =
       canApprove: boolean;
       canEdit: boolean;
       canSchedule: boolean;
+      /** Cuántas salieron en total; el listado trae sólo las últimas. */
+      doneTotal: number;
       kind: "ready";
+      /** Todo lo que falta sacar, y después las últimas que salieron. */
       publications: PublicationListResponse;
     }>;
+
+/**
+ * Lo que falta sacar llega entero; de lo que ya salió, las últimas. Las
+ * historias automáticas suman dos piezas por día, y una sola página de veinte
+ * dejaba afuera un borrador o una pieza programada de hace unos días.
+ */
+const upcomingListPath = "publications?stage=upcoming&page=1&limit=100";
+const doneListPath = "publications?stage=done&page=1&limit=20";
 
 export type TemplateDraftSaveResult =
   | Readonly<{
@@ -161,36 +172,36 @@ export async function loadPublicationWorkspace(
   apiBaseUrl: string,
 ): Promise<PublicationWorkspaceLoadResult> {
   try {
-    const [sessionResponse, publicationsResponse] = await Promise.all([
-      fetch(new URL("auth/session", apiBaseUrl), {
+    const read = (path: string): Promise<Response> =>
+      fetch(new URL(path, apiBaseUrl), {
         cache: "no-store",
         credentials: "include",
         headers: { accept: "application/json" },
-      }),
-      fetch(new URL("publications?page=1&limit=20", apiBaseUrl), {
-        cache: "no-store",
-        credentials: "include",
-        headers: { accept: "application/json" },
-      }),
+      });
+    const responses = await Promise.all([
+      read("auth/session"),
+      read(upcomingListPath),
+      read(doneListPath),
     ]);
     if (
-      sessionResponse.status === 401 ||
-      sessionResponse.status === 403 ||
-      publicationsResponse.status === 401 ||
-      publicationsResponse.status === 403
+      responses.some(
+        (response) => response.status === 401 || response.status === 403,
+      )
     ) {
       return { kind: "forbidden" };
     }
-    const [session, publications] = await Promise.all([
+    const [sessionResponse, upcomingResponse, doneResponse] = responses;
+    const [session, upcoming, done] = await Promise.all([
       payload(sessionResponse),
-      payload(publicationsResponse),
+      payload(upcomingResponse),
+      payload(doneResponse),
     ]);
     const actor = parseSessionActor(session);
     if (
-      !sessionResponse.ok ||
-      !publicationsResponse.ok ||
+      responses.some((response) => !response.ok) ||
       actor === null ||
-      !isPublicationList(publications)
+      !isPublicationList(upcoming) ||
+      !isPublicationList(done)
     ) {
       return {
         kind: "error",
@@ -212,15 +223,22 @@ export async function loadPublicationWorkspace(
       "content:schedule",
       actor.organizationId,
     ).allowed;
-    return publications.total === 0
+    const total = upcoming.total + done.total;
+    return total === 0
       ? { actor, canApprove, canEdit, canSchedule, kind: "empty" }
       : {
           actor,
           canApprove,
           canEdit,
           canSchedule,
+          doneTotal: done.total,
           kind: "ready",
-          publications,
+          publications: Object.freeze({
+            items: Object.freeze([...upcoming.items, ...done.items]),
+            limit: upcoming.limit + done.limit,
+            page: 1,
+            total,
+          }),
         };
   } catch {
     return {

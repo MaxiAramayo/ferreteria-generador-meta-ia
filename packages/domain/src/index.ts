@@ -394,7 +394,9 @@ export {
   type UpdateLocationConfigurationCommand,
 } from "./organization-configuration.ts";
 export {
+  DONE_PUBLICATION_STATUSES,
   normalizePublicationDraftContent,
+  PUBLICATION_LIST_STAGES,
   publicationDraftLimits,
   PublicationDraftValidationError,
   type DraftMediaReferenceInput,
@@ -409,6 +411,7 @@ export {
   type PublicationDraftRepository,
   type PublicationDraftUpdateResult,
   type PublicationDraftValidationErrorCode,
+  type PublicationListStage,
   type PublicationProductReference,
   type PublicationRevisionListFilter,
   type PublicationRevisionMediaRecord,

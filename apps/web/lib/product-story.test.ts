@@ -9,6 +9,7 @@ import {
   productStoryDocument,
   productStoryFrames,
   saveProductStoryDraft,
+  usesExtraFields,
 } from "./product-story.ts";
 
 const photo = {
@@ -344,5 +345,35 @@ test("una pieza que no es de producto con foto propia no se abre acá", () => {
       version: 1,
     }),
     null,
+  );
+});
+
+test("«Más datos» se abre solo cuando la pieza ya usa alguno", () => {
+  assert.equal(usesExtraFields(emptyProductStoryDraft), false);
+  // Nombre, descripción y precio están siempre a la vista: no cuentan.
+  assert.equal(
+    usesExtraFields({
+      ...emptyProductStoryDraft,
+      price: "$ 18.500",
+      subtitle: "Suela antideslizante",
+      title: "Botas de PVC",
+    }),
+    false,
+  );
+  assert.equal(
+    usesExtraFields({ ...emptyProductStoryDraft, validity: "Hasta el sábado" }),
+    true,
+  );
+  assert.equal(
+    usesExtraFields({ ...emptyProductStoryDraft, items: ["", "40 mm"] }),
+    true,
+  );
+  assert.equal(
+    usesExtraFields({ ...emptyProductStoryDraft, showButton: false }),
+    true,
+  );
+  assert.equal(
+    usesExtraFields({ ...emptyProductStoryDraft, callToAction: "Pedilo" }),
+    true,
   );
 });

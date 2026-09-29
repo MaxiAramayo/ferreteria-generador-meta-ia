@@ -26,6 +26,7 @@ import {
   productStoryPriceModes,
   saveProductPieceEdit,
   saveProductStoryDraft,
+  usesExtraFields,
   type EditableProductPiece,
   type ProductStoryDraft,
 } from "../../../lib/product-story.ts";
@@ -73,6 +74,8 @@ export function ProductStoryComposer({
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [photoStatus, setPhotoStatus] = useState<string>("");
+  // Lo poco usado queda plegado; al editar se abre si la pieza ya lo usa.
+  const [moreOpen, setMoreOpen] = useState(false);
   const preview = productStoryDocument(draft);
   // Cada miniatura vuelve a validar la foto embebida: se calculan con el
   // borrador diferido para que escribir no espere a las siete.
@@ -106,6 +109,7 @@ export function ProductStoryComposer({
         const { draft: loaded, ...piece } = result.piece;
         setDraft(loaded);
         setEditing(piece);
+        setMoreOpen(usesExtraFields(loaded));
         return;
       }
       setNotice(
@@ -119,11 +123,14 @@ export function ProductStoryComposer({
     };
   }, [apiBaseUrl, editId]);
 
+  // Un aviso responde a lo último que se intentó: al tocar la pieza, caduca.
   function change(values: Partial<ProductStoryDraft>): void {
+    setNotice(null);
     setDraft((current) => ({ ...current, ...values }));
   }
 
   function changeItem(index: number, value: string): void {
+    setNotice(null);
     setDraft((current) => {
       const items = [...current.items];
       items[index] = value;
@@ -425,7 +432,7 @@ export function ProductStoryComposer({
         </fieldset>
 
         <OpeningStoryPreview
-          caption="Es la misma composición que se renderiza antes de aprobar."
+          caption="Es la misma composición que sale publicada."
           disabled={locked}
           formatLabel={
             format === undefined
@@ -486,7 +493,7 @@ export function ProductStoryComposer({
               <legend>Precio</legend>
               <div
                 aria-label="Qué dice la pieza del precio"
-                className="product-segmented"
+                className="product-segmented product-price-modes"
                 role="radiogroup"
               >
                 {productStoryPriceModes.map((option) => (
@@ -521,96 +528,111 @@ export function ProductStoryComposer({
                       value={draft.price}
                     />
                   </label>
-                  <label>
-                    Precio anterior
-                    <input
-                      disabled={locked || draft.price.trim() === ""}
-                      maxLength={40}
-                      onChange={(event) => {
-                        change({ previousPrice: event.currentTarget.value });
-                      }}
-                      placeholder="$ 62.400"
-                      value={draft.previousPrice}
-                    />
-                  </label>
-                  <label>
-                    Unidad
-                    <input
-                      disabled={locked || draft.price.trim() === ""}
-                      maxLength={20}
-                      onChange={(event) => {
-                        change({ priceUnit: event.currentTarget.value });
-                      }}
-                      placeholder="el metro, c/u"
-                      value={draft.priceUnit}
-                    />
-                  </label>
                 </div>
               ) : null}
             </fieldset>
 
-            <label>
-              Etiqueta
-              <input
-                disabled={locked || !shows("badge")}
-                maxLength={30}
-                onChange={(event) => {
-                  change({ badge: event.currentTarget.value });
-                }}
-                placeholder="Oferta, Recién llegado"
-                value={draft.badge}
-              />
-              <NotInFrame shown={shows("badge")} />
-            </label>
-            <label>
-              Vigencia
-              <input
-                disabled={locked || !shows("validity")}
-                maxLength={60}
-                onChange={(event) => {
-                  change({ validity: event.currentTarget.value });
-                }}
-                placeholder="Hasta el sábado"
-                value={draft.validity}
-              />
-              <NotInFrame shown={shows("validity")} />
-            </label>
-            {itemSlots.map((index) => (
-              <label key={index}>
-                Medida o variante {index + 1}
-                <input
-                  disabled={locked || !shows("items")}
-                  maxLength={40}
-                  onChange={(event) => {
-                    changeItem(index, event.currentTarget.value);
-                  }}
-                  value={draft.items[index] ?? ""}
-                />
-                {index === 0 ? <NotInFrame shown={shows("items")} /> : null}
-              </label>
-            ))}
-            <label className="product-toggle recurring-draft-full-field">
-              <input
-                checked={draft.showButton}
-                disabled={locked}
-                onChange={(event) => {
-                  change({ showButton: event.currentTarget.checked });
-                }}
-                type="checkbox"
-              />
-              Mostrar el botón con el teléfono
-            </label>
-            <label className="recurring-draft-full-field">
-              Texto del botón
-              <input
-                disabled={locked || !draft.showButton}
-                maxLength={40}
-                onChange={(event) => {
-                  change({ callToAction: event.currentTarget.value });
-                }}
-                value={draft.callToAction}
-              />
-            </label>
+            <details
+              className="product-more-fields recurring-draft-full-field"
+              onToggle={(event) => {
+                setMoreOpen(event.currentTarget.open);
+              }}
+              open={moreOpen}
+            >
+              <summary>Más datos (opcional)</summary>
+              <div className="recurring-draft-editor-grid">
+                {draft.priceMode === "amount" ? (
+                  <>
+                    <label>
+                      Precio anterior
+                      <input
+                        disabled={locked || draft.price.trim() === ""}
+                        maxLength={40}
+                        onChange={(event) => {
+                          change({ previousPrice: event.currentTarget.value });
+                        }}
+                        placeholder="$ 62.400"
+                        value={draft.previousPrice}
+                      />
+                    </label>
+                    <label>
+                      Unidad
+                      <input
+                        disabled={locked || draft.price.trim() === ""}
+                        maxLength={20}
+                        onChange={(event) => {
+                          change({ priceUnit: event.currentTarget.value });
+                        }}
+                        placeholder="el metro, c/u"
+                        value={draft.priceUnit}
+                      />
+                    </label>
+                  </>
+                ) : null}
+                <label>
+                  Etiqueta
+                  <input
+                    disabled={locked || !shows("badge")}
+                    maxLength={30}
+                    onChange={(event) => {
+                      change({ badge: event.currentTarget.value });
+                    }}
+                    placeholder="Oferta, Recién llegado"
+                    value={draft.badge}
+                  />
+                  <NotInFrame shown={shows("badge")} />
+                </label>
+                <label>
+                  Vigencia
+                  <input
+                    disabled={locked || !shows("validity")}
+                    maxLength={60}
+                    onChange={(event) => {
+                      change({ validity: event.currentTarget.value });
+                    }}
+                    placeholder="Hasta el sábado"
+                    value={draft.validity}
+                  />
+                  <NotInFrame shown={shows("validity")} />
+                </label>
+                {itemSlots.map((index) => (
+                  <label key={index}>
+                    Medida o variante {index + 1}
+                    <input
+                      disabled={locked || !shows("items")}
+                      maxLength={40}
+                      onChange={(event) => {
+                        changeItem(index, event.currentTarget.value);
+                      }}
+                      value={draft.items[index] ?? ""}
+                    />
+                    {index === 0 ? <NotInFrame shown={shows("items")} /> : null}
+                  </label>
+                ))}
+                <label className="product-toggle recurring-draft-full-field">
+                  <input
+                    checked={draft.showButton}
+                    disabled={locked}
+                    onChange={(event) => {
+                      change({ showButton: event.currentTarget.checked });
+                    }}
+                    type="checkbox"
+                  />
+                  Mostrar el botón con el teléfono
+                </label>
+                <label className="recurring-draft-full-field">
+                  Texto del botón
+                  <input
+                    disabled={locked || !draft.showButton}
+                    maxLength={40}
+                    onChange={(event) => {
+                      change({ callToAction: event.currentTarget.value });
+                    }}
+                    value={draft.callToAction}
+                  />
+                </label>
+              </div>
+            </details>
           </div>
           <p className="opening-style-controls-intro">
             Lo que dejás vacío no aparece y el marco se acomoda. El importe se
@@ -645,7 +667,11 @@ export function ProductStoryComposer({
         )}
 
         <div className="recurring-story-actions product-save-bar">
-          <p aria-live="polite" role="status">
+          <p
+            aria-live="polite"
+            data-notice={String(notice !== null)}
+            role="status"
+          >
             {notice ?? "Después elegís si sale ahora o más tarde."}
           </p>
           <button

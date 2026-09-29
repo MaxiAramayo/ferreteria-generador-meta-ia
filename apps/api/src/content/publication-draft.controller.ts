@@ -96,6 +96,7 @@ export class PublicationDraftController {
       ...(query.locationId === undefined
         ? {}
         : { locationId: query.locationId }),
+      ...(query.stage === undefined ? {} : { stage: query.stage }),
       ...(query.status === undefined
         ? {}
         : { status: query.status satisfies PublicationStatus }),

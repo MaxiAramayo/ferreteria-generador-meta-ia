@@ -48,6 +48,11 @@ es un límite de seguridad.
 - Las sesiones son opacas, revocables y expiran según
   `AUTH_SESSION_TTL_SECONDS`. Roles y estados se leen desde PostgreSQL en cada
   solicitud.
+- En producción la sesión dura 30 días, el máximo que admite la
+  configuración. El 2026-09-29 el dueño eligió no volver a escribir la
+  contraseña cada día en el celular, desde donde opera. Si pierde el teléfono,
+  «Cerrar sesión» en otro dispositivo no alcanza —cierra esa sesión—, pero
+  cambiar la contraseña revoca todas.
 - Los eventos de ingreso, rate limit, revocación y cambio de membresía son
   append-only. Email e IP no se guardan en esos eventos: sólo hashes de sujeto
   y huella.
