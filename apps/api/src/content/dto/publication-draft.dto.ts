@@ -27,7 +27,7 @@ import {
   LAYOUT_IDS,
   THEME_IDS,
 } from "@aramayo/design-engine";
-import { PUBLICATION_STATUSES } from "@aramayo/domain";
+import { PUBLICATION_LIST_STAGES, PUBLICATION_STATUSES } from "@aramayo/domain";
 
 export class PublicationProductReferenceDto {
   @IsString()
@@ -303,6 +303,10 @@ export class PublicationListQueryDto {
   @Max(10_000)
   @Type(() => Number)
   page = 1;
+
+  @IsOptional()
+  @IsIn(PUBLICATION_LIST_STAGES)
+  declare stage?: (typeof PUBLICATION_LIST_STAGES)[number];
 
   @IsOptional()
   @IsIn(PUBLICATION_STATUSES)

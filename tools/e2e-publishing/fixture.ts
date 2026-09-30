@@ -33,6 +33,17 @@ export interface PublishingFixture {
   readonly people: Readonly<
     Record<"editor" | "publisher" | "scheduler", SeededPerson>
   >;
+  /** Sólo con `withReadyPiece`: la pieza lista para salir y su dueño. */
+  readonly ready?: Readonly<{ owner: SeededPerson; publicationId: string }>;
+}
+
+export interface PublishingFixtureOptions {
+  /**
+   * Suma una pieza con su imagen lista y una persona con los tres roles del
+   * dueño, para recorrer «¿Cuándo sale?» de punta a punta. Es opcional porque
+   * otros E2E cuentan las piezas listas del tablero.
+   */
+  readonly withReadyPiece?: boolean;
 }
 
 const checksum = "a".repeat(64);
@@ -97,6 +108,7 @@ const grantedPermissions = Object.freeze([
 
 export async function seedPublishingFixture(
   databaseUrl: string,
+  options: PublishingFixtureOptions = {},
 ): Promise<PublishingFixture> {
   const database = createDatabaseClient(databaseUrl);
   const hasher = new Argon2idPasswordHasher();
@@ -129,6 +141,14 @@ export async function seedPublishingFixture(
       roles: ["approver"] as const,
     },
   };
+  // Quien opera el sistema solo: crea, aprueba y publica.
+  const owner: SeededPerson = {
+    email: "duenio.e2e@aramayo.invalid",
+    membershipId: randomUUID(),
+    roles: ["editor", "approver", "publisher"],
+  };
+  const readyPublicationId = randomUUID();
+  const readyMediaAssetId = randomUUID();
 
   try {
     await database.organization.create({
@@ -140,7 +160,10 @@ export async function seedPublishingFixture(
       },
     });
 
-    for (const person of Object.values(people)) {
+    const seededPeople: readonly SeededPerson[] = options.withReadyPiece
+      ? [...Object.values(people), owner]
+      : Object.values(people);
+    for (const person of seededPeople) {
       const userId = randomUUID();
       await database.user.create({
         data: {
@@ -323,11 +346,71 @@ export async function seedPublishingFixture(
       ],
     });
 
+    if (options.withReadyPiece === true) {
+      // Lista para salir: revisión en revisión con su PNG confirmado, que es
+      // lo que deja el worker al terminar el render.
+      await database.mediaAsset.create({
+        data: {
+          byteSize: 2048n,
+          checksumSha256: "d".repeat(64),
+          height: 1920,
+          id: readyMediaAssetId,
+          mimeType: "image/png",
+          organizationId,
+          origin: "generated",
+          originalFileName: "taladro.png",
+          ownerMembershipId: owner.membershipId,
+          secureUrl:
+            "https://res.cloudinary.com/demo/image/upload/v1/taladro.png",
+          status: "available",
+          storageKey: "aramayo-e2e/taladro",
+          storageProvider: "cloudinary",
+          storageVersion: 1,
+          width: 1080,
+        },
+      });
+      await database.publication.create({
+        data: {
+          createdByMembershipId: owner.membershipId,
+          id: readyPublicationId,
+          locationId,
+          organizationId,
+          status: "ready_for_review",
+          title: "Taladro percutor",
+          version: 3,
+        },
+      });
+      await database.publicationRevision.create({
+        data: {
+          content: { caption: "", products: [] },
+          contentHash: "d".repeat(64),
+          createdByMembershipId: owner.membershipId,
+          designDocument: designDocument("Taladro percutor", "taladro-e2e"),
+          id: randomUUID(),
+          organizationId,
+          publicationId: readyPublicationId,
+          renderedAt: new Date("2026-08-20T10:00:00.000Z"),
+          renderedMediaAssetId: readyMediaAssetId,
+          revisionNumber: 1,
+          schemaVersion: 1,
+          status: "in_review",
+        },
+      });
+    }
+
     return Object.freeze({
       approvedPublicationId,
       draftPublicationId,
       organizationId,
       people: Object.freeze(people),
+      ...(options.withReadyPiece === true
+        ? {
+            ready: Object.freeze({
+              owner,
+              publicationId: readyPublicationId,
+            }),
+          }
+        : {}),
     });
   } finally {
     await database.$disconnect();

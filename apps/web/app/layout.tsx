@@ -15,6 +15,10 @@ import "@fontsource/saira-condensed/900.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Agregado a la pantalla de inicio del iPhone, abre como app y con este
+  // nombre debajo del ícono.
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Aramayo" },
+  applicationName: "Aramayo",
   description:
     "Panel interno de creación, revisión y publicación de contenido de Ferretería y Lubricentro Aramayo.",
   robots: { follow: false, index: false },

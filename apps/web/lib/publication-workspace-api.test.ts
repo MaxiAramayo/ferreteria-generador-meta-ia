@@ -41,7 +41,12 @@ test("carga sesión y publicaciones en paralelo y representa el vacío", async (
   const requestedPaths: string[] = [];
   globalThis.fetch = (input) => {
     const url = requestUrl(input);
-    requestedPaths.push(url.pathname);
+    requestedPaths.push(
+      url.pathname +
+        (url.searchParams.has("stage")
+          ? `?stage=${url.searchParams.get("stage") ?? ""}&limit=${url.searchParams.get("limit") ?? ""}`
+          : ""),
+    );
     return Promise.resolve(
       url.pathname.endsWith("/auth/session")
         ? jsonResponse({
@@ -63,7 +68,12 @@ test("carga sesión y publicaciones en paralelo y representa el vacío", async (
   const result = await loadPublicationWorkspace("http://api.example.test/");
 
   assert.equal(result.kind, "empty");
-  assert.deepEqual(requestedPaths.sort(), ["/auth/session", "/publications"]);
+  // Lo que falta sacar llega entero; de lo que salió, las últimas veinte.
+  assert.deepEqual(requestedPaths.sort(), [
+    "/auth/session",
+    "/publications?stage=done&limit=20",
+    "/publications?stage=upcoming&limit=100",
+  ]);
   assert.equal(result.canEdit, true);
 });
 
@@ -186,13 +196,21 @@ test("el listado conserva el vínculo con la ejecución que generó la pieza", a
               userId: "user-1",
             },
           })
-        : jsonResponse({ items: [publication], limit: 20, page: 1, total: 1 }),
+        : url.searchParams.get("stage") === "upcoming"
+          ? jsonResponse({
+              items: [publication],
+              limit: 100,
+              page: 1,
+              total: 1,
+            })
+          : jsonResponse({ items: [], limit: 20, page: 1, total: 0 }),
     );
   };
 
   const result = await loadPublicationWorkspace("http://api.example.test/");
 
   assert.ok(result.kind === "ready");
+  assert.equal(result.publications.items.length, 1);
   // Sin este dato, llegar desde la pieza hasta su evidencia obligaría a
   // recomponer el vínculo en la UI.
   assert.equal(result.publications.items[0]?.latestContentBriefRunId, "run-1");
@@ -320,4 +338,49 @@ test("preview acepta sólo un PNG confirmado por el contrato", async () => {
   );
   assert.equal(result.kind, "ready");
   assert.equal(result.preview.checksumSha256, "c".repeat(64));
+});
+
+test("de lo que ya salió llegan las últimas, con el total aparte", async () => {
+  const published = (id: string): Readonly<Record<string, unknown>> => ({
+    createdAt: "2026-09-28T12:00:00.000Z",
+    id,
+    latestContentHash: "a".repeat(64),
+    latestRevisionId: `revision-${id}`,
+    latestRevisionNumber: 1,
+    status: "published",
+    title: `Historia ${id}`,
+    updatedAt: "2026-09-28T12:00:00.000Z",
+    version: 3,
+  });
+  globalThis.fetch = (input) => {
+    const url = requestUrl(input);
+    return Promise.resolve(
+      url.pathname.endsWith("/auth/session")
+        ? jsonResponse({
+            actor: {
+              displayName: "Dueño",
+              email: "duenio@example.invalid",
+              membershipId: "membership-1",
+              organizationId: "organization-1",
+              roles: ["editor", "approver", "publisher"],
+              sessionId: "session-1",
+              userId: "user-1",
+            },
+          })
+        : url.searchParams.get("stage") === "done"
+          ? jsonResponse({
+              items: [published("a"), published("b")],
+              limit: 20,
+              page: 1,
+              total: 35,
+            })
+          : jsonResponse({ items: [], limit: 100, page: 1, total: 0 }),
+    );
+  };
+
+  const result = await loadPublicationWorkspace("http://api.example.test/");
+
+  assert.ok(result.kind === "ready");
+  assert.equal(result.doneTotal, 35);
+  assert.equal(result.publications.items.length, 2);
 });

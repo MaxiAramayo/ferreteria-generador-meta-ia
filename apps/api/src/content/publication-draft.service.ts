@@ -32,6 +32,7 @@ import {
   type PublicationDraftListItemRecord,
   type PublicationDraftRepository,
   type PublicationRevisionRecord,
+  type PublicationListStage,
   type PublicationStatus,
 } from "@aramayo/domain";
 import {
@@ -129,6 +130,7 @@ export interface PublicationListInput {
   readonly limit: number;
   readonly locationId?: string;
   readonly page: number;
+  readonly stage?: PublicationListStage;
   readonly status?: PublicationStatus;
 }
 
@@ -389,6 +391,7 @@ export class PublicationDraftService {
       ...(input.locationId === undefined
         ? {}
         : { locationId: input.locationId }),
+      ...(input.stage === undefined ? {} : { stage: input.stage }),
       ...(input.status === undefined ? {} : { status: input.status }),
     };
     return paginatedResponse(

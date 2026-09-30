@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-28
+Actualizado: 2026-09-29
 
 ## Fase activa
 
@@ -270,6 +270,16 @@ un producto terminaba en un error y el compositor exigía un texto que la histor
 no usa. No necesita migración. Se desplegó a producción el 2026-09-28 en
 `0b6dcf1e69a3f993f8b172f84edb6e4a3bbbe89c`, con copia previa verificada; `76ec1b7…`
 queda para rollback.
+
+`P2-T12` cerró el 2026-09-29, a pedido del usuario, para dejar el panel listo
+para el uso diario. El listado traía sólo las veinte piezas más nuevas y las
+historias automáticas suman dos por día: ahora pide aparte lo que falta sacar,
+entero, y de lo publicado las últimas veinte con el total. En el celular, tocar
+«Continuar» sin foto ahora avisa qué falta, las miniaturas de marcos ya no se
+pisan y los campos poco usados quedan en «Más datos». El panel se puede agregar
+a la pantalla de inicio como app y la sesión de producción pasa a durar 30 días.
+El E2E de publicación recorre «Publicar ahora» contra la API real. No necesita
+migración.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la

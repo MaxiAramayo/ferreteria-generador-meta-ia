@@ -63,7 +63,8 @@ públicos reciben tipos generados por el ORM.
 El módulo `content` expone la vertical síncrona de borradores:
 
 - `POST /publications` crea publicación y primera revisión;
-- `GET /publications` lista con paginación y filtros de estado o ubicación;
+- `GET /publications` lista con paginación y filtros de estado, ubicación o
+  parte (`stage=upcoming` lo que falta sacar, `stage=done` lo que ya salió);
 - `GET /publications/:publicationId` recupera la revisión vigente;
 - `GET /publications/:publicationId/revisions` consulta historial paginado;
 - `PATCH /publications/:publicationId` agrega una revisión con

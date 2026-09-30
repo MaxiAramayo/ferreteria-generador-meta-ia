@@ -1099,6 +1099,102 @@ test("editar una pieza en revisión la devuelve a borrador y el listado la muest
   assert.equal(transition.toVersion, 4);
 });
 
+test("el listado trae por separado lo que falta sacar y lo que ya salió", async () => {
+  // Las historias automáticas suman dos piezas por día: si el listado sólo
+  // trajera las últimas veinte, un borrador o una pieza programada de hace
+  // unos días quedaría fuera de la página.
+  const organizationId = randomUUID();
+  const userId = randomUUID();
+  const membershipId = randomUUID();
+  await database.organization.create({
+    data: {
+      displayName: "Organización del listado",
+      id: organizationId,
+      legalName: "Organización del listado",
+      slug: `listado-${organizationId}`,
+    },
+  });
+  await database.user.create({
+    data: {
+      displayName: "Editora del listado",
+      email: `${userId}@listado.invalid`,
+      id: userId,
+    },
+  });
+  await database.organizationMembership.create({
+    data: { id: membershipId, organizationId, roles: ["editor"], userId },
+  });
+  const statuses = [
+    "draft",
+    "scheduled",
+    "published",
+    "expired",
+    "cancelled",
+  ] as const;
+  for (const status of statuses) {
+    const publicationId = randomUUID();
+    await database.publication.create({
+      data: {
+        createdByMembershipId: membershipId,
+        id: publicationId,
+        organizationId,
+        status,
+        title: `Pieza ${status}`,
+      },
+    });
+    await database.publicationRevision.create({
+      data: {
+        content: { caption: "", products: [] },
+        contentHash: "f".repeat(64),
+        createdByMembershipId: membershipId,
+        designDocument: {},
+        id: randomUUID(),
+        organizationId,
+        publicationId,
+        revisionNumber: 1,
+        schemaVersion: 1,
+      },
+    });
+  }
+  const drafts = new PrismaPublicationDraftRepository(database);
+  const titles = async (
+    stage: "done" | "upcoming" | undefined,
+  ): Promise<readonly string[]> => {
+    const page = await drafts.list({
+      limit: 10,
+      organizationId,
+      page: 1,
+      ...(stage === undefined ? {} : { stage }),
+    });
+    return page.items.map((item) => item.title).sort();
+  };
+
+  assert.deepEqual(await titles("upcoming"), [
+    "Pieza draft",
+    "Pieza scheduled",
+  ]);
+  assert.deepEqual(await titles("done"), ["Pieza expired", "Pieza published"]);
+  // Sin parte, todo menos lo descartado, como hasta ahora.
+  assert.deepEqual(await titles(undefined), [
+    "Pieza draft",
+    "Pieza expired",
+    "Pieza published",
+    "Pieza scheduled",
+  ]);
+  // Un estado puntual gana sobre la parte: lo descartado se sigue auditando.
+  const cancelled = await drafts.list({
+    limit: 10,
+    organizationId,
+    page: 1,
+    stage: "upcoming",
+    status: "cancelled",
+  });
+  assert.deepEqual(
+    cancelled.items.map((item) => item.title),
+    ["Pieza cancelled"],
+  );
+});
+
 test("medios reservan, confirman y eliminan sin cruzar ownership ni referencias", async () => {
   const organizationId = randomUUID();
   const otherOrganizationId = randomUUID();

@@ -943,9 +943,92 @@ regla de ver lo que sale antes de que salga.
   configuración, sin desborde horizontal.
 - Decisiones: [`ADR-034`](../architecture/decisions/ADR-034-ONE-GESTURE-RELEASE.md).
 
+## P2-T12 — Dejar el panel listo para el uso diario
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P2-T11`
+- Riesgo: Medio
+
+### Objetivo
+
+Que el dueño use el panel todos los días desde el celular sin tropezar: que
+ninguna pieza pendiente desaparezca del listado, que el compositor avise lo que
+falta, que el formulario vaya a lo esencial y que el panel se abra como una app.
+
+### Entregables
+
+- Filtro `stage` en `GET /publications`: `upcoming` trae lo que falta sacar y
+  `done` lo que ya salió. El panel pide lo pendiente entero y de lo publicado,
+  las últimas veinte, con el total aparte.
+- Aviso visible en la barra de «Continuar» del celular cuando falta la foto o
+  el guardado falla; caduca al tocar la pieza.
+- Miniaturas de marcos que entran de a tres desde un teléfono de 360 px, y las
+  opciones de precio en columna.
+- «Más datos (opcional)»: precio anterior, unidad, etiqueta, vigencia, medidas y
+  botón quedan plegados; se abren solos si la pieza ya usa alguno.
+- Manifiesto, íconos de 192 y 512 px e ícono de Apple para agregar el panel a
+  la pantalla de inicio.
+- Sesión de 30 días en producción (`SECURITY.md`).
+- E2E de «Publicar ahora» contra la API real.
+
+### Criterios de aceptación
+
+- [x] Un borrador o una pieza programada sigue en el listado aunque haya más
+      de veinte publicadas después.
+- [x] «Ya salieron» cuenta todas y dice cuándo muestra sólo las últimas.
+- [x] Lo descartado no entra en ninguna parte, y pedir un estado puntual sigue
+      funcionando para auditarlo.
+- [x] En el celular, tocar «Continuar» sin foto dice qué falta.
+- [x] Ninguna miniatura pisa la de al lado en 360 px.
+- [x] Nombre, descripción y precio están siempre a la vista.
+- [x] «Publicar ahora» aprueba una sola vez y crea una sola orden aunque se
+      toque dos veces.
+
+### Verificación obligatoria
+
+- [x] Integración: cada parte del listado trae lo suyo contra PostgreSQL.
+- [x] API: `stage` llega al repositorio y un valor desconocido responde 400.
+- [x] Panel: las dos consultas, el total de lo publicado y cuándo se abre
+      «Más datos».
+- [x] `pnpm e2e:publishing` con la hoja «¿Cuándo sale?» de punta a punta.
+- [x] `pnpm e2e:navigation`, `pnpm e2e:scheduling` y
+      `pnpm e2e:recurring-story`.
+- [x] Capturas en 390 px y 1280 px del compositor, sin desborde.
+- [x] `pnpm verify` completo.
+
+### Fuera de alcance
+
+- Funcionar sin conexión o notificaciones: el manifiesto sólo da nombre, ícono
+  y pantalla completa.
+- Cambiar marcos, motor o reglas de aprobación.
+
+### Notas de progreso
+
+- 2026-09-29: el dueño pidió revisar lo hecho «para que quede listo para que la
+  usen». Eligió sesión de 30 días, agregar el panel como app y plegar los
+  campos poco usados.
+- La revisión encontró que el listado traía sólo las veinte piezas más nuevas.
+  Producción tenía diez, todas historias automáticas, a unas dos por día: en
+  pocos días un borrador o una pieza programada habría quedado fuera.
+- En el celular, el aviso de la barra de «Continuar» estaba oculto siempre:
+  tocar sin foto no decía nada. Las miniaturas medían 108 px en casillas de
+  84 y se pisaban.
+- El camino más usado, «Publicar ahora», sólo tenía pruebas con respuestas
+  simuladas; ahora el E2E lo recorre contra la API y la base.
+
+### Evidencia de cierre
+
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck,
+  pruebas, baseline visual y smoke aprobados.
+- `pnpm db:test`, `pnpm e2e:publishing`, `pnpm e2e:navigation`,
+  `pnpm e2e:scheduling` y `pnpm e2e:recurring-story`: completos.
+- Capturas del compositor en teléfono y computadora: aviso sin foto, marcos,
+  precio y «Más datos», sin desborde; manifiesto e íconos responden `200`.
+
 ## Criterios de salida de Fase 2
 
-- [x] `P2-T01` a `P2-T11` están completas.
+- [x] `P2-T01` a `P2-T12` están completas.
 - [x] Aislamiento, autorización e idempotencia tienen pruebas.
 - [x] Existe un flujo determinista aprobado de punta a punta.
 - [x] Ninguna acción del panel publica o llama a IA de forma implícita.

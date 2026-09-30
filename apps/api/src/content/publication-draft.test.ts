@@ -168,6 +168,7 @@ class InMemoryPublicationDraftRepository implements PublicationDraftRepository {
   readonly details = new Map<string, PublicationDraftDetailRecord>();
   readonly histories = new Map<string, PublicationRevisionRecord[]>();
   lastCreateInput: PersistPublicationDraftInput | undefined;
+  lastListFilter: PublicationDraftListFilter | undefined;
 
   create(
     input: PersistPublicationDraftInput,
@@ -213,6 +214,7 @@ class InMemoryPublicationDraftRepository implements PublicationDraftRepository {
   list(
     filter: PublicationDraftListFilter,
   ): Promise<PaginatedRecords<PublicationDraftListItemRecord>> {
+    this.lastListFilter = filter;
     const matching = [...this.details.values()]
       .filter(
         ({ publication }) =>
@@ -711,6 +713,17 @@ test("el flujo HTTP crea, edita, versiona, filtra y consulta el borrador", async
     jsonObject(jsonArray(listBody["items"])[0])["latestRevisionNumber"],
     2,
   );
+
+  // El panel pide por separado lo que falta sacar y lo que ya salió.
+  const upcoming = await supertest(baseUrl).get(
+    "/publications?page=1&limit=100&stage=upcoming",
+  );
+  assert.equal(upcoming.status, 200);
+  assert.equal(httpRepository.lastListFilter?.stage, "upcoming");
+  const unknownStage = await supertest(baseUrl).get(
+    "/publications?page=1&limit=10&stage=todas",
+  );
+  assert.equal(unknownStage.status, 400);
 });
 
 test("un post de producto con foto propia guarda lo que calla y la unidad del precio", async () => {
