@@ -6,8 +6,12 @@ import {
   emptyProductStoryDraft,
   frameShows,
   productFrameThumbnail,
+  productPreviewNote,
   productStoryDocument,
   productStoryFrames,
+  productStoryLivePreview,
+  sampleProductPrice,
+  sampleProductTitle,
   saveProductStoryDraft,
   usesExtraFields,
 } from "./product-story.ts";
@@ -180,6 +184,110 @@ test("la galería muestra cada marco aunque todavía no haya foto", () => {
     assert.equal(own.content.title, "Pala");
     assert.equal(own.media[0]?.reference.source, "inline");
   }
+});
+
+test("la vista previa muestra la pieza antes de cargar nada, con un ejemplo avisado", () => {
+  const preview = productStoryLivePreview(emptyProductStoryDraft);
+
+  assert.equal(preview.kind, "ready");
+  assert.deepEqual(preview.samples, ["photo", "title", "price"]);
+  assert.equal(preview.document.layout, "foto-producto-cartel");
+  assert.equal(preview.document.content.title, sampleProductTitle);
+  assert.equal(preview.document.content.price, sampleProductPrice);
+  assert.equal(preview.document.media[0]?.reference.source, "brand-library");
+  // El ejemplo es sólo para mirar: la pieza que se guarda sigue sin existir.
+  assert.deepEqual(productStoryDocument(emptyProductStoryDraft), {
+    kind: "needs-photo",
+  });
+});
+
+test("con la foto subida, la vista previa ya la usa aunque falten nombre y precio", () => {
+  const draft = { ...emptyProductStoryDraft, photo };
+  const preview = productStoryLivePreview(draft);
+
+  assert.equal(preview.kind, "ready");
+  assert.deepEqual(preview.samples, ["title", "price"]);
+  assert.equal(preview.document.media[0]?.reference.source, "inline");
+  assert.equal(productStoryDocument(draft).kind, "blocked");
+  // La galería tampoco espera: cada marco muestra la foto propia.
+  for (const frame of productStoryFrames) {
+    const thumbnail = productFrameThumbnail(draft, frame.value);
+    assert.equal(thumbnail?.media[0]?.reference.source, "inline", frame.value);
+  }
+});
+
+test("el ejemplo sólo cubre lo que falta y lo que la pieza dibuja", () => {
+  const titled = productStoryLivePreview({
+    ...emptyProductStoryDraft,
+    photo,
+    title: "Manguera",
+  });
+  assert.equal(titled.kind, "ready");
+  assert.deepEqual(titled.samples, ["price"]);
+  assert.equal(titled.document.content.title, "Manguera");
+
+  // «Consultá precio» no lleva importe: no hay nada que completar.
+  const consult = productStoryLivePreview({
+    ...emptyProductStoryDraft,
+    photo,
+    priceMode: "consult",
+  });
+  assert.equal(consult.kind, "ready");
+  assert.deepEqual(consult.samples, ["title"]);
+  assert.equal(consult.document.content.price, undefined);
+
+  // Un nombre callado no se ve, así que no se avisa como ejemplo.
+  const hiddenTitle = productStoryLivePreview({
+    ...emptyProductStoryDraft,
+    photo,
+    priceMode: "none",
+    showTitle: false,
+  });
+  assert.equal(hiddenTitle.kind, "ready");
+  assert.deepEqual(hiddenTitle.samples, []);
+  assert.deepEqual(hiddenTitle.document.content.hidden, ["title", "price"]);
+  // Guardar igual pide el nombre: identifica el borrador.
+  assert.equal(
+    productStoryDocument({
+      ...emptyProductStoryDraft,
+      photo,
+      priceMode: "none",
+      showTitle: false,
+    }).kind,
+    "blocked",
+  );
+});
+
+test("completa, la vista previa es exactamente la pieza que se guarda", () => {
+  const draft = {
+    ...emptyProductStoryDraft,
+    photo,
+    price: "$ 3.200",
+    title: "Manguera corrugada",
+  };
+  const preview = productStoryLivePreview(draft);
+  const saved = productStoryDocument(draft);
+
+  assert.equal(preview.kind, "ready");
+  assert.equal(saved.kind, "ready");
+  assert.deepEqual(preview.samples, []);
+  assert.deepEqual(preview.document, saved.document);
+});
+
+test("el aviso nombra lo que es de ejemplo, en el orden en que se carga", () => {
+  assert.equal(productPreviewNote([]), null);
+  assert.equal(
+    productPreviewNote(["price"]),
+    "Por ahora con precio de ejemplo.",
+  );
+  assert.equal(
+    productPreviewNote(["price", "photo"]),
+    "Por ahora con foto y precio de ejemplo.",
+  );
+  assert.equal(
+    productPreviewNote(["photo", "title", "price"]),
+    "Por ahora con foto, nombre y precio de ejemplo.",
+  );
 });
 
 test("guardar manda la foto embebida con su encuadre y un caption sin precio", async (context) => {

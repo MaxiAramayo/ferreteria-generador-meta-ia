@@ -1026,9 +1026,84 @@ falta, que el formulario vaya a lo esencial y que el panel se abra como una app.
 - Capturas del compositor en teléfono y computadora: aviso sin foto, marcos,
   precio y «Más datos», sin desborde; manifiesto e íconos responden `200`.
 
+## P2-T13 — Crear una pieza de producto que se entienda en el celular
+
+- [x] Tarea completada
+- Estado: COMPLETA
+- Dependencias: `P2-T12`
+- Riesgo: Bajo
+
+### Objetivo
+
+Que armar un producto desde el teléfono se entienda sin explicación: ver la
+pieza desde el primer momento, entera, cerca de lo que se completa, y
+reconocer «Más datos» como algo que se abre.
+
+### Entregables
+
+- Vista previa que siempre compone: mientras falten la foto, el nombre o el
+  importe, usa la foto de la biblioteca, «Tu producto» y «$ 00.000», y un aviso
+  amarillo dice qué es de ejemplo. Guardar sigue armando la pieza sólo con los
+  datos reales.
+- Miniaturas de marcos con la foto propia apenas se sube.
+- La escala de la vista previa se mide sobre el ancho real del recuadro: la
+  pieza ya no se corta a la derecha, en el producto ni en la historia
+  recurrente.
+- En el celular: foto, vista previa, formato y marco —los marcos en una tira
+  que se desliza— y lo que muestra la pieza, con pasos numerados.
+- «Más datos» como una caja con borde, sombra y flecha, que dice lo que tiene
+  adentro; el campo del importe se llama «Importe».
+
+### Criterios de aceptación
+
+- [x] Sin cargar nada, la vista previa muestra la pieza y avisa qué es de
+      ejemplo.
+- [x] El ejemplo nunca se guarda: «Continuar» sigue pidiendo foto, nombre e
+      importe.
+- [x] Completa, la vista previa es exactamente la pieza que se guarda.
+- [x] En 390 px la pieza entra entera en su recuadro.
+- [x] «Más datos» se abre al tocarlo y se ve tocable cerrado.
+- [x] La computadora conserva la vista previa fija a la derecha.
+
+### Verificación obligatoria
+
+- [x] Panel: vista previa con ejemplo, qué avisa, que la foto propia llega a
+      las miniaturas y que la pieza completa es la que se guarda.
+- [x] `pnpm e2e:navigation` con el compositor en un teléfono de 390 px.
+- [x] `pnpm e2e:recurring-story`, que comparte la vista previa.
+- [x] Capturas antes y después en 390 px y en 1280 px.
+- [x] `pnpm verify` completo.
+
+### Fuera de alcance
+
+- Cambiar marcos, motor, lo que se guarda o las reglas de aprobación.
+- Una vista previa aparte a pantalla completa.
+
+### Notas de progreso
+
+- 2026-09-30: el dueño pidió que la creación de producto se entienda mejor en
+  el celular, que «Más datos (opcional)» parezca tocable y ver cómo queda sin
+  tener que escribir el nombre.
+- En el teléfono la vista previa estaba a 1.450 px de la foto y decía
+  «Escribí el nombre», pero el nombre estaba más abajo; y la tarjeta del motor
+  se escalaba a 320 px fijos en un recuadro de 253 a 268, así que se perdía
+  alrededor de un quinto de la pieza.
+- El resumen de «Más datos» tenía `display: flex`, que en Chrome borra la
+  flecha nativa: quedaba como texto en negrita.
+- El dueño aprobó sobre las capturas del panel real la vista previa con
+  ejemplo, el orden nuevo con la tira de marcos y «Más datos».
+
+### Evidencia de cierre
+
+- `pnpm verify`: stack y plan válidos; formato, build, lint, typecheck,
+  pruebas, baseline visual y smoke aprobados.
+- `pnpm e2e:navigation` y `pnpm e2e:recurring-story`: completos.
+- Capturas en 390 px: la pieza ocupa 305 px en un recuadro de 307 y la vista
+  previa empieza a 484 px en vez de 1.350; en 1280 px, 325 en 327.
+
 ## Criterios de salida de Fase 2
 
-- [x] `P2-T01` a `P2-T12` están completas.
+- [x] `P2-T01` a `P2-T13` están completas.
 - [x] Aislamiento, autorización e idempotencia tienen pruebas.
 - [x] Existe un flujo determinista aprobado de punta a punta.
 - [x] Ninguna acción del panel publica o llama a IA de forma implícita.

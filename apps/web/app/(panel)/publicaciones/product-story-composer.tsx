@@ -19,10 +19,12 @@ import {
   frameShows,
   loadProductPiece,
   productFrameThumbnail,
+  productPreviewNote,
   productStoryBrands,
   productStoryDocument,
   productStoryFormats,
   productStoryFrames,
+  productStoryLivePreview,
   productStoryPriceModes,
   saveProductPieceEdit,
   saveProductStoryDraft,
@@ -40,11 +42,22 @@ import {
  * elegís el marco según dónde quedó el producto y decidís qué se ve.
  *
  * La vista previa y las miniaturas usan el mismo motor que renderiza el
- * worker, así que lo que se ve acá es lo que se publica. Guardar deja un
- * borrador: revisar, aprobar y publicar siguen siendo pasos aparte.
+ * worker, así que lo que se ve acá es lo que se publica. Mientras falten la
+ * foto, el nombre o el importe, muestran un ejemplo avisado; guardar exige los
+ * datos reales. Guardar deja un borrador: revisar, aprobar y publicar siguen
+ * siendo pasos aparte.
  */
 
 const itemSlots = [0, 1, 2] as const;
+
+/** Número de paso: en el celular ordena la pantalla, que no tiene el riel. */
+function Step({ number }: Readonly<{ number: 1 | 2 | 3 }>) {
+  return (
+    <span aria-hidden="true" className="product-step">
+      {number}
+    </span>
+  );
+}
 
 /** Aviso junto a un campo que el marco elegido no dibuja. */
 function NotInFrame({ shown }: Readonly<{ shown: boolean }>) {
@@ -76,7 +89,8 @@ export function ProductStoryComposer({
   const [photoStatus, setPhotoStatus] = useState<string>("");
   // Lo poco usado queda plegado; al editar se abre si la pieza ya lo usa.
   const [moreOpen, setMoreOpen] = useState(false);
-  const preview = productStoryDocument(draft);
+  // Siempre hay algo que mirar: con lo que falta completado por un ejemplo.
+  const preview = productStoryLivePreview(draft);
   // Cada miniatura vuelve a validar la foto embebida: se calculan con el
   // borrador diferido para que escribir no espere a las siete.
   const deferredDraft = useDeferredValue(draft);
@@ -159,11 +173,13 @@ export function ProductStoryComposer({
       setNotice("Tu rol no permite crear borradores.");
       return;
     }
-    if (preview.kind !== "ready") {
+    // Se guarda la pieza real, nunca la de ejemplo de la vista previa.
+    const piece = productStoryDocument(draft);
+    if (piece.kind !== "ready") {
       setNotice(
-        preview.kind === "needs-photo"
+        piece.kind === "needs-photo"
           ? "Subí la foto del producto para armar la pieza."
-          : preview.message,
+          : piece.message,
       );
       return;
     }
@@ -175,13 +191,13 @@ export function ProductStoryComposer({
       editing === null
         ? saveProductStoryDraft(apiBaseUrl, {
             caption,
-            document: preview.document,
+            document: piece.document,
             idempotencyKey: crypto.randomUUID(),
             title: draft.title.trim(),
           })
         : saveProductPieceEdit(apiBaseUrl, {
             caption,
-            document: preview.document,
+            document: piece.document,
             piece: editing,
             title: draft.title.trim(),
           });
@@ -255,7 +271,10 @@ export function ProductStoryComposer({
             )}
           </div>
           <div className="opening-photo-copy">
-            <strong>Foto del producto</strong>
+            <strong>
+              <Step number={1} />
+              Foto del producto
+            </strong>
             <small>
               Sacala o elegila del teléfono. Después la acomodás arrastrándola
               en la vista previa.
@@ -328,8 +347,32 @@ export function ProductStoryComposer({
           </div>
         </div>
 
-        <fieldset className="opening-style-controls">
-          <legend>Formato y marca</legend>
+        <OpeningStoryPreview
+          caption="Es la misma composición que sale publicada."
+          disabled={locked}
+          formatLabel={
+            format === undefined
+              ? undefined
+              : `${format.label} · ${format.ratio}`
+          }
+          heading="Así queda"
+          note={
+            preview.kind === "ready"
+              ? productPreviewNote(preview.samples)
+              : null
+          }
+          onPhotoChange={(photo: RecurringStoryPhotoPayload) => {
+            change({ photo });
+          }}
+          photo={draft.photo}
+          preview={preview}
+        />
+
+        <fieldset className="opening-style-controls product-design-controls">
+          <legend>
+            <Step number={2} />
+            Formato y marco
+          </legend>
           <div className="product-choice-row">
             <div
               aria-label="Formato de la pieza"
@@ -379,13 +422,9 @@ export function ProductStoryComposer({
               ))}
             </div>
           </div>
-        </fieldset>
-
-        <fieldset className="opening-style-controls">
-          <legend>Marco</legend>
           <p className="opening-style-controls-intro">
-            Elegí el que deja libre el producto. Cada miniatura es la pieza de
-            verdad, con tu foto y tus datos.
+            Elegí el marco que deja libre el producto. Cada miniatura es la
+            pieza de verdad, con tu foto y tus datos.
           </p>
           <div
             aria-label="Marco de la pieza"
@@ -431,23 +470,11 @@ export function ProductStoryComposer({
           </div>
         </fieldset>
 
-        <OpeningStoryPreview
-          caption="Es la misma composición que sale publicada."
-          disabled={locked}
-          formatLabel={
-            format === undefined
-              ? undefined
-              : `${format.label} · ${format.ratio}`
-          }
-          onPhotoChange={(photo: RecurringStoryPhotoPayload) => {
-            change({ photo });
-          }}
-          photo={draft.photo}
-          preview={preview}
-        />
-
         <fieldset className="recurring-draft-fieldset">
-          <legend>Qué muestra la pieza</legend>
+          <legend>
+            <Step number={3} />
+            Qué muestra la pieza
+          </legend>
           <div className="recurring-draft-editor-grid">
             <label className="recurring-draft-full-field">
               Nombre del producto
@@ -517,7 +544,7 @@ export function ProductStoryComposer({
               {draft.priceMode === "amount" ? (
                 <div className="product-price-fields">
                   <label>
-                    Precio
+                    Importe
                     <input
                       disabled={locked}
                       maxLength={40}
@@ -539,7 +566,14 @@ export function ProductStoryComposer({
               }}
               open={moreOpen}
             >
-              <summary>Más datos (opcional)</summary>
+              <summary>
+                <span className="product-more-title">
+                  Más datos <small>opcional</small>
+                </span>
+                <span className="product-more-hint">
+                  Etiqueta, vigencia, medidas, botón y precio anterior
+                </span>
+              </summary>
               <div className="recurring-draft-editor-grid">
                 {draft.priceMode === "amount" ? (
                   <>

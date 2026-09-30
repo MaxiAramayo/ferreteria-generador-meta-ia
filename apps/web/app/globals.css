@@ -1504,8 +1504,11 @@ a {
   width: 20rem;
 }
 
+/* El alto sale de la proporción de la pieza y la escala la mide el
+ * componente según el ancho real del recuadro; el valor de respaldo es el de
+ * un recuadro de 20 rem, para el primer dibujo. */
 .recurring-story-engine-scale {
-  height: 35.5556rem;
+  aspect-ratio: 1080 / 1920;
   overflow: hidden;
   position: relative;
 }
@@ -1532,7 +1535,7 @@ a {
 }
 
 .recurring-story-engine-scale > [data-card] {
-  transform: scale(0.2962963);
+  transform: scale(var(--piece-scale, 0.2962963));
   transform-origin: top left;
 }
 
@@ -3163,7 +3166,7 @@ a {
 }
 
 .recurring-story-engine-scale[data-format="feed"] {
-  height: 25rem;
+  aspect-ratio: 1080 / 1350;
 }
 
 .product-choice-row {
@@ -5850,13 +5853,37 @@ html:has(.panel-shell) {
 
 /* Compositor de producto (P2-T11): en la computadora, la vista real queda fija
  * a la derecha mientras se completa; en el celular aparece justo después de
- * elegir el marco, y guardar queda a mano sobre la barra de abajo. */
+ * la foto —así se ve cómo queda antes de escribir nada— y guardar queda a
+ * mano sobre la barra de abajo. */
 [data-variant="product-story"].composer-workbench {
   display: block;
 }
 
 .product-composer-form .recurring-story-engine-preview {
   margin: 0 auto;
+  max-width: none;
+  width: min(22rem, calc(100% - 0.55rem));
+}
+
+/* Lo que la vista previa muestra de ejemplo se avisa arriba, en amarillo de
+ * seguridad, para que no se confunda con la pieza que se publica. */
+.recurring-story-engine-preview > .recurring-story-preview-note {
+  background: var(--workspace-safety);
+  border-top: 0;
+  color: var(--workspace-ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.35;
+  padding: 0.55rem 0.8rem;
+}
+
+/* El número de paso sólo aparece en el celular, donde no está el riel. */
+.product-step {
+  display: none;
+}
+
+.product-design-controls {
+  min-inline-size: 0;
 }
 
 .product-save-bar {
@@ -5923,20 +5950,48 @@ html:has(.panel-shell) {
     flex: 1;
   }
 
-  /* Tres por fila desde un teléfono de 360 px: la miniatura es la pieza a
-   * escala 0,07 (76 px de ancho) y no pisa la casilla de al lado. */
+  .product-step {
+    align-items: center;
+    background: var(--workspace-ink);
+    color: var(--workspace-paper);
+    display: inline-flex;
+    font-size: 0.8rem;
+    font-weight: 800;
+    height: 1.6rem;
+    justify-content: center;
+    letter-spacing: 0;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    width: 1.6rem;
+  }
+
+  .opening-photo-copy > strong {
+    font-size: 1rem;
+  }
+
+  /* Los marcos, en una tira que se desliza justo debajo de la vista previa:
+   * antes eran tres filas que empujaban la pieza una pantalla más abajo. La
+   * cuarta miniatura asoma cortada para que se vea que hay más. */
   .product-frame-gallery {
-    gap: 0.4rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    gap: 0.5rem;
+    margin-inline: calc(-1 * clamp(0.9rem, 2vw, 1.25rem));
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 0.4rem clamp(0.9rem, 2vw, 1.25rem) 0.7rem;
+    scroll-padding-inline: clamp(0.9rem, 2vw, 1.25rem);
+    scroll-snap-type: x proximity;
   }
 
   .product-frame-gallery .opening-layout-option {
-    gap: 0.35rem;
+    flex: 0 0 6.4rem;
+    gap: 0.4rem;
     grid-template-columns: 1fr;
     justify-items: center;
     min-height: 0;
-    overflow: hidden;
-    padding: 0.25rem;
+    padding: 0.35rem 0.3rem 0.45rem;
+    scroll-snap-align: start;
   }
 
   .product-frame-gallery .opening-layout-option small {
@@ -5944,42 +5999,117 @@ html:has(.panel-shell) {
   }
 
   .product-frame-gallery .opening-layout-option strong {
-    font-size: 0.74rem;
+    font-size: 0.76rem;
+    line-height: 1.2;
     text-align: center;
   }
 
+  /* La pieza a escala 0,08: 86 px de ancho, legible como forma. */
   .product-frame-thumb {
-    height: 8.4rem;
-    width: 4.725rem;
+    height: 9.6rem;
+    width: 5.4rem;
   }
 
   .product-frame-thumb[data-format="feed"] {
-    height: 5.90625rem;
+    height: 6.75rem;
   }
 
   .product-frame-thumb > [data-card] {
-    transform: scale(0.07);
+    transform: scale(0.08);
   }
 }
 
-/* «Más datos»: lo que se usa poco queda plegado para ir rápido. */
+/* «Más datos»: lo que se usa poco queda plegado para ir rápido. Se dibuja
+ * como un botón —borde, sombra dura y flecha— porque como texto suelto nadie
+ * lo tocaba: el `display` del resumen además borraba la flecha nativa. */
 .product-more-fields {
-  border-top: 1px solid
-    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
-  padding-top: 0.25rem;
+  background: #ffffff;
+  border: 1px solid var(--workspace-ink);
+  box-shadow: 0.3rem 0.3rem 0 var(--workspace-ink);
+  margin-right: 0.3rem;
 }
 
 .product-more-fields > summary {
-  align-items: center;
+  column-gap: 0.75rem;
   cursor: pointer;
-  display: flex;
-  font-size: 0.85rem;
-  font-weight: 800;
-  min-height: 2.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  list-style: none;
+  min-height: 3.5rem;
+  padding: 0.7rem 0.9rem;
+  row-gap: 0.15rem;
+}
+
+.product-more-fields > summary::-webkit-details-marker {
+  display: none;
+}
+
+.product-more-fields > summary::after {
+  align-self: center;
+  border-bottom: 0.18rem solid var(--workspace-ink);
+  border-right: 0.18rem solid var(--workspace-ink);
+  content: "";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  height: 0.65rem;
+  margin: -0.3rem 0.3rem 0 0;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+  width: 0.65rem;
+}
+
+.product-more-fields[open] > summary::after {
+  margin-top: 0.3rem;
+  transform: rotate(-135deg);
+}
+
+/* Sólo con puntero: en el celular el `:hover` queda pegado después del toque. */
+@media (hover: hover) {
+  .product-more-fields > summary:hover {
+    background: var(--workspace-paper);
+  }
+}
+
+.product-more-fields > summary:focus-visible {
+  outline: 3px solid var(--workspace-safety);
+  outline-offset: 2px;
 }
 
 .product-more-fields[open] > summary {
-  margin-bottom: 0.75rem;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--workspace-ink) 18%, transparent);
+}
+
+.product-more-title {
+  color: var(--workspace-ink);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.product-more-title small {
+  color: var(--workspace-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-left: 0.35rem;
+  text-transform: uppercase;
+}
+
+.product-more-hint {
+  color: var(--workspace-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.product-more-fields > .recurring-draft-editor-grid {
+  padding: 0.9rem;
+}
+
+[data-variant="product-story"]
+  .recurring-draft-fieldset
+  > .opening-style-controls-intro {
+  margin-top: 1.1rem;
 }
 
 @media (max-width: 48rem) {

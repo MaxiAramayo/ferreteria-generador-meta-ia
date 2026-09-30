@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-29
+Actualizado: 2026-09-30
 
 ## Fase activa
 
@@ -288,6 +288,16 @@ alta admite `ROLES`, y esas dos cuentas crean, aprueban, publican y programan
 sin administrar Configuración. Las contraseñas las elige y las escribe el dueño
 al correr el script; nadie más las ve. Todo se desplegó el 2026-09-29 en
 `3be2985114e8cf9bcd2041a9d27dff066fcd6219`, con copia previa verificada.
+
+`P2-T13` cerró el 2026-09-30, a pedido del usuario: crear un producto desde el
+celular ahora se entiende. La vista previa aparece desde el primer momento —con
+foto, nombre y precio de ejemplo, avisados en amarillo, mientras falten— y
+guardar sigue exigiendo los datos reales. En el teléfono va justo después de la
+foto, los marcos quedan en una tira que se desliza y los pasos están
+numerados. La pieza se cortaba a la derecha porque el motor se escalaba a un
+ancho fijo; ahora se mide sobre el recuadro, también en la historia
+recurrente. «Más datos» se ve como una caja que se abre. No necesita
+migración.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la
