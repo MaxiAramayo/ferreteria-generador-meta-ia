@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { login, loadSession, logout } from "./authentication-api.ts";
+import {
+  login,
+  loadSession,
+  loginEmail,
+  logout,
+} from "./authentication-api.ts";
 
 const apiBaseUrl = "https://api.example.invalid/";
 
@@ -185,4 +190,13 @@ test("cerrar sesión manda el token CSRF y tolera una sesión ya cerrada", async
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("un usuario corto entra con la cuenta del local; un email, tal cual", () => {
+  assert.equal(loginEmail("cesar"), "cesar@ferreteriaaramayo.com.ar");
+  assert.equal(
+    loginEmail("  FerreteriaAramayo "),
+    "ferreteriaaramayo@ferreteriaaramayo.com.ar",
+  );
+  assert.equal(loginEmail("Maxi@Gmail.com"), "maxi@gmail.com");
 });

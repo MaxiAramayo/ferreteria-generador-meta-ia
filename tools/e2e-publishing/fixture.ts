@@ -33,11 +33,18 @@ export interface PublishingFixture {
   readonly people: Readonly<
     Record<"editor" | "publisher" | "scheduler", SeededPerson>
   >;
+  /** Sólo con `withLocalAccount`: una cuenta que entra con usuario corto. */
+  readonly localAccount?: SeededPerson;
   /** Sólo con `withReadyPiece`: la pieza lista para salir y su dueño. */
   readonly ready?: Readonly<{ owner: SeededPerson; publicationId: string }>;
 }
 
 export interface PublishingFixtureOptions {
+  /**
+   * Suma una cuenta del local, `cesar@ferreteriaaramayo.com.ar`, para probar
+   * que el login acepta el usuario corto.
+   */
+  readonly withLocalAccount?: boolean;
   /**
    * Suma una pieza con su imagen lista y una persona con los tres roles del
    * dueño, para recorrer «¿Cuándo sale?» de punta a punta. Es opcional porque
@@ -147,6 +154,11 @@ export async function seedPublishingFixture(
     membershipId: randomUUID(),
     roles: ["editor", "approver", "publisher"],
   };
+  const localAccount: SeededPerson = {
+    email: "cesar@ferreteriaaramayo.com.ar",
+    membershipId: randomUUID(),
+    roles: ["editor"],
+  };
   const readyPublicationId = randomUUID();
   const readyMediaAssetId = randomUUID();
 
@@ -160,9 +172,11 @@ export async function seedPublishingFixture(
       },
     });
 
-    const seededPeople: readonly SeededPerson[] = options.withReadyPiece
-      ? [...Object.values(people), owner]
-      : Object.values(people);
+    const seededPeople: readonly SeededPerson[] = [
+      ...Object.values(people),
+      ...(options.withReadyPiece === true ? [owner] : []),
+      ...(options.withLocalAccount === true ? [localAccount] : []),
+    ];
     for (const person of seededPeople) {
       const userId = randomUUID();
       await database.user.create({
@@ -403,6 +417,7 @@ export async function seedPublishingFixture(
       draftPublicationId,
       organizationId,
       people: Object.freeze(people),
+      ...(options.withLocalAccount === true ? { localAccount } : {}),
       ...(options.withReadyPiece === true
         ? {
             ready: Object.freeze({

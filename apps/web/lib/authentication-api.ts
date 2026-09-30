@@ -91,6 +91,21 @@ export function parseSessionActor(value: unknown): AuthenticatedActor | null {
     : null;
 }
 
+/**
+ * Dominio con el que se guardan las cuentas del local. Quien entra puede
+ * escribir sólo el usuario —«cesar»— y el panel lo completa; la API sigue
+ * identificando a cada persona por su email.
+ */
+export const localAccountDomain = "ferreteriaaramayo.com.ar";
+
+/** Usuario corto o email completo, normalizado como lo guarda la API. */
+export function loginEmail(identifier: string): string {
+  const normalized = identifier.trim().toLowerCase();
+  return normalized.includes("@")
+    ? normalized
+    : `${normalized}@${localAccountDomain}`;
+}
+
 export async function login(
   apiBaseUrl: string,
   credentials: Readonly<{ email: string; password: string }>,

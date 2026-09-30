@@ -128,6 +128,12 @@ read -rs -p "Contraseña: " CLAVE; echo; printf '%s' "$CLAVE" | ssh ubuntu@144.2
 
 Correr lo mismo con un email existente reemplaza su contraseña y lo reactiva.
 
+Sin `ROLES` la cuenta tiene todos los roles, como la de quien administra. Una
+cuenta que crea, aprueba, publica y programa pero no toca Configuración se crea
+agregando `-e ROLES=editor,approver,publisher,viewer`. Las cuentas del local
+usan el dominio `ferreteriaaramayo.com.ar`: quien entra puede escribir sólo el
+usuario —`cesar`— y el panel completa `cesar@ferreteriaaramayo.com.ar`.
+
 ## Estado staging verificado
 
 Actualización del 2026-08-31: staging ejecuta

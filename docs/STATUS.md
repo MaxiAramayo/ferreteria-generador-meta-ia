@@ -281,6 +281,13 @@ a la pantalla de inicio como app y la sesión de producción pasa a durar 30 dí
 El E2E de publicación recorre «Publicar ahora» contra la API real. No necesita
 migración.
 
+El mismo día el dueño pidió dos cuentas más, fáciles de recordar: `cesar` y
+`ferreteriaaramayo`. El login acepta ahora el usuario corto y lo completa con
+`@ferreteriaaramayo.com.ar`; la API sigue identificando por email. El script de
+alta admite `ROLES`, y esas dos cuentas crean, aprueban, publican y programan
+sin administrar Configuración. Las contraseñas las elige y las escribe el dueño
+al correr el script; nadie más las ve.
+
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la
 materialización solicita el PNG mediante outbox y, después de renderizar,

@@ -232,7 +232,9 @@ async function main(): Promise<void> {
       buildTimeoutMs,
     );
     assert.equal(migrate.exitCode, 0, `La migración falló:\n${migrate.output}`);
-    const fixture = await seedPublishingFixture(databaseUrl);
+    const fixture = await seedPublishingFixture(databaseUrl, {
+      withLocalAccount: true,
+    });
     process.stdout.write("Base efímera migrada y sembrada.\n");
 
     const apiPort = await reserveEphemeralPort();
@@ -307,10 +309,22 @@ async function main(): Promise<void> {
       "El login no recuerda la pantalla pedida.",
     );
     await waitForHeading(anonymousPage, "Iniciar sesión");
-    await anonymous.close();
     reportCheck(
       "sin sesión, una pantalla del panel lleva al login y recuerda a cuál volver",
     );
+
+    // Una cuenta del local entra escribiendo sólo el usuario, y el login la
+    // devuelve a la pantalla que pidió.
+    assert.ok(fixture.localAccount !== undefined, "Falta la cuenta del local.");
+    await anonymousPage.getByLabel("Usuario o correo").fill("cesar");
+    await anonymousPage.getByLabel("Contraseña").fill(e2ePassword);
+    await anonymousPage.getByRole("button", { name: "Iniciar sesión" }).click();
+    await anonymousPage.waitForURL(/\/programacion\?vista=mes$/u, {
+      timeout: uiTimeoutMs,
+    });
+    await waitForHeading(anonymousPage, "Programación");
+    await anonymous.close();
+    reportCheck("una cuenta del local entra con el usuario corto");
 
     // --- Editora ---
     const editor = await signedInContext(

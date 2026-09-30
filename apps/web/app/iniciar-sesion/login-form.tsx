@@ -2,7 +2,7 @@
 
 import { useState, type SyntheticEvent } from "react";
 
-import { login } from "../../lib/authentication-api";
+import { login, loginEmail } from "../../lib/authentication-api";
 
 type LoginState =
   | Readonly<{ kind: "idle" }>
@@ -23,18 +23,25 @@ export function LoginForm({
     if (state.kind === "submitting") return;
 
     const fields = new FormData(form);
-    const email = fields.get("email");
+    const identifier = fields.get("email");
     const password = fields.get("password");
-    if (typeof email !== "string" || typeof password !== "string") {
+    if (
+      typeof identifier !== "string" ||
+      identifier.trim() === "" ||
+      typeof password !== "string"
+    ) {
       setState({
         kind: "error",
-        message: "Completá el correo y la contraseña para continuar.",
+        message: "Completá el usuario y la contraseña para continuar.",
       });
       return;
     }
 
     setState({ kind: "submitting" });
-    const result = await login(apiBaseUrl, { email, password });
+    const result = await login(apiBaseUrl, {
+      email: loginEmail(identifier),
+      password,
+    });
     switch (result.kind) {
       case "authenticated":
         form.reset();
@@ -43,7 +50,7 @@ export function LoginForm({
       case "invalid-credentials":
         setState({
           kind: "error",
-          message: "El correo o la contraseña no son válidos.",
+          message: "El usuario o la contraseña no son válidos.",
         });
         return;
       case "rate-limited":
@@ -60,14 +67,17 @@ export function LoginForm({
   const submitting = state.kind === "submitting";
   return (
     <form className="login-form" onSubmit={submit}>
-      <label htmlFor="login-email">Correo</label>
+      <label htmlFor="login-email">Usuario o correo</label>
       <input
+        autoCapitalize="none"
         autoComplete="username"
+        autoCorrect="off"
         id="login-email"
         maxLength={254}
         name="email"
         required
-        type="email"
+        spellCheck={false}
+        type="text"
       />
 
       <label htmlFor="login-password">Contraseña</label>
