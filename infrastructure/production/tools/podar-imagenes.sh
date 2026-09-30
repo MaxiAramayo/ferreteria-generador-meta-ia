@@ -29,11 +29,19 @@ if ! printf '%s\n' "$current" | grep -Eq "$sha_pattern"; then
   exit 1
 fi
 
-# La de rollback es la release más reciente después de la que está en curso:
-# cada despliegue crea su directorio, así que el orden es el de promoción.
-rollback=$(ls -1t "$releases" | grep -E "$sha_pattern" | grep -Fvx "$current" | head -n 1 || true)
+# La de rollback es la release más reciente, distinta de la que está en curso,
+# cuyas imágenes siguen en el host. Cada despliegue crea su directorio, así que
+# el orden es el de promoción; y un directorio preparado para un despliegue que
+# se cortó antes del `pull` no tiene imágenes, así que no cuenta.
+rollback=""
+for candidate in $(ls -1t "$releases" | grep -E "$sha_pattern" | grep -Fvx "$current" || true); do
+  if docker image inspect "ghcr.io/maxiaramayo/aramayo-content-api:$candidate" > /dev/null 2>&1; then
+    rollback=$candidate
+    break
+  fi
+done
 if [ -z "$rollback" ]; then
-  echo "No hay release anterior: no se poda nada, para no perder el rollback." >&2
+  echo "No hay release anterior con imágenes: no se poda nada, para no perder el rollback." >&2
   exit 1
 fi
 echo "En curso: $current"
@@ -52,9 +60,12 @@ for image in $(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E "$i
   fi
   if [ "$dry_run" = true ]; then
     echo "Se borraría: $image"
-  else
-    docker image rm "$image" > /dev/null
+  elif docker image rm "$image" > /dev/null; then
     echo "Borrada: $image"
+  else
+    # Docker la retiene por algo que este script no ve: se avisa y se sigue.
+    echo "No se pudo borrar, se conserva: $image" >&2
+    continue
   fi
   pruned=$((pruned + 1))
 done

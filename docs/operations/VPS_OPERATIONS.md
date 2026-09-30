@@ -457,9 +457,12 @@ Por eso cada despliegue termina podando, por SHA exacto y nunca en bloque. Desde
 el 2026-09-30, a pedido del dueño, es un paso fijo y no se pregunta: se
 conservan sólo la release en curso y la anterior, que es la de rollback.
 [`podar-imagenes.sh`](../../infrastructure/production/tools/podar-imagenes.sh)
-viaja con cada release; lee la release en curso de `IMAGE_TAG` y la de rollback
-del directorio de releases más reciente después de ella, no toca imágenes en
-uso ni de base, y se niega a podar si no encuentra una release anterior:
+viaja con cada release. Lee la release en curso de `IMAGE_TAG`; la de rollback
+es la release más reciente, distinta de la en curso, cuyas imágenes siguen en
+el host —así un directorio preparado para un despliegue cortado antes del
+`pull` no la reemplaza—. No toca imágenes en uso ni de base, avisa y sigue si
+Docker retiene alguna, y se niega a podar si no encuentra una release anterior
+con imágenes:
 
 ```bash
 sudo sh /opt/aramayo-content/current/tools/podar-imagenes.sh --dry-run
