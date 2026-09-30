@@ -286,7 +286,8 @@ El mismo día el dueño pidió dos cuentas más, fáciles de recordar: `cesar` y
 `@ferreteriaaramayo.com.ar`; la API sigue identificando por email. El script de
 alta admite `ROLES`, y esas dos cuentas crean, aprueban, publican y programan
 sin administrar Configuración. Las contraseñas las elige y las escribe el dueño
-al correr el script; nadie más las ve.
+al correr el script; nadie más las ve. Todo se desplegó el 2026-09-29 en
+`3be2985114e8cf9bcd2041a9d27dff066fcd6219`, con copia previa verificada.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la
