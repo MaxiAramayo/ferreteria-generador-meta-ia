@@ -68,6 +68,10 @@ las cinco releases que ya no eran rollback elegible: `23c6df9…`, `3d70aa9…`,
 36 GB a 54 GB libres—, sin tocar volúmenes. Quedan `0b6dcf1…` en curso,
 `76ec1b7…` para rollback y las imágenes de base.
 
+El 2026-09-30, después de promover `3be2985…`, se podaron las imágenes de
+`76ec1b7…`: el disco pasó de 31 % a 26 %, con 54 GB libres. Quedan `3be2985…` en
+curso y `0b6dcf1…` para rollback.
+
 El 2026-09-23 se promovió `d85854f4b2dcb3ee0566ab3ba40a08cfd5d1f9c5`, con las
 imágenes de la corrida `35862941815` y copia previa verificada
 (`aramayo-production-20260923T124950Z`). Trae el borrado real de piezas y su
@@ -418,7 +422,8 @@ staging, backup y rollback:
 10. esperar migración exitosa y healthchecks;
 11. comprobar HTTPS, `/health`, `/ready`, login y worker;
 12. conservar la release anterior para rollback;
-13. podar las imágenes de las releases que dejaron de ser rollback elegible.
+13. podar con `podar-imagenes.sh` las imágenes que dejaron de ser rollback
+    elegible.
 
 Los comandos de promoción, una vez autorizada, son:
 
@@ -448,12 +453,17 @@ contenedores todavía en la anterior. El sitio seguía en pie, pero el estado
 declarado y el real no coincidían, y un reinicio de cualquier contenedor no
 habría encontrado su imagen.
 
-Por eso el despliegue termina podando, por SHA exacto y nunca en bloque:
+Por eso cada despliegue termina podando, por SHA exacto y nunca en bloque. Desde
+el 2026-09-30, a pedido del dueño, es un paso fijo y no se pregunta: se
+conservan sólo la release en curso y la anterior, que es la de rollback.
+[`podar-imagenes.sh`](../../infrastructure/production/tools/podar-imagenes.sh)
+viaja con cada release; lee la release en curso de `IMAGE_TAG` y la de rollback
+del directorio de releases más reciente después de ella, no toca imágenes en
+uso ni de base, y se niega a podar si no encuentra una release anterior:
 
 ```bash
-for REPO in api web worker migration; do
-  sudo docker image rm "ghcr.io/maxiaramayo/aramayo-content-$REPO:<sha-retirado>"
-done
+sudo sh /opt/aramayo-content/current/tools/podar-imagenes.sh --dry-run
+sudo sh /opt/aramayo-content/current/tools/podar-imagenes.sh
 ```
 
 Borrar esas imágenes no pierde nada: cada una vive en GHCR y el host es sólo una
