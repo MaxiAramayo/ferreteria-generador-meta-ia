@@ -37,6 +37,19 @@ estaban activos.
 
 ## Estado de producción verificado
 
+El 2026-09-29 se promovió `3be2985114e8cf9bcd2041a9d27dff066fcd6219`, con las
+imágenes de la corrida `36649923126` y copia previa verificada
+(`aramayo-production-20260930T002518Z`). Trae el listado por partes, el panel
+como app del celular (`P2-T12`), el login con usuario corto y `ROLES` en el
+script de alta. Sin migraciones. En `/etc/aramayo-content/production.env`,
+además de `IMAGE_TAG` y `BUILD_DATE`, `AUTH_SESSION_TTL_SECONDS` pasó a
+`2592000` (30 días, `SECURITY.md`); la API lo lee así. Se instaló el script
+nuevo en `/opt/aramayo-content/tools/crear-admin.mjs` y se probó sin
+contraseña: valida y sale antes de tocar la base. `/health`, `/ready`, el
+panel, el login, las rutas legales, `/manifest.webmanifest` y los íconos
+respondieron `200`; `GET /publications?stage=upcoming` responde `401` sin
+sesión. `0b6dcf1…` queda para rollback.
+
 El 2026-09-28 se promovió `0b6dcf1e69a3f993f8b172f84edb6e4a3bbbe89c`, con las
 imágenes de la corrida `36491005913` y copia previa verificada
 (`aramayo-production-20260928T194929Z`, restauración verificada y subida a
