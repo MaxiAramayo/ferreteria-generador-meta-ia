@@ -15,6 +15,7 @@ import {
 import Image from "next/image";
 import {
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -240,6 +241,7 @@ export function OpeningStoryPreview({
   disabled = false,
   formatLabel = "Historia · 9:16",
   heading = "Vista real",
+  note = null,
   onPhotoChange,
   photo = null,
   preview,
@@ -249,6 +251,8 @@ export function OpeningStoryPreview({
   /** Formato que se muestra; la pieza de producto también sale en post. */
   formatLabel?: string | undefined;
   heading?: string;
+  /** Aviso sobre la pieza, como que parte de lo que se ve es de ejemplo. */
+  note?: string | null;
   /** Sin esto, la vista previa sólo muestra: no se puede mover la foto. */
   onPhotoChange?: (photo: RecurringStoryPhotoPayload) => void;
   photo?: RecurringStoryPhotoPayload | null;
@@ -258,6 +262,30 @@ export function OpeningStoryPreview({
   const surface = useRef<HTMLDivElement | null>(null);
   const drag = useRef<DragState | null>(null);
   const movable = photo !== null && onPhotoChange !== undefined && !disabled;
+  const showsPiece = preview.kind === "ready" && overflow === null;
+  const pieceFormat = preview.kind === "ready" ? preview.document.format : null;
+
+  // La pieza mide 1080 px de ancho y se escala al ancho que de verdad tiene el
+  // recuadro. Con una escala fija, en el celular —donde el recuadro es más
+  // angosto— el costado derecho de la pieza quedaba afuera.
+  useLayoutEffect(() => {
+    const element = surface.current;
+    if (!showsPiece || element === null) return;
+    const fit = (): void => {
+      const card = element.querySelector<HTMLElement>("[data-card]");
+      if (card === null || card.offsetWidth === 0) return;
+      element.style.setProperty(
+        "--piece-scale",
+        String(element.clientWidth / card.offsetWidth),
+      );
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [showsPiece, pieceFormat]);
 
   /**
    * El recuadro que recorta la foto y la foto misma.
@@ -358,7 +386,12 @@ export function OpeningStoryPreview({
         <span>{heading}</span>
         <small>{formatLabel}</small>
       </div>
-      {preview.kind === "ready" && overflow === null ? (
+      {note === null ? null : (
+        <p className="recurring-story-preview-note" role="note">
+          {note}
+        </p>
+      )}
+      {showsPiece ? (
         <div
           {...(movable
             ? {

@@ -240,6 +240,19 @@ function pieceContent(
   };
 }
 
+/** La foto propia, con el encuadre que se acomodó en la vista previa. */
+function photoMedia(
+  photo: RecurringStoryPhotoPayload,
+): Readonly<Record<string, unknown>> {
+  return {
+    alt: photo.alt,
+    fit: "cover",
+    focus: { x: photo.focusX, y: photo.focusY },
+    reference: { dataUrl: photo.dataUrl, source: "inline" },
+    zoom: photo.zoom / 100,
+  };
+}
+
 export function productStoryDocument(
   draft: ProductStoryDraft,
 ): ProductStoryPreview {
@@ -264,15 +277,7 @@ export function productStoryDocument(
     content: pieceContent(draft, title),
     format: draft.format,
     layout: layoutFor(draft.frame),
-    media: [
-      {
-        alt: draft.photo.alt,
-        fit: "cover",
-        focus: { x: draft.photo.focusX, y: draft.photo.focusY },
-        reference: { dataUrl: draft.photo.dataUrl, source: "inline" },
-        zoom: draft.photo.zoom / 100,
-      },
-    ],
+    media: [photoMedia(draft.photo)],
     schemaVersion: 1,
     slug: "foto-producto",
     theme: themeFor(draft.brand),
@@ -285,43 +290,110 @@ export function productStoryDocument(
       };
 }
 
+/** Lo que la vista previa completa con un ejemplo mientras falte. */
+export type ProductPreviewSample = "photo" | "price" | "title";
+
+export type ProductStoryLivePreview =
+  | Readonly<{
+      document: DesignDocument;
+      kind: "ready";
+      /** Vacío cuando la pieza es exactamente la que se va a guardar. */
+      samples: readonly ProductPreviewSample[];
+    }>
+  | Readonly<{ kind: "blocked"; message: string }>;
+
+/** Se ve como relleno a propósito: nadie lo confunde con un precio real. */
+export const sampleProductPrice = "$ 00.000";
+export const sampleProductTitle = "Tu producto";
+
+const samplePhoto = Object.freeze({
+  alt: "Herramientas sobre un banco de trabajo",
+  reference: Object.freeze({
+    assetId: "stock-herramientas-electricas",
+    source: "brand-library",
+  }),
+});
+
+/**
+ * La pieza que se ve mientras se arma: la misma que se guarda cuando está
+ * completa y, mientras falten la foto, el nombre o el importe, la misma
+ * composición con un ejemplo en su lugar, para ver cómo queda antes de
+ * escribir nada.
+ *
+ * El ejemplo nunca viaja: guardar sigue pasando por `productStoryDocument`,
+ * que exige los datos reales. Por eso `samples` dice qué es de ejemplo y el
+ * panel lo avisa sobre la vista previa.
+ */
+export function productStoryLivePreview(
+  draft: ProductStoryDraft,
+): ProductStoryLivePreview {
+  const own = productStoryDocument(draft);
+  if (own.kind === "ready") {
+    return { document: own.document, kind: "ready", samples: [] };
+  }
+  const title = trimmed(draft.title);
+  const missingPrice =
+    draft.priceMode === "amount" && trimmed(draft.price) === undefined;
+  // Con todo cargado, si igual no compone, se dice por qué: un ejemplo no
+  // tapa un dato real que el motor rechaza.
+  if (own.kind === "blocked" && title !== undefined && !missingPrice) {
+    return own;
+  }
+  // Sólo se avisa lo que se ve: un nombre callado no aparece en la pieza.
+  const samples: ProductPreviewSample[] = [];
+  if (draft.photo === null) samples.push("photo");
+  if (title === undefined && draft.showTitle) samples.push("title");
+  if (missingPrice) samples.push("price");
+
+  const content = pieceContent(
+    missingPrice ? { ...draft, price: sampleProductPrice } : draft,
+    title ?? sampleProductTitle,
+  );
+  const parsed = parseDesignDocument({
+    content,
+    format: draft.format,
+    layout: layoutFor(draft.frame),
+    media: [draft.photo === null ? samplePhoto : photoMedia(draft.photo)],
+    schemaVersion: 1,
+    slug: "foto-producto-muestra",
+    theme: themeFor(draft.brand),
+  });
+  return parsed.ok
+    ? { document: parsed.document, kind: "ready", samples }
+    : {
+        kind: "blocked",
+        message: "La pieza no se puede componer con estos datos.",
+      };
+}
+
+const sampleNames: Readonly<Record<ProductPreviewSample, string>> =
+  Object.freeze({ photo: "foto", price: "precio", title: "nombre" });
+
+/** Qué de la vista previa es de ejemplo, en el orden en que se carga. */
+export function productPreviewNote(
+  samples: readonly ProductPreviewSample[],
+): string | null {
+  const names = (["photo", "title", "price"] as const)
+    .filter((sample) => samples.includes(sample))
+    .map((sample) => sampleNames[sample]);
+  const last = names.at(-1);
+  if (last === undefined) return null;
+  const list =
+    names.length === 1 ? last : `${names.slice(0, -1).join(", ")} y ${last}`;
+  return `Por ahora con ${list} de ejemplo.`;
+}
+
 /**
  * La miniatura de cada marco en la galería: la pieza de verdad con la foto y
- * los datos que se cargaron. Mientras falten, una foto de la biblioteca y un
- * nombre de muestra dejan ver la forma del marco.
+ * los datos que se cargaron. La foto propia aparece apenas se sube; lo que
+ * todavía falte se completa con el mismo ejemplo que la vista previa.
  */
 export function productFrameThumbnail(
   draft: ProductStoryDraft,
   frame: ProductStoryFrame,
 ): DesignDocument | null {
-  const own = productStoryDocument({ ...draft, frame });
-  if (own.kind === "ready") {
-    return own.document;
-  }
-  const sample = parseDesignDocument({
-    content: {
-      ...(frameShows(frame, "callToAction")
-        ? { callToAction: draft.callToAction.trim() || "Consultanos" }
-        : {}),
-      price: "$ 24.500",
-      title: trimmed(draft.title) ?? "Tu producto",
-    },
-    format: draft.format,
-    layout: layoutFor(frame),
-    media: [
-      {
-        alt: "Herramientas sobre un banco de trabajo",
-        reference: {
-          assetId: "stock-herramientas-electricas",
-          source: "brand-library",
-        },
-      },
-    ],
-    schemaVersion: 1,
-    slug: "foto-producto-muestra",
-    theme: themeFor(draft.brand),
-  });
-  return sample.ok ? sample.document : null;
+  const preview = productStoryLivePreview({ ...draft, frame });
+  return preview.kind === "ready" ? preview.document : null;
 }
 
 export type ProductStorySaveResult =

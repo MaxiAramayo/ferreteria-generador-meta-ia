@@ -409,7 +409,7 @@ async function main(): Promise<void> {
     await editorPage
       .getByLabel("Nombre del producto")
       .fill("Guantes de trabajo");
-    await editorPage.getByLabel("Precio", { exact: true }).fill("$ 48.900");
+    await editorPage.getByLabel("Importe", { exact: true }).fill("$ 48.900");
     await editorPage.getByLabel("Subir foto").setInputFiles({
       buffer: await readFile(
         fileURLToPath(
@@ -463,6 +463,64 @@ async function main(): Promise<void> {
     });
     reportCheck(
       "el producto compone la foto subida y cambia de marco y de formato sin perderla",
+    );
+
+    // --- En el celular, la pieza se ve entera antes de escribir nada ---
+    // El dueño arma casi todo desde el teléfono: la vista previa esperaba el
+    // nombre y el precio, y la escala fija dejaba afuera el costado derecho.
+    const editorPhone = await signedInContext(
+      browser,
+      apiBaseUrl,
+      fixture.people.editor.email,
+      phone,
+    );
+    const phoneComposer = await editorPhone.newPage();
+    await phoneComposer.goto(
+      `${webBaseUrl}/publicaciones/nueva?flujo=producto`,
+      { waitUntil: "load" },
+    );
+    const phonePreview = phoneComposer.getByRole("complementary", {
+      name: "Vista previa real de la pieza",
+    });
+    await phonePreview
+      .locator("[data-card] [data-product-plate]")
+      .waitFor({ timeout: uiTimeoutMs });
+    await phonePreview
+      .getByRole("note")
+      .getByText("de ejemplo", { exact: false })
+      .waitFor({ timeout: uiTimeoutMs });
+    const phoneFit = await phonePreview.evaluate((aside) => {
+      const box = aside.querySelector(".recurring-story-engine-scale");
+      const card = aside.querySelector("[data-card]");
+      return box === null || card === null
+        ? null
+        : {
+            box: box.getBoundingClientRect().width,
+            card: card.getBoundingClientRect().width,
+          };
+    });
+    assert.ok(
+      phoneFit !== null,
+      "La vista previa del celular no dibujó la pieza.",
+    );
+    assert.ok(
+      phoneFit.card <= phoneFit.box + 0.5,
+      `La pieza se sale de la vista previa: ${String(phoneFit.card)} px en ${String(phoneFit.box)} px.`,
+    );
+    // «Más datos» se toca y se abre, en vez de parecer un título suelto.
+    await phoneComposer.locator(".product-more-fields > summary").click();
+    // Por rol: las descripciones de los marcos de góndola también nombran la
+    // etiqueta del estante.
+    await phoneComposer
+      .getByRole("textbox", { name: "Etiqueta" })
+      .waitFor({ timeout: uiTimeoutMs });
+    await phoneComposer.screenshot({
+      fullPage: true,
+      path: `${outputDirectory}/producto-celular.png`,
+    });
+    await editorPhone.close();
+    reportCheck(
+      "en el celular la pieza se ve entera antes de cargar datos y «Más datos» se abre",
     );
 
     // Guardar de verdad: la foto embebida viaja en el cuerpo del POST y la
