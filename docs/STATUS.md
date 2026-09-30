@@ -297,7 +297,9 @@ foto, los marcos quedan en una tira que se desliza y los pasos están
 numerados. La pieza se cortaba a la derecha porque el motor se escalaba a un
 ancho fijo; ahora se mide sobre el recuadro, también en la historia
 recurrente. «Más datos» se ve como una caja que se abre. No necesita
-migración.
+migración. Se desplegó el 2026-09-30 en
+`e1d93c55dd12a6bbf516c622fda17429f480ff42`, con copia previa verificada;
+`3be2985…` queda para rollback.
 
 `P6-T14` cerró el 2026-09-23, a pedido del usuario: «Aprobar y publicar rutina»
 ya no deja un borrador esperando cuatro clics diarios. En un día normal, la

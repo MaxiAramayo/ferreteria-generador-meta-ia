@@ -37,6 +37,18 @@ estaban activos.
 
 ## Estado de producción verificado
 
+El 2026-09-30 se promovió `e1d93c55dd12a6bbf516c622fda17429f480ff42`, con las
+imágenes de la corrida `36770311352` y copia previa verificada
+(`aramayo-production-20260930T200748Z`, restauración verificada y subida a
+Drive). Trae el compositor de producto pensado para el celular (`P2-T13`) y es
+la primera release que viaja con `podar-imagenes.sh`. Sin migraciones: la
+migración terminó con «No pending migrations to apply». `/health`, `/ready`,
+el login, el manifiesto y las tres rutas legales respondieron `200`, el worker
+reporta PostgreSQL y Redis arriba, y la hoja de estilos publicada trae las
+clases nuevas del compositor. La poda borró las cuatro imágenes de
+`0b6dcf1…` y dejó sólo las de `e1d93c5…` y las de `3be2985…`, que queda para
+rollback; el disco quedó con 54 GB libres.
+
 El 2026-09-29 se promovió `3be2985114e8cf9bcd2041a9d27dff066fcd6219`, con las
 imágenes de la corrida `36649923126` y copia previa verificada
 (`aramayo-production-20260930T002518Z`). Trae el listado por partes, el panel
