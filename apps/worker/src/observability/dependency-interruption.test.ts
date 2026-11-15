@@ -126,7 +126,7 @@ test("cortar Meta deja observación con su causa y sin la URL del proveedor", as
   assertInterrupted(observations, "meta", "graph.request");
   assert.equal(
     observations.find((entry) => entry.dependency === "meta")?.failureCode,
-    "TimeoutError",
+    "request-timeout",
   );
 });
 

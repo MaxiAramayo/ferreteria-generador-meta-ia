@@ -125,10 +125,21 @@ export class PublicationOrderOutboxTransport implements OutboxTransport {
     pending: readonly PublicationOrderTargetRecord[],
     context: PrePublishReadyContext,
   ): Promise<void> {
+    let failures = 0;
     for (const target of pending) {
       // Cada destino se atiende dentro de su propio intento de error: uno que
       // rompa no puede impedir el siguiente ni alterar su resultado.
-      await this.#attemptOne(job, target, context);
+      try {
+        await this.#attemptOne(job, target, context);
+      } catch {
+        failures += 1;
+      }
+    }
+    if (failures > 0) {
+      // No propagar el error original: podría contener URLs con credenciales.
+      throw new Error(
+        `Fallaron ${String(failures)} destinos de la orden ${job.orderId}; el outbox debe recuperar la entrega.`,
+      );
     }
   }
 
@@ -150,23 +161,25 @@ export class PublicationOrderOutboxTransport implements OutboxTransport {
       organizationId: job.organizationId,
       publicationTargetId: target.publicationTargetId,
     };
-    try {
-      if (target.target === "facebook_page") {
-        await this.#facebook.publish({ ...shared, copy: context.caption });
-        return;
-      }
-      await this.#instagram.publish({
+    if (target.target === "facebook_page") {
+      const outcome = await this.#facebook.publish({
         ...shared,
-        // Una historia no lleva pie: enviarlo prometería un texto invisible.
-        ...(target.target === "instagram_story"
-          ? {}
-          : { caption: context.caption }),
-        target: target.target,
+        copy: context.caption,
       });
-    } catch {
-      // El publicador ya registró lo que pudo. Lo que no se puede permitir es
-      // que este destino se lleve puestos a los demás.
+      if (outcome.status === "conflict")
+        throw new Error("Conflicto al guardar el intento.");
+      return;
     }
+    const outcome = await this.#instagram.publish({
+      ...shared,
+      // Una historia no lleva pie: enviarlo prometería un texto invisible.
+      ...(target.target === "instagram_story"
+        ? {}
+        : { caption: context.caption }),
+      target: target.target,
+    });
+    if (outcome.status === "conflict")
+      throw new Error("Conflicto al guardar el intento.");
   }
 
   /**

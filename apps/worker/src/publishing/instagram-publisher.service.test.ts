@@ -91,7 +91,7 @@ function command(
 interface GraphScript {
   readonly containerId?: string;
   readonly createContainer?: () => never;
-  readonly publishContainer?: () => never;
+  readonly publishContainer?: () => void | Promise<void>;
   readonly quota?: InstagramPublishingQuota;
   readonly readContainer?: () => never;
   readonly states?: readonly InstagramContainerState[];
@@ -127,11 +127,11 @@ class ScriptedInstagramGraph implements InstagramPublishingPort {
     return Promise.resolve({ state });
   }
 
-  publishContainer(
+  async publishContainer(
     request: InstagramPublishRequest,
   ): Promise<InstagramPublishedMedia> {
     this.calls.push(`publishContainer:${request.containerId}`);
-    this.#script.publishContainer?.();
+    await this.#script.publishContainer?.();
     return Promise.resolve({ mediaId: "media-1" });
   }
 
@@ -240,7 +240,7 @@ test("una pieza válida crea contenedor, espera el procesamiento y publica", asy
   assert.equal(attempt.state, "published");
   assert.equal(attempt.stagedMediaId, "container-1");
   assert.equal(attempt.remotePostId, "media-1");
-  assert.equal(attempt.sequence, 2);
+  assert.equal(attempt.sequence, 3);
 });
 
 test("repetir el comando sobre un éxito confirmado no llama a Meta", async () => {
@@ -272,14 +272,15 @@ test("un timeout después de crear el contenedor conserva su identificador", asy
   const journal = new InMemoryMetaPublishingAttemptJournal();
   const outcome = await publisherWith(graph, journal).publish(command());
 
-  assert.equal(failureCodeOf(outcome), "request-timeout");
+  assert.equal(outcome.status, "outcome-unknown");
+  assert.equal(outcome.attempt.failure?.code, "request-timeout");
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
-  assert.equal(attempt.state, "failed");
+  assert.equal(attempt.state, "outcome_unknown");
   assert.equal(attempt.stagedMediaId, "container-1");
 });
 
-test("el reintento reconcilia por estado y no crea una segunda publicación", async () => {
+test("el reintento espera al reconciliador y no crea una segunda publicación", async () => {
   const journal = new InMemoryMetaPublishingAttemptJournal();
   journal.seed({
     attemptId: "attempt-1",
@@ -300,12 +301,12 @@ test("el reintento reconcilia por estado y no crea una segunda publicación", as
   const graph = new ScriptedInstagramGraph({ states: ["published"] });
   const outcome = await publisherWith(graph, journal).publish(command());
 
-  assert.equal(outcome.status, "published-unconfirmed");
+  assert.equal(outcome.status, "outcome-unknown");
   assert.ok(!graph.calls.some((call) => call.startsWith("publishContainer")));
   assert.ok(!graph.calls.includes("createContainer"));
   const [attempt] = journal.records;
   assert.ok(attempt !== undefined);
-  assert.equal(attempt.state, "published_unconfirmed");
+  assert.equal(attempt.state, "failed");
   assert.equal(attempt.stagedMediaId, "container-1");
 });
 
@@ -594,4 +595,62 @@ test("un intento publicado sin identificador no se vuelve a publicar", async () 
 
   assert.equal(outcome.status, "published-unconfirmed");
   assert.deepEqual(graph.calls, []);
+});
+
+test("dos publicadores sobre el mismo contenedor sólo autorizan un POST", async () => {
+  const journal = new InMemoryMetaPublishingAttemptJournal();
+  journal.seed({
+    attemptId: "attempt-1",
+    organizationId,
+    publicationTargetId: "target-feed-1",
+    sequence: 1,
+    stagedMediaId: "container-1",
+    state: "media_staged",
+    updatedAt: "2026-08-19T09:59:00.000Z",
+  });
+  const entered = Promise.withResolvers<undefined>();
+  const release = Promise.withResolvers<undefined>();
+  const graph = new ScriptedInstagramGraph({
+    publishContainer: async (): Promise<void> => {
+      const [intent] = journal.records;
+      assert.equal(intent?.state, "outcome_unknown");
+      assert.equal(intent.stagedMediaId, "container-1");
+      entered.resolve(undefined);
+      await release.promise;
+    },
+  });
+  const publisher = publisherWith(graph, journal);
+  const first = publisher.publish(command());
+  const second = publisher.publish(command());
+  await entered.promise;
+  // Simula un reinicio mientras Meta sigue atendiendo el primer envío.
+  assert.equal((await publisher.publish(command())).status, "outcome-unknown");
+  release.resolve(undefined);
+  const outcomes = await Promise.all([first, second]);
+  assert.equal(
+    outcomes.filter((outcome) => outcome.status === "published").length,
+    1,
+  );
+  assert.equal(
+    graph.calls.filter((call) => call.startsWith("publishContainer")).length,
+    1,
+  );
+  assert.equal(journal.records[0]?.remotePostId, "media-1");
+});
+
+test("una caída inesperada después de iniciar el envío conserva la intención", async () => {
+  const journal = new InMemoryMetaPublishingAttemptJournal();
+  const graph = new ScriptedInstagramGraph({
+    publishContainer: (): never => {
+      throw new Error("proceso interrumpido");
+    },
+  });
+  const publisher = publisherWith(graph, journal);
+  await assert.rejects(publisher.publish(command()), /proceso interrumpido/);
+  assert.equal(journal.records[0]?.state, "outcome_unknown");
+  assert.equal((await publisher.publish(command())).status, "outcome-unknown");
+  assert.equal(
+    graph.calls.filter((call) => call.startsWith("publishContainer")).length,
+    1,
+  );
 });

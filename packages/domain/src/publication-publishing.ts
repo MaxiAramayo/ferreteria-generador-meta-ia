@@ -230,7 +230,10 @@ export function pendingPublicationTargets(
   if (order.cancelledAt !== undefined) return Object.freeze([]);
   return Object.freeze(
     order.targets.filter(
-      (entry) => entry.state === "pending" || entry.state === "media_staged",
+      (entry) =>
+        entry.manualReason !== "abandoned-by-operator" &&
+        entry.nextAttemptAt === undefined &&
+        (entry.state === "pending" || entry.state === "media_staged"),
     ),
   );
 }

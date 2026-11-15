@@ -45,6 +45,7 @@ import {
   type PublicationOrderRepository,
   type PublicationOrderTargetRecord,
   type PublicationTarget,
+  type PublicationStatus,
   type ApplyPublicationManualActionInput,
   type ApplyPublicationManualActionResult,
   type ConfirmRemotePublicationInput,
@@ -65,8 +66,8 @@ import {
   type ScheduleRetryInput,
 } from "@aramayo/domain";
 
-import type { DatabaseClient } from "./client.ts";
-import type { Prisma } from "./generated/prisma/client.ts";
+import type { DatabaseClient, DatabaseTransactionClient } from "./client.ts";
+import { Prisma } from "./generated/prisma/client.ts";
 import {
   claimReliableOperation,
   commitReliableOperation,
@@ -776,50 +777,114 @@ export class PrismaPublicationOrderRepository
     orderId: string,
     settledAt: string,
   ): Promise<PublicationOrderCompletionResult> {
-    return this.#database.$transaction(async (transaction) => {
-      const row = await transaction.publicationOrder.findFirst({
-        select: orderSelection,
-        where: { id: orderId, organizationId },
-      });
-      if (row === null) return Object.freeze({ status: "not-found" });
-      const order = mapOrder(row);
-      const status = publicationOrderStatus(order.targets);
+    return this.#database.$transaction((transaction) =>
+      this.#settle(transaction, organizationId, orderId, settledAt),
+    );
+  }
 
-      const publication = await transaction.publication.findFirst({
-        select: { status: true, version: true },
-        where: { id: order.publicationId, organizationId },
-      });
-      if (publication === null) return Object.freeze({ status: "not-found" });
-      const version = publication.version + 1;
-      const updated = await transaction.publication.updateMany({
-        data: { status, version },
-        where: {
-          id: order.publicationId,
-          organizationId,
-          version: publication.version,
-        },
-      });
-      if (updated.count !== 1) return Object.freeze({ status: "conflict" });
+  async #lockOrder(
+    transaction: DatabaseTransactionClient,
+    organizationId: string,
+    orderId: string,
+  ): Promise<void> {
+    await transaction.$queryRaw(Prisma.sql`
+      SELECT id FROM publication_orders
+      WHERE id = ${orderId}::uuid AND organization_id = ${organizationId}::uuid
+      FOR UPDATE
+    `);
+  }
 
-      await transaction.publicationOrder.updateMany({
-        data: { settledAt: new Date(settledAt) },
-        where: { id: orderId, organizationId, settledAt: null },
-      });
-      await transaction.publicationStateTransition.create({
-        data: {
-          actorMembershipId: order.requestedByMembershipId,
-          commandType: "advance",
-          fromStatus: publication.status,
-          fromVersion: publication.version,
-          occurredAt: new Date(settledAt),
-          organizationId,
-          publicationId: order.publicationId,
-          toStatus: status,
-          toVersion: version,
-        },
-      });
-      return Object.freeze({ status: "completed", version });
+  async #currentPublication(
+    transaction: DatabaseTransactionClient,
+    order: OrderRow,
+  ): Promise<Readonly<{ status: PublicationStatus; version: number }> | null> {
+    await transaction.$queryRaw(Prisma.sql`
+      SELECT id FROM publications
+      WHERE id = ${order.publicationId}::uuid AND organization_id = ${order.organizationId}::uuid
+      FOR UPDATE
+    `);
+    const publication = await transaction.publication.findFirst({
+      select: { status: true, version: true },
+      where: { id: order.publicationId, organizationId: order.organizationId },
     });
+    const latestOrder = await transaction.publicationOrder.findFirst({
+      select: { id: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      where: {
+        publicationId: order.publicationId,
+        organizationId: order.organizationId,
+      },
+    });
+    const latestSnapshot = await transaction.approvalSnapshot.findFirst({
+      select: { id: true },
+      orderBy: [{ approvedAt: "desc" }, { id: "desc" }],
+      where: {
+        publicationId: order.publicationId,
+        organizationId: order.organizationId,
+      },
+    });
+    return latestOrder?.id === order.id &&
+      latestSnapshot?.id === order.approvalSnapshotId
+      ? publication
+      : null;
+  }
+
+  async #settle(
+    transaction: DatabaseTransactionClient,
+    organizationId: string,
+    orderId: string,
+    settledAt: string,
+  ): Promise<PublicationOrderCompletionResult> {
+    await this.#lockOrder(transaction, organizationId, orderId);
+    const row = await transaction.publicationOrder.findFirst({
+      select: orderSelection,
+      where: { id: orderId, organizationId },
+    });
+    if (row === null) return Object.freeze({ status: "not-found" });
+    if (row.cancelledAt !== null) return Object.freeze({ status: "conflict" });
+    const status = publicationOrderStatus(mapOrder(row).targets);
+    if (status === "publishing") return Object.freeze({ status: "conflict" });
+    const publication = await this.#currentPublication(transaction, row);
+    if (
+      publication === null ||
+      ![
+        "publishing",
+        "publish_failed",
+        "partially_published",
+        "published",
+      ].includes(publication.status)
+    ) {
+      return Object.freeze({ status: "conflict" });
+    }
+    if (row.settledAt !== null && publication.status === status) {
+      return Object.freeze({
+        status: "completed",
+        version: publication.version,
+      });
+    }
+    const version = publication.version + 1;
+    await transaction.publication.update({
+      data: { status, version },
+      where: { id: row.publicationId },
+    });
+    await transaction.publicationOrder.update({
+      data: { settledAt: new Date(settledAt) },
+      where: { id: orderId },
+    });
+    await transaction.publicationStateTransition.create({
+      data: {
+        actorMembershipId: row.requestedByMembershipId,
+        commandType: "advance",
+        fromStatus: publication.status,
+        fromVersion: publication.version,
+        occurredAt: new Date(settledAt),
+        organizationId,
+        publicationId: row.publicationId,
+        toStatus: status,
+        toVersion: version,
+      },
+    });
+    return Object.freeze({ status: "completed", version });
   }
 
   // --- PublicationRetryRepository ---
@@ -835,10 +900,11 @@ export class PrismaPublicationOrderRepository
   async #writeTarget(
     input: PublicationRetryWriteInput,
     data: Prisma.PublicationOrderTargetUpdateManyMutationInput,
+    transaction: DatabaseTransactionClient = this.#database,
   ): Promise<PublicationRetryWriteResult> {
     const key = splitTargetKey(input.publicationTargetId);
     if (key === null || !isPublicationTarget(key.target)) return "conflict";
-    const updated = await this.#database.publicationOrderTarget.updateMany({
+    const updated = await transaction.publicationOrderTarget.updateMany({
       data: { ...data, sequence: input.sequence + 1 },
       where: {
         orderId: key.orderId,
@@ -958,14 +1024,30 @@ export class PrismaPublicationOrderRepository
     if (!isPublicationTarget(target)) return "conflict";
 
     return this.#database.$transaction(async (transaction) => {
+      await this.#lockOrder(transaction, input.organizationId, key.orderId);
       const order = await transaction.publicationOrder.findFirst({
-        select: { cancelledAt: true, publicationId: true, settledAt: true },
+        select: orderSelection,
         where: { id: key.orderId, organizationId: input.organizationId },
       });
       if (order === null) return "closed";
-      // Una orden cancelada no admite intentos nuevos aunque conserve la fecha,
-      // y una cerrada ya movió la publicación a su estado final.
-      if (order.cancelledAt !== null || order.settledAt !== null) {
+      const publication = await this.#currentPublication(transaction, order);
+      if (
+        order.cancelledAt !== null ||
+        publication === null ||
+        !["publishing", "publish_failed", "partially_published"].includes(
+          publication.status,
+        )
+      ) {
+        // Una fecha imposible no debe monopolizar todos los barridos futuros.
+        await transaction.publicationOrderTarget.updateMany({
+          data: { nextAttemptAt: null, sequence: { increment: 1 } },
+          where: {
+            orderId: key.orderId,
+            organizationId: input.organizationId,
+            target,
+            sequence: input.sequence,
+          },
+        });
         return "closed";
       }
 
@@ -976,7 +1058,8 @@ export class PrismaPublicationOrderRepository
           state: "pending",
         },
         where: {
-          nextAttemptAt: { not: null },
+          nextAttemptAt: { lte: new Date(input.availableAt) },
+          state: { in: ["failed", "pending", "media_staged"] },
           orderId: key.orderId,
           organizationId: input.organizationId,
           sequence: input.sequence,
@@ -985,6 +1068,29 @@ export class PrismaPublicationOrderRepository
       });
       if (updated.count !== 1) return "conflict";
 
+      await transaction.publicationOrder.update({
+        data: { settledAt: null },
+        where: { id: key.orderId },
+      });
+      if (publication.status !== "publishing") {
+        await transaction.publication.update({
+          data: { status: "publishing", version: publication.version + 1 },
+          where: { id: order.publicationId },
+        });
+        await transaction.publicationStateTransition.create({
+          data: {
+            actorMembershipId: order.requestedByMembershipId,
+            commandType: "advance",
+            fromStatus: publication.status,
+            fromVersion: publication.version,
+            occurredAt: new Date(input.availableAt),
+            organizationId: input.organizationId,
+            publicationId: order.publicationId,
+            toStatus: "publishing",
+            toVersion: publication.version + 1,
+          },
+        });
+      }
       await transaction.outboxMessage.create({
         data: {
           aggregateId: key.orderId,
@@ -1101,7 +1207,10 @@ export class PrismaPublicationOrderRepository
       }
 
       const updated = await transaction.publicationOrderTarget.updateMany({
-        data: manualActionMutation(input.action, input.occurredAt),
+        data: {
+          ...manualActionMutation(input.action, input.occurredAt),
+          sequence: row.sequence + 1,
+        },
         where: {
           // El motivo viaja en el `WHERE`: si cambió entre la lectura y esta
           // línea, la escritura no entra.
@@ -1148,13 +1257,31 @@ export class PrismaPublicationOrderRepository
   async confirmRemotePublication(
     input: ConfirmRemotePublicationInput,
   ): Promise<PublicationRetryWriteResult> {
-    return this.#writeTarget(input, {
-      manualReason: null,
-      nextAttemptAt: null,
-      reconciledAt: new Date(input.reconciledAt),
-      remotePermalink: input.remotePermalink ?? null,
-      remotePostId: input.remotePostId,
-      state: "published",
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return "conflict";
+    return this.#database.$transaction(async (transaction) => {
+      await this.#lockOrder(transaction, input.organizationId, key.orderId);
+      const written = await this.#writeTarget(
+        input,
+        {
+          manualReason: null,
+          nextAttemptAt: null,
+          reconciledAt: new Date(input.reconciledAt),
+          remotePermalink: input.remotePermalink ?? null,
+          remotePostId: input.remotePostId,
+          state: "published",
+        },
+        transaction,
+      );
+      if (written === "saved") {
+        await this.#settle(
+          transaction,
+          input.organizationId,
+          key.orderId,
+          input.reconciledAt,
+        );
+      }
+      return written;
     });
   }
 
@@ -1168,11 +1295,29 @@ export class PrismaPublicationOrderRepository
   async confirmWithoutIdentifier(
     input: PublicationRetryWriteInput & { readonly reconciledAt: string },
   ): Promise<PublicationRetryWriteResult> {
-    return this.#writeTarget(input, {
-      manualReason: null,
-      nextAttemptAt: null,
-      reconciledAt: new Date(input.reconciledAt),
-      state: "published_unconfirmed",
+    const key = splitTargetKey(input.publicationTargetId);
+    if (key === null) return "conflict";
+    return this.#database.$transaction(async (transaction) => {
+      await this.#lockOrder(transaction, input.organizationId, key.orderId);
+      const written = await this.#writeTarget(
+        input,
+        {
+          manualReason: null,
+          nextAttemptAt: null,
+          reconciledAt: new Date(input.reconciledAt),
+          state: "published_unconfirmed",
+        },
+        transaction,
+      );
+      if (written === "saved") {
+        await this.#settle(
+          transaction,
+          input.organizationId,
+          key.orderId,
+          input.reconciledAt,
+        );
+      }
+      return written;
     });
   }
 
@@ -1188,7 +1333,7 @@ export class PrismaPublicationOrderRepository
   ): Promise<PublicationRetryWriteResult> {
     return this.#writeTarget(input, {
       manualReason: null,
-      nextAttemptAt: null,
+      nextAttemptAt: new Date(input.reconciledAt),
       reconciledAt: new Date(input.reconciledAt),
       stagedMediaId: null,
       state: "pending",

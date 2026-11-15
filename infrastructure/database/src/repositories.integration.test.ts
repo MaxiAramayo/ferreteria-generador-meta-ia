@@ -6401,7 +6401,27 @@ test("un destino comprobado ausente vuelve a la cola y descarta el medio", async
   // Y el destino vuelve a estar pendiente para la orden.
   const order = await orders.findById(organizationId, orderId);
   assert.ok(order);
-  assert.equal(pendingPublicationTargets(order).length, 1);
+  assert.equal(pendingPublicationTargets(order).length, 0);
+  const eventId = randomUUID();
+  assert.equal(
+    await orders.dispatchDueRetry({
+      organizationId,
+      publicationTargetId: key,
+      sequence: stored.sequence,
+      availableAt: "2026-08-20T12:41:00.000Z",
+      eventId,
+    }),
+    "dispatched",
+  );
+  assert.equal(
+    await database.outboxMessage.count({
+      where: { id: eventId, organizationId },
+    }),
+    1,
+  );
+  const dispatched = await orders.findById(organizationId, orderId);
+  assert.ok(dispatched);
+  assert.equal(pendingPublicationTargets(dispatched).length, 1);
 });
 
 test("reintentar un destino no toca los que ya se publicaron", async () => {
@@ -10844,4 +10864,235 @@ test("eliminar borra la pieza y su foto, y deja el renglón de auditoría", asyn
     [approvedPublicationId],
   );
   assert.equal(listed.total, 1);
+});
+
+test("recuperar una orden cerrada es atómico, concurrente e idempotente", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  await orders.save(failedAttempt(organizationId, key, 1, "permission-denied"));
+  await orders.save(
+    publishedAttempt(
+      organizationId,
+      publicationTargetKey(orderId, "facebook_page"),
+      1,
+      "remote-existing",
+    ),
+  );
+  const first = await orders.settle(
+    organizationId,
+    orderId,
+    "2026-11-15T12:00:00Z",
+  );
+  assert.equal(first.status, "completed");
+  assert.deepEqual(
+    await orders.settle(organizationId, orderId, "2026-11-15T12:01:00Z"),
+    first,
+  );
+  await orders.requireManualAction({
+    organizationId,
+    publicationTargetId: key,
+    sequence: 1,
+    reason: "permanent-failure",
+  });
+  assert.equal(
+    (
+      await orders.applyManualAction({
+        action: "retry",
+        actorMembershipId: membershipId,
+        organizationId,
+        publicationTargetId: key,
+        occurredAt: "2026-11-15T12:02:00Z",
+      })
+    ).status,
+    "applied",
+  );
+  const retry = (await orders.dueRetries("2026-11-15T12:03:00Z", 100)).find(
+    (entry) => entry.publicationTargetId === key,
+  );
+  assert.ok(retry);
+  const events = [randomUUID(), randomUUID()];
+  const results = await Promise.all(
+    events.map((eventId) =>
+      orders.dispatchDueRetry({
+        organizationId,
+        publicationTargetId: key,
+        sequence: retry.sequence,
+        availableAt: "2026-11-15T12:03:00Z",
+        eventId,
+      }),
+    ),
+  );
+  assert.equal(results.filter((result) => result === "dispatched").length, 1);
+  assert.equal(
+    await database.outboxMessage.count({ where: { id: { in: events } } }),
+    1,
+  );
+  assert.equal(
+    (
+      await database.publication.findUniqueOrThrow({
+        where: { id: publicationId },
+      })
+    ).status,
+    "publishing",
+  );
+  const after = await orders.findById(organizationId, orderId);
+  assert.equal(
+    (
+      await database.publicationOrder.findUniqueOrThrow({
+        where: { id: orderId },
+      })
+    ).settledAt,
+    null,
+  );
+  assert.equal(
+    after?.targets.find((target) => target.target === "facebook_page")
+      ?.remotePostId,
+    "remote-existing",
+  );
+});
+
+test("una publicación detenida sin alerta manual aparece en la bandeja", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  await database.publicationOrderTarget.updateMany({
+    where: { orderId },
+    data: { updatedAt: new Date("2026-11-15T10:00:00Z") },
+  });
+  const alerts = new PrismaPublicationOperationalAlertRepository(database);
+  await alerts.sweep({
+    at: "2026-11-15T12:00:00Z",
+    limit: 100,
+    nearPublicationWindowMilliseconds: 1800000,
+    occurrenceStuckThresholdMilliseconds: 300000,
+  });
+  const open = await alerts.listOpen(organizationId, 100);
+  assert.ok(
+    open.some(
+      (alert) =>
+        alert.kind === "publication-manual-action" &&
+        alert.publicationId === publicationId &&
+        alert.safeAction === "inspect-queue",
+    ),
+  );
+});
+
+test("un reintento obsoleto no reactiva una publicación editada", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed"],
+  );
+  const key = publicationTargetKey(orderId, "instagram_feed");
+  await orders.save(failedAttempt(organizationId, key, 1, "permission-denied"));
+  await orders.settle(organizationId, orderId, "2026-11-15T12:00:00Z");
+  await orders.scheduleRetry({
+    organizationId,
+    publicationTargetId: key,
+    sequence: 1,
+    nextAttemptAt: "2026-11-15T12:01:00Z",
+  });
+  await database.publication.update({
+    where: { id: publicationId },
+    data: { status: "draft", version: { increment: 1 } },
+  });
+  const version = (
+    await database.publication.findUniqueOrThrow({
+      where: { id: publicationId },
+    })
+  ).version;
+  const eventId = randomUUID();
+  assert.equal(
+    await orders.dispatchDueRetry({
+      organizationId,
+      publicationTargetId: key,
+      sequence: 2,
+      availableAt: "2026-11-15T12:02:00Z",
+      eventId,
+    }),
+    "closed",
+  );
+  assert.equal(
+    await database.outboxMessage.count({ where: { id: eventId } }),
+    0,
+  );
+  assert.equal(
+    (await orders.settle(organizationId, orderId, "2026-11-15T12:03:00Z"))
+      .status,
+    "conflict",
+  );
+  const publication = await database.publication.findUniqueOrThrow({
+    where: { id: publicationId },
+  });
+  assert.equal(publication.status, "draft");
+  assert.equal(publication.version, version);
+});
+
+test("confirmaciones concurrentes cierran el agregado una sola vez", async () => {
+  const { membershipId, organizationId, publicationId } =
+    await publicationOrderFixture();
+  const orders = new PrismaPublicationOrderRepository(database);
+  const orderId = await requestOrder(
+    orders,
+    organizationId,
+    membershipId,
+    publicationId,
+    ["instagram_feed", "facebook_page"],
+  );
+  const targets = [
+    publicationTargetKey(orderId, "instagram_feed"),
+    publicationTargetKey(orderId, "facebook_page"),
+  ];
+  for (const publicationTargetId of targets)
+    await orders.save(unknownAttempt(organizationId, publicationTargetId, 1));
+  const versionsBefore = await database.publicationStateTransition.count({
+    where: { publicationId },
+  });
+  const results = await Promise.all(
+    targets.map((publicationTargetId, index) =>
+      orders.confirmRemotePublication({
+        organizationId,
+        publicationTargetId,
+        sequence: 1,
+        reconciledAt: "2026-11-15T12:00:00Z",
+        remotePostId: `confirmed-${String(index)}`,
+      }),
+    ),
+  );
+  assert.deepEqual(results, ["saved", "saved"]);
+  assert.equal(
+    (
+      await database.publication.findUniqueOrThrow({
+        where: { id: publicationId },
+      })
+    ).status,
+    "published",
+  );
+  assert.equal(
+    await database.publicationStateTransition.count({
+      where: { publicationId },
+    }),
+    versionsBefore + 1,
+  );
 });

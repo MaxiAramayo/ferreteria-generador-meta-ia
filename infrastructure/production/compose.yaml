@@ -23,6 +23,9 @@ x-private-service-environment: &private-service-environment
 services:
   caddy:
     image: caddy:2.11.4-alpine@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required}
@@ -47,8 +50,10 @@ services:
         read_only: true
       - caddy_data:/data
       - caddy_config:/config
+      - /opt/notitas/current/notitas.caddy:/etc/caddy/notitas.caddy:ro
     networks:
       - edge
+      - notitas_ingress
     depends_on:
       api:
         condition: service_healthy
@@ -264,6 +269,9 @@ services:
 
 networks:
   edge:
+  notitas_ingress:
+    external: true
+    name: notitas-ingress
   backend:
     internal: true
   egress:

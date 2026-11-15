@@ -57,9 +57,18 @@ export class MetaPublicationLookupAdapter implements RemotePublicationLookupPort
       return Object.freeze({ status: "indeterminate" as const });
     }
 
-    return input.target.target === "facebook_page"
-      ? this.#lookupPagePost(attempt.stagedMediaId, input.accessToken)
-      : this.#lookupContainer(attempt.stagedMediaId, input.accessToken);
+    // FINISHED/EXPIRED no prueban ausencia después de iniciar un POST: Meta
+    // puede contestar una vista atrasada o haber vencido una historia publicada.
+    const evidence =
+      input.target.target === "facebook_page"
+        ? this.#lookupPagePost(attempt.stagedMediaId, input.accessToken)
+        : this.#lookupContainer(attempt.stagedMediaId, input.accessToken);
+    const resolved = await evidence;
+    return resolved.status === "absent" &&
+      (attempt.state === "outcome_unknown" ||
+        attempt.failure?.code === "request-timeout")
+      ? Object.freeze({ status: "indeterminate" })
+      : resolved;
   }
 
   async #lookupPagePost(

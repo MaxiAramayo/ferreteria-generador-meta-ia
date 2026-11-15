@@ -1112,6 +1112,52 @@ uso o se inicia la integración de eventos comerciales.
 
 - Pendiente.
 
+## P7-T10 — Corregir incidentes de publicación y convivencia con Notitas
+
+- [ ] Tarea completada
+- Estado: EN PROGRESO
+- Dependencias: `P5-T06`, `P6-T07`, `P7-T04`
+- Riesgo: alto; publicación externa, recuperación y operación compartida.
+
+### Objetivo
+
+Resolver los hallazgos de la auditoría del 2026-11-15 a pedido del usuario.
+
+### Entregables
+
+Correcciones, regresiones, dependencias revisadas y evidencia operativa en
+[el registro de remediación](../operations/PRODUCTION-REMEDIATION-2026-11-15.md).
+
+### Criterios de aceptación
+
+- [ ] El reconciliador y el publicador no pueden perder el anclaje de un envío.
+- [ ] Los reintentos y cierres convergen sin duplicados ni revisiones obsoletas.
+- [ ] Los fallos detenidos son observables y los históricos quedan protegidos.
+- [ ] Dependencias, backups e ingreso compartido quedan verificados en producción.
+
+### Verificación obligatoria
+
+- [ ] Regresiones, integración PostgreSQL, `pnpm verify` y comprobaciones remotas.
+
+### Fuera de alcance
+
+Republicar piezas antiguas sin confirmación de contenido, destino y vigencia.
+
+### Notas de progreso
+
+- Fecha: 2026-11-15.
+- Estado real: implementación; dependencias completas.
+- Archivos modificados: registro de remediación y cambios relacionados.
+- Decisiones tomadas: CAS antes del efecto remoto, recuperación transaccional.
+- Verificaciones ejecutadas: auditoría previa.
+- Verificaciones pendientes: suite, integración y producción.
+- Bloqueo, si existe: ninguno para la corrección.
+- Próximo paso exacto: regresiones y correcciones de publicación.
+
+### Evidencia de cierre
+
+Pendiente; ver registro de remediación.
+
 ## Criterios de salida de Fase 7
 
 - [ ] `P7-T01` a `P7-T09` están completas.
