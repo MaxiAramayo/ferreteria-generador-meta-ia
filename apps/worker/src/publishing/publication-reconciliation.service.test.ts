@@ -257,7 +257,7 @@ test("un timeout después de que Meta aceptó se cierra con la evidencia remota"
   assert.equal(repository.unidentified[0]?.reconciledAt, now.toISOString());
 });
 
-test("un timeout antes de que Meta aceptara devuelve el destino a la cola", async () => {
+test("un envío incierto no se repite por una respuesta de ausencia", async () => {
   // El contenedor murió sin publicar: recién ahora es seguro volver a publicar.
   const { repository, service } = serviceFor(
     [openTarget("outcome_unknown")],
@@ -266,8 +266,8 @@ test("un timeout antes de que Meta aceptara devuelve el destino a la cola", asyn
   );
   const summary = await service.reconcileBatch(10);
 
-  assert.equal(summary.republishable, 1);
-  assert.equal(repository.reopened.length, 1);
+  assert.equal(summary.republishable, 0);
+  assert.equal(repository.reopened.length, 0);
   assert.equal(repository.confirmed.length, 0);
 });
 
@@ -343,7 +343,9 @@ test("una consulta que rompe no impide revisar los demás destinos", async () =>
           first = false;
           return Promise.reject(new Error("La consulta remota falló."));
         }
-        return Promise.resolve(Object.freeze({ status: "absent" as const }));
+        return Promise.resolve(
+          Object.freeze({ status: "published-unidentified" as const }),
+        );
       },
     },
     { now: (): Date => now },
@@ -351,6 +353,43 @@ test("una consulta que rompe no impide revisar los demás destinos", async () =>
 
   const summary = await service.reconcileBatch(10);
   assert.equal(summary.failed, 1);
-  assert.equal(summary.republishable, 1);
-  assert.equal(repository.reopened.length, 1);
+  assert.equal(summary.confirmed, 1);
+  assert.equal(repository.unidentified.length, 1);
+});
+
+test("los fallos ambiguos también se reconcilian y confirman", async () => {
+  const { repository, service } = serviceFor(
+    [{ ...openTarget("failed"), failureCode: "request-timeout" }],
+    [
+      {
+        ...attemptOf("failed"),
+        failure: {
+          code: "request-timeout",
+          detail: "Sin respuesta",
+          retryable: true,
+        },
+      },
+    ],
+    lookupReturning({ status: "published", remotePostId: "media-recuperada" }),
+  );
+  assert.equal((await service.reconcileBatch(10)).confirmed, 1);
+  assert.equal(repository.confirmed[0]?.remotePostId, "media-recuperada");
+});
+
+test("la reconciliación no modifica intentos recientes ni cuenta conflictos como éxito", async () => {
+  const recent = serviceFor(
+    [openTarget("media_staged")],
+    [{ ...attemptOf("media_staged"), updatedAt: now.toISOString() }],
+    lookupReturning({ status: "absent" }),
+  );
+  assert.equal((await recent.service.reconcileBatch(10)).republishable, 0);
+  assert.equal(recent.repository.reopened.length, 0);
+  const raced = serviceFor(
+    [openTarget("media_staged")],
+    [attemptOf("media_staged")],
+    lookupReturning({ status: "absent" }),
+  );
+  raced.repository.reopenForRepublish =
+    (): Promise<PublicationRetryWriteResult> => Promise.resolve("conflict");
+  assert.equal((await raced.service.reconcileBatch(10)).republishable, 0);
 });

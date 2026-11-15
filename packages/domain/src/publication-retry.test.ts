@@ -207,7 +207,7 @@ test("recién con ausencia confirmada el destino vuelve a ser publicable", () =>
     reconcilePublicationTarget(attemptAt("outcome_unknown"), {
       status: "absent",
     }),
-    { status: "republishable" },
+    { status: "unresolved" },
   );
   assert.deepEqual(
     reconcilePublicationTarget(attemptAt("media_staged"), { status: "absent" }),

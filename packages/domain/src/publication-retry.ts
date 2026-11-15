@@ -337,7 +337,9 @@ export function reconcilePublicationTarget(
   if (evidence.status === "indeterminate") {
     return Object.freeze({ status: "unresolved" });
   }
-  return attempt.state === "published_unconfirmed"
+  return attempt.state === "published_unconfirmed" ||
+    attempt.state === "outcome_unknown" ||
+    attempt.failure?.code === "request-timeout"
     ? Object.freeze({ status: "unresolved" })
     : Object.freeze({ status: "republishable" });
 }

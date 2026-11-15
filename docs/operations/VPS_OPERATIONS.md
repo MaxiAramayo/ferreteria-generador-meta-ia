@@ -7,8 +7,37 @@ Content Platform en el VPS dedicado. No autoriza omitir las puertas de Fase 7,
 activar proveedores reales ni iniciar el piloto sin backup externo y rollback
 probado.
 
-El VPS aloja únicamente esta plataforma. La web comercial y Odoo permanecen en
-el VPS anterior y no tienen conectividad de aplicación con este host.
+El VPS aloja esta plataforma y, desde el piloto autorizado el 2026-10-05, Notitas.
+La web comercial y Odoo permanecen en el VPS anterior y no tienen conectividad
+de aplicación con este host.
+
+### Integración de Notitas en Caddy
+
+El usuario pidió publicar su aplicación personal en `notitas.maxiaramayo.com`.
+Solo Caddy recibe la red externa `notitas-ingress` y el montaje de solo lectura
+`/opt/notitas/current/notitas.caddy`. El Caddyfile importa esa ruta. Web, API,
+worker, PostgreSQL y Redis conservan sus redes y configuración. SiYuan no publica
+puertos en el host y no accede a las redes comerciales.
+
+La configuración está incluida en `infrastructure/production`, que se copia en
+cada promoción: conservar montaje, red e import al preparar una release futura.
+La red se crea al instalar Notitas. No eliminarla ni retirar su archivo mientras
+Caddy lo importe. El estado y los backups de Notitas pertenecen a su repositorio;
+este cambio de ingreso no cierra tareas pendientes de la plataforma comercial.
+
+La integración se prepara como una copia de la release comercial con sufijo
+`-notitas-20261005`; las imágenes y el env de Content no cambian. La release
+anterior y la configuración exacta se conservan para rollback. Validar Compose
+con `config --quiet` y Caddy antes de recrear solo su servicio (`--no-deps`).
+Comprobar después HTTPS de Content, `/ready` de su API y el acceso privado a
+Notitas. Caddy tiene `admin off`, por lo que la recreación interrumpe brevemente
+el ingreso compartido.
+
+Caddy usa DNS externos `1.1.1.1` y `8.8.8.8`, definidos solo en su servicio de
+Compose. El resolver de OVH conservaba NXDOMAIN para Notitas después del alta;
+las consultas directas a esos resolutores ya respondían correctamente. Docker
+mantiene la resolución de `web`, `api` y `notitas-siyuan` dentro de sus redes.
+Comprobar esos tres nombres y el dominio público después de recrear Caddy.
 
 ## Estado verificado
 

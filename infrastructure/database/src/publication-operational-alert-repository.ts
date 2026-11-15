@@ -378,21 +378,29 @@ export class PrismaPublicationOperationalAlertRepository implements PublicationO
   ): Promise<PublicationOperationalAlertSweepResult> {
     assertSweepInput(input);
     const observedAt = new Date(input.at);
-    const [manualRows, stuckRows, connectionRows] = await Promise.all([
-      this.#manualCandidates(input.limit),
-      this.#stuckOccurrenceCandidates(
-        new Date(
-          observedAt.getTime() - input.occurrenceStuckThresholdMilliseconds,
+    const [manualRows, stuckRows, connectionRows, stuckPublications] =
+      await Promise.all([
+        this.#manualCandidates(input.limit),
+        this.#stuckOccurrenceCandidates(
+          new Date(
+            observedAt.getTime() - input.occurrenceStuckThresholdMilliseconds,
+          ),
+          input.limit,
         ),
-        input.limit,
-      ),
-      this.#degradedConnectionCandidates(
-        observedAt,
-        input.nearPublicationWindowMilliseconds,
-        input.limit,
-      ),
-    ]);
+        this.#degradedConnectionCandidates(
+          observedAt,
+          input.nearPublicationWindowMilliseconds,
+          input.limit,
+        ),
+        this.#stuckPublicationCandidates(
+          new Date(
+            observedAt.getTime() - input.occurrenceStuckThresholdMilliseconds,
+          ),
+          input.limit,
+        ),
+      ]);
     const candidates = [
+      ...stuckPublications,
       ...manualRows.map((row) =>
         manualCandidate(
           row,
@@ -404,6 +412,44 @@ export class PrismaPublicationOperationalAlertRepository implements PublicationO
       ...connectionRows.map(degradedConnectionCandidate),
     ];
     return this.#upsertCandidates(candidates, observedAt);
+  }
+
+  async #stuckPublicationCandidates(
+    threshold: Date,
+    limit: number,
+  ): Promise<readonly PublicationOperationalAlertCandidate[]> {
+    const targets = await this.#database.publicationOrderTarget.findMany({
+      select: {
+        id: true,
+        organizationId: true,
+        target: true,
+        order: { select: { publicationId: true } },
+      },
+      where: {
+        state: { in: ["pending", "media_staged", "outcome_unknown"] },
+        updatedAt: { lte: threshold },
+        manualReason: null,
+        OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: threshold } }],
+        order: { cancelledAt: null },
+      },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      take: limit,
+    });
+    return targets.map((target) =>
+      Object.freeze({
+        cause: "execution-not-completed",
+        kind: "publication-manual-action",
+        fingerprint: publicationOperationalAlertFingerprint({
+          kind: "publication-manual-action",
+          publicationTargetId: `stuck:${target.id}`,
+        }),
+        organizationId: target.organizationId,
+        publicationId: target.order.publicationId,
+        publicationTarget: target.target,
+        safeAction: "inspect-queue",
+        severity: "urgent",
+      }),
+    );
   }
 
   async #manualCandidates(

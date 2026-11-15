@@ -1,6 +1,62 @@
 # Estado del proyecto
 
-Actualizado: 2026-09-30
+Actualizado: 2026-11-15
+
+## Corrección de incidentes — 2026-11-15
+
+`P7-T10` en progreso por pedido del usuario. Corrección **local, aún sin
+promover**: intención durable antes de publicar, reconciliación conservadora,
+reapertura transaccional de reintentos, cierre idempotente y alertas de destinos
+detenidos. Parches de dependencias con auditoría sin avisos. Pasaron 1213 pruebas,
+integración PostgreSQL/Redis con rollback y smoke. Faltan revisión final,
+protección de históricos, promoción y los ajustes operativos de Notitas.
+[Registro y próximo paso](operations/PRODUCTION-REMEDIATION-2026-11-15.md).
+
+## Auditoría de producción — 2026-11-15
+
+Por pedido explícito del usuario se auditó el VPS compartido con Notitas mediante
+lecturas de infraestructura, PostgreSQL, logs, Meta y endpoints públicos, revisión
+del código desplegado y pruebas locales. El informe y el próximo paso están en
+[`PRODUCTION-AUDIT-2026-11-15.md`](operations/PRODUCTION-AUDIT-2026-11-15.md).
+
+Los servicios tienen capacidad disponible y HTTPS válido. La base registra 90
+destinos publicados, cuatro atrapados en `pending` con publicación `publishing`
+y dos fallidos. Se confirmó una carrera entre publicación y reconciliación que
+borra el anclaje remoto; también una reapertura sin transporte, reintentos sobre
+órdenes cerradas y timeouts omitidos por el reconciliador. No se debe interpretar
+un estado local pendiente como prueba de ausencia en Instagram.
+
+La auditoría no modifica producción ni cierra tareas de fase. Las correcciones
+siguen pendientes; su primera prioridad es la exclusión entre publicación y
+reconciliación, con pruebas de concurrencia y recuperación. Los seis casos deben
+reconciliarse individualmente antes de cualquier reenvío. Los respaldos de hoy
+pasaron; Notitas tuvo 34 ejecuciones fallidas antes de la recuperación del 14/11.
+
+Este corte sustituye las afirmaciones históricas de infraestructura no iniciada,
+credenciales ausentes y HTTPS de Notitas pendiente que permanecen más abajo.
+La release sigue siendo `e1d93c5…-notitas-20261005`; las lecturas actuales de Meta
+funcionan. La integración compartida de Caddy está desplegada y coincide con los
+cambios locales previos, todavía sin commit al iniciar esta auditoría.
+
+## Cambio operativo del ingreso — 2026-10-05
+
+Por pedido explícito del usuario se integró su piloto Notitas en el Caddy del VPS.
+La release de infraestructura es
+`e1d93c55dd12a6bbf516c622fda17429f480ff42-notitas-20261005`; las imágenes, secretos
+y datos comerciales conservan el estado del 2026-09-30. Solo Caddy recibió una
+red externa y una ruta de solo lectura. La validación de Compose/Caddy pasó y se
+recreó únicamente Caddy: web, API y worker conservaron IDs y fechas de arranque.
+Content HTTPS y `/ready` respondieron 200 después; todos los healthchecks activos
+quedaron saludables. Notitas tiene datos y backups propios y no comparte redes
+de aplicación/base con Content. Su DNS público está guardado en Donweb; la emisión
+y aceptación de HTTPS están pendientes. Ver `operations/VPS_OPERATIONS.md` y el
+estado del repositorio Notitas.
+Se corrigió el resolver de Caddy: el DNS de OVH retenía NXDOMAIN mientras las
+consultas públicas ya devolvían el registro nuevo. Solo Caddy fija `1.1.1.1` y
+`8.8.8.8`; dominio público y aliases de Docker comprobados después de recrearlo.
+Content HTTPS y `/ready` siguen en 200. La autoridad del certificado aún devuelve
+NXDOMAIN/espera de reintento para Notitas; su publicación no se da por aceptada.
+Este cambio no cierra ni adelanta ninguna tarea de las fases comerciales.
 
 ## Fase activa
 

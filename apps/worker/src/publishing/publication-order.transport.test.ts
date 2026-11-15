@@ -294,7 +294,7 @@ test("un fallo en un destino no impide el otro ni altera su resultado", async ()
       if (target === "instagram_feed") throw new Error("Instagram explotó.");
     },
   });
-  await transport.deliver(message());
+  await assert.rejects(transport.deliver(message()), /outbox debe recuperar/);
 
   // Instagram rompió y Facebook igual se intentó y salió.
   assert.deepEqual(calls, ["instagram_feed", "facebook_page"]);

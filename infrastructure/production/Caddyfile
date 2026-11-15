@@ -34,3 +34,5 @@
 		health_timeout 5s
 	}
 }
+
+import /etc/caddy/notitas.caddy

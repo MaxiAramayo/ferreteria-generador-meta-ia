@@ -89,7 +89,7 @@ test("un contenedor publicado prueba que salió pero no da la media", async () =
   );
 });
 
-test("un contenedor muerto prueba que la publicación no existe", async () => {
+test("un contenedor sin confirmación no prueba ausencia después del envío", async () => {
   for (const state of ["error", "expired"] as const) {
     assert.deepEqual(
       await lookupWith(
@@ -97,7 +97,7 @@ test("un contenedor muerto prueba que la publicación no existe", async () => {
         facebookReturning(undefined),
         "instagram_feed",
       ),
-      { status: "absent" },
+      { status: "indeterminate" },
       `el contenedor ${state} no se tradujo a ausencia`,
     );
   }
@@ -108,7 +108,7 @@ test("un contenedor muerto prueba que la publicación no existe", async () => {
       facebookReturning(undefined),
       "instagram_feed",
     ),
-    { status: "absent" },
+    { status: "indeterminate" },
   );
 });
 

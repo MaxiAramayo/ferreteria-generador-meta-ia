@@ -23,6 +23,7 @@
 
 import {
   metaConnectionCanPublish,
+  needsPublicationReconciliation,
   validateInstagramCaption,
   validateInstagramDelivery,
   validateInstagramGeometry,
@@ -79,6 +80,10 @@ export type InstagramPublishOutcome =
       attempt: MetaPublishingAttemptRecord;
       failure: MetaPublishingAttemptFailure;
       status: "failed";
+    }>
+  | Readonly<{
+      attempt: MetaPublishingAttemptRecord;
+      status: "outcome-unknown";
     }>
   /** Otro trabajador escribió el intento primero; este no toca nada más. */
   | Readonly<{ status: "conflict" }>;
@@ -162,6 +167,13 @@ export class InstagramPublisher {
     });
     const settled = settledOutcome(stored);
     if (settled !== null) return settled;
+    if (
+      stored !== null &&
+      stored.state !== "media_staged" &&
+      needsPublicationReconciliation(stored.state, stored.failure?.code)
+    ) {
+      return Object.freeze({ attempt: stored, status: "outcome-unknown" });
+    }
 
     const sequence = stored?.sequence ?? 0;
     const assetId = publishableAssetId(command);
@@ -208,6 +220,7 @@ export class InstagramPublisher {
   ): Promise<InstagramPublishOutcome> {
     let sequence = storedSequence;
     let containerId = storedContainerId;
+    let sending = false;
 
     try {
       if (containerId === undefined) {
@@ -246,6 +259,17 @@ export class InstagramPublisher {
         return await this.#settleUnconfirmed(command, sequence, containerId);
       }
 
+      // La escritura CAS es la autorización exclusiva para el efecto remoto.
+      // Una reconciliación basada en la secuencia anterior ya no puede borrar
+      // el contenedor. Tras una caída, outcome_unknown sólo admite consultas.
+      const intent = await this.#save(command, {
+        sequence: sequence + 1,
+        stagedMediaId: containerId,
+        state: "outcome_unknown",
+      });
+      if (intent === null) return Object.freeze({ status: "conflict" });
+      sequence += 1;
+      sending = true;
       const published = await this.#publishing.publishContainer(
         { containerId, instagramAssetId: assetId },
         command.accessToken,
@@ -270,6 +294,20 @@ export class InstagramPublisher {
     } catch (cause: unknown) {
       if (!(cause instanceof MetaPublishingError)) throw cause;
       const failure = failureOf(cause);
+      if (
+        sending &&
+        (cause.code === "request-timeout" || cause.code === "provider-error")
+      ) {
+        const attempt = await this.#save(command, {
+          failure,
+          sequence: sequence + 1,
+          ...(containerId === undefined ? {} : { stagedMediaId: containerId }),
+          state: "outcome_unknown",
+        });
+        return attempt === null
+          ? Object.freeze({ status: "conflict" })
+          : Object.freeze({ attempt, status: "outcome-unknown" });
+      }
       return this.#fail(
         command,
         sequence,

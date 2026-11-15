@@ -223,6 +223,13 @@ export class FacebookPublisher {
         }
       }
 
+      const intent = await this.#save(command, {
+        sequence: sequence + 1,
+        stagedMediaId: stagedPhotoId,
+        state: "outcome_unknown",
+      });
+      if (intent === null) return Object.freeze({ status: "conflict" });
+      sequence += 1;
       const post = await this.#publishing.createPagePost(
         { copy: command.copy, pageAssetId: assetId, stagedPhotoId },
         command.accessToken,

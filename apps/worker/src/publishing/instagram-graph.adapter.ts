@@ -389,26 +389,33 @@ export class InstagramGraphAdapter implements InstagramPublishingPort {
     accessToken: string,
     init: Readonly<{ body?: string; method: "GET" | "POST" }>,
   ): Promise<Record<string, unknown>> {
+    return observeDependency(
+      workerLog,
+      { dependency: "meta", operation: "graph.request" },
+      () => this.#requestPayload(url, accessToken, init),
+    );
+  }
+
+  async #requestPayload(
+    url: URL,
+    accessToken: string,
+    init: Readonly<{ body?: string; method: "GET" | "POST" }>,
+  ): Promise<Record<string, unknown>> {
     let response: Response;
     try {
-      response = await observeDependency(
-        workerLog,
-        { dependency: "meta", operation: "graph.request" },
-        async () =>
-          this.#fetch(url, {
-            ...(init.body === undefined ? {} : { body: init.body }),
-            headers: {
-              accept: "application/json",
-              authorization: `Bearer ${accessToken}`,
-              ...(init.body === undefined
-                ? {}
-                : { "content-type": "application/x-www-form-urlencoded" }),
-            },
-            method: init.method,
-            redirect: "error",
-            signal: AbortSignal.timeout(requestTimeoutMilliseconds),
-          }),
-      );
+      response = await this.#fetch(url, {
+        ...(init.body === undefined ? {} : { body: init.body }),
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${accessToken}`,
+          ...(init.body === undefined
+            ? {}
+            : { "content-type": "application/x-www-form-urlencoded" }),
+        },
+        method: init.method,
+        redirect: "error",
+        signal: AbortSignal.timeout(requestTimeoutMilliseconds),
+      });
     } catch (cause: unknown) {
       throw new MetaPublishingError(
         cause instanceof Error && cause.name === "TimeoutError"

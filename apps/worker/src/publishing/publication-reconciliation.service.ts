@@ -106,7 +106,8 @@ export class PublicationReconciliationService {
     for (const target of open) {
       // El barrido lee por estado, pero el estado pudo cambiar entre la lectura
       // y esta línea. Se vuelve a preguntar antes de gastar una llamada remota.
-      if (!needsPublicationReconciliation(target.state)) continue;
+      if (!needsPublicationReconciliation(target.state, target.failureCode))
+        continue;
       try {
         const outcome = await this.#reconcileOne(target);
         if (outcome === "confirmed") confirmed += 1;
@@ -134,7 +135,15 @@ export class PublicationReconciliationService {
       organizationId: target.organizationId,
       publicationTargetId: target.publicationTargetId,
     });
-    if (attempt === null) return "unchanged";
+    if (
+      attempt === null ||
+      !needsPublicationReconciliation(attempt.state, attempt.failure?.code)
+    )
+      return "unchanged";
+    // No interferir con un envío reciente. El CAS y la intención persistida
+    // mantienen la seguridad incluso si la llamada dura más que esta ventana.
+    if (this.#now().getTime() - Date.parse(attempt.updatedAt) < 300_000)
+      return "unchanged";
 
     const connection = await this.#publishableConnection(target.organizationId);
     const accessToken = await this.#credentials.pageAccessToken(
@@ -164,32 +173,39 @@ export class PublicationReconciliationService {
 
     switch (decision.status) {
       case "confirmed":
-        await this.#retries.confirmRemotePublication({
+        return (await this.#retries.confirmRemotePublication({
           ...scope,
           reconciledAt,
           ...(decision.remotePermalink === undefined
             ? {}
             : { remotePermalink: decision.remotePermalink }),
           remotePostId: decision.remotePostId,
-        });
-        return "confirmed";
+        })) === "saved"
+          ? "confirmed"
+          : "unchanged";
       case "confirmed-unidentified":
-        await this.#retries.confirmWithoutIdentifier({
+        return (await this.#retries.confirmWithoutIdentifier({
           ...scope,
           reconciledAt,
-        });
-        return "confirmed";
+        })) === "saved"
+          ? "confirmed"
+          : "unchanged";
       case "republishable":
-        await this.#retries.reopenForRepublish({ ...scope, reconciledAt });
-        return "republishable";
+        return (await this.#retries.reopenForRepublish({
+          ...scope,
+          reconciledAt,
+        })) === "saved"
+          ? "republishable"
+          : "unchanged";
       case "unresolved":
         // Sigue sin saberse. Se deja anotado para que una persona lo vea, y no
         // se toca el estado: el destino sigue tan en duda como antes.
-        await this.#retries.requireManualAction({
+        return (await this.#retries.requireManualAction({
           ...scope,
           reason: "outcome-unresolved",
-        });
-        return "unresolved";
+        })) === "saved"
+          ? "unresolved"
+          : "unchanged";
       case "already-settled":
         return "unchanged";
     }

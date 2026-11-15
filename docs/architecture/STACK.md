@@ -10,7 +10,7 @@
 |---|---:|---|---|
 | Node.js | `24.18.0` | Línea LTS; satisface Next.js, NestJS, pnpm y Prisma | [Node.js 24.18.0](https://nodejs.org/en/blog/release/v24.18.0) |
 | pnpm | `11.17.0` | pnpm 11 requiere Node 22 o superior y soporta Node 24 | [instalación y compatibilidad](https://pnpm.io/installation), [paquete](https://www.npmjs.com/package/pnpm/v/11.17.0) |
-| Next.js | `16.2.11` | Node `>=20.9.0`; React 19 admitido | [requisitos](https://nextjs.org/docs/app/getting-started/installation), [paquete](https://www.npmjs.com/package/next/v/16.2.11) |
+| Next.js | `16.4.1` | Node `>=20.9.0`; React 19 admitido | [requisitos](https://nextjs.org/docs/app/getting-started/installation), [paquete](https://www.npmjs.com/package/next/v/16.4.1) |
 | React / React DOM | `19.2.8` | Versión estable de la línea 19.2; ambos paquetes quedan alineados | [versiones](https://react.dev/versions), [paquete](https://www.npmjs.com/package/react/v/19.2.8) |
 | NestJS | `11.1.28` | Node 20 o superior; paquetes oficiales en la misma versión | [migración a v11](https://docs.nestjs.com/migration-guide), [paquete](https://www.npmjs.com/package/@nestjs/core/v/11.1.28) |
 | BullMQ | `6.2.2` | Node `>=14.17.0`; admite `redis@6.1.0` mediante su adaptador oficial para node-redis | [conexiones](https://docs.bullmq.io/guide/connections), [paquete](https://www.npmjs.com/package/bullmq/v/6.2.2) |
@@ -68,7 +68,7 @@ de instalación deshabilitados.
 
 Las puertas de calidad (`P0-T06`) agregan, sólo en la raíz,
 `eslint@10.7.0`, `@eslint/js@10.0.1`, `typescript-eslint@8.65.0`,
-`eslint-plugin-react-hooks@7.1.1`, `@next/eslint-plugin-next@16.2.11`,
+`eslint-plugin-react-hooks@7.1.1`, `@next/eslint-plugin-next@16.4.1`,
 `globals@17.7.0` y `prettier@3.9.6`. `typescript-eslint@8.65.0` declara soporte
 para ESLint 8, 9 y 10 y TypeScript `>=4.8.4 <6.1.0`, compatible con el
 `5.9.3` fijado. `@next/eslint-plugin-next` se mantiene en la misma versión que
