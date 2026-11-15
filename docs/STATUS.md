@@ -2,6 +2,14 @@
 
 Actualizado: 2026-11-15
 
+## Despliegue solicitado — 2026-11-15
+
+Candidato `f087b4c` en PR #104, verificación local completa y protección histórica
+ensayada. Promoción bloqueada por GitHub Actions: cuenta bloqueada por facturación,
+los jobs no arrancan. El usuario autorizó construcción y verificación local
+para esta promoción; se prepara la transferencia de imágenes `linux/amd64` por SSH. Producción conserva `e1d93c5`; no se ejecutó la
+protección de históricos. Ver registro de remediación para evidencia y próximo paso.
+
 ## Corrección de incidentes — 2026-11-15
 
 `P7-T10` en progreso por pedido del usuario. Corrección **local, aún sin

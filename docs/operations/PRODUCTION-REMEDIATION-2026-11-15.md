@@ -108,3 +108,41 @@ protección pasó sobre tablas temporales con constraints reales y dos ejecucion
 consecutivas (seis auditorías, cuatro inciertos, ningún reintento). La revisión de
 órdenes reemplazadas y confirmaciones concurrentes está cubierta. La fase de
 build remoto y promoción queda en curso.
+
+
+## Bloqueo de promoción — 2026-11-15 16:46 UTC
+
+Candidato `f087b4c2cbb7ec035f184e83d1ad0a7cb5d98a7c`,
+[PR #104](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/pull/104).
+El [run CI 43737324425](https://github.com/MaxiAramayo/ferreteria-generador-meta-ia/actions/runs/43737324425)
+terminó antes de ejecutar pasos: GitHub informó «The job was not started because
+your account is locked due to a billing issue». No es un fallo de las pruebas.
+No se integró main ni se inició el workflow de imágenes; la política exige ese
+workflow. Se pidió desbloquear Actions o autorizar una excepción de construcción
+local para esta promoción. La decisión está pendiente.
+
+El Compose candidato y el Caddy real validan. Content y API ready responden 200;
+Notitas mantiene 401 sin sesión y MCP health 200; TLS validado. Los seis estados
+históricos siguen coincidiendo exactamente con el SQL ensayado y los 274 outbox
+están entregados. No se detuvo ningún servicio ni se aplicó el SQL en producción.
+Se inició el backup previo a las 16:46 UTC; el dump de 73.138.199 bytes y 37 tablas
+quedó restaurado y cifrado a las 16:46:56. La comprobación de subida externa se
+registra al finalizar el servicio.
+
+
+El backup externo devolvió `0 differences found` y `14 matching files` durante
+esta intervención. La unidad terminó a las 16:49:48 UTC con `Result=success` y
+`ExecMainStatus=0`; la subida y retención están completas. Los únicos cambios locales posteriores a
+`f087b4c` son estas notas y STATUS, pendientes de commit para evitar confundir el
+SHA ya probado de la PR. No se creó ningún artefacto productivo fuera del workflow.
+
+
+## Excepción autorizada para esta promoción
+
+El 2026-11-15 el usuario autorizó explícitamente construir y verificar las imágenes
+localmente para este despliegue ante el bloqueo de facturación de GitHub Actions.
+Se mantiene el Dockerfile fijado, `linux/amd64`, cuatro imágenes por SHA, configuración
+sin secretos durante build, validación local de contenedores y rollback. Las imágenes
+se transfieren por SSH y se comparan por ID SHA-256 entre origen y VPS. No se requiere
+cambiar credenciales ni facturación. Esta excepción no cambia la política para
+promociones futuras; CI permanece bloqueado externamente.
