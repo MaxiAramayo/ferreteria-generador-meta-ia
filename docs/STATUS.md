@@ -2,49 +2,46 @@
 
 Actualizado: 2026-11-15
 
-## Despliegue solicitado — 2026-11-15
+## Despliegue verificado — 2026-11-15
 
-Candidato `f087b4c` en PR #104, verificación local completa y protección histórica
-ensayada. Promoción bloqueada por GitHub Actions: cuenta bloqueada por facturación,
-los jobs no arrancan. El usuario autorizó construcción y verificación local
-para esta promoción; se prepara la transferencia de imágenes `linux/amd64` por SSH. Producción conserva `e1d93c5`; no se ejecutó la
-protección de históricos. Ver registro de remediación para evidencia y próximo paso.
+Producción ejecuta `1d30158ae97cd2a1a2853b59dc331bc53b1b219f` desde el 15/11
+22:40 de Argentina (16/11 01:40 UTC). PR #104 y #105 integradas: protección del
+envío remoto, recuperación transaccional, cierres idempotentes, dependencias
+actualizadas y activos del motor incluidos en las imágenes. API, panel y worker
+están sanos; migración terminó con código 0 y sin cambios pendientes.
 
-## Corrección de incidentes — 2026-11-15
+GitHub Actions sigue bloqueado por facturación. El usuario autorizó construir y
+verificar localmente esta promoción: cuatro imágenes `linux/amd64`, SHA-256 del
+archivo y cuatro IDs comparados en el VPS. Pasaron `pnpm verify`, 87 pruebas de
+repositorios e integración, E2E de publicación/recurrencias/despacho, ensayo de
+contenedores y regresión visual de 114 piezas dentro de la imagen final.
 
-`P7-T10` en progreso por pedido del usuario. Corrección **local, aún sin
-promover**: intención durable antes de publicar, reconciliación conservadora,
-reapertura transaccional de reintentos, cierre idempotente y alertas de destinos
-detenidos. Parches de dependencias con auditoría sin avisos. Pasaron 1213 pruebas,
-integración PostgreSQL/Redis con rollback y smoke. Faltan revisión final,
-protección de históricos, promoción y los ajustes operativos de Notitas.
-[Registro y próximo paso](operations/PRODUCTION-REMEDIATION-2026-11-15.md).
+Content y API responden 200; Notitas mantiene el acceso privado (401 sin sesión)
+y MCP health 200, con TLS válido. Caddy conservó su contenedor y configuración.
+Backup externo renovado, restauración verificada y release anterior conservada.
+Siete históricos tienen protección auditada: cinco de resultado incierto y dos
+fallidos, sin reintentos automáticos. No se republicaron piezas antiguas.
+
+`P7-T10` continúa abierta para verificar las remediaciones propias de Notitas
+(backups y dependencias), que tiene cambios operativos de otro trabajo. El
+despliegue de Content está completado. Los resultados remotos inciertos requieren
+revisión individual antes de autorizar cualquier reenvío.
+[Registro de promoción y rollback](operations/PRODUCTION-REMEDIATION-2026-11-15.md).
 
 ## Auditoría de producción — 2026-11-15
 
-Por pedido explícito del usuario se auditó el VPS compartido con Notitas mediante
-lecturas de infraestructura, PostgreSQL, logs, Meta y endpoints públicos, revisión
-del código desplegado y pruebas locales. El informe y el próximo paso están en
-[`PRODUCTION-AUDIT-2026-11-15.md`](operations/PRODUCTION-AUDIT-2026-11-15.md).
+Se auditó el VPS compartido mediante infraestructura, PostgreSQL, logs, lecturas
+de Meta, endpoints públicos, revisión del código y pruebas locales. El corte
+inicial encontró 90 destinos publicados, cuatro atrapados en `pending` y dos
+fallidos. Durante la pausa apareció un quinto pendiente con el mismo patrón.
+Se confirmó una carrera que podía borrar el anclaje remoto, reapertura sin
+transporte, reintentos sobre órdenes cerradas y timeouts omitidos. Las
+correcciones están incluidas en la release indicada arriba. Un estado local pendiente
+nunca demuestra ausencia en Instagram.
 
-Los servicios tienen capacidad disponible y HTTPS válido. La base registra 90
-destinos publicados, cuatro atrapados en `pending` con publicación `publishing`
-y dos fallidos. Se confirmó una carrera entre publicación y reconciliación que
-borra el anclaje remoto; también una reapertura sin transporte, reintentos sobre
-órdenes cerradas y timeouts omitidos por el reconciliador. No se debe interpretar
-un estado local pendiente como prueba de ausencia en Instagram.
-
-La auditoría no modifica producción ni cierra tareas de fase. Las correcciones
-siguen pendientes; su primera prioridad es la exclusión entre publicación y
-reconciliación, con pruebas de concurrencia y recuperación. Los seis casos deben
-reconciliarse individualmente antes de cualquier reenvío. Los respaldos de hoy
-pasaron; Notitas tuvo 34 ejecuciones fallidas antes de la recuperación del 14/11.
-
-Este corte sustituye las afirmaciones históricas de infraestructura no iniciada,
-credenciales ausentes y HTTPS de Notitas pendiente que permanecen más abajo.
-La release sigue siendo `e1d93c5…-notitas-20261005`; las lecturas actuales de Meta
-funcionan. La integración compartida de Caddy está desplegada y coincide con los
-cambios locales previos, todavía sin commit al iniciar esta auditoría.
+[Informe original](operations/PRODUCTION-AUDIT-2026-11-15.md). Este estado
+sustituye las afirmaciones históricas de infraestructura no iniciada, secretos
+ausentes y HTTPS de Notitas pendiente que permanecen en los antecedentes.
 
 ## Cambio operativo del ingreso — 2026-10-05
 

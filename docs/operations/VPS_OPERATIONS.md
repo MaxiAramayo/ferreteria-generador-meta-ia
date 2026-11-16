@@ -41,6 +41,16 @@ Comprobar esos tres nombres y el dominio público después de recrear Caddy.
 
 ## Estado verificado
 
+Producción actual (15/11 22:40 Argentina): `1d30158ae97cd2a1a2853b59dc331bc53b1b219f`.
+Content y Notitas verificados por HTTPS; Caddy conservado. La promoción usó la
+excepción de build local autorizada por el usuario ante el bloqueo de facturación
+de Actions. Artefactos, huellas, backup y procedimiento específico de recuperación
+en el [registro de promoción](PRODUCTION-REMEDIATION-2026-11-15.md).
+Este SHA se recupera desde el archivo de imágenes conservado en el VPS, no con
+`pull` de GHCR. El procedimiento habitual con workflow sigue vigente para las
+promociones siguientes.
+
+
 Inventario comprobado el 2026-07-29:
 
 | Campo | Valor |
