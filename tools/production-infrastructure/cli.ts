@@ -177,7 +177,7 @@ function smokeContainers(): void {
         "worker",
         "node",
         "-e",
-        "const {chromium}=await import('playwright-core');const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,headless:true});const page=await browser.newPage();await page.setContent('<p>aramayo-smoke</p>');const png=await page.screenshot();await browser.close();if(png.length<100)process.exit(1)",
+        "const {chromium}=await import('playwright-core');const browser=await chromium.launch({executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,headless:true});try{const page=await browser.newPage();for(const asset of ['stock-herramientas-electricas.jpg','brand/ferreteria-aramayo-logo.png']){const url=new URL('assets/'+asset,import.meta.resolve('@aramayo/design-engine/package.json'));await page.goto(url.href);await page.locator('img').evaluate(image=>image.decode());const png=await page.screenshot();if(png.length<100)throw new Error('Captura vacía: '+asset)}}finally{await browser.close()}",
       ]),
     );
     process.stdout.write(

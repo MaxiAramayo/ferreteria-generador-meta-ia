@@ -146,3 +146,16 @@ sin secretos durante build, validación local de contenedores y rollback. Las im
 se transfieren por SSH y se comparan por ID SHA-256 entre origen y VPS. No se requiere
 cambiar credenciales ni facturación. Esta excepción no cambia la política para
 promociones futuras; CI permanece bloqueado externamente.
+
+
+## Hallazgo en ensayo de imágenes
+
+La candidata `4841f826` compiló y pasó migración, readiness, web y Chromium,
+pero la regresión visual dentro del worker falló al decodificar la foto de
+catálogo. `pnpm deploy` excluía `packages/design-engine/assets` porque el
+paquete declaraba únicamente `dist` en `files`. No se promovió esta candidata.
+La corrección incluye los activos versionados y amplía el smoke productivo
+para abrir y decodificar una foto y el logo desde el paquete desplegado.
+Las suites E2E de publicación, recurrencias y despacho pasaron localmente.
+La nueva candidata debe repetir build y regresión visual completa antes de
+la promoción.
