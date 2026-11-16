@@ -1130,14 +1130,14 @@ Correcciones, regresiones, dependencias revisadas y evidencia operativa en
 
 ### Criterios de aceptación
 
-- [ ] El reconciliador y el publicador no pueden perder el anclaje de un envío.
-- [ ] Los reintentos y cierres convergen sin duplicados ni revisiones obsoletas.
-- [ ] Los fallos detenidos son observables y los históricos quedan protegidos.
+- [x] El reconciliador y el publicador no pueden perder el anclaje de un envío.
+- [x] Los reintentos y cierres convergen sin duplicados ni revisiones obsoletas.
+- [x] Los fallos detenidos son observables y los históricos quedan protegidos.
 - [ ] Dependencias, backups e ingreso compartido quedan verificados en producción.
 
 ### Verificación obligatoria
 
-- [ ] Regresiones, integración PostgreSQL, `pnpm verify` y comprobaciones remotas.
+- [x] Regresiones, integración PostgreSQL, `pnpm verify` y comprobaciones remotas.
 
 ### Fuera de alcance
 
@@ -1146,17 +1146,18 @@ Republicar piezas antiguas sin confirmación de contenido, destino y vigencia.
 ### Notas de progreso
 
 - Fecha: 2026-11-15.
-- Estado real: implementación; dependencias completas.
+- Estado real: Content desplegado en `1d30158a`; pendiente verificar remediaciones propias de Notitas.
 - Archivos modificados: registro de remediación y cambios relacionados.
 - Decisiones tomadas: CAS antes del efecto remoto, recuperación transaccional.
-- Verificaciones ejecutadas: auditoría previa.
-- Verificaciones pendientes: suite, integración y producción.
+- Verificaciones ejecutadas: suite completa, integración, tres E2E, 114 piezas visuales, ensayo de imágenes y checks remotos de ambos dominios.
+- Verificaciones pendientes: backups externos y dependencias propias de Notitas; coordinación con sus cambios operativos.
 - Bloqueo, si existe: ninguno para la corrección.
-- Próximo paso exacto: regresiones y correcciones de publicación.
+- Próximo paso exacto: verificar remediaciones de Notitas; revisar evidencia remota de históricos antes de cualquier reenvío.
 
 ### Evidencia de cierre
 
-Pendiente; ver registro de remediación.
+Despliegue de Content completado en `1d30158a`; evidencia detallada y excepción
+local autorizada en el registro de remediación. La tarea completa continúa abierta.
 
 ## Criterios de salida de Fase 7
 
