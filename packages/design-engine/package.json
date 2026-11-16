@@ -39,7 +39,8 @@
     "typescript": "catalog:"
   },
   "files": [
-    "dist"
+    "dist",
+    "assets"
   ],
   "dependencies": {
     "lucide-react": "catalog:"
